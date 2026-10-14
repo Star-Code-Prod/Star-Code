@@ -67,7 +67,7 @@ function createWindow(url) {
     minHeight: 560,
     backgroundColor: "#1a1a1a",
     show: false,
-    title: "Star Code",
+    title: "Star Code Desktop",
     icon: process.platform === "win32" ? ICON : ICON_PNG,
     titleBarStyle: isMac ? "hiddenInset" : "hidden",
     trafficLightPosition: isMac ? { x: 16, y: 15 } : undefined,
@@ -294,7 +294,7 @@ app.whenReady().then(boot).catch((e) => {
   const detail = String(e && e.stack ? e.stack : e);
   console.error("[main] startup failed:", detail);
   try { fs.appendFileSync(path.join(app.getPath("userData"), "startup-error.log"), detail + "\n"); } catch {}
-  dialog.showErrorBox("Star Code — startup failed", detail);
+  dialog.showErrorBox("Star Code Desktop - startup failed", detail);
   app.quit();
 });
 

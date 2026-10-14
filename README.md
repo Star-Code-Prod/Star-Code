@@ -2,9 +2,9 @@
 
 <img src="assets/icon.png" width="96" alt="Star Code">
 
-# Star Code
+# Star Code — Desktop & CLI
 
-**A local, provider-agnostic agentic coding UI.**
+**A local, provider-agnostic agentic coding agent — as a desktop app and a terminal CLI.**
 
 Bring your own model. Star Code reads, searches, edits, and runs commands in your
 project — and asks before it touches anything.
@@ -34,7 +34,9 @@ setting you change — including a model running on your own machine.
 
 | | |
 |---|---|
-| **7 real tools** | `read_file` `list_dir` `search_files` `glob_files` `write_file` `edit_file` `run_command` |
+| **8 real tools** | `read_file` `list_dir` `search_files` `glob_files` `write_file` `edit_file` `run_command` `search_knowledge` |
+| **Artifacts** | ` ```artifact ` html/svg/md blocks render in a sandboxed preview pane with version history |
+| **Knowledge** | Markdown notes in `.star-code/knowledge` — indexed in the prompt, searchable by the agent |
 | **Permission modes** | Ask permissions · Accept edits · Plan (read-only) · Bypass |
 | **Diff review** | Syntax-highlighted inline diffs, plus a Changes pane |
 | **Reasoning view** | Live thinking block with a timer, auto-collapses when the answer starts |
@@ -56,9 +58,9 @@ Grab an installer from [Releases](https://github.com/Star-Code-Prod/Star-Code/re
 
 | Platform | File |
 |---|---|
-| Windows | `Star-Code-Setup-1.2.0.exe` (installer) or `Star-Code-1.2.0-portable.exe` |
-| macOS | `Star-Code-1.2.0-arm64.dmg` |
-| Linux | `Star-Code-1.2.0-x86_64.AppImage` or `Star-Code-1.2.0-amd64.deb` |
+| Windows | `Star-Code-Desktop-Setup-1.2.0.exe` (installer) or `Star-Code-Desktop-1.2.0-portable.exe` |
+| macOS | `Star-Code-Desktop-1.2.0-arm64.dmg` |
+| Linux | `Star-Code-Desktop-1.2.0-x86_64.AppImage` or `Star-Code-Desktop-1.2.0-amd64.deb` |
 
 Builds are unsigned, so your OS will warn you on first launch.
 
@@ -117,6 +119,22 @@ fallback. Keys only ever go to the provider they belong to.
 
 The **base URL is per provider and fully honored** — point it at a proxy or a
 local model server under *Advanced* and it uses that.
+
+## Star Code CLI
+
+Everything the desktop app does to your project, without the window:
+
+```bash
+npm run cli                                  # from a checkout (or: npm i -g . once)
+star-code "fix the failing test"             # one-shot: streams the answer, then exits
+star-code                                    # interactive session
+star-code --model openai/gpt-4o --mode plan  # flags: --mode, --model, --root
+```
+
+Interactive mode has `/help`, `/model`, `/connect`, `/knowledge`, `/clear`,
+`/status` and `/exit`; permissions prompt inline (`y` once, `n` no, `a` for the
+session). It runs the same agent loop, tools, credential store and knowledge
+folder as the desktop app — no server, no extra dependencies.
 
 ## Permission modes
 

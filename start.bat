@@ -1,11 +1,12 @@
 @echo off
 setlocal
-title Star Code
+title Star Code Desktop
 cd /d "%~dp0"
 
 echo.
 echo   =========================================
-echo    Star Code - local agentic coding UI
+echo    Star Code Desktop - local agentic UI
+echo    (the same agent ships as Star Code CLI)
 echo   =========================================
 echo.
 

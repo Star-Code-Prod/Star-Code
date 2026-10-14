@@ -1,6 +1,6 @@
 {
   "name": "star-code",
-  "productName": "Star Code",
+  "productName": "Star Code Desktop",
   "version": "1.2.0",
   "description": "A local, provider-agnostic agentic coding UI. Bring your own model — DeepSeek, OpenAI, Anthropic, Ollama, or any OpenAI-compatible endpoint — and let it read, search, edit, and run commands in your project.",
   "keywords": [
@@ -47,7 +47,7 @@
   },
   "build": {
     "appId": "com.starcode.app",
-    "productName": "Star Code",
+    "productName": "Star Code Desktop",
     "copyright": "MIT Licensed",
     "directories": {
       "output": "release",
@@ -68,7 +68,7 @@
         { "target": "portable", "arch": ["x64"] }
       ],
       "icon": "assets/icon.ico",
-      "artifactName": "Star-Code-${version}-${arch}.${ext}"
+      "artifactName": "Star-Code-Desktop-${version}-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -77,24 +77,24 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Star Code",
-      "artifactName": "Star-Code-Setup-${version}.${ext}"
+      "artifactName": "Star-Code-Desktop-Setup-${version}.${ext}"
     },
     "portable": {
-      "artifactName": "Star-Code-${version}-portable.${ext}"
+      "artifactName": "Star-Code-Desktop-${version}-portable.${ext}"
     },
     "mac": {
       "target": ["dmg", "zip"],
       "icon": "assets/icon.png",
       "category": "public.app-category.developer-tools",
-      "artifactName": "Star-Code-${version}-${arch}.${ext}"
+      "artifactName": "Star-Code-Desktop-${version}-${arch}.${ext}"
     },
     "linux": {
       "target": ["AppImage", "deb"],
       "icon": "assets/icon.png",
       "category": "Development",
       "maintainer": "praisethefacts <cryphor@outlook.com>",
-      "synopsis": "Provider-agnostic agentic coding UI",
-      "artifactName": "Star-Code-${version}-${arch}.${ext}"
+      "synopsis": "Agentic coding UI - desktop app",
+      "artifactName": "Star-Code-Desktop-${version}-${arch}.${ext}"
     }
   }
 }
