@@ -40,7 +40,10 @@ setting you change — including a model running on your own machine.
 | **Reasoning view** | Live thinking block with a timer, auto-collapses when the answer starts |
 | **Task checklist** | The model maintains its own plan and updates it as it works |
 | **Context meter** | Live usage ring, e.g. `Context 20.1k / 200.0k (10%)` |
-| **Slash commands** | `/clear` `/compact` `/init` `/diff` `/context` `/status` `/memory` `/plan` `/review` `/btw` `/model` `/theme` `/settings` `/export` `/help` |
+| **Connect-first setup** | 13 providers out of the box — paste a key, then pick from the model list that key can actually use |
+| **Local runtimes** | Ollama, LM Studio and vLLM are detected automatically; no key, no URL typing |
+| **Project files** | Sidebar tree; click a file to preview it, syntax-highlighted |
+| **Slash commands** | `/clear` `/compact` `/init` `/diff` `/context` `/status` `/memory` `/plan` `/review` `/btw` `/model` `/models` `/connect` `/theme` `/settings` `/export` `/help` |
 | **Input modes** | `@` mention a file · `!` run a shell command · `/` commands |
 | **Themes** | Dark · Light · System |
 | **Panes** | Preview · Tasks · Plan · Terminal · Changes — collapsible |
@@ -53,9 +56,9 @@ Grab an installer from [Releases](https://github.com/Star-Code-Prod/Star-Code/re
 
 | Platform | File |
 |---|---|
-| Windows | `Star-Code-Setup-1.0.0.exe` (installer) or `Star-Code-1.0.0-portable.exe` |
-| macOS | `Star-Code-1.0.0-arm64.dmg` |
-| Linux | `Star-Code-1.0.0-x86_64.AppImage` or `Star-Code-1.0.0-amd64.deb` |
+| Windows | `Star-Code-Setup-1.2.0.exe` (installer) or `Star-Code-1.2.0-portable.exe` |
+| macOS | `Star-Code-1.2.0-arm64.dmg` |
+| Linux | `Star-Code-1.2.0-x86_64.AppImage` or `Star-Code-1.2.0-amd64.deb` |
 
 Builds are unsigned, so your OS will warn you on first launch.
 
@@ -79,26 +82,41 @@ present and falls back to the browser when it isn't.
 
 ## Setup
 
-1. Open **Settings** (`Ctrl+,`) → **Providers**
-2. Pick a provider, paste your API key, confirm the model
-3. Hit **Test** — it reports the real error if anything is wrong
+1. Open **Settings** (`Ctrl+,`) → **Providers** — or type `/connect`
+2. Pick a provider, paste its API key, hit **Connect**. It validates against
+   the provider and shows the real error if anything is wrong
+3. Choose a model with the picker (`/models`) — the list comes from the
+   provider itself, so it is exactly what your key can use
 4. **Session** → **Browse…** to choose the folder Star Code works in
 
-Keys live in your browser's `localStorage` (or Electron's `userData` for
-preferences). They are sent only to your own local server.
+Ollama, LM Studio and vLLM need no setup: if one is running it shows up as
+**Detected** and its models join the picker.
+
+Credentials live on this machine in `~/.star-code/auth.json` (or
+`$STAR_CODE_DATA`), written `0600` where the OS supports it. Environment
+variables (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, …) are honored as a
+fallback. Keys only ever go to the provider they belong to.
 
 ### Providers
 
-| Provider | Base URL | Notes |
+| Provider | Base URL | Env var |
 |---|---|---|
-| DeepSeek | `https://api.deepseek.com` | `deepseek-reasoner` streams real reasoning |
-| OpenAI | `https://api.openai.com/v1` | |
-| Anthropic | `https://api.anthropic.com/v1` | native Messages API |
-| Ollama | `http://localhost:11434/v1` | local, no key required |
-| Custom | any | LM Studio, vLLM, OpenRouter, a gateway… |
+| OpenAI | `https://api.openai.com/v1` | `OPENAI_API_KEY` |
+| Anthropic | `https://api.anthropic.com/v1` | `ANTHROPIC_API_KEY` |
+| DeepSeek | `https://api.deepseek.com` | `DEEPSEEK_API_KEY` |
+| Google (Gemini) | `https://generativelanguage.googleapis.com/v1beta/openai` | `GEMINI_API_KEY` / `GOOGLE_API_KEY` |
+| xAI (Grok) | `https://api.x.ai/v1` | `XAI_API_KEY` |
+| Groq | `https://api.groq.com/openai/v1` | `GROQ_API_KEY` |
+| Mistral | `https://api.mistral.ai/v1` | `MISTRAL_API_KEY` |
+| OpenRouter | `https://openrouter.ai/api/v1` | `OPENROUTER_API_KEY` |
+| Together | `https://api.together.xyz/v1` | `TOGETHER_API_KEY` |
+| Ollama | `http://localhost:11434/v1` | local, detected — no key |
+| LM Studio | `http://localhost:1234/v1` | local, detected — no key |
+| vLLM | `http://localhost:8000/v1` | local, detected — no key |
+| Custom | any | `CUSTOM_API_KEY` |
 
-The **Base URL is per provider and fully honored** — point it at a proxy or a
-local model server and it uses that.
+The **base URL is per provider and fully honored** — point it at a proxy or a
+local model server under *Advanced* and it uses that.
 
 ## Permission modes
 
@@ -224,7 +242,8 @@ server that owns the tools.
 star-code/
 ├── server.js              HTTP + SSE, static host, exports startServer()
 ├── lib/
-│   ├── providers.js       provider adapters + streaming
+│   ├── auth.js            credential store (auth.json), masking, resolution
+│   ├── providers.js       provider catalog, model discovery, streaming
 │   ├── tools.js           the 7 tools
 │   └── agent.js           agent loop, permission modes, reasoning, usage
 ├── public/index.html      the entire UI (no build step, no framework)
@@ -234,6 +253,7 @@ star-code/
 ├── assets/                logo + generated icons
 ├── tools/
 │   ├── make-icons.mjs     dependency-free PNG/ICO rasterizer
+│   ├── uishot.mjs         headless-browser screenshots (CDP, zero deps)
 │   ├── smoketest.ps1      boot + serve verification
 │   └── screenshot.ps1     renders the UI to a PNG
 └── .github/workflows/     cross-platform CI + releases
@@ -260,6 +280,7 @@ and collapsed independently of the answer.
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\smoketest.ps1    # boot, serve, shut down
 powershell -ExecutionPolicy Bypass -File tools\screenshot.ps1   # render the UI to app-shot.png
+node tools\uishot.mjs http://127.0.0.1:4180 shot.png            # headless Chrome/Edge screenshot
 ```
 
 Two env-gated flags in `electron/main.cjs` help when a window won't come to the
@@ -276,6 +297,9 @@ $env:CCD_SHOT="$PWD\shot.png"; .\node_modules\electron\dist\electron.exe .
 
 - **Writes and commands always ask**, unless you deliberately switch modes
 - **Plan mode hard-blocks** every mutating tool server-side
+- **Credentials stay local**: keys live in `~/.star-code/auth.json` (plaintext,
+  per-user, `0600` where supported); the UI only ever sees a mask. Delete that
+  file to revoke everything at once
 - Electron runs with `contextIsolation: true` and `nodeIntegration: false`
 - The page sees only the functions in `preload.cjs` — no `require`, no `fs`
 - External links open in your system browser, never in-app
