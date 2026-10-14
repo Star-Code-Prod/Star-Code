@@ -17,9 +17,10 @@ try {
   const provRes = await fetch(s.url + "/api/providers");
   const prov = await provRes.json();
   const ids = (prov.providers || []).map((p) => p.id);
-  ok("GET /api/providers", provRes.ok && ids.length === 5, ids.join(", "));
-  ok("all five providers present",
-    ["deepseek", "openai", "anthropic", "ollama", "custom"].every((x) => ids.includes(x)));
+  ok("GET /api/providers", provRes.ok && ids.length >= 13, ids.join(", "));
+  ok("expected providers present",
+    ["deepseek", "openai", "anthropic", "google", "xai", "groq", "mistral",
+     "openrouter", "together", "ollama", "lmstudio", "vllm", "custom"].every((x) => ids.includes(x)));
   ok("permission modes exposed",
     Array.isArray(prov.modes) && prov.modes.includes("plan"), (prov.modes || []).join(", "));
 

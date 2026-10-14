@@ -242,7 +242,7 @@ async function handler(req, res) {
       modes: PERMISSION_MODES,
       providers: Object.entries(PROVIDERS).map(([id, p]) => ({
         id, label: p.label, baseUrl: p.baseUrl, defaultModel: p.defaultModel,
-        models: p.models, kind: p.kind, envConfigured: !!process.env[p.envKey], needsKey: !p.noKeyRequired,
+        models: p.models, kind: p.kind, envConfigured: (p.envKeys || []).some((k) => !!process.env[k]), needsKey: !p.noKeyRequired,
       })),
     });
   }
