@@ -9,11 +9,13 @@ import os from "node:os";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { randomUUID } from "node:crypto";
 import { exec } from "node:child_process";
-import { PROVIDERS } from "./lib/providers.js";
+import { PROVIDERS, discoverModels, detectLocals } from "./lib/providers.js";
+import { readAuth, writeAuthEntry, removeAuthEntry, resolveKey, mask } from "./lib/auth.js";
 import { createToolRunner, readProjectMemory } from "./lib/tools.js";
 import { runAgentTurn, systemPrompt, PERMISSION_MODES } from "./lib/agent.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const VERSION = JSON.parse(fs.readFileSync(path.join(__dirname, "package.json"), "utf8")).version;
 const PORT = Number(process.env.PORT || 4180);
 let ROOT = path.resolve(process.env.AGENT_ROOT || process.cwd());
 let runner = createToolRunner(ROOT);
@@ -237,14 +239,66 @@ async function handler(req, res) {
   }
 
   if (req.method === "GET" && url.pathname === "/api/providers") {
+    const auth = readAuth();
     return sendJSON(res, 200, {
       root: ROOT,
+      version: VERSION,
       modes: PERMISSION_MODES,
-      providers: Object.entries(PROVIDERS).map(([id, p]) => ({
-        id, label: p.label, baseUrl: p.baseUrl, defaultModel: p.defaultModel,
-        models: p.models, kind: p.kind, envConfigured: (p.envKeys || []).some((k) => !!process.env[k]), needsKey: !p.noKeyRequired,
-      })),
+      providers: Object.entries(PROVIDERS).map(([id, p]) => {
+        const stored = auth.providers[id] || {};
+        return {
+          id, label: p.label, baseUrl: p.baseUrl, baseUrlOverride: stored.baseUrl || null,
+          defaultModel: p.defaultModel, models: p.models, reasoning: p.reasoning, kind: p.kind,
+          needsKey: !p.noKeyRequired, noKeyRequired: !!p.noKeyRequired,
+          envConfigured: (p.envKeys || []).some((k) => !!process.env[k]),
+          connected: !!stored.apiKey, masked: mask(stored.apiKey || ""),
+          local: !!p.local,
+        };
+      }),
     });
+  }
+
+  // Store or clear a provider credential. Full keys never come back out.
+  if (req.method === "POST" && url.pathname === "/api/auth") {
+    const body = await readBody(req);
+    const provider = body.provider;
+    if (!provider || !PROVIDERS[provider]) return sendJSON(res, 400, { ok: false, error: "unknown provider" });
+    writeAuthEntry(provider, {
+      apiKey: typeof body.apiKey === "string" ? body.apiKey : "",
+      baseUrl: typeof body.baseUrl === "string" ? body.baseUrl : undefined,
+    });
+    const stored = readAuth().providers[provider] || {};
+    return sendJSON(res, 200, { ok: true, masked: mask(stored.apiKey || "") });
+  }
+
+  if (req.method === "DELETE" && url.pathname === "/api/auth") {
+    const provider = url.searchParams.get("provider");
+    if (!provider || !PROVIDERS[provider]) return sendJSON(res, 400, { ok: false, error: "unknown provider" });
+    removeAuthEntry(provider);
+    return sendJSON(res, 200, { ok: true });
+  }
+
+  // Live model list for one provider; falls back to the catalog's static list.
+  if (req.method === "POST" && url.pathname === "/api/models") {
+    const body = await readBody(req);
+    const provider = body.provider;
+    if (!provider || !PROVIDERS[provider]) return sendJSON(res, 400, { ok: false, error: "unknown provider" });
+    const cfg = PROVIDERS[provider];
+    const stored = readAuth().providers[provider] || {};
+    const effectiveBase = (typeof body.baseUrl === "string" && body.baseUrl) || stored.baseUrl || undefined;
+    const key = resolveKey(provider, typeof body.apiKey === "string" ? body.apiKey : "", cfg.envKeys || []);
+    const result = await discoverModels(provider, { baseUrl: effectiveBase, apiKey: key, refresh: !!body.refresh });
+    return sendJSON(res, 200, { provider, ...result });
+  }
+
+  // Which local runtimes are up right now (cached briefly server-side).
+  if (req.method === "GET" && url.pathname === "/api/detect") {
+    try {
+      return sendJSON(res, 200, await detectLocals());
+    } catch (e) {
+      const down = (id) => ({ up: false, baseUrl: PROVIDERS[id].baseUrl, models: [] });
+      return sendJSON(res, 200, { ollama: down("ollama"), lmstudio: down("lmstudio"), vllm: down("vllm"), error: e.message });
+    }
   }
 
   // File tree for the sidebar
@@ -358,6 +412,12 @@ async function handler(req, res) {
     if (!provider || !PROVIDERS[provider]) return sendJSON(res, 400, { error: "unknown provider" });
     if (message) session.messages.push({ role: "user", content: message });
 
+    // Credentials resolve server-side now: request body, then the store,
+    // then the provider's environment variables.
+    const storedEntry = readAuth().providers[provider] || {};
+    const effectiveKey = resolveKey(provider, typeof apiKey === "string" ? apiKey : "", PROVIDERS[provider].envKeys || []);
+    const effectiveBaseUrl = (typeof baseUrl === "string" && baseUrl) || storedEntry.baseUrl || undefined;
+
     // Refresh the system prompt so mode/memory changes take effect.
     session.messages[0] = { role: "system", content: systemPrompt(ROOT, session.mode) };
 
@@ -377,7 +437,7 @@ async function handler(req, res) {
 
     try {
       await runAgentTurn({
-        provider, model, apiKey, baseUrl, messages: session.messages, runner, emit, requestPermission,
+        provider, model, apiKey: effectiveKey, baseUrl: effectiveBaseUrl, messages: session.messages, runner, emit, requestPermission,
         mode: session.mode, controller,
       });
     } catch (e) {
@@ -431,7 +491,7 @@ export async function startServer({ port = PORT, root, silent = false } = {}) {
   }
   await new Promise((resolve, reject) => {
     server.once("error", reject);
-    server.listen(port, resolve);
+    server.listen(port, "127.0.0.1", resolve);
   });
   const actual = server.address().port;
   if (!silent) {

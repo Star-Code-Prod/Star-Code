@@ -1,11 +1,17 @@
 // Boot the embedded server and confirm it actually serves everything.
 // Runs in CI and locally; no browser or Electron needed.
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const results = [];
 const ok = (label, pass, extra = "") =>
   results.push((pass ? "PASS  " : "FAIL  ") + label + (extra ? "  " + extra : ""));
+
+// Throwaway data dir so credential checks never touch real state.
+const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-server-"));
+process.env.STAR_CODE_DATA = dataDir;
 
 const { startServer, getRoot } = await import(pathToFileURL(path.resolve("server.js")).href);
 
@@ -52,10 +58,37 @@ try {
   })).json();
   ok("slash command endpoint responds", typeof help.text === "string" && help.text.length > 100);
 
+  ok("thirteen+ providers listed", (prov.providers || []).length >= 13, ids.join(","));
+  ok("version exposed", typeof prov.version === "string" && prov.version.length > 0, prov.version);
+  ok("provider status fields", prov.providers.every((p) => typeof p.connected === "boolean" && typeof p.masked === "string" && typeof p.needsKey === "boolean"));
+
+  const authPost = await fetch(s.url + "/api/auth", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ provider: "openai", apiKey: "sk-verify-0001", baseUrl: "https://proxy.example/v1" }),
+  });
+  ok("POST /api/auth stores", (await authPost.json()).masked === "••••0001");
+  const prov2 = await (await fetch(s.url + "/api/providers")).json();
+  const oa = prov2.providers.find((p) => p.id === "openai");
+  ok("stored key shows connected", oa.connected === true && oa.masked === "••••0001" && oa.baseUrlOverride === "https://proxy.example/v1");
+  ok("no full key in payload", !JSON.stringify(prov2).includes("sk-verify-0001"));
+  ok("DELETE /api/auth removes", (await (await fetch(s.url + "/api/auth?provider=openai", { method: "DELETE" })).json()).ok === true);
+  ok("unknown provider rejected", (await fetch(s.url + "/api/auth", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ provider: "nope", apiKey: "x" }) })).status === 400);
+
+  const models = await (await fetch(s.url + "/api/models", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ provider: "custom", baseUrl: "http://127.0.0.1:1/v1" }) })).json();
+  ok("/api/models falls back to static", models.live === false && models.models.length > 0 && typeof models.error === "string");
+
+  const det = await (await fetch(s.url + "/api/detect")).json();
+  ok("/api/detect shape", ["ollama", "lmstudio", "vllm"].every((k) => typeof det[k]?.up === "boolean"));
+
   const bad = await fetch(s.url + "/api/nope");
   ok("unknown route 404s", bad.status === 404);
 } finally {
   await s.close();
+  try { fs.rmSync(dataDir, { recursive: true, force: true }); } catch { /* Windows may hold the file briefly */ }
 }
 
 console.log(results.join("\n"));
