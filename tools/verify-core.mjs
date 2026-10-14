@@ -13,7 +13,7 @@ process.env.STAR_CODE_DATA = dir;
 
 const { authPath, readAuth, writeAuthEntry, removeAuthEntry, resolveKey, mask } =
   await import(pathToFileURL(path.resolve("lib/auth.js")).href);
-const { PROVIDERS, normalizeModels, filterChatModels, isReasoning } =
+const { PROVIDERS, normalizeModels, filterChatModels, isReasoning, discoverModels, detectLocals, getDiscoveredLimit } =
   await import(pathToFileURL(path.resolve("lib/providers.js")).href);
 
 const results = [];
@@ -59,6 +59,49 @@ ok("filters whisper and tts", filterChatModels([{ id: "whisper-1" }, { id: "tts-
 ok("deepseek-reasoner is reasoning", isReasoning("deepseek", "deepseek-reasoner"));
 ok("o-series is reasoning", isReasoning("openai", "o4-mini"));
 ok("plain chat is not reasoning", !isReasoning("openai", "gpt-4o"));
+
+/* ---------------------------- model discovery ---------------------------- */
+const jsonFetch = (payload, status = 200) => async () => ({ ok: status < 400, status, json: async () => payload });
+const deadFetch = async () => { throw new Error("connect ECONNREFUSED"); };
+const authFetch = jsonFetch({ error: { message: "bad key" } }, 401);
+
+const r1 = await discoverModels("openai", { baseUrl: "https://api.test/v1", apiKey: "sk-x0001" }, jsonFetch({ data: [{ id: "gpt-4o", context_length: 128000 }] }));
+ok("live openai list", r1.live && r1.models[0].id === "gpt-4o" && r1.models[0].contextLength === 128000);
+ok("discovered limit recorded", getDiscoveredLimit("openai", "gpt-4o") === 128000);
+const r2 = await discoverModels("openai", { baseUrl: "https://api.test/v1", apiKey: "sk-bad" }, authFetch);
+ok("401 sets authFailed", r2.authFailed && !r2.live);
+const r3 = await discoverModels("custom", { baseUrl: "http://127.0.0.1:1/v1" }, deadFetch);
+ok("dead endpoint falls back", !r3.live && r3.models.length > 0 && typeof r3.error === "string");
+const r4 = await discoverModels("openai", { baseUrl: "https://api.test/v1", apiKey: "sk-empty" }, jsonFetch({ data: [] }));
+ok("empty list falls back", !r4.live && r4.models.length > 0 && r4.error.includes("no models"));
+
+let hits = 0;
+const counting = async () => { hits++; return { ok: true, status: 200, json: async () => ({ data: [{ id: "m1" }] }) }; };
+await discoverModels("openai", { baseUrl: "https://api.test/v1", apiKey: "sk-aaaa1" }, counting);
+await discoverModels("openai", { baseUrl: "https://api.test/v1", apiKey: "sk-aaaa1" }, counting);
+ok("second call served from cache", hits === 1);
+await discoverModels("openai", { baseUrl: "https://api.test/v1", apiKey: "sk-bbbb2" }, counting);
+ok("different key bypasses cache", hits === 2);
+await discoverModels("openai", { baseUrl: "https://api.test/v1", apiKey: "sk-aaaa1", refresh: true }, counting);
+ok("refresh bypasses cache", hits === 3);
+
+let seen = "";
+const spy = async (u) => { seen = String(u); return { ok: true, status: 200, json: async () => ({ models: [{ name: "llama3.1" }] }) }; };
+const r5 = await discoverModels("ollama", { baseUrl: "https://example.com/ollama/v1" }, spy);
+ok("ollama keeps the path prefix", seen === "https://example.com/ollama/api/tags", seen);
+ok("ollama models normalize", r5.models[0].id === "llama3.1");
+
+const detectFetch = async (u) => {
+  const s = String(u);
+  if (s.includes("11434") && s.endsWith("/api/tags")) {
+    return { ok: true, status: 200, json: async () => ({ models: [{ name: "llama3.1" }] }) };
+  }
+  throw new Error("connect ECONNREFUSED");
+};
+const det = await detectLocals(detectFetch);
+ok("detect: ollama up with models", det.ollama.up && det.ollama.models[0] === "llama3.1");
+ok("detect: lmstudio down", det.lmstudio.up === false);
+ok("detect: vllm down", det.vllm.up === false);
 
 /* ------------------------------- report ------------------------------ */
 fs.rmSync(dir, { recursive: true, force: true });
