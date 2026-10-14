@@ -58,8 +58,8 @@ diag.json
 startup-error.log
 
 # --- local environment / secrets ---
-# NB: API keys live in browser localStorage or Electron userData, never a file.
-# These are here so a stray .env never gets pushed.
+# NB: API keys live in browser localStorage or ~/.star-code/auth.json (outside
+# the repo). These are here so a stray .env never gets pushed.
 .env
 .env.local
 .env.*.local

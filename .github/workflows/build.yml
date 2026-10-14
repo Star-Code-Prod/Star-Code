@@ -53,6 +53,9 @@ jobs:
       - name: README links and image paths
         run: node tools/verify-readme.mjs
 
+      - name: Core unit checks (credentials, catalog, decisions)
+        run: node tools/verify-core.mjs
+
       - name: Server boots and serves the UI
         run: node tools/verify-server.mjs
 
