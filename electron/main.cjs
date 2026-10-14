@@ -116,29 +116,31 @@ function createWindow(url) {
     win.webContents.once("did-finish-load", () => {
       setTimeout(async () => {
         try {
-          if (process.env.CCD_DIAG) {
-            const diag = await win.webContents.executeJavaScript(`(() => ({              hasDesktop: !!window.desktop,
-              desktopKeys: window.desktop ? Object.keys(window.desktop) : [],
-              isElectronClass: document.body.classList.contains("is-electron"),
-              isMacClass: document.body.classList.contains("is-mac"),
-              theme: document.documentElement.getAttribute("data-theme"),
-              projChip: (document.getElementById("sProj")||{}).textContent,
-              bigProj: (document.getElementById("bigProjName")||{}).textContent,
-              model: (document.getElementById("cModelName")||{}).textContent,
-              lightsHidden: getComputedStyle(document.querySelector(".lights")||document.body).display,
-              panels: document.querySelectorAll(".pane").length,
-              rules: document.styleSheets.length
-            }))()`);
-            fs.writeFileSync(process.env.CCD_DIAG, JSON.stringify(diag, null, 2));
-            console.log("[main] diag written");
-          }
+          // eval first, then inspect, then capture, so a script can set up
+          // state and the diagnostics can report on it
           if (process.env.CCD_EVAL) {
-            // Run a script in the renderer before capturing, so a realistic
-            // conversation can be rendered and inspected visually.
             const code = fs.readFileSync(process.env.CCD_EVAL, "utf8");
             await win.webContents.executeJavaScript(code);
             await new Promise((r) => setTimeout(r, 900));
             console.log("[main] eval applied");
+          }
+          if (process.env.CCD_DIAG) {
+            const diag = await win.webContents.executeJavaScript(`(() => ({
+              hasDesktop: !!window.desktop,
+              isElectronClass: document.body.classList.contains("is-electron"),
+              theme: document.documentElement.getAttribute("data-theme"),
+              projChip: (document.getElementById("sProj")||{}).textContent,
+              model: (document.getElementById("cModelName")||{}).textContent,
+              lightsHidden: getComputedStyle(document.querySelector(".lights")||document.body).display,
+              panels: document.querySelectorAll(".pane").length,
+              appVersion: (typeof appVersion !== "undefined") ? appVersion : null,
+              updateInfo: (typeof updateInfo !== "undefined") ? updateInfo : null,
+              updateBarVisible: !!(document.getElementById("updateBar")||{}).classList?.contains("on"),
+              updateBarText: ((document.getElementById("updateBar")||{}).innerText || "").replace(/\\s+/g," ").trim() || null,
+              updateStatus: (typeof updateStatusText === "function") ? updateStatusText() : null
+            }))()`);
+            fs.writeFileSync(process.env.CCD_DIAG, JSON.stringify(diag, null, 2));
+            console.log("[main] diag written");
           }
           if (process.env.CCD_SHOT) {
             const img = await win.webContents.capturePage();
@@ -157,6 +159,66 @@ function createWindow(url) {
 }
 
 /* --------------------------------- IPC ----------------------------------- */
+const REPO_OWNER = "praisethefacts";
+const REPO_NAME = "Star-Code";
+const RELEASES_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases`;
+
+/** true when a is a strictly higher x.y.z than b */
+function semverGt(a, b) {
+  const pa = String(a).split(".").map((n) => parseInt(n, 10) || 0);
+  const pb = String(b).split(".").map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    const x = pa[i] || 0, y = pb[i] || 0;
+    if (x > y) return true;
+    if (x < y) return false;
+  }
+  return false;
+}
+
+/**
+ * Look for a newer release without shipping any credential.
+ *
+ * The repo is private, and an anonymous request to a private repo returns 404,
+ * so we cannot distinguish "private" from "no releases" from "offline". All
+ * three fall back to a link the user can open in a browser where they are
+ * already signed in. If the repo is ever made public this starts reporting
+ * versions with no change needed.
+ */
+async function checkForUpdates() {
+  const current = app.getVersion();
+  const base = { current, url: RELEASES_URL, repo: `${REPO_OWNER}/${REPO_NAME}` };
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest`,
+      {
+        headers: {
+          Accept: "application/vnd.github+json",
+          "User-Agent": "Star-Code/" + current,
+        },
+        signal: AbortSignal.timeout(9000),
+      }
+    );
+    if (res.status === 404) return { ...base, ok: false, reason: "private-or-none" };
+    if (res.status === 403) return { ...base, ok: false, reason: "rate-limited" };
+    if (!res.ok) return { ...base, ok: false, reason: "http-" + res.status };
+
+    const rel = await res.json();
+    const latest = String(rel.tag_name || "").replace(/^v/, "");
+    if (!latest) return { ...base, ok: false, reason: "no-tag" };
+    return {
+      ...base,
+      ok: true,
+      latest,
+      newer: semverGt(latest, current),
+      url: rel.html_url || RELEASES_URL,
+      published: rel.published_at || null,
+      notes: typeof rel.body === "string" ? rel.body.slice(0, 1500) : "",
+    };
+  } catch (e) {
+    return { ...base, ok: false, reason: e.name === "TimeoutError" ? "timeout" : "network" };
+  }
+}
+
 function wire() {
   ipcMain.handle("desktop:info", () => ({
     platform: process.platform,
@@ -164,7 +226,10 @@ function wire() {
     root: serverModule ? serverModule.getRoot() : null,
     appVersion: app.getVersion(),
     url: srv ? srv.url : null,
+    releasesUrl: RELEASES_URL,
   }));
+
+  ipcMain.handle("desktop:check-updates", () => checkForUpdates());
 
   ipcMain.handle("desktop:pick-folder", async () => {
     const res = await dialog.showOpenDialog(win, {

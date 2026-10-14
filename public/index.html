@@ -56,6 +56,20 @@ input,textarea,select{font-family:inherit}
 .mono{font-family:'JetBrains Mono',ui-monospace,Consolas,monospace}
 .spacer{flex:1}
 
+/* ============================ UPDATE BANNER ============================ */
+.updatebar{
+  display:none;align-items:center;gap:10px;padding:7px 14px;flex:none;
+  background:color-mix(in srgb,var(--accent) 13%,var(--panel));
+  border-bottom:1px solid color-mix(in srgb,var(--accent) 32%,var(--border));
+  font-size:12.5px;color:var(--text2);
+}
+.updatebar.on{display:flex}
+.updatebar .ic{color:var(--accent);display:flex;flex:none}
+.updatebar b{color:var(--text);font-weight:600}
+.updatebar .rel{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--accent)}
+.updatebar .x{color:var(--muted);padding:2px 6px;border-radius:5px;font-size:15px;line-height:1}
+.updatebar .x:hover{background:var(--elev);color:var(--text)}
+
 /* ============================ TITLE BAR ============================ */
 .titlebar{
   height:46px;flex:none;display:flex;align-items:center;gap:10px;padding:0 14px;
@@ -601,6 +615,16 @@ select.inp{font-family:inherit;cursor:pointer}
   <button class="tb-text" id="btnSettings">Settings</button>
 </div>
 
+<div class="updatebar" id="updateBar">
+  <span class="ic">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 2.5v7M8 9.5L5 6.5M8 9.5l3-3M3 12.5h10"/></svg>
+  </span>
+  <span><b>Star Code <span class="rel" id="updateVer">—</span></b> is available — you have <span class="rel" id="updateCur">—</span>.</span>
+  <span class="spacer"></span>
+  <button class="btn sm" id="updateGet">Open download page</button>
+  <button class="x" id="updateDismiss" title="Dismiss until next version">×</button>
+</div>
+
 <div class="shell">
   <!-- ==================== SIDEBAR ==================== -->
   <aside class="sidebar" id="sidebar">
@@ -864,6 +888,7 @@ const DEFAULT_STATE = {
   defaultMode: "manual",
   effort: "medium",
   showThinking: true,
+  dismissedUpdate: "",
   autoCollapseThinking: true,
   root: "",
   sessions: [],
@@ -909,6 +934,7 @@ matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => { i
 
 /* ============================ RUNTIME ============================ */
 let meta = null;
+let appVersion = "";
 let sessionId = null, streaming = false, todos = [], diffs = [], termLines = [];
 let currentMsg = null, currentThink = null, toolGroup = null, thinkStart = 0, thinkTimer = null;
 let slashIdx = 0, slashMatches = [], planText = "", lastUsage = null;
@@ -938,7 +964,10 @@ const bridge = (typeof window !== "undefined" && window.desktop && window.deskto
     try {
       const info = await bridge.info();
       if (info.platform === "darwin") document.body.classList.add("is-mac");
-      if (info.appVersion) $("brandVer").textContent = "Star Code " + info.appVersion;
+      if (info.appVersion) {
+        appVersion = info.appVersion;
+        $("brandVer").textContent = "Star Code " + info.appVersion;
+      }
       if (info.root) state.root = info.root;
     } catch {}
   }
@@ -961,6 +990,10 @@ const bridge = (typeof window !== "undefined" && window.desktop && window.deskto
       body: JSON.stringify({ sessionId: "x", name: "memory" }) })).json();
     if (m.text && !m.text.includes("No memory file")) { /* keep plan pane clean */ }
   } catch {}
+  // Quiet update check a few seconds after launch. Deliberately delayed so it
+  // never competes with first paint, and it only surfaces a banner when there
+  // is genuinely something newer than the running build.
+  if (bridge && bridge.checkUpdates) setTimeout(() => checkUpdates({ quiet: true }), 3500);
 })();
 
 function updateChrome() {
@@ -1174,6 +1207,71 @@ function sessionMenu(anchor, id) {
     else if (act === "Delete" || act === "Archive") { state.sessions = (state.sessions || []).filter(s => s.id !== id); save(); renderSessions(); toast(act + "d"); }
     else toast(act + " — not implemented in this replica");
   }));
+}
+
+/* ============================ UPDATES ============================ */
+// There is no in-app updater (that needs code signing on macOS and a token
+// for a private repo). Instead we check the public release list when we can,
+// and otherwise hand the user a link their browser is already signed in for.
+let updateInfo = null;   // last check result
+let checking = false;
+
+async function checkUpdates({ quiet = true } = {}) {
+  if (!bridge || !bridge.checkUpdates || checking) return null;
+  checking = true;
+  try {
+    updateInfo = await bridge.checkUpdates();
+  } catch (e) {
+    updateInfo = { ok: false, reason: "bridge-error" };
+  }
+  checking = false;
+  applyUpdateInfo(quiet);
+  if ($("settings").classList.contains("on")) renderSettings();
+  return updateInfo;
+}
+
+function applyUpdateInfo(quiet) {
+  const info = updateInfo;
+  const bar = $("updateBar");
+  if (!info) return;
+  // only show the banner for a genuinely newer version the user has not
+  // already dismissed, and never during a quiet launch check that found nothing
+  const dismissed = state.dismissedUpdate === info.latest;
+  if (info.ok && info.newer && !dismissed) {
+    $("updateVer").textContent = "v" + info.latest;
+    $("updateCur").textContent = "v" + info.current;
+    bar.classList.add("on");
+  } else {
+    bar.classList.remove("on");
+  }
+  if (!quiet) return;
+}
+
+$("updateGet").addEventListener("click", () => {
+  const url = (updateInfo && updateInfo.url) || "https://github.com/praisethefacts/Star-Code/releases";
+  if (bridge) bridge.openExternal(url);
+  else window.open(url, "_blank");
+});
+$("updateDismiss").addEventListener("click", () => {
+  if (updateInfo && updateInfo.latest) {
+    state.dismissedUpdate = updateInfo.latest;
+    save();
+  }
+  $("updateBar").classList.remove("on");
+});
+
+/** Human-readable status line for a check result. */
+function updateStatusText() {
+  if (checking) return "Checking…";
+  const info = updateInfo;
+  if (!info) return "Not checked yet.";
+  if (info.ok && info.newer) return "v" + info.latest + " is available (you have v" + info.current + ").";
+  if (info.ok) return "You are on the latest version (v" + info.current + ").";
+  if (info.reason === "private-or-none") return "Release list is not public, so open the releases page to check.";
+  if (info.reason === "rate-limited") return "GitHub rate limit reached — try again later.";
+  if (info.reason === "timeout") return "The check timed out.";
+  if (info.reason === "network") return "Could not reach GitHub.";
+  return "Could not check right now.";
 }
 
 /* ============================ MARKDOWN ============================ */
@@ -1952,16 +2050,36 @@ function settingsKeys() {
 function settingsAbout() {
   const p = prov();
   const cfg = meta.providers.find(x => x.id === state.current);
+  const ver = (updateInfo && updateInfo.current) || (bridge && "…") || "—";
+  const newer = updateInfo && updateInfo.ok && updateInfo.newer;
   return `
   <div class="sect">
     <h2 class="h">About</h2>
-    <p class="sh">A local replica of Star Code, running on your machine.</p>
+    <p class="sh">Star Code runs entirely on this machine. It only talks to the model provider you configure.</p>
+
     <div class="card">
-      <div class="row"><div class="rl"><div class="rt">Version</div></div><div class="rc"><span class="pill">1.1.0</span></div></div>
-      <div class="row"><div class="rl"><div class="rt">Provider</div><div class="rd">${esc(cfg?.label || state.current)}</div></div><div class="rc"><span class="pill">${esc(p.model || "")}</span></div></div>
-      <div class="row"><div class="rl"><div class="rt">Working directory</div><div class="rd mono" style="font-family:'JetBrains Mono',monospace">${esc(state.root || "")}</div></div></div>
-      <div class="row"><div class="rl"><div class="rt">Tools</div><div class="rd">read_file, list_dir, search_files, glob_files, write_file, edit_file, run_command</div></div></div>
+      <div class="ct">Updates</div>
+      <div class="cs">Star Code never installs updates on its own. This checks the release list and, if a newer version exists, points you at the download page.</div>
+      <div class="row">
+        <div class="rl">
+          <div class="rt">Version <span class="pill" style="margin-left:6px">v${esc(String(ver))}</span>${
+            newer ? ' <span class="pill warn">v' + esc(updateInfo.latest) + " available</span>" : ""}</div>
+          <div class="rd" id="upStatus">${esc(updateStatusText())}</div>
+        </div>
+        <div class="rc">
+          <button class="btn sm" id="upCheck">Check for updates</button>
+          <button class="btn sm" id="upOpen">Releases</button>
+        </div>
+      </div>
     </div>
+
+    <div class="card">
+      <div class="row"><div class="rl"><div class="rt">Provider</div><div class="rd">${esc(cfg?.label || state.current)}</div></div><div class="rc"><span class="pill">${esc(p.model || "")}</span></div></div>
+      <div class="row"><div class="rl"><div class="rt">Working directory</div><div class="rd" style="font-family:'JetBrains Mono',monospace;word-break:break-all">${esc(state.root || "")}</div></div></div>
+      <div class="row"><div class="rl"><div class="rt">Tools</div><div class="rd">read_file · list_dir · search_files · glob_files · write_file · edit_file · run_command</div></div></div>
+      <div class="row"><div class="rl"><div class="rt">Runtime</div><div class="rd">${bridge ? "Electron desktop app" : "Browser"}</div></div></div>
+    </div>
+
     <div class="card">
       <div class="ct">Reset</div>
       <div class="cs">Clear all locally stored settings, keys, and session history.</div>
@@ -2057,6 +2175,19 @@ function wireSettings() {
     state = structuredClone(DEFAULT_STATE);
     applyTheme(); save(); updateChrome(); renderSettings(); renderSessions();
     toast("Reset complete");
+  });
+
+  on("upCheck", "click", async () => {
+    const b = $("upCheck");
+    b.textContent = "Checking…"; b.disabled = true;
+    await checkUpdates({ quiet: false });
+    b.textContent = "Check for updates"; b.disabled = false;
+    if (updateInfo) toast(updateStatusText());
+  });
+  on("upOpen", "click", () => {
+    const url = (updateInfo && updateInfo.url) || "https://github.com/praisethefacts/Star-Code/releases";
+    if (bridge) bridge.openExternal(url);
+    else window.open(url, "_blank");
   });
 }
 

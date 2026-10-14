@@ -36,24 +36,33 @@ if (!syntaxOk) {
   process.exit(1);
 }
 
-// 2. every $("id") must exist in the markup (or be created dynamically)
+// 2. every $("id") must exist somewhere.
+// IDs can come from static markup OR from templates the script builds itself
+// (the settings page is generated), so collect from both. Anything referenced
+// but defined in neither is a real typo.
 const referenced = new Set();
 for (const m of script.matchAll(/\$\("([^"]+)"\)/g)) referenced.add(m[1]);
 
 const present = new Set();
 for (const m of markup.matchAll(/id="([^"]+)"/g)) present.add(m[1]);
-
-// ids the script injects at runtime via template literals
-const dynamic = new Set([
-  "modelOpts", "modelList2", "modelOpts2",
-  "fProvider", "fModel", "fKey", "fBase", "fTest", "testMsg",
-  "fTheme", "fThink", "fCollapse", "fMode", "fEffort",
-  "fRoot", "fRootApply", "fRootPick", "fRootReveal", "fRootLabel", "fReset",
-]);
+for (const m of script.matchAll(/id="([^"$\s]+)"/g)) present.add(m[1]);
+// ids injected with an interpolated attribute, e.g. id="${...}" cannot be
+// resolved statically; list them here if the check ever flags one.
+const dynamic = new Set([]);
 
 const missing = [...referenced].filter((id) => !present.has(id) && !dynamic.has(id));
 ok("all referenced element ids exist", missing.length === 0,
-  missing.length ? "missing: " + missing.join(", ") : referenced.size + " ids checked");
+  missing.length ? "missing: " + missing.join(", ") : referenced.size + " ids checked, " + present.size + " defined");
+
+// 2b. self-test: the check above must actually be able to fail, otherwise a
+// green result means nothing. Inject a reference to an id that cannot exist.
+{
+  const bogus = "zzDefinitelyNotAnElementId";
+  const withBogus = new Set([...referenced, bogus]);
+  const wouldFlag = [...withBogus].filter((id) => !present.has(id) && !dynamic.has(id));
+  ok("id check can detect a missing element", wouldFlag.includes(bogus),
+    wouldFlag.length ? "would flag: " + wouldFlag.slice(0, 3).join(", ") : "NOTHING FLAGGED");
+}
 
 // 3. panes
 const panes = ["preview", "tasks", "plan", "terminal", "diff"];

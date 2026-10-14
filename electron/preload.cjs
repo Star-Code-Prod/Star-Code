@@ -12,4 +12,5 @@ contextBridge.exposeInMainWorld("desktop", {
   openExternal: (u) => ipcRenderer.invoke("desktop:open-external", u),
   setTheme: (t) => ipcRenderer.invoke("desktop:set-theme", t),
   window: (a) => ipcRenderer.invoke("desktop:window", a),
+  checkUpdates: () => ipcRenderer.invoke("desktop:check-updates"),
 });
