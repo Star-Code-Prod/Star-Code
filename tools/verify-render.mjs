@@ -15,7 +15,16 @@ if (from < 0 || to < 0) {
   console.error("FAIL  could not locate esc/hl/md in the UI script");
   process.exit(1);
 }
-const fns = new Function(js.slice(from, to) + "; return { esc, hl, md };")();
+const sbFrom = js.indexOf("function stripBlocks(");
+const sbTo = js.indexOf("function addDelta(");
+if (sbFrom < 0 || sbTo < 0) {
+  console.error("FAIL  could not locate stripBlocks/parseArtifacts in the UI script");
+  process.exit(1);
+}
+const fns = new Function(
+  js.slice(from, to) + js.slice(sbFrom, sbTo) +
+  "; return { esc, hl, md, stripBlocks, parseArtifacts };"
+)();
 
 const results = [];
 const ok = (label, pass, extra = "") =>
@@ -53,6 +62,19 @@ ok("no dead .wrap rule", !/\.wrap\s*\{/.test(html));
 ok("stream children are width-constrained", html.includes("#stream > *"));
 ok("diff lines can scroll horizontally", /\.dl \.c\{[^}]*overflow-x:auto/.test(html.replace(/\s+/g, "")) ||
    /\.dl\s+\.c\s*\{[^}]*overflow-x:\s*auto/.test(html));
+
+// ---- 7. artifact parsing (W3) ----
+const p1 = fns.parseArtifacts("before\n```artifact html\n<b>x</b>\n```\nafter");
+ok("parses one artifact", p1.length === 1 && p1[0].lang === "html" && p1[0].code.includes("<b>x</b>"));
+ok("defaults to html", fns.parseArtifacts("```artifact\nhi\n```")[0].lang === "html");
+ok("ignores non-artifact fences", fns.parseArtifacts("```js\nlet a=1\n```").length === 0);
+const p2 = fns.parseArtifacts("```artifact svg\n<svg/>\n```\ntext\n```artifact md\n# t\n```");
+ok("parses multiple in order", p2.length === 2 && p2[0].lang === "svg" && p2[1].lang === "md");
+ok("unclosed artifact is not a complete artifact", fns.parseArtifacts("```artifact html\n<b>x</b>").length === 0);
+const s1 = fns.stripBlocks("a\n```artifact html\n<b>x</b>\n```\nb");
+ok("stripBlocks removes complete artifacts", !s1.includes("artifact") && s1.includes("a") && s1.includes("b"));
+const s2 = fns.stripBlocks("a\n```artifact html\n<b>streaming…");
+ok("stripBlocks removes an unclosed streaming artifact", !s2.includes("streaming"));
 
 console.log(results.join("\n"));
 const failed = results.filter((r) => r.startsWith("FAIL")).length;

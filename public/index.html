@@ -363,6 +363,19 @@ body.is-mac.is-electron .brand{margin-left:2px}
 .tok-k{color:#c586c0}.tok-s{color:#8fce8f}.tok-n{color:#b5cea8}.tok-c{color:#5f7f5f;font-style:italic}
 .dl.del .tok-k,.dl.del .tok-s,.dl.del .tok-n{color:inherit}
 
+/* ================= ARTIFACTS ================= */
+.artifactcard{
+  display:flex;align-items:center;gap:9px;padding:7px 11px;border-radius:8px;background:var(--panel);
+  font-size:12.5px;color:var(--muted);
+}
+.artifactcard .nm{color:var(--text2);font-family:'JetBrains Mono',monospace;font-size:12px}
+.artifactcard button{margin-left:auto}
+.aptools{display:flex;align-items:center;gap:7px;padding:7px 10px;border-bottom:1px solid var(--border);background:var(--panel);flex:none}
+.aptools select{width:auto;padding:4px 8px}
+.apbody{flex:1;min-height:0;display:flex;flex-direction:column;overflow:auto}
+.apframe{flex:1;width:100%;min-height:70vh;border:0;background:#fff}
+.apmd{padding:14px}
+
 /* ================= TASK LIST ================= */
 .tasklist{margin:12px auto;border:1px solid var(--border);border-radius:10px;background:var(--panel);overflow:hidden}
 .tasklist .th{
@@ -1404,17 +1417,23 @@ async function switchSession(id) {
 function renderTranscript(msgs) {
   $("stream").innerHTML = "";
   currentMsg = null; currentThink = null; toolGroup = null; lastDiff = []; diffs = [];
+  artifacts = []; msgArtifacts = []; msgCards = 0; artifactView = { i: 0, mode: "render" };
   if (!msgs.length) { showLanding(); renderSessions(); return; }
   showChat();
   for (const m of msgs) {
     if (m.role === "user") { addUser(m.content); continue; }
     const clean = stripBlocks(m.content);
-    if (!clean.trim()) continue;
-    startAssistant();
-    currentMsg._t = clean;
-    currentMsg.innerHTML = md(clean);
-    wireCopy(currentMsg);
-    endAssistant();
+    if (clean.trim()) {
+      startAssistant();
+      currentMsg._t = clean;
+      currentMsg.innerHTML = md(clean);
+      wireCopy(currentMsg);
+      endAssistant();
+    }
+    for (const a of parseArtifacts(m.content)) {
+      artifacts.push({ lang: a.lang, code: a.code });
+      addArtifactCard(artifacts.length - 1);
+    }
   }
   scrollDown(true);
   renderSessions();
@@ -1707,27 +1726,142 @@ function addUser(text) { const n = node("msg-u"); n.innerHTML = `<div class="b">
 function startAssistant() {
   currentMsg = node("msg-a");
   toolGroup = null;
+  msgArtifacts = [];
+  msgCards = 0;
 }
-/** Hide ```tool / ```todo control blocks from what the user sees, including
- *  a block that is still streaming in (no closing fence yet). */
+/** Hide ```tool / ```todo / ```artifact control blocks from what the user
+ *  sees, including a block still streaming in (no closing fence yet). */
 function stripBlocks(s) {
-  let out = s.replace(/```(?:tool|todo)\b[\s\S]*?```/g, "");
-  out = out.replace(/```(?:tool|todo)\b[\s\S]*$/, "");
+  let out = s.replace(/```(?:tool|todo|artifact)\b[\s\S]*?```/g, "");
+  out = out.replace(/```(?:tool|todo|artifact)\b[\s\S]*$/, "");
   // collapse the blank gap the removal leaves behind
   return out.replace(/\n{3,}/g, "\n\n");
+}
+
+/** Complete ```artifact <lang> fences, in order. lang: html | svg | md. */
+function parseArtifacts(s) {
+  const out = [];
+  const re = /```artifact[ \t]*(\w*)[ \t]*\r?\n([\s\S]*?)```/g;
+  let m;
+  while ((m = re.exec(String(s || ""))) !== null) {
+    let lang = (m[1] || "html").toLowerCase();
+    if (lang === "markdown") lang = "md";
+    if (["html", "svg", "md"].includes(lang)) out.push({ lang, code: m[2].replace(/\n$/, "") });
+  }
+  return out;
+}
+
+/* ---- artifacts: streaming sync, cards, pane renderer ---- */
+let artifacts = [];        // session-wide, rebuilt from the transcript
+let msgArtifacts = [];     // parsed from the message currently streaming
+let msgCards = 0;          // cards committed for that message
+let artifactView = { i: 0, mode: "render" };
+let lastArtRender = 0;
+
+function syncArtifacts(raw, streaming) {
+  const arts = parseArtifacts(raw || "");
+  for (let k = msgArtifacts.length; k < arts.length; k++) {
+    artifacts.push({ lang: arts[k].lang, code: arts[k].code });
+  }
+  if (arts.length) {
+    const last = artifacts[artifacts.length - 1];
+    last.lang = arts[arts.length - 1].lang;
+    last.code = arts[arts.length - 1].code;
+  }
+  msgArtifacts = arts;
+  if (artifacts.length) {
+    artifactView.i = artifacts.length - 1;
+    const now = Date.now();
+    if (!streaming || now - lastArtRender > 450) {
+      lastArtRender = now;
+      renderArtifact();
+    }
+  }
+}
+
+function addArtifactCard(i) {
+  const a = artifacts[i];
+  const n = node("artifactcard");
+  n.innerHTML = `<span class="nm">Artifact · ${esc(a.lang)} · v${i + 1}</span>
+    <button class="btn sm" data-v="${i}">View</button>`;
+  n.querySelector("button").addEventListener("click", () => {
+    artifactView.i = i;
+    showPane("preview");
+    renderArtifact();
+  });
+  toolGroup = null;
+}
+
+function renderArtifact() {
+  const a = artifacts[artifactView.i];
+  if (!a) return;
+  showPane("preview");
+  $("previewTitle").textContent = `Artifact · ${a.lang} · v${artifactView.i + 1}`;
+  $("previewEmpty").style.display = "none";
+  const host = $("filePreview");
+  host.style.display = "block";
+  const versionOpts = artifacts
+    .map((_, k) => `<option value="${k}" ${k === artifactView.i ? "selected" : ""}>v${k + 1}</option>`)
+    .join("");
+  host.innerHTML = `
+    <div class="aptools">
+      <button class="btn sm" id="apMode">${artifactView.mode === "render" ? "Code" : "Render"}</button>
+      <select class="inp" id="apVersion">${versionOpts}</select>
+      <span class="spacer"></span>
+      <button class="btn sm" id="apOpen">Open in browser</button>
+    </div>
+    <div class="apbody"></div>`;
+  const body = host.querySelector(".apbody");
+  if (artifactView.mode === "code") {
+    body.innerHTML = `<pre class="fpre">${hl(a.code)}</pre>`;
+  } else if (a.lang === "md") {
+    body.innerHTML = `<div class="apmd">${md(a.code)}</div>`;
+    wireCopy(body);
+  } else {
+    const frame = document.createElement("iframe");
+    frame.className = "apframe";
+    frame.setAttribute("sandbox", "allow-scripts");
+    frame.srcdoc = a.lang === "svg"
+      ? `<!doctype html><body style="margin:0;display:grid;place-items:center;height:100vh;background:#fff">${a.code}</body>`
+      : a.code;
+    body.appendChild(frame);
+  }
+  host.querySelector("#apMode").addEventListener("click", () => {
+    artifactView.mode = artifactView.mode === "render" ? "code" : "render";
+    renderArtifact();
+  });
+  host.querySelector("#apVersion").addEventListener("change", (e) => {
+    artifactView.i = Number(e.target.value);
+    renderArtifact();
+  });
+  host.querySelector("#apOpen").addEventListener("click", () => {
+    const type = a.lang === "svg" ? "image/svg+xml" : a.lang === "md" ? "text/markdown" : "text/html";
+    const url = URL.createObjectURL(new Blob([a.code], { type }));
+    window.open(url, "_blank");
+  });
 }
 function addDelta(t) {
   if (!currentMsg) startAssistant();
   currentMsg._raw = (currentMsg._raw || "") + t;
   const shown = stripBlocks(currentMsg._raw);
   currentMsg._t = shown;
+  syncArtifacts(currentMsg._raw, true);
   if (!shown.trim()) { currentMsg.style.display = "none"; scrollDown(); return; }
   currentMsg.style.display = "";
   currentMsg.innerHTML = md(shown);
   wireCopy(currentMsg);
   scrollDown();
 }
-function endAssistant() { currentMsg = null; }
+function endAssistant() {
+  if (msgArtifacts.length > msgCards) {
+    for (let k = msgCards; k < msgArtifacts.length; k++) {
+      addArtifactCard(artifacts.length - msgArtifacts.length + k);
+    }
+    msgCards = msgArtifacts.length;
+    renderArtifact();
+  }
+  currentMsg = null;
+}
 
 /* ---- modern thinking block ---- */
 const SPARK_SVG = '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 .9l1.5 5.6L15.1 8l-5.6 1.5L8 15.1 6.5 9.5.9 8l5.6-1.5z"/></svg>';
@@ -2112,6 +2246,7 @@ async function newSession(opts = {}) {
   } catch { sessionId = null; }
 
   todos = []; diffs = []; lastDiff = []; termLines = [];
+  artifacts = []; msgArtifacts = []; msgCards = 0; artifactView = { i: 0, mode: "render" };
   currentMsg = null; currentThink = null; toolGroup = null;
   $("stream").innerHTML = "";
   $("term").innerHTML = '<span class="rt">[shell] ready — commands Star runs appear here</span>';
