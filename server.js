@@ -311,7 +311,14 @@ export async function startServer({ port = PORT, root, silent = false } = {}) {
   return {
     port: actual,
     url: "http://127.0.0.1:" + actual,
-    close: () => new Promise((r) => server.close(r)),
+    close: () => new Promise((resolve) => {
+      // Drop keep-alive sockets first. Without this, fetch()'s pooled
+      // connections keep handles open and Node can trip
+      // "Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)"
+      // in libuv when the process tears down on Windows.
+      server.closeAllConnections?.();
+      server.close(() => resolve());
+    }),
   };
 }
 

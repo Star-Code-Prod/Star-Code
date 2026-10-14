@@ -61,4 +61,6 @@ console.log(results.join("\n"));
 const failed = results.filter((r) => r.startsWith("FAIL")).length;
 console.log("\n" + (results.length - failed) + "/" + results.length + " checks passed" +
   (failed ? " - " + failed + " FAILED" : ""));
-process.exit(failed ? 1 : 0);
+// set exitCode rather than process.exit(): calling exit() while undici still
+// holds pooled sockets trips a libuv handle assertion on Windows.
+process.exitCode = failed ? 1 : 0;
