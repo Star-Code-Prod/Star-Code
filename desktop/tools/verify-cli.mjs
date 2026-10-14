@@ -273,6 +273,29 @@ ok("the edit landed on disk", fs.readFileSync(path.join(editRoot, "greet.js"), "
 diffStub.close();
 fs.rmSync(editRoot, { recursive: true, force: true });
 
+// 11. demo mode: scripted frames for reviews and screenshots - no keys, no network
+const demoTmp = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-demo-"));
+fs.writeFileSync(path.join(demoTmp, "README.md"), "# demo\n");
+fs.mkdirSync(path.join(demoTmp, "src"), { recursive: true });
+fs.writeFileSync(path.join(demoTmp, "src", "index.js"), "console.log(1)\n");
+const stripAnsi = (s) => String(s || "").replace(/\x1b\[[0-9;]*m/g, "");
+const demoRun = (scene) => spawnSync(process.execPath, [BIN, "--demo", scene, "--root", demoTmp], { encoding: "utf8", env: cleanEnv, timeout: 20000 });
+
+const dSlash = demoRun("slash");
+ok("demo slash exits 0 without any key", dSlash.status === 0, String(dSlash.status));
+ok("demo slash shows the palette", /\/model/.test(dSlash.stdout || "") && /\/connect/.test(dSlash.stdout || ""));
+ok("demo output carries real ink", /\x1b\[38;2;240;185;90/.test(dSlash.stdout || ""), "no 24-bit gold found");
+
+const dModel = demoRun("model");
+ok("demo model renders the provider tree", /deepseek/.test(stripAnsi(dModel.stdout)) && /deepseek-chat/.test(stripAnsi(dModel.stdout)), stripAnsi(dModel.stdout).slice(0, 120));
+
+const dFiles = demoRun("files");
+ok("demo files renders project files", /README\.md/.test(stripAnsi(dFiles.stdout)) && /src\//.test(stripAnsi(dFiles.stdout)), stripAnsi(dFiles.stdout).slice(0, 120));
+
+const dStart = demoRun("start");
+ok("demo start renders the banner and status", /Star Code/.test(stripAnsi(dStart.stdout)) && /⏵/.test(stripAnsi(dStart.stdout)));
+fs.rmSync(demoTmp, { recursive: true, force: true });
+
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(results.join("\n"));
 const failed = results.filter((r) => r.startsWith("FAIL")).length;

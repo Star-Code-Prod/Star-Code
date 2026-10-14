@@ -37,6 +37,7 @@ star-code --model openai/gpt-4o --mode plan  # flags: --mode, --model, --root
 | `--mode <manual\|acceptEdits\|plan\|bypass>` | Permission mode — default `manual` ("Ask permissions") |
 | `--model <provider/model>` | Pick the provider and model, e.g. `--model deepseek/deepseek-chat` |
 | `--root <dir>` | Working directory — defaults to the current folder |
+| `--demo [scene]` | Render scripted frames of the interactive UI (`start`, `slash`, `model`, `files`, `permission`) — no key, no network |
 | `--help` | Show the usage text |
 
 ### Commands
@@ -52,6 +53,13 @@ In an interactive session:
 | `/connect <provider>` | Store an API key for a provider |
 | `/knowledge` | List the project's knowledge files |
 | `/exit` | Quit |
+
+While you type, popups open inside the prompt box and follow what you
+write: `/` lists commands, `/model ` becomes a provider → model tree,
+`/connect ` a provider list, and `@` a file index. `↑↓` move, `enter` or
+`tab` takes the item, `esc` closes. Every popup is only an accelerator —
+taking an item just produces the same line you could have typed, so
+piping the CLI in never changes its behaviour.
 
 ### Permissions
 

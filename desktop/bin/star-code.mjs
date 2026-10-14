@@ -14,6 +14,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
+import { execFileSync } from "node:child_process";
 import { PROVIDERS } from "../lib/providers.js";
 import { readAuth, resolveKey, mask } from "../lib/auth.js";
 import { createToolRunner } from "../lib/tools.js";
@@ -23,7 +24,7 @@ import { runAgentTurn, systemPrompt } from "../lib/agent.js";
 // Palette straight from the design card. Boxes are drawn with plain box
 // glyphs, so they survive a pipe and a console without colour support.
 const TTY = !!process.stdout.isTTY;                  // can we draw a live prompt and redraw a line?
-const ANSI = TTY && !("NO_COLOR" in process.env);    // may we use colour at all?
+let ANSI = TTY && !("NO_COLOR" in process.env);      // may we use colour at all? (--demo forces it on)
 const INK = {
   gold: "38;2;240;185;90",
   green: "38;2;127;207;142",
@@ -35,7 +36,7 @@ const INK = {
   line: "38;2;58;64;82",
   goldLine: "38;2;131;110;74",
   bar: "48;2;23;27;36",
-  sel: "48;2;31;36;49",
+  sel: "48;2;36;43;59",
   addBg: "48;2;21;48;31",
   delBg: "48;2;56;28;32",
 };
@@ -103,12 +104,14 @@ Flags:
   --mode <manual|acceptEdits|plan|bypass>    permission mode (default manual)
   --model <provider/model>                   pick provider and model
   --root <dir>                               working directory (default: cwd)
+  --demo [scene]                             render scripted frames (no key, no network)
   --help
 
 Interactive commands: /help /clear /status /model /connect /knowledge /exit`;
 
 const argv = process.argv.slice(2);
 const flags = { mode: "manual", model: null, root: null };
+let demo = null;
 const prompt = [];
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
@@ -116,6 +119,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (a === "--mode") flags.mode = argv[++i];
   else if (a === "--model") flags.model = argv[++i];
   else if (a === "--root") flags.root = argv[++i];
+  else if (a === "--demo") demo = (argv[i + 1] && !argv[i + 1].startsWith("-")) ? argv[++i] : "start";
   else prompt.push(a);
 }
 if (!["manual", "acceptEdits", "plan", "bypass"].includes(flags.mode)) {
@@ -569,13 +573,267 @@ function slashList(query) {
   })));
 }
 
+/* ------------------------------ popups ----------------------------------- */
+// Live overlays that follow what you type, in the shape OpenCode uses: a
+// filtered list inside the prompt box, arrows to move, enter/tab to take,
+// esc to dismiss. Pure input accelerators - a taken item becomes a normal
+// line for the REPL below, so command semantics stay in one place.
+
+const SKIP_WALK = new Set(["node_modules", ".git", "dist", "build", ".next", "__pycache__", ".venv", ".cache"]);
+let fileCache = null;
+function fileIndex() {
+  if (fileCache) return fileCache;
+  let files = [];
+  try {
+    files = execFileSync("git", ["-C", root, "ls-files"], { encoding: "utf8", timeout: 5000 })
+      .split("\n").map((s) => s.trim()).filter(Boolean);
+  } catch { /* not a repo, or no git: walk below */ }
+  if (!files.length) {
+    const walk = (dir, prefix, depth) => {
+      if (files.length >= 800 || depth > 5) return;
+      let entries = [];
+      try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+      for (const e of entries) {
+        if (files.length >= 800) return;
+        if (e.name.startsWith(".")) continue;
+        const rel = prefix ? prefix + "/" + e.name : e.name;
+        if (e.isDirectory()) { if (!SKIP_WALK.has(e.name)) walk(path.join(dir, e.name), rel, depth + 1); }
+        else files.push(rel);
+      }
+    };
+    walk(root, "", 0);
+  }
+  fileCache = files;
+  return files;
+}
+
+const POPUP = { kind: null, header: "", rows: [], sel: 0 };   // rows: { head?, label, hint, value }
+
+function setPopup(kind, header, rows) {
+  POPUP.kind = kind; POPUP.header = header; POPUP.rows = rows;
+  POPUP.sel = rows.findIndex((r) => !r.head);
+  if (POPUP.sel < 0) POPUP.sel = 0;
+}
+function closePopup() { POPUP.kind = null; POPUP.rows = []; POPUP.sel = 0; }
+const popupOpen = () => POPUP.kind != null;
+
+function slashRows(query) {
+  const q = String(query || "").toLowerCase();
+  return SLASH.filter(([c]) => c.startsWith(q))
+    .map(([c, d]) => ({ label: "  " + c.padEnd(14), hint: d, value: c }));
+}
+function modelRows(query) {
+  const q = String(query || "").trim().toLowerCase();
+  const rows = [];
+  const entries = Object.entries(PROVIDERS)
+    .sort(([a], [b]) => (a === provider ? -1 : b === provider ? 1 : 0));   // current provider leads
+  for (const [id, cfg] of entries) {
+    const models = (cfg.models && cfg.models.length ? cfg.models : [cfg.defaultModel]);
+    const hitModels = models.filter((m) => !q || m.toLowerCase().includes(q));
+    const hitHead = !q || id.includes(q) || (cfg.label || "").toLowerCase().includes(q);
+    if (!hitHead && !hitModels.length) continue;
+    rows.push({ head: id + (id === provider ? "  · current" : "") });
+    for (const m of (hitHead ? models : hitModels)) {
+      rows.push({ label: "    " + m, hint: id === provider && m === model ? "current" : "", value: id + "/" + m });
+    }
+  }
+  return rows;
+}
+function fileRows(query) {
+  const q = String(query || "").toLowerCase();
+  const rank = (f) => {
+    const base = f.split("/").pop().toLowerCase();
+    if (!q) return 2;
+    if (base.startsWith(q)) return 0;
+    if (f.toLowerCase().includes(q)) return 1;
+    return 3;
+  };
+  return fileIndex()
+    .map((f) => ({ f, r: rank(f) }))
+    .filter((x) => (q ? x.r < 3 : true))
+    .sort((a, b) => a.r - b.r || a.f.localeCompare(b.f))
+    .slice(0, 8)
+    .map((x) => ({ label: "    " + x.f, hint: "", value: x.f }));
+}
+function connectRows(query) {
+  const q = String(query || "").toLowerCase();
+  return Object.entries(PROVIDERS)
+    .filter(([id, cfg]) => !q || id.includes(q) || (cfg.label || "").toLowerCase().includes(q))
+    .map(([id, cfg]) => ({ label: "  " + id.padEnd(14), hint: (cfg.label || "") + (cfg.noKeyRequired ? " · no key" : ""), value: id }));
+}
+
+/** Whatever the current input calls for: nothing, or a fresh popup. */
+function refreshPopup(input) {
+  if (input.startsWith("/") && !input.includes(" ")) return setPopup("slash", "Commands", slashRows(input));
+  if (input.startsWith("/model ")) return setPopup("model", "Model", modelRows(input.slice(7)));
+  if (input.startsWith("/connect ")) return setPopup("connect", "Connect", connectRows(input.slice(9)));
+  const at = /@([^\s@]*)$/.exec(input);
+  if (at) return setPopup("file", "Files", fileRows(at[1].toLowerCase()));
+  return closePopup();
+}
+
+/** One popup row as plain text: marker, label, right-aligned hint. A
+ *  selected row is tinted edge to edge - the tint has to go on every
+ *  segment, because a nested reset would punch holes in a wrapper. */
+function popupRow(row, w, selected) {
+  if (row.head) return dim("  " + row.head);
+  const bg = selected ? INK.sel : "";
+  const seg = (code, t) => paint([bg, code].filter(Boolean).join(";"), t);
+  const name = row.label.trimEnd();
+  const left = seg(INK.gold, selected ? "▸" : " ") + " " + seg(selected ? INK.gold : "", name);
+  const hint = row.hint ? seg(INK.dim, row.hint) : "";
+  const pad = Math.max(1, w - plain(left).length - plain(hint).length);
+  return left + seg("", " ".repeat(pad)) + hint;
+}
+
+/** The popup block inside the box: header, rows (selected row tinted), hint. */
+function popupBlock(w) {
+  if (!popupOpen() || !POPUP.rows.length) return [];
+  const lines = [dim("  " + POPUP.header)];
+  const span = 8;
+  let start = 0;
+  if (POPUP.sel >= span) start = POPUP.sel - span + 1;
+  for (let i = start; i < Math.min(POPUP.rows.length, start + span); i++) {
+    lines.push(popupRow(POPUP.rows[i], w, i === POPUP.sel));
+  }
+  lines.push(dim("  ↑↓ move · enter choose · esc close"));
+  return lines;
+}
+
+function moveSel(d) {
+  if (!popupOpen() || !POPUP.rows.length) return;
+  let i = POPUP.sel;
+  for (let k = 0; k < POPUP.rows.length; k++) {
+    i = (i + d + POPUP.rows.length) % POPUP.rows.length;
+    if (!POPUP.rows[i].head) break;
+  }
+  POPUP.sel = i;
+}
+const currentValue = () => (popupOpen() && POPUP.rows[POPUP.sel] ? POPUP.rows[POPUP.sel].value : null);
+
+/* ---------------------------- live input (TTY) --------------------------- */
+// The prompt box is redrawn in place on every keypress; popups live inside
+// it. Pure piped input never reaches this path (askPrompt handles it), so
+// scripts and tests stay byte-stable.
+function renderFrame(input) {
+  const w = width();
+  const innerW = w - 2;                      // borders take two columns
+  const shown = input.length > innerW - 3 ? input.slice(-(innerW - 3)) : input;
+  const promptRow = gold(">") + " " + shown + (ANSI ? gold("▊") : "");
+  const lines = [rule("╭", "╮"), paint(INK.line, "│") + " " + promptRow];
+  for (const b of popupBlock(innerW)) lines.push(paint(INK.line, "│") + " " + b);
+  lines.push(rule("╰", "╯"));
+  return { text: lines.join("\n"), count: lines.length, caretUp: lines.length - 2, caretCol: 5 + shown.length };
+}
+
+async function liveInput() {
+  readline.emitKeypressEvents(process.stdin);
+  process.stdin.setRawMode(true);
+  process.stdin.resume();
+  let input = "";
+  let drawn = 0;
+  const paintFrame = () => {
+    let s = "";
+    if (drawn) s += `\x1b[${drawn}A`;
+    s += "\r\x1b[J";
+    const f = renderFrame(input);
+    drawn = f.count;
+    out(s + f.text + `\x1b[${f.caretUp}A\x1b[${f.caretCol}G`);
+  };
+  return await new Promise((resolve) => {
+    const finish = (line, keepBox) => {
+      process.stdin.removeListener("keypress", onKey);
+      process.stdin.setRawMode(false);
+      process.stdin.pause();
+      if (drawn) out(`\x1b[${drawn}A\r\x1b[J`);
+      drawn = 0;
+      if (keepBox) out(box([{ segs: [{ t: "> ", c: "gold" }, { t: line || "" }] }]) + "\n");
+      resolve(line);
+    };
+    const onKey = (str, key) => {
+      if (!key) return;
+      if (key.ctrl && key.name === "c") { finish(null); process.exitCode = 130; return; }
+      if (key.name === "return") {
+        const v = currentValue();
+        if (popupOpen() && POPUP.kind === "slash" && v) { input = v + " "; refreshPopup(input); paintFrame(); return; }
+        if (popupOpen() && (POPUP.kind === "model" || POPUP.kind === "connect") && v) {
+          finish((POPUP.kind === "model" ? "/model " : "/connect ") + v, false);
+          return;
+        }
+        if (popupOpen() && POPUP.kind === "file" && v) {
+          input = input.replace(/@[^\s@]*$/, "@" + v + " ");
+          refreshPopup(input);
+          paintFrame();
+          return;
+        }
+        finish(input, true);
+        return;
+      }
+      if (key.name === "tab") {
+        const v = currentValue();
+        if (popupOpen() && POPUP.kind === "slash" && v) { input = v + " "; refreshPopup(input); paintFrame(); }
+        return;
+      }
+      if (key.name === "escape") {
+        if (popupOpen()) { closePopup(); paintFrame(); } else { input = ""; paintFrame(); }
+        return;
+      }
+      if (key.name === "up") { moveSel(-1); paintFrame(); return; }
+      if (key.name === "down") { moveSel(1); paintFrame(); return; }
+      if (key.name === "backspace") { input = input.slice(0, -1); refreshPopup(input); paintFrame(); return; }
+      if (str && !key.ctrl && !key.meta && str >= " ") { input += str; refreshPopup(input); paintFrame(); return; }
+    };
+    process.stdin.on("keypress", onKey);
+    refreshPopup(input);
+    paintFrame();
+  });
+}
+
+/* --------------------------------- demo ---------------------------------- */
+// Scripted frames of the interactive states, written for reviews and
+// screenshots. No model call, no key lookup, no network: it only exercises
+// the drawing code with fixed content.
+function demoScene(name) {
+  const mk = (input, { header, rows, sel } = {}) => {
+    if (rows) { POPUP.kind = "x"; POPUP.rows = rows; POPUP.sel = sel || 0; POPUP.header = header || ""; }
+    else closePopup();
+    const f = renderFrame(input);
+    closePopup();
+    return f.text;
+  };
+  switch (name) {
+    case "start":
+      return banner() + "\n" + tips() + "\n" + statusLine() + "\n" + mk("", {}) + "\n";
+    case "slash":
+      return banner() + "\n" + mk("/", { header: "Commands", rows: slashRows("/"), sel: 2 }) + "\n";
+    case "model": {
+      const rows = modelRows("");
+      const cur = rows.findIndex((r) => r.hint === "current");
+      return banner() + "\n" + mk("/model ", { header: "Model", rows, sel: cur >= 0 ? cur : 1 }) + "\n";
+    }
+    case "files":
+      return banner() + "\n" + mk("read the @", { header: "Files", rows: fileRows(""), sel: 1 }) + "\n";
+    case "permission":
+      return banner() + "\n" + box([
+        { segs: [{ t: "Star wants to run a command", c: "gold" }] },
+        { t: "  rm -rf dist && npm run build", bg: "bar" },
+        { t: "" },
+        { segs: [{ t: " 1  ", c: "gold" }, { t: "Allow once" }] },
+        { segs: [{ t: " 2  ", c: "gold" }, { t: "Allow for this session" }] },
+        { segs: [{ t: " 3  ", c: "gold" }, { t: "Deny" }] },
+      ]) + "\n" + statusLine() + "\n";
+    default:
+      return "demo scenes: start · slash · model · files · permission\n";
+  }
+}
+
 async function repl() {
   out(banner() + "\n");
   out(tips() + "\n");
   out(statusLine() + "\n");
   for (;;) {
     let line;
-    try { line = await askPrompt(); } catch { break; }
+    try { line = TTY ? await liveInput() : await askPrompt(); } catch { break; }
     if (line == null) break;   // stdin closed
     if (line === "") continue;
     if (line === "/exit" || line === "/quit") break;
@@ -637,7 +895,11 @@ async function repl() {
 // No process.exit(): with bursty stdout, exiting mid-write aborts the
 // process on Windows (libuv assertion, 0xC0000409). Setting exitCode and
 // letting the loop drain is what the exit contract actually needs.
-if (prompt.length) {
+if (demo) {
+  ANSI = !("NO_COLOR" in process.env);   // frames are inked for review, unless the user said no colour
+  out(demoScene(demo));
+  if (rl) rl.close();
+} else if (prompt.length) {
   out(box([{ segs: [{ t: "> ", c: "gold" }, { t: prompt.join(" ") }] }]) + "\n");
   await runTurn(prompt.join(" "));
   if (rl) rl.close();
