@@ -727,6 +727,7 @@ function renderFrame(input) {
 }
 
 async function liveInput() {
+  if (!process.stdin.isTTY) return await askPrompt();   // stdin is a pipe or a file: no raw mode
   readline.emitKeypressEvents(process.stdin);
   process.stdin.setRawMode(true);
   process.stdin.resume();
