@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Star Code — Comet">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0c1024"/>
+      <stop offset="1" stop-color="#070912"/>
+    </linearGradient>
+    <linearGradient id="duo" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6ea8ff"/>
+      <stop offset="1" stop-color="#9a6bff"/>
+    </linearGradient>
+    <radialGradient id="head" cx="42%" cy="40%" r="62%">
+      <stop offset="0" stop-color="#e8f1ff"/>
+      <stop offset="0.65" stop-color="#8fb9ff"/>
+      <stop offset="1" stop-color="#5f8dff"/>
+    </radialGradient>
+    <radialGradient id="headGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0.3" stop-color="#5f8dff" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#5f8dff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#tile)"/>
+  <circle cx="336" cy="176" r="96" fill="url(#headGlow)"/>
+  <line x1="258" y1="254" x2="292" y2="220" stroke="url(#duo)" stroke-width="22" stroke-linecap="round" opacity="0.8"/>
+  <line x1="204" y1="308" x2="230" y2="282" stroke="url(#duo)" stroke-width="17" stroke-linecap="round" opacity="0.55"/>
+  <line x1="158" y1="354" x2="176" y2="336" stroke="url(#duo)" stroke-width="12" stroke-linecap="round" opacity="0.35"/>
+  <circle cx="336" cy="176" r="42" fill="url(#head)"/>
+  <circle cx="122" cy="128" r="6" fill="#b9cbff" opacity="0.55"/>
+  <circle cx="96" cy="196" r="4" fill="#b9cbff" opacity="0.35"/>
+  <circle cx="430" cy="330" r="5" fill="#b9cbff" opacity="0.4"/>
+</svg>
