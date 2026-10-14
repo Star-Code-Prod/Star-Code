@@ -6,7 +6,7 @@
 <title>Star Code</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 /* ============================ THEMES ============================ */
 :root[data-theme="dark"]{
@@ -14,10 +14,10 @@
   --elev:#2a2a2a; --bubble:#2d2d2d; --hover:#242424;
   --border:#2e2e2e; --border2:#3a3a3a;
   --text:#e9e9e7; --text2:#b9b9b5; --muted:#8c8c88; --dim:#6b6b67;
-  --accent:#d97757; --accent-h:#e5896a;
+  --accent:#e6e6e4; --accent-h:#f7f7f5; --accent-fg:#141414;
   --add-bg:#1f3120; --add-fg:#93d093; --add-gut:#618c61;
   --del-bg:#3a2022; --del-fg:#ec9494; --del-gut:#a06060;
-  --purple:#2b2340; --purple-fg:#c3b4e8;
+  --purple:#2a2a2c; --purple-fg:#d6d6d3;
   --code-bg:#161616; --code-fg:#dcdcd8;
   --shadow:0 12px 40px rgba(0,0,0,.5);
   --chip:#2a2a2a; --chip-on:#383838;
@@ -29,15 +29,15 @@
   --elev:#FFFFFF; --bubble:#EDEAE0; --hover:#EAE7DC;
   --border:#E3E0D3; --border2:#D9D6C8;
   --text:#141413; --text2:#2F2E2A; --muted:#55534C; --dim:#8A877D;
-  --accent:#8F3E22; --accent-h:#7A3419;
+  --accent:#21201e; --accent-h:#0a0a09; --accent-fg:#ffffff;
   --add-bg:#E6F2E1; --add-fg:#1F4D1A; --add-gut:#4B7A44;
   --del-bg:#F8E3DE; --del-fg:#7A2A17; --del-gut:#A5593F;
-  --purple:#EDE7F6; --purple-fg:#4A3A78;
+  --purple:#E9E7E0; --purple-fg:#3A3936;
   --code-bg:#141413; --code-fg:#E9E6DC;
   --shadow:0 12px 40px rgba(20,20,19,.16);
   --chip:#F0EEE6; --chip-on:#E6E3D8;
   --termbg:#141413;
-  --title-font:'Source Serif 4',Georgia,serif;
+  --title-font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
 }
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
@@ -125,7 +125,7 @@ body.is-mac.is-electron .brand{margin-left:2px}
 .sb-link svg{flex:none;opacity:.75}
 .sb-link .beta{
   margin-left:auto;font-size:10px;font-weight:600;padding:1px 6px;border-radius:5px;
-  background:rgba(217,119,87,.16);color:var(--accent);
+  background:color-mix(in srgb,var(--accent) 15%,transparent);color:var(--accent);
 }
 .sb-link .chev{margin-left:auto;opacity:.5;transition:transform .15s}
 .sb-link.open .chev{transform:rotate(90deg)}
@@ -382,7 +382,7 @@ body.is-mac.is-electron .brand{margin-left:2px}
   font-size:12.5px;color:var(--text);
 }
 .btn:hover{background:var(--elev)}
-.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:500}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);font-weight:500}
 .btn.pri:hover{background:var(--accent-h)}
 .btn.dgr{color:var(--del-fg);border-color:color-mix(in srgb,var(--del-fg) 40%,var(--border2))}
 .btn.sm{padding:5px 10px;font-size:12px}
@@ -551,7 +551,7 @@ select.inp{font-family:inherit;cursor:pointer}
   background:#fff;transition:transform .18s;box-shadow:0 1px 2px rgba(0,0,0,.3);
 }
 .tog.on{background:var(--accent)}
-.tog.on::after{transform:translateX(16px)}
+.tog.on::after{transform:translateX(16px);background:var(--accent-fg)}
 .segbtn{display:flex;gap:2px;padding:3px;background:var(--chip);border-radius:9px}
 .segbtn button{padding:6px 13px;border-radius:7px;font-size:12.5px;color:var(--muted)}
 .segbtn button:hover{color:var(--text2)}
@@ -713,7 +713,7 @@ select.inp{font-family:inherit;cursor:pointer}
           <button class="cbtn" id="bigMode">Ask permissions</button>
           <span class="spacer"></span>
           <button class="cbtn" id="bigModel"><span class="mono" id="bigModelName">—</span></button>
-          <button class="hbtn" id="bigSend" style="background:var(--accent);color:#fff;width:30px;height:30px">
+          <button class="hbtn" id="bigSend" style="background:var(--accent);color:var(--accent-fg);width:30px;height:30px">
             <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 13.5V3M3.5 7.5L8 3l4.5 4.5"/></svg>
           </button>
         </div>
