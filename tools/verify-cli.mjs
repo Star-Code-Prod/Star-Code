@@ -186,6 +186,39 @@ ok("plan mode writes nothing", !fs.existsSync(path.join(planRoot, "plan-escape.j
 planStub.close();
 fs.rmSync(planRoot, { recursive: true, force: true });
 
+// 9. the task tool spawns a read-only explorer (visible as a plan-mode call)
+let taskHits = 0;
+let sawPlan = false;
+const taskStub = http.createServer((req, res) => {
+  if (req.method !== "POST" || !req.url.endsWith("/chat/completions")) { res.writeHead(404); res.end(); return; }
+  let body = "";
+  req.on("data", (c) => { body += c; });
+  req.on("end", () => {
+    taskHits++;
+    try {
+      const sys = JSON.parse(body).messages[0].content || "";
+      if (/PLAN MODE/.test(sys)) sawPlan = true;
+    } catch { /* not json - fine */ }
+    res.writeHead(200, { "Content-Type": "text/event-stream" });
+    const send = (obj) => res.write("data: " + JSON.stringify(obj) + "\n\n");
+    if (taskHits === 1) {
+      send({ choices: [{ delta: { content: "Let me look.\n```tool\n{\"name\":\"task\",\"args\":{\"instructions\":\"find the config\"}}\n```" } }] });
+    } else if (taskHits === 2) {
+      send({ choices: [{ delta: { content: "subagent-report" } }] });
+    } else {
+      send({ choices: [{ delta: { content: "parent-final" } }] });
+    }
+    res.write("data: [DONE]\n\n");
+    res.end();
+  });
+});
+await listen(taskStub);
+const taskRun = await spawnCli(["research it", "--model", "custom/model-name", "--mode", "manual"], "n\n", { STAR_CODE_TEST_BASE: "http://127.0.0.1:" + taskStub.address().port + "/v1" });
+ok("task tool ran and reported", /→ task/.test(taskRun.stdout || "") && (taskRun.stdout || "").includes("parent-final"), (taskRun.stdout || "").slice(-200));
+ok("subagent call came with plan mode", sawPlan);
+ok("three model calls happened", taskHits === 3, String(taskHits));
+taskStub.close();
+
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(results.join("\n"));
 const failed = results.filter((r) => r.startsWith("FAIL")).length;

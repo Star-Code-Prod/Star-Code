@@ -34,7 +34,7 @@ setting you change — including a model running on your own machine.
 
 | | |
 |---|---|
-| **8 real tools** | `read_file` `list_dir` `search_files` `glob_files` `write_file` `edit_file` `run_command` `search_knowledge` |
+| **13 real tools** | `read_file` `list_dir` `search_files` `glob_files` `write_file` `edit_file` `multi_edit` `run_command` `search_knowledge` `task` `fetch_url` `websearch` `self_knowledge` |
 | **Artifacts** | ` ```artifact ` html/svg/md blocks render in a sandboxed preview pane with version history |
 | **Knowledge** | Markdown notes in `.star-code/knowledge` — indexed in the prompt, searchable by the agent |
 | **Permission modes** | Ask permissions · Accept edits · Plan (read-only) · Bypass |
@@ -58,9 +58,9 @@ Grab an installer from [Releases](https://github.com/Star-Code-Prod/Star-Code/re
 
 | Platform | File |
 |---|---|
-| Windows | `Star-Code-Desktop-Setup-1.3.1.exe` (installer) or `Star-Code-Desktop-1.3.1-portable.exe` |
-| macOS | `Star-Code-Desktop-1.3.1-arm64.dmg` |
-| Linux | `Star-Code-Desktop-1.3.1-x86_64.AppImage` or `Star-Code-Desktop-1.3.1-amd64.deb` |
+| Windows | `Star-Code-Desktop-Setup-1.3.2.exe` (installer) or `Star-Code-Desktop-1.3.2-portable.exe` |
+| macOS | `Star-Code-Desktop-1.3.2-arm64.dmg` |
+| Linux | `Star-Code-Desktop-1.3.2-x86_64.AppImage` or `Star-Code-Desktop-1.3.2-amd64.deb` |
 
 Builds are unsigned, so your OS will warn you on first launch.
 
@@ -147,8 +147,12 @@ Cycle with `Shift+Tab`, or pick one from the composer.
 | **Plan** | auto | **blocked** | **blocked** |
 | **Bypass** | auto | auto | auto |
 
-Reads are always free. Plan mode hard-blocks every mutating tool, so the model
-physically cannot write while you review its approach.
+Local reads are always free. The network tools (`fetch_url`, `websearch`) ask
+like edits and are blocked in plan mode; `multi_edit` asks like any edit; the
+`task` tool runs a **read-only explorer** — it can read, search and report,
+never write, and never leaves the machine. Plan mode hard-blocks every
+mutating tool, so the model physically cannot write while you review its
+approach.
 
 ## Keyboard shortcuts
 

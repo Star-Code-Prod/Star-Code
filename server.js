@@ -19,9 +19,47 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VERSION = JSON.parse(fs.readFileSync(path.join(__dirname, "package.json"), "utf8")).version;
 const PORT = Number(process.env.PORT || 4180);
 let ROOT = path.resolve(process.env.AGENT_ROOT || process.cwd());
-let runner = createToolRunner(ROOT);
 
 const sessions = new Map();
+
+/* ------------------------------- subagents ------------------------------- */
+// The task tool runs a read-only explorer with fresh context, reusing the
+// provider/model of the last chat request. Dangerous and networked tools are
+// blocked there, so a subagent can never mutate anything or leave the machine.
+let subagentCtx = null;
+const SUBAGENT_BLOCKED = new Set(["write_file", "edit_file", "multi_edit", "run_command", "fetch_url", "websearch", "task"]);
+
+function makeRunner(r) {
+  return createToolRunner(r, {
+    runSubagent: async ({ instructions }) => {
+      if (!subagentCtx) return { error: "no model configured yet - answer without a subagent" };
+      const base = createToolRunner(subagentCtx.root);
+      const explorer = {
+        run: (name, args) => {
+          if (SUBAGENT_BLOCKED.has(name)) throw new Error(name + " is not available to subagents");
+          return base.run(name, args);
+        },
+        isDangerous: base.isDangerous,
+        root: base.root,
+      };
+      const messages = [
+        { role: "system", content: systemPrompt(subagentCtx.root, "plan") },
+        { role: "user", content: "Research task - explore and report findings only: " + instructions },
+      ];
+      let text = "";
+      await runAgentTurn({
+        provider: subagentCtx.provider, model: subagentCtx.model,
+        apiKey: subagentCtx.apiKey, baseUrl: subagentCtx.baseUrl,
+        messages, runner: explorer,
+        emit: (e) => { if (e.type === "done") text = e.text || text; },
+        requestPermission: async () => ({ allowed: false, scope: "once" }),
+        mode: "plan", autoAllow: new Set(),
+      });
+      return { text };
+    },
+  });
+}
+let runner = makeRunner(ROOT);
 
 /* ------------------------------ persistence ------------------------------ */
 // Sessions live in memory for speed and are mirrored to disk so they survive a
@@ -390,7 +428,7 @@ async function route(req, res) {
     const { root } = await readBody(req);
     if (root && fs.existsSync(root) && fs.statSync(root).isDirectory()) {
       ROOT = path.resolve(root);
-      runner = createToolRunner(ROOT);
+      runner = makeRunner(ROOT);
       sessions.clear();
       return sendJSON(res, 200, { ok: true, root: ROOT });
     }
@@ -469,6 +507,7 @@ async function route(req, res) {
     const storedEntry = readAuth().providers[provider] || {};
     const effectiveKey = resolveKey(provider, typeof apiKey === "string" ? apiKey : "", PROVIDERS[provider].envKeys || []);
     const effectiveBaseUrl = (typeof baseUrl === "string" && baseUrl) || storedEntry.baseUrl || undefined;
+    subagentCtx = { root: ROOT, provider, model, apiKey: effectiveKey, baseUrl: effectiveBaseUrl };
 
     // Refresh the system prompt so mode/memory changes take effect.
     session.messages[0] = { role: "system", content: systemPrompt(ROOT, session.mode) };
@@ -555,7 +594,7 @@ process.on("unhandledRejection", (e) => {
 export async function startServer({ port = PORT, root, silent = false } = {}) {
   if (root) {
     ROOT = path.resolve(root);
-    runner = createToolRunner(ROOT);
+    runner = makeRunner(ROOT);
     sessions.clear();
   }
   await new Promise((resolve, reject) => {
@@ -585,7 +624,7 @@ export async function startServer({ port = PORT, root, silent = false } = {}) {
 /** Change the working directory the agent operates on. */
 export function setRoot(newRoot) {
   ROOT = path.resolve(newRoot);
-  runner = createToolRunner(ROOT);
+  runner = makeRunner(ROOT);
   sessions.clear();
   return ROOT;
 }

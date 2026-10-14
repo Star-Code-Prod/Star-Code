@@ -131,7 +131,33 @@ const emit = (evt) => {
 
 /* ------------------------------ conversation ----------------------------- */
 const messages = [{ role: "system", content: systemPrompt(root, flags.mode) }];
-const runner = createToolRunner(root);
+const SUBAGENT_BLOCKED = new Set(["write_file", "edit_file", "multi_edit", "run_command", "fetch_url", "websearch", "task"]);
+const runner = createToolRunner(root, {
+  runSubagent: async ({ instructions }) => {
+    const base = createToolRunner(root);
+    const explorer = {
+      run: (name, args) => {
+        if (SUBAGENT_BLOCKED.has(name)) throw new Error(name + " is not available to subagents");
+        return base.run(name, args);
+      },
+      isDangerous: base.isDangerous,
+      root: base.root,
+    };
+    const child = [
+      { role: "system", content: systemPrompt(root, "plan") },
+      { role: "user", content: "Research task - explore and report findings only: " + instructions },
+    ];
+    let text = "";
+    await runAgentTurn({
+      provider, model, apiKey: currentKey(), baseUrl: effectiveBase(),
+      messages: child, runner: explorer,
+      emit: (e) => { if (e.type === "done") text = e.text || text; },
+      requestPermission: async () => ({ allowed: false, scope: "once" }),
+      mode: "plan", autoAllow: new Set(),
+    });
+    return { text };
+  },
+});
 const autoAllow = new Set();
 
 let rl = null;

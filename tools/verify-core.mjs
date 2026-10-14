@@ -147,6 +147,65 @@ ok("rejects separators", expectThrow(() => saveKnowledgeFile(kdir, "a/b", "x")))
 ok("delete removes", deleteKnowledgeFile(kdir, "Deploy Notes") === true && listKnowledge(kdir).length === 0);
 fs.rmSync(kdir, { recursive: true, force: true });
 
+/* ------------------------------- new tools ------------------------------- */
+const http = await import("node:http");
+const {
+  createToolRunner, htmlToText, parseDuckDuckGo,
+} = await import(pathToFileURL(path.resolve("lib/tools.js")).href);
+const { SELF_DOC, selfKnowledge } = await import(pathToFileURL(path.resolve("lib/selfdoc.js")).href);
+
+// html -> text
+const ht = htmlToText("<html><head><style>p{}</style><script>evil()</script></head><body><h1>Hi</h1><p>Some&nbsp;text &amp; more</p></body></html>");
+ok("htmlToText drops scripts and styles", !ht.includes("evil") && !ht.includes("p{}"));
+ok("htmlToText keeps text", ht.includes("Hi") && ht.includes("Some text & more"));
+
+// duckduckgo parsing (canned payload, no network)
+const ddg = parseDuckDuckGo('<a rel="nofollow" class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fdocs&rut=x">Example <b>Docs</b></a>');
+ok("ddg parses title and url", ddg.length === 1 && ddg[0].url === "https://example.com/docs" && ddg[0].title === "Example Docs");
+
+// self knowledge doc
+ok("selfdoc is substantial", SELF_DOC.length > 1500);
+ok("selfdoc topic match", selfKnowledge("providers").toLowerCase().includes("provider"));
+ok("selfdoc unknown topic falls back to full doc", selfKnowledge("zzz-not-a-topic").length >= SELF_DOC.length);
+
+// multi_edit on a temp file
+const med = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-multi-"));
+const medFile = path.join(med, "a.txt");
+fs.writeFileSync(medFile, "alpha beta\nbeta gamma\n");
+const mr = createToolRunner(med);
+const m1 = await mr.run("multi_edit", { path: "a.txt", edits: [{ oldText: "alpha", newText: "ALPHA" }, { oldText: "gamma", newText: "GAMMA" }] });
+ok("multi_edit applies several edits", m1.includes("2") && fs.readFileSync(medFile, "utf8") === "ALPHA beta\nbeta GAMMA\n", m1);
+let multiErr = "";
+try { await mr.run("multi_edit", { path: "a.txt", edits: [{ oldText: "beta", newText: "B" }] }); }
+catch (e) { multiErr = e.message; }
+ok("multi_edit rejects ambiguous oldText", /2 times/.test(multiErr), multiErr);
+const m2 = await mr.run("multi_edit", { path: "a.txt", edits: [{ oldText: "beta", newText: "B", replaceAll: true }] });
+ok("multi_edit replaceAll", fs.readFileSync(medFile, "utf8") === "ALPHA B\nB GAMMA\n", m2);
+ok("multi_edit is dangerous", mr.isDangerous("multi_edit") === true);
+
+// fetch_url against a local server (no external network)
+const fetchSrv = http.createServer((req, res) => {
+  res.writeHead(200, { "Content-Type": "text/html" });
+  res.end("<html><body><h1>Local Page</h1><script>nope()</script><p>Body text</p></body></html>");
+});
+await new Promise((r) => fetchSrv.listen(0, "127.0.0.1", r));
+const fetched = await mr.run("fetch_url", { url: "http://127.0.0.1:" + fetchSrv.address().port + "/" });
+ok("fetch_url returns readable text", fetched.includes("Local Page") && fetched.includes("Body text") && !fetched.includes("nope"));
+fetchSrv.close();
+let fetchErr = "";
+try { await mr.run("fetch_url", { url: "file:///etc/passwd" }); } catch (e) { fetchErr = e.message; }
+ok("fetch_url rejects non-http schemes", /http/i.test(fetchErr), fetchErr);
+
+// task tool without a subagent hook is a calm error, and task is a read
+const t0 = await mr.run("task", { instructions: "explore" });
+ok("task without a hook explains itself", /subagent/i.test(t0), t0.slice(0, 80));
+ok("task is not dangerous", mr.isDangerous("task") === false);
+// with a hook it returns the hook's text
+const mr2 = createToolRunner(med, { runSubagent: async ({ instructions }) => ({ text: "found: " + instructions.slice(0, 10) }) });
+const t1 = await mr2.run("task", { instructions: "look around" });
+ok("task returns the subagent text", t1 === "found: look aroun", t1);
+fs.rmSync(med, { recursive: true, force: true });
+
 /* ------------------------------- report ------------------------------ */
 fs.rmSync(dir, { recursive: true, force: true });
 
