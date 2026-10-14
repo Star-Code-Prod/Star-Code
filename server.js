@@ -11,6 +11,7 @@ import { randomUUID } from "node:crypto";
 import { exec } from "node:child_process";
 import { PROVIDERS, discoverModels, detectLocals } from "./lib/providers.js";
 import { readAuth, writeAuthEntry, removeAuthEntry, resolveKey, mask } from "./lib/auth.js";
+import { listKnowledge, readKnowledgeFile, saveKnowledgeFile, deleteKnowledgeFile, knowledgeDir } from "./lib/knowledge.js";
 import { createToolRunner, readProjectMemory } from "./lib/tools.js";
 import { runAgentTurn, systemPrompt, PERMISSION_MODES } from "./lib/agent.js";
 
@@ -313,6 +314,26 @@ async function route(req, res) {
       const down = (id) => ({ up: false, baseUrl: PROVIDERS[id].baseUrl, models: [] });
       return sendJSON(res, 200, { ollama: down("ollama"), lmstudio: down("lmstudio"), vllm: down("vllm"), error: e.message });
     }
+  }
+
+  /* ----------------------------- knowledge ----------------------------- */
+  if (req.method === "GET" && url.pathname === "/api/knowledge") {
+    return sendJSON(res, 200, { files: listKnowledge(ROOT), dir: knowledgeDir(ROOT) });
+  }
+  if (req.method === "GET" && url.pathname === "/api/knowledge/file") {
+    try { return sendJSON(res, 200, { content: readKnowledgeFile(ROOT, url.searchParams.get("path") || "") }); }
+    catch (e) { return sendJSON(res, 400, { error: e.message }); }
+  }
+  if (req.method === "POST" && url.pathname === "/api/knowledge") {
+    const body = await readBody(req);
+    try {
+      const saved = saveKnowledgeFile(ROOT, body.name, body.content);
+      return sendJSON(res, 200, { ok: true, name: saved.name });
+    } catch (e) { return sendJSON(res, 400, { error: e.message }); }
+  }
+  if (req.method === "DELETE" && url.pathname === "/api/knowledge") {
+    try { deleteKnowledgeFile(ROOT, url.searchParams.get("path") || ""); return sendJSON(res, 200, { ok: true }); }
+    catch (e) { return sendJSON(res, 400, { error: e.message }); }
   }
 
   // File tree for the sidebar

@@ -126,6 +126,25 @@ ok("acceptEdits edits without asking", decisionFor("acceptEdits", "write_file", 
 ok("acceptEdits commands ask", decisionFor("acceptEdits", "run_command", empty) === "ask");
 ok("acceptEdits commands honour the allowlist", decisionFor("acceptEdits", "run_command", new Set(["run_command"])) === "allow");
 
+/* ------------------------------ knowledge ------------------------------ */
+const kdir = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-knowledge-"));
+const { knowledgeDir, listKnowledge, readKnowledgeFile, saveKnowledgeFile, deleteKnowledgeFile, searchKnowledge, knowledgeIndex } =
+  await import(pathToFileURL(path.resolve("lib/knowledge.js")).href);
+const expectThrow = (fn) => { try { fn(); return false; } catch { return true; } };
+
+saveKnowledgeFile(kdir, "Deploy Notes", "# Deploy\nRun make deploy on fridays");
+ok("save adds .md", fs.readdirSync(knowledgeDir(kdir))[0] === "Deploy Notes.md");
+ok("index lists first line", knowledgeIndex(kdir).includes("Deploy Notes") && knowledgeIndex(kdir).includes("# Deploy"));
+ok("reads back", readKnowledgeFile(kdir, "Deploy Notes").includes("fridays"));
+ok("lists with size", listKnowledge(kdir)[0].name === "Deploy Notes.md" && listKnowledge(kdir)[0].bytes > 0);
+ok("search finds tokens", searchKnowledge(kdir, "deploy fridays").includes("Deploy Notes.md:2"));
+ok("search AND semantics", searchKnowledge(kdir, "deploy nonexistentix") === "(no matches)");
+ok("empty dir is calm", searchKnowledge(path.join(kdir, "nope"), "x") === "(no knowledge)");
+ok("rejects traversal", expectThrow(() => saveKnowledgeFile(kdir, "../../evil", "x")));
+ok("rejects separators", expectThrow(() => saveKnowledgeFile(kdir, "a/b", "x")));
+ok("delete removes", deleteKnowledgeFile(kdir, "Deploy Notes") === true && listKnowledge(kdir).length === 0);
+fs.rmSync(kdir, { recursive: true, force: true });
+
 /* ------------------------------- report ------------------------------ */
 fs.rmSync(dir, { recursive: true, force: true });
 

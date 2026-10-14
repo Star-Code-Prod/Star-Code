@@ -98,6 +98,25 @@ try {
   const listed = (await (await fetch(s.url + "/api/sessions")).json()).sessions;
   ok("empty untitled sessions are not listed", !listed.some((x) => x.title === "New session"));
 
+  // knowledge round-trip (writes into the repo root, cleaned up after)
+  const kPost = await (await fetch(s.url + "/api/knowledge", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "Verify Notes", content: "# Verify\nDeploy with make verify" }),
+  })).json();
+  ok("knowledge saves", kPost.ok === true && kPost.name === "Verify Notes.md");
+  const kList = await (await fetch(s.url + "/api/knowledge")).json();
+  ok("knowledge lists", (kList.files || []).some((f) => f.name === "Verify Notes.md"));
+  const kFile = await (await fetch(s.url + "/api/knowledge/file?path=" + encodeURIComponent("Verify Notes"))).json();
+  ok("knowledge file reads", typeof kFile.content === "string" && kFile.content.includes("make verify"));
+  ok("knowledge rejects traversal", (await fetch(s.url + "/api/knowledge", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "../evil", content: "x" }) })).status === 400);
+  ok("knowledge deletes", (await (await fetch(s.url + "/api/knowledge?path=" + encodeURIComponent("Verify Notes"), { method: "DELETE" })).json()).ok === true);
+  try {
+    fs.rmdirSync(path.join(process.cwd(), ".star-code", "knowledge"));
+    fs.rmdirSync(path.join(process.cwd(), ".star-code"));
+  } catch { /* not empty or absent - fine */ }
+
   const bad = await fetch(s.url + "/api/nope");
   ok("unknown route 404s", bad.status === 404);
 } finally {
