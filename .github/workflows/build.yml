@@ -94,6 +94,7 @@ jobs:
             release/*.AppImage
             release/*.deb
             release/*.blockmap
+            release/latest*.yml
           if-no-files-found: warn
 
   release:
