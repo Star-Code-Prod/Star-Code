@@ -155,7 +155,9 @@ function renderIcon(size) {
 }
 
 /* --------------------------------- OUTPUT -------------------------------- */
-const pngSizes = [16, 32, 48, 64, 128, 256, 512];
+// 1024 is required as a source for macOS (.icns wants 512@2x) and gives a
+// crisp master for every other size.
+const pngSizes = [16, 32, 48, 64, 128, 256, 512, 1024];
 const made = [];
 for (const s of pngSizes) {
   const rgba = renderIcon(s);
@@ -170,8 +172,9 @@ const icoSizes = [16, 32, 48, 64, 128, 256];
 const ico = encodeICO(made.filter(m => icoSizes.includes(m.size)).map(m => ({ size: m.size, data: m.png })));
 fs.writeFileSync(path.join(OUT, "icon.ico"), ico);
 
-// canonical icon.png used by Electron
-fs.copyFileSync(path.join(OUT, "icon256.png"), path.join(OUT, "icon.png"));
+// canonical icon used by electron-builder for macOS and Linux.
+// macOS rejects anything under 512x512, so ship the 1024 master.
+fs.copyFileSync(path.join(OUT, "icon1024.png"), path.join(OUT, "icon.png"));
 
 console.log("generated:");
 for (const m of made) console.log("  " + path.relative(process.cwd(), m.file).padEnd(28) + m.size + "px  " + m.bytes + "b");

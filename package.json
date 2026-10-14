@@ -16,7 +16,10 @@
     "developer-tools"
   ],
   "license": "MIT",
-  "author": "Star Code contributors",
+  "author": {
+    "name": "praisethefacts",
+    "email": "cryphor@outlook.com"
+  },
   "type": "module",
   "main": "electron/main.cjs",
   "engines": {
@@ -83,6 +86,8 @@
       "target": ["AppImage", "deb"],
       "icon": "assets/icon.png",
       "category": "Development",
+      "maintainer": "praisethefacts <cryphor@outlook.com>",
+      "synopsis": "Provider-agnostic agentic coding UI",
       "artifactName": "${productName}-${version}-${arch}.${ext}"
     }
   }

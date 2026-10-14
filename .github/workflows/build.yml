@@ -33,16 +33,8 @@ jobs:
             node --check "$f" || exit 1
           done
 
-      - name: Verify the UI script parses
-        run: |
-          node - <<'EOF'
-          const fs = require("fs");
-          const html = fs.readFileSync("public/index.html", "utf8");
-          const i = html.lastIndexOf("<script>") + 8;
-          const j = html.lastIndexOf("</script>");
-          fs.writeFileSync("/tmp/ui.mjs", html.slice(i, j));
-          EOF
-          node --check /tmp/ui.mjs
+      - name: Verify the UI script parses and its element ids resolve
+        run: node tools/verify-ui.mjs
 
       - name: Verify .gitignore does not exclude source files
         run: node tools/verify-gitignore.mjs
@@ -50,20 +42,8 @@ jobs:
       - name: Verify README links and image paths
         run: node tools/verify-readme.mjs
 
-      - name: Verify the embedded server starts and serves the UI
-        run: |
-          node - <<'EOF'
-          const { startServer } = await import("./server.js");
-          const s = await startServer({ port: 0, silent: true });
-          const prov = await (await fetch(s.url + "/api/providers")).json();
-          if (prov.providers.length !== 5) throw new Error("expected 5 providers");
-          const ui = await (await fetch(s.url + "/")).text();
-          if (ui.length < 50000) throw new Error("UI did not serve");
-          const ico = await fetch(s.url + "/favicon.ico");
-          if (!ico.ok) throw new Error("favicon missing");
-          await s.close();
-          console.log("server OK:", prov.providers.map(p => p.id).join(", "));
-          EOF
+      - name: Verify the embedded server boots and serves the UI
+        run: node tools/verify-server.mjs
 
   build:
     name: Build (${{ matrix.os }})
@@ -94,12 +74,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # No GH_TOKEN here on purpose: setting it makes electron-builder try to
+      # publish releases itself and collide with the `release` job below.
+      # Artifacts are uploaded by actions/upload-artifact instead.
       - name: Build
         run: npm run ${{ matrix.script }}
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # unsigned builds; set CSC_LINK / CSC_KEY_PASSWORD to sign
           CSC_IDENTITY_AUTO_DISCOVERY: false
+          # unsigned builds; set CSC_LINK / CSC_KEY_PASSWORD to sign
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

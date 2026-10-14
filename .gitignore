@@ -86,3 +86,7 @@ desktop.ini
 
 # --- packaging config that can contain local paths ---
 builder-effective-config.yaml
+
+# --- local CI helpers (read the git credential store; never publish) ---
+tools/ci-status.mjs
+tools/ci-log.mjs
