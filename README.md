@@ -9,7 +9,7 @@
 Bring your own model. Star Code reads, searches, edits, and runs commands in your
 project — and asks before it touches anything.
 
-[![Build](https://github.com/praisethefacts/Star-Code/actions/workflows/build.yml/badge.svg)](https://github.com/praisethefacts/Star-Code/actions/workflows/build.yml)
+[![Build](https://github.com/Star-Code-Prod/Star-Code/actions/workflows/build.yml/badge.svg)](https://github.com/Star-Code-Prod/Star-Code/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](#install)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org)
@@ -49,7 +49,7 @@ setting you change — including a model running on your own machine.
 
 ### Prebuilt
 
-Grab an installer from [Releases](https://github.com/praisethefacts/Star-Code/releases):
+Grab an installer from [Releases](https://github.com/Star-Code-Prod/Star-Code/releases):
 
 | Platform | File |
 |---|---|
@@ -62,7 +62,7 @@ Builds are unsigned, so your OS will warn you on first launch.
 ### From source
 
 ```bash
-git clone https://github.com/praisethefacts/Star-Code.git
+git clone https://github.com/Star-Code-Prod/Star-Code.git
 cd Star-Code
 npm install
 npm run electron      # desktop app

@@ -159,7 +159,7 @@ function createWindow(url) {
 }
 
 /* --------------------------------- IPC ----------------------------------- */
-const REPO_OWNER = "praisethefacts";
+const REPO_OWNER = "Star-Code-Prod";
 const REPO_NAME = "Star-Code";
 const RELEASES_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases`;
 

@@ -1389,7 +1389,7 @@ function applyUpdateInfo(quiet) {
 }
 
 $("updateGet").addEventListener("click", () => {
-  const url = (updateInfo && updateInfo.url) || "https://github.com/praisethefacts/Star-Code/releases";
+  const url = (updateInfo && updateInfo.url) || "https://github.com/Star-Code-Prod/Star-Code/releases";
   if (bridge) bridge.openExternal(url);
   else window.open(url, "_blank");
 });
@@ -2339,7 +2339,7 @@ function wireSettings() {
     if (updateInfo) toast(updateStatusText());
   });
   on("upOpen", "click", () => {
-    const url = (updateInfo && updateInfo.url) || "https://github.com/praisethefacts/Star-Code/releases";
+    const url = (updateInfo && updateInfo.url) || "https://github.com/Star-Code-Prod/Star-Code/releases";
     if (bridge) bridge.openExternal(url);
     else window.open(url, "_blank");
   });
@@ -2392,7 +2392,7 @@ $("btnMore").addEventListener("click", e => {
     { sep: true },
     { label: "Check for updates", run: async () => { await checkUpdates({ quiet: false }); toast(updateStatusText()); } },
     { label: "Open releases page", run: () => {
-        const url = (updateInfo && updateInfo.url) || "https://github.com/praisethefacts/Star-Code/releases";
+        const url = (updateInfo && updateInfo.url) || "https://github.com/Star-Code-Prod/Star-Code/releases";
         if (bridge) bridge.openExternal(url); else window.open(url, "_blank");
       } },
     { label: "Empty this transcript", k: "⌘L", run: () => { $("stream").innerHTML = ""; showLanding(); } },
