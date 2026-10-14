@@ -41,7 +41,9 @@ function defaultRoot() {
 
 /* -------------------------------- window --------------------------------- */
 function titlebarColors() {
-  const dark = !nativeTheme.shouldUseDarkColors;
+  // The overlay area (window controls) must follow the app's theme: with
+  // themeSource synced from the UI, shouldUseDarkColors is our own setting.
+  const dark = nativeTheme.shouldUseDarkColors;
   return dark
     ? { color: "#1a1a1a", symbolColor: "#b9b9b5" }
     : { color: "#faf9f5", symbolColor: "#55534c" };
