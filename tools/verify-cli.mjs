@@ -61,6 +61,37 @@ ok("one-shot streams the answer", (run.stdout || "").includes("stub-ok"), (run.s
 ok("one-shot exits 0", run.status === 0, String(run.status));
 stub.close();
 
+// 4. REPL: /model listing and /connect storage (piped stdin, temp store)
+async function runCliPipe(args, input, envExtra = {}) {
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, [BIN, ...args], {
+      env: { ...cleanEnv, ...envExtra },
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    let stdout = "", stderr = "";
+    child.stdout.on("data", (d) => { stdout += d; });
+    child.stderr.on("data", (d) => { stderr += d; });
+    child.stdin.write(input);
+    child.stdin.end();
+    const killer = setTimeout(() => child.kill(), 15000);
+    child.on("exit", (code) => { clearTimeout(killer); resolve({ status: code, stdout, stderr }); });
+  });
+}
+
+const list = await runCliPipe([], "/model\n/exit\n");
+ok("repl /model lists providers", /deepseek/.test(list.stdout) && /openai/.test(list.stdout) && /openrouter/.test(list.stdout), (list.stdout || "").slice(0, 160));
+
+const tmp2 = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-connect-"));
+const conn = await runCliPipe([], "/connect openai\nsk-cli-test-1234\n/exit\n", { STAR_CODE_DATA: tmp2 });
+ok("repl /connect stores", /stored .*1234/.test(conn.stdout), (conn.stdout || "").slice(0, 200));
+let storedOk = false;
+try {
+  const stored = JSON.parse(fs.readFileSync(path.join(tmp2, "auth.json"), "utf8"));
+  storedOk = stored.providers.openai.apiKey === "sk-cli-test-1234";
+} catch { storedOk = false; }
+ok("auth.json holds the connected key", storedOk);
+fs.rmSync(tmp2, { recursive: true, force: true });
+
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(results.join("\n"));
 const failed = results.filter((r) => r.startsWith("FAIL")).length;

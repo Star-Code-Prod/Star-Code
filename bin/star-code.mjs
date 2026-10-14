@@ -74,7 +74,10 @@ if (flags.model) {
   model = PROVIDERS[provider].defaultModel;
 }
 const storedBase = readAuth().providers[provider]?.baseUrl || "";
-const baseUrl = (provider === "custom" && process.env.STAR_CODE_TEST_BASE) ? process.env.STAR_CODE_TEST_BASE : storedBase || undefined;
+function effectiveBase() {
+  const base = readAuth().providers[provider]?.baseUrl || storedBase || "";
+  return (provider === "custom" && process.env.STAR_CODE_TEST_BASE) ? process.env.STAR_CODE_TEST_BASE : base || undefined;
+}
 
 function currentKey() {
   return resolveKey(provider, "", PROVIDERS[provider]?.envKeys || []);
@@ -102,18 +105,36 @@ const runner = createToolRunner(root);
 const autoAllow = new Set();
 
 let rl = null;
+const lineQueue = [];
+let waiter = null;
+
+/** Line pump: queued lines survive the gap between two prompts (readline's
+ *  question() drops buffered lines on piped stdin between asks), so scripted
+ *  input AND interactive typing both work. */
 function reader() {
-  if (!rl) rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  if (!rl) {
+    rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    rl.on("line", (line) => {
+      if (waiter) { const w = waiter; waiter = null; w(line); }
+      else lineQueue.push(line);
+    });
+    rl.on("close", () => {
+      if (waiter) { const w = waiter; waiter = null; w(null); }   // EOF releases a pending ask
+    });
+  }
   return rl;
 }
 function ask(q) {
-  return new Promise((resolve) => reader().question(q, (a) => resolve(String(a || "").trim())));
+  process.stdout.write(q);
+  reader();
+  if (lineQueue.length) return Promise.resolve(lineQueue.shift());
+  return new Promise((resolve) => { waiter = resolve; });
 }
 
 async function requestPermission({ name, args }) {
   if (autoAllow.has(name)) return { allowed: true, scope: "once" };
   const detail = name === "run_command" ? args.command : JSON.stringify(args);
-  const a = await ask(`\n${yellow(name)} ${String(detail || "").slice(0, 300)}\nallow? [y] once / [n] no / [a] always this session > `);
+  const a = (await ask(`\n${yellow(name)} ${String(detail || "").slice(0, 300)}\nallow? [y] once / [n] no / [a] always this session > `)) || "";
   if (a.toLowerCase() === "a") { autoAllow.add(name); return { allowed: true, scope: "session" }; }
   return { allowed: a.toLowerCase() === "y", scope: "once" };
 }
@@ -123,7 +144,7 @@ async function runTurn(text) {
   messages[0] = { role: "system", content: systemPrompt(root, flags.mode) };
   try {
     await runAgentTurn({
-      provider, model, apiKey: currentKey(), baseUrl, messages, runner,
+      provider, model, apiKey: currentKey(), baseUrl: effectiveBase(), messages, runner,
       emit, requestPermission, mode: flags.mode, autoAllow,
     });
   } catch (e) {
@@ -137,7 +158,7 @@ const REPL_HELP = `Commands:
   /help              this text
   /clear             fresh conversation
   /status            provider, model, root, mode
-  /model             list/select provider/model (coming with --model parity)
+  /model [p/m]       list providers, or switch (e.g. /model openai/gpt-4o)
   /connect <p>       store an API key for a provider
   /knowledge         knowledge files summary
   /exit              quit`;
@@ -147,6 +168,7 @@ async function repl() {
   for (;;) {
     let line;
     try { line = await ask("\n▸ "); } catch { break; }
+    if (line == null) break;   // stdin closed
     if (line === "") continue;
     if (line === "/exit" || line === "/quit") break;
     if (line === "/help") { console.log(REPL_HELP); continue; }
@@ -155,6 +177,24 @@ async function repl() {
       console.log(`${provider}/${model} · ${flags.mode} · ${root}`);
       const key = currentKey();
       console.log(key ? `key: ${mask(key)}` : "key: none (use /connect or --model)");
+      continue;
+    }
+    if (line.startsWith("/model")) {
+      const sel = line.split(/\s+/)[1] || "";
+      if (!sel) {
+        for (const [id, cfg] of Object.entries(PROVIDERS)) {
+          const mark = id === provider ? "→" : " ";
+          console.log(`${mark} ${id.padEnd(11)} ${id === provider ? model : cfg.defaultModel}`);
+        }
+        console.log("\nswitch with /model <provider/model>");
+        continue;
+      }
+      const slash = sel.indexOf("/");
+      const pid = slash > 0 ? sel.slice(0, slash) : sel;
+      if (!PROVIDERS[pid]) { console.log("unknown provider: " + pid); continue; }
+      provider = pid;
+      model = slash > 0 ? sel.slice(slash + 1) : PROVIDERS[pid].defaultModel;
+      console.log("using " + provider + "/" + model);
       continue;
     }
     if (line.startsWith("/connect")) {
