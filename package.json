@@ -22,15 +22,19 @@
   },
   "type": "module",
   "main": "electron/main.cjs",
+  "bin": {
+    "star-code": "bin/star-code.mjs"
+  },
   "engines": {
     "node": ">=18"
   },
   "scripts": {
     "start": "node server.js",
     "electron": "electron .",
+    "cli": "node bin/star-code.mjs",
     "icons": "node tools/make-icons.mjs",
     "shot": "node tools/uishot.mjs",
-    "verify": "node tools/verify-core.mjs && node tools/verify-ui.mjs && node tools/verify-server.mjs && node tools/verify-sessions.mjs && node tools/verify-gitignore.mjs && node tools/verify-readme.mjs",
+    "verify": "node tools/verify-core.mjs && node tools/verify-ui.mjs && node tools/verify-server.mjs && node tools/verify-sessions.mjs && node tools/verify-cli.mjs && node tools/verify-gitignore.mjs && node tools/verify-readme.mjs",
     "pack": "electron-builder --dir",
     "dist": "electron-builder --win --x64 --publish never",
     "dist:mac": "electron-builder --mac --publish never",

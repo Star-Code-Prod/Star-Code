@@ -62,6 +62,9 @@ jobs:
       - name: Sessions API
         run: node tools/verify-sessions.mjs
 
+      - name: CLI behaviour
+        run: node tools/verify-cli.mjs
+
   # ---------------------------------------------------------------------------
   # Build every platform. Nothing is published from here.
   # ---------------------------------------------------------------------------
