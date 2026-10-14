@@ -16,6 +16,11 @@
     "developer-tools"
   ],
   "license": "MIT",
+  "homepage": "https://github.com/Star-Code-Prod/Star-Code",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Star-Code-Prod/Star-Code.git"
+  },
   "author": {
     "name": "praisethefacts",
     "email": "cryphor@outlook.com"
