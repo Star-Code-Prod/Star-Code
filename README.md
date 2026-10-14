@@ -59,9 +59,9 @@ Grab an installer from [Releases](https://github.com/Star-Code-Prod/Star-Code/re
 
 | Platform | File |
 |---|---|
-| Windows | `Star-Code-Desktop-Setup-1.3.3.exe` (installer) or `Star-Code-Desktop-1.3.3-portable.exe` |
-| macOS | `Star-Code-Desktop-1.3.3-arm64.dmg` |
-| Linux | `Star-Code-Desktop-1.3.3-x86_64.AppImage` or `Star-Code-Desktop-1.3.3-amd64.deb` |
+| Windows | `Star-Code-Desktop-Setup-1.3.4.exe` (installer) or `Star-Code-Desktop-1.3.4-portable.exe` |
+| macOS | `Star-Code-Desktop-1.3.4-arm64.dmg` |
+| Linux | `Star-Code-Desktop-1.3.4-x86_64.AppImage` or `Star-Code-Desktop-1.3.4-amd64.deb` |
 
 Builds are unsigned, so your OS will warn you on first launch.
 

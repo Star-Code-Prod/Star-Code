@@ -106,29 +106,39 @@ function loadStore() {
 }
 
 let saveTimer = null;
+function writeStoreNow() {
+  try {
+    fs.mkdirSync(STORE_DIR, { recursive: true });
+    const list = [...sessions.values()]
+      .filter((s) => !isEmptyUntitled(s))
+      .sort((a, b) => b.updated - a.updated)
+      .slice(0, 50)
+      .map((s) => ({
+        id: s.id,
+        title: s.title,
+        mode: s.mode,
+        cwd: s.cwd,
+        created: s.created,
+        updated: s.updated,
+        messages: s.messages.slice(-MAX_STORED_MESSAGES),
+      }));
+    // Atomic: write a temp file, then rename, so a crash or a second
+    // instance can never leave a half-written store behind.
+    const tmp = STORE_FILE + ".tmp";
+    fs.writeFileSync(tmp, JSON.stringify({ version: 1, sessions: list }, null, 1));
+    fs.renameSync(tmp, STORE_FILE);
+  } catch (e) {
+    console.error("could not persist sessions:", e.message);
+  }
+}
 function persist() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    try {
-      fs.mkdirSync(STORE_DIR, { recursive: true });
-      const list = [...sessions.values()]
-        .filter((s) => !isEmptyUntitled(s))
-        .sort((a, b) => b.updated - a.updated)
-        .slice(0, 50)
-        .map((s) => ({
-          id: s.id,
-          title: s.title,
-          mode: s.mode,
-          cwd: s.cwd,
-          created: s.created,
-          updated: s.updated,
-          messages: s.messages.slice(-MAX_STORED_MESSAGES),
-        }));
-      fs.writeFileSync(STORE_FILE, JSON.stringify({ version: 1, sessions: list }, null, 1));
-    } catch (e) {
-      console.error("could not persist sessions:", e.message);
-    }
-  }, 400);
+  saveTimer = setTimeout(writeStoreNow, 400);
+}
+/** Synchronous flush for shutdown paths, so nothing pending is lost. */
+export function flushStore() {
+  clearTimeout(saveTimer);
+  writeStoreNow();
 }
 
 function summarise(s) {
@@ -429,7 +439,7 @@ async function route(req, res) {
     if (root && fs.existsSync(root) && fs.statSync(root).isDirectory()) {
       ROOT = path.resolve(root);
       runner = makeRunner(ROOT);
-      sessions.clear();
+      // Existing sessions keep their own cwd - never clear them here.
       return sendJSON(res, 200, { ok: true, root: ROOT });
     }
     return sendJSON(res, 400, { error: "invalid directory" });
@@ -526,9 +536,13 @@ async function route(req, res) {
     const controller = { abort: false };
     session.aborts.add(controller);
 
+    // Each session runs against its own working directory; the server's
+    // current root is only the default for brand-new sessions.
+    const chatRunner = (session.cwd && path.resolve(session.cwd) !== ROOT) ? makeRunner(session.cwd) : runner;
+
     try {
       await runAgentTurn({
-        provider, model, apiKey: effectiveKey, baseUrl: effectiveBaseUrl, messages: session.messages, runner, emit, requestPermission,
+        provider, model, apiKey: effectiveKey, baseUrl: effectiveBaseUrl, messages: session.messages, runner: chatRunner, emit, requestPermission,
         mode: session.mode, controller, autoAllow: session.autoAllow,
       });
     } catch (e) {
@@ -595,7 +609,7 @@ export async function startServer({ port = PORT, root, silent = false } = {}) {
   if (root) {
     ROOT = path.resolve(root);
     runner = makeRunner(ROOT);
-    sessions.clear();
+    // Stored sessions are history, not scratch: keep them across boots.
   }
   await new Promise((resolve, reject) => {
     server.once("error", reject);
@@ -611,6 +625,9 @@ export async function startServer({ port = PORT, root, silent = false } = {}) {
     port: actual,
     url: "http://127.0.0.1:" + actual,
     close: () => new Promise((resolve) => {
+      // Flush anything the debounce is holding, so a quick quit never
+      // loses the last session's changes.
+      flushStore();
       // Drop keep-alive sockets first. Without this, fetch()'s pooled
       // connections keep handles open and Node can trip
       // "Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)"
@@ -625,7 +642,7 @@ export async function startServer({ port = PORT, root, silent = false } = {}) {
 export function setRoot(newRoot) {
   ROOT = path.resolve(newRoot);
   runner = makeRunner(ROOT);
-  sessions.clear();
+  // Sessions keep their own cwd; history survives a root change.
   return ROOT;
 }
 

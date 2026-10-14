@@ -6,6 +6,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
 const KEY = process.env.STAR_CODE_TEST_KEY || "";
@@ -78,6 +79,14 @@ await post("/api/sessions/delete", { id: c.id });
 const list3 = await get("/api/sessions");
 ok("delete removes the session", !list3.sessions.some((s) => s.id === c.id));
 
+// 6b. a root change must not wipe stored sessions
+const rd = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-root-"));
+const d = await post("/api/sessions/new", { title: "Survives root change" });
+await post("/api/setroot", { root: rd });
+const list4 = await get("/api/sessions");
+ok("root change keeps stored sessions", list4.sessions.some((s) => s.id === d.id), list4.sessions.length + " after setroot");
+fs.rmSync(rd, { recursive: true, force: true });
+
 // 7. errors
 ok("reading a missing session 404s", (await fetch(base + "/api/sessions/messages?id=nope")).status === 404);
 ok("renaming a missing session 404s", (await fetch(base + "/api/sessions/rename", {
@@ -95,6 +104,31 @@ if (fs.existsSync(storeFile)) {
      Array.isArray(stored.sessions) && stored.sessions.length === (await get("/api/sessions")).sessions.length,
      stored.sessions.length + " on disk");
 }
+
+// 9. a root-parameterized boot (the desktop app's normal path) must keep
+// stored sessions instead of starting empty and then overwriting the store.
+const dir2 = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-rootboot-"));
+fs.writeFileSync(path.join(dir2, "sessions.json"), JSON.stringify({
+  version: 1,
+  sessions: [{
+    id: "keep-me", title: "Precious history", mode: "manual", cwd: process.cwd(),
+    created: Date.now(), updated: Date.now(),
+    messages: [{ role: "system", content: "s" }, { role: "user", content: "hello there" }],
+  }],
+}));
+const bootScript = `import(${JSON.stringify(pathToFileURL(path.resolve("server.js")).href)}).then(async (m) => {
+  const srv = await m.startServer({ port: 0, root: ${JSON.stringify(process.cwd())}, silent: true });
+  const list = await (await fetch(srv.url + "/api/sessions")).json();
+  console.log("SESSIONS:" + (list.sessions || []).length);
+  await srv.close();
+});`;
+const boot = spawnSync(process.execPath, ["--input-type=module", "-e", bootScript], {
+  encoding: "utf8",
+  env: { ...process.env, STAR_CODE_DATA: dir2 },
+  timeout: 30000,
+});
+ok("rooted boot keeps stored sessions", (boot.stdout || "").includes("SESSIONS:1"), (boot.stdout || "").trim().slice(-80));
+fs.rmSync(dir2, { recursive: true, force: true });
 
 await srv.close();
 fs.rmSync(dir, { recursive: true, force: true });
