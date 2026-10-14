@@ -137,14 +137,33 @@ npm run dist:linux  # Linux: AppImage + deb
 npm run dist:all    # all three (needs the right host OS for signing)
 ```
 
-Output lands in `release/`. The CI workflow in
-[`.github/workflows/build.yml`](.github/workflows/build.yml) builds all three
-platforms on every push and publishes a release when you push a `v*` tag:
+Output lands in `release/`.
+
+### Releasing
+
+Releases are automatic. **You only bump the version:**
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+npm version 1.2.0 --no-git-tag-version   # or edit package.json
+git commit -am "1.2.0"
+git push
 ```
+
+The `Build & Release` workflow then:
+
+1. runs the checks (`tools/verify-*.mjs`)
+2. builds Windows, macOS and Linux
+3. **tags `v1.2.0` only if that tag does not already exist**
+4. publishes a GitHub release with all installers attached
+
+A broken build can never ship — the `tag` job runs only after every platform
+builds successfully.
+
+To re-publish a version that already has a tag, use **Actions → Build &
+Release → Run workflow** (the `publish` input defaults to true).
+
+Once per release is plenty; pushing several commits without a version change
+just rebuilds without creating a second release.
 
 ### Windows build notes
 

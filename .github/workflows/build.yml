@@ -1,4 +1,4 @@
-name: Build
+name: Build & Release
 
 on:
   push:
@@ -7,47 +7,58 @@ on:
   pull_request:
     branches: [main, master]
   workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish a release for the current package.json version"
+        type: boolean
+        default: true
 
 permissions:
   contents: write
 
+concurrency:
+  # never let two releases race for the same tag
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  # Fast gate: catch syntax errors and broken references before spending
+  # ---------------------------------------------------------------------------
+  # Fast gate. Catches syntax errors and broken references before spending
   # time on three platform builds.
+  # ---------------------------------------------------------------------------
   check:
-    name: Syntax check
+    name: Checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
-      - name: Parse every server module
+      - name: Server modules parse
         run: |
-          for f in server.js lib/*.js; do
-            node --check "$f" || exit 1
-          done
-          for f in electron/*.cjs; do
-            node --check "$f" || exit 1
-          done
+          for f in server.js lib/*.js; do node --check "$f" || exit 1; done
+          for f in electron/*.cjs; do node --check "$f" || exit 1; done
 
-      - name: Verify the UI script parses and its element ids resolve
+      - name: UI markup and element ids
         run: node tools/verify-ui.mjs
 
-      - name: Verify .gitignore does not exclude source files
-        run: node tools/verify-gitignore.mjs
-
-      - name: Verify README links and image paths
-        run: node tools/verify-readme.mjs
-
-      - name: Verify render layer (highlighting, escaping, layout invariants)
+      - name: Render layer (highlighting, escaping, layout)
         run: node tools/verify-render.mjs
 
-      - name: Verify the embedded server boots and serves the UI
+      - name: .gitignore does not exclude source files
+        run: node tools/verify-gitignore.mjs
+
+      - name: README links and image paths
+        run: node tools/verify-readme.mjs
+
+      - name: Server boots and serves the UI
         run: node tools/verify-server.mjs
 
+  # ---------------------------------------------------------------------------
+  # Build every platform. Nothing is published from here.
+  # ---------------------------------------------------------------------------
   build:
     name: Build (${{ matrix.os }})
     needs: check
@@ -65,26 +76,24 @@ jobs:
           - os: ubuntu-latest
             script: dist:linux
             artifact: linux
-
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
-      # No GH_TOKEN here on purpose: setting it makes electron-builder try to
-      # publish releases itself and collide with the `release` job below.
-      # Artifacts are uploaded by actions/upload-artifact instead.
+      # No GH_TOKEN here on purpose: it makes electron-builder try to publish
+      # releases itself. The dist scripts pass --publish never and the release
+      # job below owns publishing.
       - name: Build
         run: npm run ${{ matrix.script }}
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
-          # unsigned builds; set CSC_LINK / CSC_KEY_PASSWORD to sign
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -98,26 +107,109 @@ jobs:
             release/*.deb
             release/*.blockmap
             release/latest*.yml
-          if-no-files-found: warn
+          if-no-files-found: error
 
+  # ---------------------------------------------------------------------------
+  # Auto-ship: if package.json's version has no matching tag yet, create it.
+  # Runs only after every platform built, so a broken build can never ship.
+  # ---------------------------------------------------------------------------
+  tag:
+    name: Tag version
+    needs: [check, build]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      created: ${{ steps.mk.outputs.created }}
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: ver
+        name: Read version from package.json
+        run: |
+          V=$(node -p "require('./package.json').version")
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "package.json version: $V"
+
+      - id: mk
+        name: Create the tag if it is new
+        run: |
+          git fetch --tags --force
+          V="v${{ steps.ver.outputs.version }}"
+          if git rev-parse -q --verify "refs/tags/$V" >/dev/null; then
+            echo "tag $V already exists - nothing new to ship"
+            echo "created=false" >> "$GITHUB_OUTPUT"
+          else
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "$V" -m "Star Code ${{ steps.ver.outputs.version }}"
+            git push origin "$V"
+            echo "created=true" >> "$GITHUB_OUTPUT"
+            echo "tagged $V"
+          fi
+
+  # ---------------------------------------------------------------------------
+  # Publish. Triggered either by a pushed tag or by the tag job above.
+  # Note: a tag pushed with GITHUB_TOKEN does not fire other workflows, which
+  # is why this runs in the same run rather than relying on the tag event.
+  # ---------------------------------------------------------------------------
   release:
     name: Publish release
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, tag]
+    if: |
+      always()
+      && needs.build.result == 'success'
+      && (
+           startsWith(github.ref, 'refs/tags/v')
+           || needs.tag.outputs.created == 'true'
+           || (github.event_name == 'workflow_dispatch' && inputs.publish)
+         )
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: Flatten
+      - name: Collect files
         run: |
           mkdir -p out
           find artifacts -type f -exec cp {} out/ \;
-          ls -la out
+          echo "collected:"; ls -la out
+
+      - id: t
+        name: Resolve the tag name
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          else
+            # this job has no checkout, so take the version from the tag job
+            TAG="v${{ needs.tag.outputs.version }}"
+          fi
+          if [[ "$TAG" == "v" ]]; then
+            echo "::error::could not determine a version to publish"
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "publishing $TAG"
 
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.t.outputs.tag }}
+          name: Star Code ${{ steps.t.outputs.tag }}
           files: out/*
           generate_release_notes: true
           draft: false
+          fail_on_unmatched_files: true
+          body: |
+            Automated build from `${{ github.sha }}`.
+
+            **Downloads**
+            | Platform | File |
+            |---|---|
+            | Windows | `Star-Code-Setup-*.exe` (installer) or `Star-Code-*-portable.exe` |
+            | macOS | `Star-Code-*-arm64.dmg` |
+            | Linux | `Star-Code-*-x86_64.AppImage` or `Star-Code-*-amd64.deb` |
+
+            Builds are unsigned, so your OS will warn on first launch.
