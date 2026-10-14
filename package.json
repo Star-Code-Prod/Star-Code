@@ -1,7 +1,7 @@
 {
   "name": "star-code",
   "productName": "Star Code",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "A local, provider-agnostic agentic coding UI. Bring your own model — DeepSeek, OpenAI, Anthropic, Ollama, or any OpenAI-compatible endpoint — and let it read, search, edit, and run commands in your project.",
   "keywords": [
     "ai",
