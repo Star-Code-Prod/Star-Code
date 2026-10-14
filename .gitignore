@@ -53,6 +53,7 @@ lerna-debug.log*
 # --- local diagnostics (produced by tools/smoketest.ps1, tools/screenshot.ps1) ---
 # CCD_SHOT / CCD_DIAG outputs in electron/main.cjs
 app-shot.png
+shot.png
 diag.json
 startup-error.log
 

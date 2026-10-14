@@ -29,6 +29,7 @@
     "start": "node server.js",
     "electron": "electron .",
     "icons": "node tools/make-icons.mjs",
+    "shot": "node tools/uishot.mjs",
     "verify": "node tools/verify-ui.mjs && node tools/verify-server.mjs && node tools/verify-sessions.mjs && node tools/verify-gitignore.mjs && node tools/verify-readme.mjs",
     "pack": "electron-builder --dir",
     "dist": "electron-builder --win --x64 --publish never",

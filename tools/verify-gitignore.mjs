@@ -131,6 +131,7 @@ const mustIgnore = [
   "release/builder-debug.yml",
   "node_modules/electron/index.js",
   "app-shot.png",
+  "shot.png",
   "diag.json",
   "startup-error.log",
   "debug.log",
