@@ -84,6 +84,20 @@ try {
   const det = await (await fetch(s.url + "/api/detect")).json();
   ok("/api/detect shape", ["ollama", "lmstudio", "vllm"].every((k) => typeof det[k]?.up === "boolean"));
 
+  const sessionsBefore = (await (await fetch(s.url + "/api/sessions")).json()).sessions.length;
+  await (await fetch(s.url + "/api/command", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId: "ghost", name: "help" }),
+  })).json();
+  const sessionsAfter = (await (await fetch(s.url + "/api/sessions")).json()).sessions.length;
+  ok("command with unknown id creates no session", sessionsAfter === sessionsBefore);
+
+  await (await fetch(s.url + "/api/sessions/new", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}),
+  })).json();
+  const listed = (await (await fetch(s.url + "/api/sessions")).json()).sessions;
+  ok("empty untitled sessions are not listed", !listed.some((x) => x.title === "New session"));
+
   const bad = await fetch(s.url + "/api/nope");
   ok("unknown route 404s", bad.status === 404);
 } finally {

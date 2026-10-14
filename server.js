@@ -32,13 +32,22 @@ const STORE_DIR = process.env.STAR_CODE_DATA
 const STORE_FILE = path.join(STORE_DIR, "sessions.json");
 const MAX_STORED_MESSAGES = 120;
 
+// A session with a default title and no real user turn is noise — what a
+// launch probe or an untouched "New session" leaves behind. Never listed,
+// never persisted, dropped on load.
+const UNTITLED = new Set(["", "New session", "Untitled"]);
+function isEmptyUntitled(s) {
+  const hasUser = (s.messages || []).some((m) => m.role === "user" && !String(m.content).startsWith("Tool result for "));
+  return UNTITLED.has(String(s.title || "").trim()) && !hasUser;
+}
+
 function loadStore() {
   try {
     const raw = JSON.parse(fs.readFileSync(STORE_FILE, "utf8"));
     if (Array.isArray(raw.sessions)) {
       for (const s of raw.sessions) {
         if (s && s.id) {
-          sessions.set(s.id, {
+          const loaded = {
             id: s.id,
             title: s.title || "Untitled",
             mode: PERMISSION_MODES.includes(s.mode) ? s.mode : "manual",
@@ -49,7 +58,8 @@ function loadStore() {
             pending: new Map(),
             aborts: new Set(),
             autoAllow: new Set(),
-          });
+          };
+          if (!isEmptyUntitled(loaded)) sessions.set(s.id, loaded);
         }
       }
     }
@@ -63,6 +73,7 @@ function persist() {
     try {
       fs.mkdirSync(STORE_DIR, { recursive: true });
       const list = [...sessions.values()]
+        .filter((s) => !isEmptyUntitled(s))
         .sort((a, b) => b.updated - a.updated)
         .slice(0, 50)
         .map((s) => ({
@@ -198,18 +209,19 @@ const HELP_TEXT = `**Star Code — commands**
 | \`/compact\` | Summarize the conversation to free context |
 | \`/init\` | Create a \`CLAUDE.md\` project guide |
 | \`/model\` | Switch provider or model (use the sidebar) |
+| \`/models\` | Pick a model (searchable) |
+| \`/connect\` | Connect a provider (key, models) |
 | \`/context\` | Show context and project stats |
 | \`/diff\` | Show uncommitted git changes |
 | \`/status\` | Session and repo status |
 | \`/memory\` | Show the project memory file |
-| \`/cost\` | Token/cost estimate for this session |
 | \`/export\` | Download the conversation as text |
 | \`/btw <q>\` | Ask a side question without adding to history |
 | \`/plan\` | Switch to plan mode |
 | \`/review\` | Ask for a code review of the diff |
 
 **Modes** (cycle with Shift+Tab or the mode menu): Manual · Accept edits · Plan · Bypass
-**Input**: \`@\` mention files · \`!\` run a shell command · \`Ctrl+T\` toggle the task checklist`;
+**Input**: \`@\` mention files · \`!\` run a shell command`;
 
 async function handler(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
@@ -348,18 +360,19 @@ async function handler(req, res) {
     return sendJSON(res, 400, { error: "invalid directory" });
   }
 
-  // Slash command that doesn't need the model
+  // Slash command that doesn't need the model. Never creates a session:
+  // an unknown id just runs without one instead of leaving junk behind.
   if (req.method === "POST" && url.pathname === "/api/command") {
     const body = await readBody(req);
-    const session = getSession(body.sessionId);
-    const out = await runLocalCommand(body.name, body.args, session.id);
+    const session = body.sessionId && sessions.has(body.sessionId) ? sessions.get(body.sessionId) : null;
+    const out = await runLocalCommand(body.name, body.args, session ? session.id : (body.sessionId || ""));
     if (!out) return sendJSON(res, 404, { error: "unknown command" });
-    return sendJSON(res, 200, { ...out, sessionId: session.id });
+    return sendJSON(res, 200, { ...out, sessionId: session ? session.id : null });
   }
 
   /* ----------------------------- sessions ----------------------------- */
   if (req.method === "GET" && url.pathname === "/api/sessions") {
-    const list = [...sessions.values()].sort((a, b) => b.updated - a.updated).map(summarise);
+    const list = [...sessions.values()].filter((s) => !isEmptyUntitled(s)).sort((a, b) => b.updated - a.updated).map(summarise);
     return sendJSON(res, 200, { sessions: list, store: STORE_FILE });
   }
 
