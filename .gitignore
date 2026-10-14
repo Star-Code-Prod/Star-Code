@@ -88,6 +88,6 @@ desktop.ini
 builder-effective-config.yaml
 
 # --- local CI helpers (read the git credential store; never publish) ---
-tools/ci-status.mjs
-tools/ci-log.mjs
-tools/ci-wait.mjs
+# pattern, not individual names: a new helper must not be able to slip in
+# the way tools/ci-wait.mjs once did.
+tools/ci-*.mjs

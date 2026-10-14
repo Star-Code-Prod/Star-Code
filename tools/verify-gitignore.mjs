@@ -135,6 +135,11 @@ const mustIgnore = [
   "startup-error.log",
   "debug.log",
   ".env",
+  // credential-reading CI helpers must never be published
+  "tools/ci-status.mjs",
+  "tools/ci-log.mjs",
+  "tools/ci-wait.mjs",
+  "tools/ci-artifacts.mjs",
 ];
 const mustTrack = [
   "package.json",
