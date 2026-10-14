@@ -15,5 +15,4 @@ contextBridge.exposeInMainWorld("desktop", {
   window: (a) => ipcRenderer.invoke("desktop:window", a),
   checkUpdates: () => ipcRenderer.invoke("desktop:check-updates"),
   updateRun: (arg) => ipcRenderer.invoke("desktop:update-run", arg),
-  setGithubToken: (t) => ipcRenderer.invoke("desktop:set-github-token", t),
 });

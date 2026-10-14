@@ -1026,7 +1026,6 @@ const bridge = (typeof window !== "undefined" && window.desktop && window.deskto
         $("brandVer").textContent = "Star Code " + info.appVersion;
       }
       if (info.root) state.root = info.root;
-      if (info.githubTokenMasked !== undefined) ghTokenMasked = info.githubTokenMasked;
     } catch {}
   }
   meta = await (await fetch("/api/providers")).json();
@@ -1671,7 +1670,6 @@ function resetPreview() {
 // for a private repo). Instead we check the public release list when we can,
 // and otherwise hand the user a link their browser is already signed in for.
 let updateInfo = null;   // last check result
-let ghTokenMasked = "";  // desktop only: masked GitHub token for updates
 let checking = false;
 
 async function checkUpdates({ quiet = true } = {}) {
@@ -1751,11 +1749,9 @@ function updateStatusText() {
   if (checking) return "Checking…";
   const info = updateInfo;
   if (!info) return "Not checked yet.";
-  if (info.ok && info.newer) return "v" + info.latest + " is available (you have v" + info.current + ")." + (info.authenticated ? " Update now installs it in place." : "");
-  if (info.ok) return "You are on the latest version (v" + info.current + ")." + (info.authenticated ? "" : " Add a GitHub token in Settings → About to get one-click updates for this private repo.");
-  if (info.reason === "private-or-none") return "Repository is private — add a GitHub token below for automatic update checks.";
-  if (info.reason === "bad-token") return "The stored GitHub token was rejected — replace it below.";
-  if (info.reason === "no-release") return "No releases found for this repository yet.";
+  if (info.ok && info.newer) return "v" + info.latest + " is available (you have v" + info.current + "). Update now installs it in place.";
+  if (info.ok) return "You are on the latest version (v" + info.current + ").";
+  if (info.reason === "private-or-none" || info.reason === "no-release") return "No published releases found yet — check the releases page.";
   if (info.reason === "rate-limited") return "GitHub rate limit reached — try again later.";
   if (info.reason === "timeout") return "The check timed out.";
   if (info.reason === "network") return "Could not reach GitHub.";
@@ -2879,12 +2875,7 @@ function settingsAbout() {
       </div>
     </div>
 
-    ${bridge ? `<div class="card">
-      <div class="ct">Updates access</div>
-      <div class="cs">This repository is private, so the app needs a GitHub token to check for and install updates automatically. The token stays on this machine (the app's own config) and is only ever sent to GitHub.</div>
-      <div class="fld"><label>GitHub token ${ghTokenMasked ? `<span class="pill ok" style="margin-left:6px">stored ${esc(ghTokenMasked)}</span>` : ""}</label><input class="inp mono" id="fGhToken" type="password" value="" placeholder="github_pat_…" autocomplete="off"></div>
-      <button class="btn sm" id="fGhSave">Save token</button>
-    </div>` : ""}
+    ${"" /* public release: no special access needed for updates */}
 
     <div class="card">
       <div class="row"><div class="rl"><div class="rt">Provider</div><div class="rd">${esc(cfg?.label || state.current)}</div></div><div class="rc"><span class="pill">${esc(p.model || "")}</span></div></div>
@@ -3079,15 +3070,6 @@ function wireSettings() {
     const url = (updateInfo && updateInfo.url) || "https://github.com/Star-Code-Prod/Star-Code/releases";
     if (bridge) bridge.openExternal(url);
     else window.open(url, "_blank");
-  });
-  on("fGhSave", "click", async () => {
-    if (!bridge || !bridge.setGithubToken) return;
-    const t = $("fGhToken") ? $("fGhToken").value.trim() : "";
-    const r = await bridge.setGithubToken(t);
-    ghTokenMasked = (r && r.masked) || "";
-    toast(t ? "GitHub token saved" : "GitHub token cleared");
-    await checkUpdates({ quiet: false });
-    renderSettings();
   });
 }
 

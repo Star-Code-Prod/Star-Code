@@ -191,19 +191,18 @@ function semverGt(a, b) {
 async function checkForUpdates() {
   const current = app.getVersion();
   const base = { current, url: RELEASES_URL, repo: `${REPO_OWNER}/${REPO_NAME}` };
-  const token = readStore().githubToken || "";
-  const headers = {
-    Accept: "application/vnd.github+json",
-    "User-Agent": "Star-Code/" + current,
-  };
-  if (token) headers.Authorization = "Bearer " + token;
   try {
     const res = await fetch(
       `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest`,
-      { headers, signal: AbortSignal.timeout(9000) }
+      {
+        headers: {
+          Accept: "application/vnd.github+json",
+          "User-Agent": "Star-Code/" + current,
+        },
+        signal: AbortSignal.timeout(9000),
+      }
     );
-    if (res.status === 404) return { ...base, ok: false, reason: token ? "no-release" : "private-or-none" };
-    if (res.status === 401) return { ...base, ok: false, reason: "bad-token" };
+    if (res.status === 404) return { ...base, ok: false, reason: "private-or-none" };
     if (res.status === 403) return { ...base, ok: false, reason: "rate-limited" };
     if (!res.ok) return { ...base, ok: false, reason: "http-" + res.status };
 
@@ -224,7 +223,6 @@ async function checkForUpdates() {
       notes: typeof rel.body === "string" ? rel.body.slice(0, 1500) : "",
       asset: pickUpdateAsset(assets),
       latestYmlUrl: yml ? yml.url : null,
-      authenticated: !!token,
     };
   } catch (e) {
     return { ...base, ok: false, reason: e.name === "TimeoutError" ? "timeout" : "network" };
@@ -250,30 +248,25 @@ function pickUpdateAsset(assets) {
 }
 
 function wire() {
-  ipcMain.handle("desktop:info", () => {
-    const t = readStore().githubToken || "";
-    return {
-      platform: process.platform,
-      versions: { electron: process.versions.electron, chrome: process.versions.chrome },
-      root: serverModule ? serverModule.getRoot() : null,
-      appVersion: app.getVersion(),
-      url: srv ? srv.url : null,
-      releasesUrl: RELEASES_URL,
-      githubTokenMasked: t ? "••••" + t.slice(-4) : "",
-    };
-  });
+  ipcMain.handle("desktop:info", () => ({
+    platform: process.platform,
+    versions: { electron: process.versions.electron, chrome: process.versions.chrome },
+    root: serverModule ? serverModule.getRoot() : null,
+    appVersion: app.getVersion(),
+    url: srv ? srv.url : null,
+    releasesUrl: RELEASES_URL,
+  }));
 
   ipcMain.handle("desktop:check-updates", () => checkForUpdates());
 
-  // One-click update: download the right installer (authenticated when a
-  // token is stored), verify its sha512 against latest*.yml, then hand it to
-  // the OS. On Windows NSIS it installs silently and relaunches.
+  // One-click update: download the right installer, verify its sha512
+  // against latest*.yml, then hand it to the OS. On Windows NSIS it
+  // installs silently and relaunches. Fully anonymous - ready for a public
+  // release with no tokens or credentials anywhere.
   ipcMain.handle("desktop:update-run", async (_e, { asset, latestYmlUrl } = {}) => {
     try {
       if (!asset || !asset.url) return { ok: false, error: "no installer for this platform in the release" };
-      const token = readStore().githubToken || "";
       const gh = { "User-Agent": "Star-Code/" + app.getVersion() };
-      if (token) gh.Authorization = "Bearer " + token;
       const res = await fetch(asset.url, {
         headers: { ...gh, Accept: "application/octet-stream" },
         redirect: "follow",
@@ -317,12 +310,6 @@ function wire() {
     } catch (e) {
       return { ok: false, error: e.message };
     }
-  });
-
-  ipcMain.handle("desktop:set-github-token", (_e, token) => {
-    const t = typeof token === "string" ? token.trim() : "";
-    writeStore({ githubToken: t });
-    return { ok: true, masked: t ? "••••" + t.slice(-4) : "" };
   });
 
   ipcMain.handle("desktop:pick-folder", async () => {

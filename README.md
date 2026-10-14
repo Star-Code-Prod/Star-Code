@@ -48,7 +48,7 @@ setting you change — including a model running on your own machine.
 | **Slash commands** | `/clear` `/compact` `/init` `/diff` `/context` `/status` `/memory` `/plan` `/review` `/btw` `/model` `/models` `/connect` `/theme` `/settings` `/export` `/help` |
 | **Input modes** | `@` mention a file · `!` run a shell command · `/` commands |
 | **Themes** | Dark · Light · System |
-| **In-app updates** | When a newer release exists, the banner installs it in place — download, sha512 check, silent install, relaunch (desktop; add a GitHub token once if the repo is private) |
+| **In-app updates** | When a newer release exists, the banner installs it in place — download, sha512 check, silent install, relaunch |
 | **Panes** | Tabbed right rail: Preview · Tasks · Plan · Terminal · Changes — badges, full-height, closable |
 
 ## Install
@@ -59,9 +59,9 @@ Grab an installer from [Releases](https://github.com/Star-Code-Prod/Star-Code/re
 
 | Platform | File |
 |---|---|
-| Windows | `Star-Code-Desktop-Setup-1.3.4.exe` (installer) or `Star-Code-Desktop-1.3.4-portable.exe` |
-| macOS | `Star-Code-Desktop-1.3.4-arm64.dmg` |
-| Linux | `Star-Code-Desktop-1.3.4-x86_64.AppImage` or `Star-Code-Desktop-1.3.4-amd64.deb` |
+| Windows | `Star-Code-Desktop-Setup-1.3.5.exe` (installer) or `Star-Code-Desktop-1.3.5-portable.exe` |
+| macOS | `Star-Code-Desktop-1.3.5-arm64.dmg` |
+| Linux | `Star-Code-Desktop-1.3.5-x86_64.AppImage` or `Star-Code-Desktop-1.3.5-amd64.deb` |
 
 Builds are unsigned, so your OS will warn you on first launch.
 
@@ -323,8 +323,6 @@ $env:CCD_SHOT="$PWD\shot.png"; .\node_modules\electron\dist\electron.exe .
 - **Credentials stay local**: keys live in `~/.star-code/auth.json` (plaintext,
   per-user, `0600` where supported); the UI only ever sees a mask. Delete that
   file to revoke everything at once
-- **Update token** (desktop, optional): stored in the app's own config, used
-  only to read and download this repo's releases. Clear it in Settings → About
 - Electron runs with `contextIsolation: true` and `nodeIntegration: false`
 - The page sees only the functions in `preload.cjs` — no `require`, no `fs`
 - External links open in your system browser, never in-app
