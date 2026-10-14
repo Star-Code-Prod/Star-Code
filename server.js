@@ -48,6 +48,7 @@ function loadStore() {
             messages: Array.isArray(s.messages) ? s.messages : [],
             pending: new Map(),
             aborts: new Set(),
+            autoAllow: new Set(),
           });
         }
       }
@@ -105,6 +106,7 @@ function newSession(title) {
     messages: [{ role: "system", content: systemPrompt(ROOT, "manual") }],
     pending: new Map(),
     aborts: new Set(),
+    autoAllow: new Set(),
   };
   sessions.set(sid, s);
   persist();
@@ -438,7 +440,7 @@ async function handler(req, res) {
     try {
       await runAgentTurn({
         provider, model, apiKey: effectiveKey, baseUrl: effectiveBaseUrl, messages: session.messages, runner, emit, requestPermission,
-        mode: session.mode, controller,
+        mode: session.mode, controller, autoAllow: session.autoAllow,
       });
     } catch (e) {
       emit({ type: "error", message: e.message });
@@ -450,10 +452,14 @@ async function handler(req, res) {
   }
 
   if (req.method === "POST" && url.pathname === "/api/permission") {
-    const { sessionId, id, allowed } = await readBody(req);
+    const { sessionId, id, allowed, scope } = await readBody(req);
     const session = sessions.get(sessionId);
     const resolver = session?.pending.get(id);
-    if (resolver) { session.pending.delete(id); resolver(!!allowed); return sendJSON(res, 200, { ok: true }); }
+    if (resolver) {
+      session.pending.delete(id);
+      resolver({ allowed: !!allowed, scope: scope === "session" ? "session" : "once" });
+      return sendJSON(res, 200, { ok: true });
+    }
     return sendJSON(res, 404, { error: "no such pending permission" });
   }
 

@@ -15,6 +15,7 @@ const { authPath, readAuth, writeAuthEntry, removeAuthEntry, resolveKey, mask } 
   await import(pathToFileURL(path.resolve("lib/auth.js")).href);
 const { PROVIDERS, normalizeModels, filterChatModels, isReasoning, discoverModels, detectLocals, getDiscoveredLimit } =
   await import(pathToFileURL(path.resolve("lib/providers.js")).href);
+const { decisionFor } = await import(pathToFileURL(path.resolve("lib/agent.js")).href);
 
 const results = [];
 const ok = (label, pass, extra = "") =>
@@ -102,6 +103,17 @@ const det = await detectLocals(detectFetch);
 ok("detect: ollama up with models", det.ollama.up && det.ollama.models[0] === "llama3.1");
 ok("detect: lmstudio down", det.lmstudio.up === false);
 ok("detect: vllm down", det.vllm.up === false);
+
+/* --------------------------- permission rules --------------------------- */
+const empty = new Set();
+ok("manual asks by default", decisionFor("manual", "edit_file", empty) === "ask");
+ok("session allow wins in manual", decisionFor("manual", "edit_file", new Set(["edit_file"])) === "allow");
+ok("plan denies before the allowlist", decisionFor("plan", "edit_file", new Set(["edit_file"])) === "deny");
+ok("plan still allows reads", decisionFor("plan", "read_file", empty) === "allow");
+ok("bypass allows everything", decisionFor("bypass", "run_command", empty) === "allow");
+ok("acceptEdits edits without asking", decisionFor("acceptEdits", "write_file", empty) === "allow");
+ok("acceptEdits commands ask", decisionFor("acceptEdits", "run_command", empty) === "ask");
+ok("acceptEdits commands honour the allowlist", decisionFor("acceptEdits", "run_command", new Set(["run_command"])) === "allow");
 
 /* ------------------------------- report ------------------------------ */
 fs.rmSync(dir, { recursive: true, force: true });
