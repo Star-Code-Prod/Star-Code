@@ -101,6 +101,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          # the lock file moved with the app into desktop/
+          cache-dependency-path: desktop/package-lock.json
 
       - name: Install dependencies
         run: npm ci
