@@ -142,7 +142,7 @@ function readBody(req) {
   });
 }
 
-const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".woff2": "font/woff2" };
+const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".woff2": "font/woff2", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".md": "text/markdown; charset=utf-8" };
 const sendJSON = (res, code, obj) => { res.writeHead(code, { "Content-Type": "application/json; charset=utf-8" }); res.end(JSON.stringify(obj)); };
 
 function sh(cmd, cwd = ROOT) {
@@ -343,6 +343,22 @@ async function route(req, res) {
       if (stat.size > 500_000) return sendJSON(res, 200, { content: "[file too large to display]", truncated: true });
       const content = await fsp.readFile(abs, "utf8");
       return sendJSON(res, 200, { content, lines: content.split("\n").length });
+    } catch (e) {
+      return sendJSON(res, 404, { error: e.message });
+    }
+  }
+
+  // Raw bytes for the file preview (images); same traversal guard.
+  if (req.method === "GET" && url.pathname === "/api/file/raw") {
+    const rel = url.searchParams.get("path") || "";
+    const abs = safeResolve(rel);
+    if (!abs) return sendJSON(res, 403, { error: "path outside working directory" });
+    try {
+      const stat = await fsp.stat(abs);
+      if (stat.size > 8_000_000) return sendJSON(res, 413, { error: "file too large to preview" });
+      const buf = await fsp.readFile(abs);
+      res.writeHead(200, { "Content-Type": MIME[path.extname(abs).toLowerCase()] || "application/octet-stream", "Cache-Control": "no-cache" });
+      return res.end(buf);
     } catch (e) {
       return sendJSON(res, 404, { error: e.message });
     }

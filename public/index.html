@@ -374,6 +374,7 @@ body.is-mac.is-electron .brand{margin-left:2px}
 .aptools select{width:auto;padding:4px 8px}
 .apbody{flex:1;min-height:0;display:flex;flex-direction:column;overflow:auto}
 .apframe{flex:1;width:100%;min-height:70vh;border:0;background:#fff}
+.apimg{max-width:100%;display:block;margin:0 auto;background:#fff}
 .apmd{padding:14px}
 
 /* ================= TASK LIST ================= */
@@ -1499,6 +1500,10 @@ function sessionMenu(anchor, id) {
 /* ============================ PROJECT FILES ============================ */
 let treeEntries = [];
 let treeCollapsed = new Set();
+let currentFile = null;              // { path, kind, content, error }
+let fileView = { mode: "render" };   // "render" | "code" for md/html/svg
+
+const PREVIEW_KIND = { ".md": "md", ".html": "frame", ".htm": "frame", ".svg": "frame", ".png": "img", ".jpg": "img", ".jpeg": "img", ".gif": "img", ".webp": "img" };
 
 async function loadTree() {
   try {
@@ -1545,18 +1550,72 @@ function renderTree() {
 
 async function previewFile(path) {
   showPane("preview");
+  const ext = ("." + (path.split(".").pop() || "")).toLowerCase();
+  const kind = PREVIEW_KIND[ext] || "source";
   let j = {};
-  try { j = await (await fetch("/api/file?path=" + encodeURIComponent(path))).json(); } catch {}
+  if (kind !== "img") {
+    try { j = await (await fetch("/api/file?path=" + encodeURIComponent(path))).json(); } catch {}
+  }
+  currentFile = { path, kind, content: j.content, error: j.error };
+  fileView = { mode: kind === "source" ? "code" : "render" };
   $("previewTitle").textContent = path;
   $("previewEmpty").style.display = "none";
+  $("filePreview").style.display = "block";
+  renderFilePreview();
+}
+
+function renderFilePreview() {
   const host = $("filePreview");
-  host.style.display = "block";
-  host.innerHTML = (j.content != null)
-    ? `<pre class="fpre">${hl(j.content)}</pre>`
-    : `<div class="pempty">${esc(j.error || "Could not read that file.")}</div>`;
+  if (!currentFile) return;
+  const f = currentFile;
+
+  if (f.kind === "img") {
+    host.innerHTML = '<div class="apbody"></div>';
+    const img = document.createElement("img");
+    img.className = "apimg";
+    img.alt = f.path;
+    img.src = "/api/file/raw?path=" + encodeURIComponent(f.path);
+    host.querySelector(".apbody").appendChild(img);
+    return;
+  }
+
+  if (f.kind === "source" || f.content == null) {
+    host.innerHTML = (f.content != null)
+      ? `<pre class="fpre">${hl(f.content)}</pre>`
+      : `<div class="pempty">${esc(f.error || "Could not read that file.")}</div>`;
+    return;
+  }
+
+  host.innerHTML = `
+    <div class="aptools">
+      <button class="btn sm" id="fpMode">${fileView.mode === "render" ? "Code" : "Render"}</button>
+      <span class="spacer"></span>
+    </div>
+    <div class="apbody"></div>`;
+  const body = host.querySelector(".apbody");
+  if (fileView.mode === "code") {
+    body.innerHTML = `<pre class="fpre">${hl(f.content)}</pre>`;
+  } else if (f.kind === "md") {
+    body.innerHTML = `<div class="apmd">${md(f.content)}</div>`;
+    wireCopy(body);
+  } else {
+    const frame = document.createElement("iframe");
+    frame.className = "apframe";
+    frame.setAttribute("sandbox", "allow-scripts");
+    frame.srcdoc = f.path.toLowerCase().endsWith(".svg")
+      ? `<!doctype html><body style="margin:0;display:grid;place-items:center;height:100vh;background:#fff">${f.content}</body>`
+      : f.content;
+    body.appendChild(frame);
+  }
+  const tog = host.querySelector("#fpMode");
+  if (tog) tog.addEventListener("click", () => {
+    fileView.mode = fileView.mode === "render" ? "code" : "render";
+    renderFilePreview();
+  });
 }
 
 function resetPreview() {
+  currentFile = null;
   $("previewTitle").textContent = "Preview";
   $("previewEmpty").style.display = "block";
   const host = $("filePreview");
