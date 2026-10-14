@@ -41,6 +41,9 @@ __uninstaller-*.exe
 
 # --- logs ---
 *.log
+*.err
+srv.log
+srv.err
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
