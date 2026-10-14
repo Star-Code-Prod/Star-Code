@@ -117,8 +117,7 @@ function createWindow(url) {
       setTimeout(async () => {
         try {
           if (process.env.CCD_DIAG) {
-            const diag = await win.webContents.executeJavaScript(`(() => ({
-              hasDesktop: !!window.desktop,
+            const diag = await win.webContents.executeJavaScript(`(() => ({              hasDesktop: !!window.desktop,
               desktopKeys: window.desktop ? Object.keys(window.desktop) : [],
               isElectronClass: document.body.classList.contains("is-electron"),
               isMacClass: document.body.classList.contains("is-mac"),
@@ -132,6 +131,14 @@ function createWindow(url) {
             }))()`);
             fs.writeFileSync(process.env.CCD_DIAG, JSON.stringify(diag, null, 2));
             console.log("[main] diag written");
+          }
+          if (process.env.CCD_EVAL) {
+            // Run a script in the renderer before capturing, so a realistic
+            // conversation can be rendered and inspected visually.
+            const code = fs.readFileSync(process.env.CCD_EVAL, "utf8");
+            await win.webContents.executeJavaScript(code);
+            await new Promise((r) => setTimeout(r, 900));
+            console.log("[main] eval applied");
           }
           if (process.env.CCD_SHOT) {
             const img = await win.webContents.capturePage();

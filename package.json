@@ -63,7 +63,7 @@
         { "target": "portable", "arch": ["x64"] }
       ],
       "icon": "assets/icon.ico",
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
+      "artifactName": "Star-Code-${version}-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -72,16 +72,16 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Star Code",
-      "artifactName": "${productName}-Setup-${version}.${ext}"
+      "artifactName": "Star-Code-Setup-${version}.${ext}"
     },
     "portable": {
-      "artifactName": "${productName}-${version}-portable.${ext}"
+      "artifactName": "Star-Code-${version}-portable.${ext}"
     },
     "mac": {
       "target": ["dmg", "zip"],
       "icon": "assets/icon.png",
       "category": "public.app-category.developer-tools",
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
+      "artifactName": "Star-Code-${version}-${arch}.${ext}"
     },
     "linux": {
       "target": ["AppImage", "deb"],
@@ -89,7 +89,7 @@
       "category": "Development",
       "maintainer": "praisethefacts <cryphor@outlook.com>",
       "synopsis": "Provider-agnostic agentic coding UI",
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
+      "artifactName": "Star-Code-${version}-${arch}.${ext}"
     }
   }
 }

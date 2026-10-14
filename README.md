@@ -53,9 +53,9 @@ Grab an installer from [Releases](https://github.com/praisethefacts/Star-Code/re
 
 | Platform | File |
 |---|---|
-| Windows | `Star Code-Setup-1.0.0.exe` (installer) or `Star Code-1.0.0-portable.exe` |
-| macOS | `Star Code-1.0.0-arm64.dmg` |
-| Linux | `Star Code-1.0.0-x86_64.AppImage` or `.deb` |
+| Windows | `Star-Code-Setup-1.0.0.exe` (installer) or `Star-Code-1.0.0-portable.exe` |
+| macOS | `Star-Code-1.0.0-arm64.dmg` |
+| Linux | `Star-Code-1.0.0-x86_64.AppImage` or `Star-Code-1.0.0-amd64.deb` |
 
 Builds are unsigned, so your OS will warn you on first launch.
 
