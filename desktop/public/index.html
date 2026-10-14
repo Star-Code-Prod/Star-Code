@@ -1,0 +1,3639 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Star Code</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================ DESIGN TOKENS ============================ */
+/* Shared, non-color tokens. The palette itself lives in the two theme
+   blocks below and is never redefined here. */
+:root{
+  --fs-11:11px; --fs-12:12px; --fs-125:12.5px; --fs-13:13px; --fs-14:14px;
+  --fs-15:15px; --fs-18:18px; --fs-22:22px; --fs-30:30px;
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px;
+  --sp-8:32px; --sp-10:40px;
+  --r-xs:6px; --r-sm:8px; --r-md:10px; --r-lg:14px; --r-xl:18px; --r-full:999px;
+  --t-fast:150ms; --t-mid:200ms; --t-slow:280ms;
+  --ease:cubic-bezier(.2,.8,.3,1);
+  --col:920px;      /* conversation column */
+  --sb-w:264px;     /* sidebar width */
+  --font-sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --font-mono:'JetBrains Mono',ui-monospace,"SF Mono",Consolas,monospace;
+  --focus-ring:0 0 0 2px var(--bg),0 0 0 4px color-mix(in srgb,var(--accent) 70%,transparent);
+}
+
+/* ============================ THEMES ============================ */
+:root[data-theme="dark"]{
+  --bg:#1a1a1a; --sidebar:#191919; --panel:#212121; --panel2:#262626;
+  --elev:#2a2a2a; --bubble:#2d2d2d; --hover:#242424;
+  --border:#2e2e2e; --border2:#3a3a3a;
+  --text:#e9e9e7; --text2:#b9b9b5; --muted:#8c8c88; --dim:#6b6b67;
+  --accent:#e6e6e4; --accent-h:#f7f7f5; --accent-fg:#141414;
+  --add-bg:#1f3120; --add-fg:#93d093; --add-gut:#618c61;
+  --del-bg:#3a2022; --del-fg:#ec9494; --del-gut:#a06060;
+  --purple:#2a2a2c; --purple-fg:#d6d6d3;
+  --code-bg:#161616; --code-fg:#dcdcd8;
+  --shadow:0 12px 40px rgba(0,0,0,.5);
+  --shadow-sm:0 1px 2px rgba(0,0,0,.32);
+  --shadow-md:0 8px 24px -10px rgba(0,0,0,.62);
+  --chip:#2a2a2a; --chip-on:#383838;
+  --termbg:#141414;
+  --title-font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+:root[data-theme="light"]{
+  --bg:#FAF9F5; --sidebar:#F0EEE6; --panel:#FFFFFF; --panel2:#F7F5EE;
+  --elev:#FFFFFF; --bubble:#EDEAE0; --hover:#EAE7DC;
+  --border:#E3E0D3; --border2:#D9D6C8;
+  --text:#141413; --text2:#2F2E2A; --muted:#55534C; --dim:#8A877D;
+  --accent:#21201e; --accent-h:#0a0a09; --accent-fg:#ffffff;
+  --add-bg:#E6F2E1; --add-fg:#1F4D1A; --add-gut:#4B7A44;
+  --del-bg:#F8E3DE; --del-fg:#7A2A17; --del-gut:#A5593F;
+  --purple:#E9E7E0; --purple-fg:#3A3936;
+  --code-bg:#141413; --code-fg:#E9E6DC;
+  --shadow:0 12px 40px rgba(20,20,19,.16);
+  --shadow-sm:0 1px 2px rgba(20,20,19,.10);
+  --shadow-md:0 8px 24px -12px rgba(20,20,19,.22);
+  --chip:#F0EEE6; --chip-on:#E6E3D8;
+  --termbg:#141413;
+  --title-font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+
+/* ============================ BASE ============================ */
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:var(--font-sans); font-size:var(--fs-14); line-height:1.5;
+  display:flex; flex-direction:column; height:100vh; overflow:hidden;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+button{font-family:inherit;cursor:pointer;color:inherit;background:none;border:0;padding:0}
+input,textarea,select{font-family:inherit}
+[hidden]{display:none!important}
+:focus{outline:none}
+/* visible keyboard focus for controls; text fields carry their own ring */
+button:focus-visible,a:focus-visible,[tabindex]:focus-visible{box-shadow:var(--focus-ring)}
+input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:6px;border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:var(--dim);background-clip:content-box;border:3px solid transparent}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-corner{background:transparent}
+.mono{font-family:var(--font-mono)}
+.spacer{flex:1}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ============================ UPDATE BANNER ============================ */
+.updatebar{
+  display:none;align-items:center;gap:var(--sp-3);padding:var(--sp-2) var(--sp-4);flex:none;
+  background:color-mix(in srgb,var(--accent) 10%,var(--panel));
+  border-bottom:1px solid color-mix(in srgb,var(--accent) 26%,var(--border));
+  font-size:var(--fs-125);color:var(--text2);
+}
+.updatebar.on{display:flex;animation:slideDown var(--t-slow) var(--ease)}
+.updatebar .ic{color:var(--accent);display:flex;flex:none}
+.updatebar b{color:var(--text);font-weight:600}
+.updatebar .rel{font-family:var(--font-mono);font-size:var(--fs-11);color:var(--accent)}
+.updatebar .x{
+  color:var(--muted);width:24px;height:24px;border-radius:var(--r-xs);
+  font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;
+}
+.updatebar .x:hover{background:var(--elev);color:var(--text)}
+
+/* ============================ TITLE BAR ============================ */
+.titlebar{
+  height:46px;flex:none;display:flex;align-items:center;gap:var(--sp-2);padding:0 var(--sp-4);
+  background:var(--bg);border-bottom:1px solid var(--border);position:relative;z-index:5;
+}
+.brand{display:flex;align-items:center;gap:var(--sp-2);flex:none;margin-right:var(--sp-1)}
+.brand svg{display:block;border-radius:var(--r-xs)}
+.brand .nm{font-size:var(--fs-125);color:var(--muted);letter-spacing:-.01em;white-space:nowrap}
+/* Electron: the OS draws the frame, so our chrome must drag and drop the fake dots */
+body.is-electron{-webkit-app-region:no-drag}
+body.is-electron .titlebar{-webkit-app-region:drag;padding-right:150px}
+body.is-electron .titlebar button,
+body.is-electron .titlebar .tb-text,
+body.is-electron .titlebar .brand,
+body.is-electron .titlebar .seg{ -webkit-app-region:no-drag}
+body.is-electron .lights{display:none}
+body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
+body.is-mac.is-electron .brand{margin-left:2px}
+.lights{display:flex;gap:8px;align-items:center;margin-right:6px}
+.lights i{width:12px;height:12px;border-radius:6px;display:block}
+.lights i:nth-child(1){background:var(--del-fg)}.lights i:nth-child(2){background:var(--accent)}.lights i:nth-child(3){background:var(--add-fg)}
+.tb-btn{
+  width:30px;height:30px;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;
+  color:var(--muted);transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
+}
+.tb-btn:hover{background:var(--panel);color:var(--text)}
+.tb-btn.on{background:var(--chip);color:var(--text)}
+.tb-text{
+  padding:6px 11px;border-radius:var(--r-sm);font-size:var(--fs-125);color:var(--muted);
+  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
+}
+.tb-text:hover{background:var(--panel);color:var(--text)}
+.tb-text.on{background:var(--panel);color:var(--text)}
+.tb-sep{width:1px;height:18px;background:var(--border);flex:none;margin:0 var(--sp-1)}
+
+/* ============================ SHELL ============================ */
+.shell{flex:1;min-height:0;display:flex;position:relative}
+
+/* ---------------- sidebar ---------------- */
+.sidebar{
+  width:var(--sb-w);flex:none;background:var(--sidebar);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden;min-height:0;
+}
+.seg{display:flex;gap:2px;margin:var(--sp-3) var(--sp-3) var(--sp-2);padding:3px;background:var(--chip);border-radius:var(--r-sm)}
+.seg button{
+  flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
+  min-height:28px;border-radius:var(--r-xs);font-size:var(--fs-125);color:var(--muted);
+  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
+}
+.seg button:hover{background:var(--hover);color:var(--text2)}
+.seg button.on{background:var(--panel);color:var(--text);font-weight:500;box-shadow:var(--shadow-sm)}
+.sb-links{padding:0 var(--sp-2) var(--sp-2);display:flex;flex-direction:column;gap:1px}
+.sb-link{
+  display:flex;align-items:center;gap:9px;width:100%;padding:7px 9px;border-radius:var(--r-sm);
+  font-size:var(--fs-13);color:var(--text2);text-align:left;
+  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
+}
+.sb-link:hover{background:var(--hover);color:var(--text)}
+.sb-link svg{flex:none;opacity:.72}
+.sb-link .beta{
+  margin-left:auto;font-size:10px;font-weight:600;padding:1px 6px;border-radius:var(--r-xs);
+  background:color-mix(in srgb,var(--accent) 15%,transparent);color:var(--accent);
+}
+.sb-link .chev{margin-left:auto;opacity:.5;transition:transform var(--t-mid) var(--ease)}
+.sb-link.open .chev{transform:rotate(90deg)}
+.sb-sec{
+  display:flex;align-items:center;gap:6px;padding:var(--sp-3) 14px 6px;
+  font-size:var(--fs-11);letter-spacing:.05em;color:var(--dim);text-transform:uppercase;
+}
+.sb-sec .spacer{flex:1}
+.sb-sec button{color:var(--dim);padding:3px;border-radius:var(--r-xs);display:flex}
+.sb-sec button:hover{background:var(--hover);color:var(--text2)}
+.sb-search{display:flex;align-items:center;gap:7px;margin:0 var(--sp-2) var(--sp-2);padding:0 8px;
+  background:var(--bg);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--dim);
+  transition:border-color var(--t-fast) var(--ease)}
+.sb-search:focus-within{border-color:var(--border2);color:var(--text2)}
+.sb-search svg{flex:none}
+.sb-search input{
+  flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--text);
+  font-size:var(--fs-125);padding:6px 0;
+}
+.sb-search input::placeholder{color:var(--dim)}
+.sb-search .clr{color:var(--dim);display:flex;padding:2px;border-radius:4px}
+.sb-search .clr:hover{background:var(--hover);color:var(--text)}
+.sessions{flex:1;overflow-y:auto;min-height:0;padding:0 var(--sp-2) var(--sp-3)}
+.sess-group{
+  padding:10px 9px 5px;font-size:10.5px;letter-spacing:.05em;color:var(--dim);text-transform:uppercase;
+}
+.sess{
+  display:grid;grid-template-columns:16px minmax(0,1fr) auto;grid-template-rows:auto auto;
+  align-items:center;gap:0 8px;width:100%;padding:7px 8px;border-radius:var(--r-sm);
+  font-size:var(--fs-13);color:var(--text2);text-align:left;position:relative;
+  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
+}
+.sess:hover{background:var(--hover);color:var(--text)}
+.sess.on{background:var(--elev);color:var(--text);box-shadow:var(--shadow-sm)}
+.sess.on::before{
+  content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;border-radius:var(--r-full);background:var(--accent);
+}
+.sess .ico{grid-row:1 / span 2;flex:none;width:16px;display:flex;justify-content:center;color:var(--muted)}
+.sess.on .ico{color:var(--accent)}
+.sess .lbl{grid-column:2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.35}
+.sess .meta{
+  grid-column:2;font-size:10.5px;color:var(--dim);line-height:1.3;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.sess .more{
+  grid-column:3;grid-row:1 / span 2;opacity:0;color:var(--muted);padding:3px;border-radius:var(--r-xs);display:flex;
+  transition:opacity var(--t-fast) var(--ease),background var(--t-fast) var(--ease);
+}
+.sess:hover .more,.sess.on .more,.sess:focus-visible .more{opacity:1}
+.sess .more:hover{background:var(--chip-on);color:var(--text)}
+.sess .dotnew{
+  position:absolute;right:9px;top:8px;width:6px;height:6px;border-radius:50%;background:var(--accent);
+  transition:opacity var(--t-fast) var(--ease);
+}
+.sess:hover .dotnew{opacity:0}
+.sess-empty{padding:10px 9px;font-size:var(--fs-12);color:var(--dim);line-height:1.6}
+.pinned-drag{
+  display:flex;align-items:center;gap:var(--sp-2);padding:6px 9px;font-size:var(--fs-125);color:var(--dim);
+  border:1px dashed var(--border2);border-radius:var(--r-sm);margin:0 0 4px;justify-content:center;
+}
+
+/* ---------------- project files tree ---------------- */
+.sb-tree{flex:none;max-height:240px;overflow-y:auto;padding:0 var(--sp-2) var(--sp-3)}
+.ft-item{
+  display:flex;align-items:center;gap:6px;width:100%;padding:4px 6px;border-radius:var(--r-xs);
+  color:var(--text2);text-align:left;font-size:var(--fs-125);
+  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
+}
+.ft-item:hover{background:var(--hover);color:var(--text)}
+.ft-item .ft-caret{width:12px;flex:none;color:var(--dim);display:flex;transition:transform var(--t-mid) var(--ease)}
+.ft-item.open .ft-caret{transform:rotate(90deg)}
+.ft-item .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fpre{
+  margin:0;padding:var(--sp-4);font-family:var(--font-mono);font-size:var(--fs-12);line-height:1.65;
+  white-space:pre;overflow:auto;color:var(--code-fg);background:var(--code-bg);min-height:100%;
+}
+
+/* ---------------- session column ---------------- */
+.session{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--bg)}
+.shead{
+  height:46px;flex:none;display:flex;align-items:center;gap:9px;padding:0 var(--sp-4);
+  border-bottom:1px solid var(--border);background:var(--bg);
+}
+.shead .ico{color:var(--accent);display:flex;flex:none;opacity:.9}
+.shead .ttl{
+  font-family:var(--title-font);font-size:var(--fs-14);font-weight:500;letter-spacing:-.01em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.shead .proj{
+  font-size:var(--fs-11);color:var(--muted);background:var(--chip);padding:3px 8px;border-radius:var(--r-full);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;flex:none;
+}
+.shead .acts{display:flex;align-items:center;gap:2px;flex:none}
+.hbtn{
+  width:28px;height:28px;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;color:var(--muted);
+  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
+}
+.hbtn:hover{background:var(--panel);color:var(--text)}
+.hbtn.on{background:var(--chip-on);color:var(--text)}
+
+/* ============================ CONVERSATION ============================ */
+#stream{flex:1;min-height:0;overflow-y:auto;padding:var(--sp-6) 0 var(--sp-8);overflow-anchor:none}
+/* One consistent centred column for every block type. `.msg-u` stays a flex
+   row, so its bubble still hugs the right edge of this column. */
+#stream > *{
+  width:100%;max-width:var(--col);margin-left:auto;margin-right:auto;
+  padding-left:var(--sp-6);padding-right:var(--sp-6);box-sizing:border-box;
+  animation:msgIn var(--t-slow) var(--ease);
+}
+#stream > .msg-u + .msg-a,#stream > .msg-a + .msg-a,#stream > .msg-a + .msg-u{margin-top:var(--sp-3)}
+
+.msg-u{display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-end}
+.msg-u .b{
+  max-width:min(660px,86%);padding:10px 14px;border-radius:var(--r-lg);
+  background:var(--bubble);border:1px solid color-mix(in srgb,var(--text) 7%,transparent);
+  font-size:var(--fs-14);line-height:1.55;white-space:pre-wrap;word-break:break-word;
+}
+.msg-a{font-size:var(--fs-14);line-height:1.68;color:var(--text);word-break:break-word;position:relative;max-width:var(--col)}
+.msg-a p{margin:10px 0}.msg-a p:first-child{margin-top:0}.msg-a p:last-child{margin-bottom:0}
+.msg-a h1,.msg-a h2,.msg-a h3{font-size:var(--fs-15);font-weight:600;letter-spacing:-.01em;margin:18px 0 8px;line-height:1.35}
+.msg-a h1{font-size:var(--fs-18)}
+.msg-a ul,.msg-a ol{margin:9px 0;padding-left:22px}.msg-a li{margin:5px 0}
+.msg-a strong{font-weight:600;color:var(--text)}
+.msg-a a{color:var(--accent);text-underline-offset:2px;text-decoration-thickness:1px}
+.msg-a a:hover{color:var(--accent-h)}
+.msg-a table{border-collapse:collapse;margin:12px 0;font-size:var(--fs-13);display:block;overflow-x:auto;max-width:100%}
+.msg-a th,.msg-a td{border:1px solid var(--border);padding:7px 11px;text-align:left}
+.msg-a th{background:var(--panel);font-weight:600}
+.msg-a hr{border:0;border-top:1px solid var(--border);margin:18px 0}
+.msg-a blockquote{margin:12px 0;padding:2px 0 2px 14px;border-left:2px solid var(--border2);color:var(--text2)}
+/* streaming caret — :last-of-type, because the hover actions follow the text */
+#stream > .msg-a.streaming > p:last-of-type::after{
+  content:"";display:inline-block;width:7px;height:15px;margin-left:3px;vertical-align:-2px;
+  border-radius:4px;background:var(--accent);animation:blink 1.05s steps(2,end) infinite;
+}
+/* hover actions (icon-only: never leaks text into exports) */
+.msg-acts{display:flex;align-items:center;gap:2px;height:24px;opacity:0;transition:opacity var(--t-mid) var(--ease)}
+.msg-u .msg-acts{justify-content:flex-end}
+#stream > :hover > .msg-acts,#stream > :focus-within > .msg-acts{opacity:1}
+.ma-btn{
+  width:24px;height:24px;border-radius:var(--r-xs);display:flex;align-items:center;justify-content:center;
+  color:var(--muted);transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
+}
+.ma-btn:hover{background:var(--panel);color:var(--text)}
+.ma-btn.done{color:var(--add-fg)}
+.ic{
+  font-family:var(--font-mono);font-size:.88em;padding:2px 5px;border-radius:var(--r-xs);
+  background:var(--chip);color:var(--text);border:1px solid color-mix(in srgb,var(--text) 6%,transparent);
+}
+.codeblock{margin:13px 0;border-radius:var(--r-md);overflow:hidden;background:var(--code-bg);border:1px solid var(--border)}
+.cb-h{
+  display:flex;justify-content:space-between;align-items:center;padding:7px 12px;
+  border-bottom:1px solid #2a2a2a;font-family:var(--font-mono);font-size:var(--fs-11);color:#8c8c88;
+  letter-spacing:.02em;
+}
+.codeblock pre{margin:0;padding:13px 14px;overflow-x:auto}
+.codeblock code{font-family:var(--font-mono);font-size:var(--fs-125);line-height:1.68;color:var(--code-fg)}
+.cp{font-family:var(--font-mono);font-size:var(--fs-11);color:#8c8c88;padding:2px 6px;border-radius:var(--r-xs);transition:color var(--t-fast),background var(--t-fast)}
+.cp:hover{color:#dcdcd8;background:rgba(255,255,255,.06)}
+
+/* ================= THINKING ================= */
+.think{
+  border-radius:var(--r-md);overflow:hidden;position:relative;
+  background:color-mix(in srgb,var(--accent) 5%,var(--panel));
+  border:1px solid color-mix(in srgb,var(--accent) 16%,var(--border));
+  transition:border-color var(--t-slow) var(--ease),box-shadow var(--t-slow) var(--ease);
+}
+.think.streaming{border-color:color-mix(in srgb,var(--accent) 34%,var(--border));box-shadow:var(--shadow-sm)}
+/* accent rail on the left edge */
+.think::before{
+  content:"";position:absolute;left:0;top:9px;bottom:9px;width:2px;border-radius:var(--r-full);
+  background:var(--accent);opacity:.45;transition:bottom var(--t-slow) var(--ease),top var(--t-slow) var(--ease);
+}
+.think.streaming::before{top:0;bottom:0;opacity:.7}
+
+.think-h{
+  display:flex;align-items:center;gap:9px;padding:9px 12px 9px 13px;width:100%;
+  font-size:var(--fs-125);color:var(--muted);text-align:left;cursor:pointer;position:relative;z-index:1;
+  background:none;border:0;
+}
+.think-h:hover{color:var(--text2)}
+.think-h:hover .think-c{color:var(--text2)}
+.spark{color:var(--accent);display:flex;flex:none}
+.think.streaming .spark{animation:spin 2.4s linear infinite}
+.think-t{font-weight:500;flex:none}
+.think.streaming .think-t{color:var(--text)}
+.think-m{display:flex;align-items:center;gap:7px;flex:none;font-family:var(--font-mono);font-size:var(--fs-11)}
+.think-m b{font-weight:400;color:var(--accent);font-variant-numeric:tabular-nums}
+.think-m i{font-style:normal;color:var(--dim)}
+.think-prev{
+  flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:var(--fs-12);color:var(--dim);font-style:italic;
+}
+.think-act{display:flex;align-items:center;gap:4px;flex:none}
+.think-copy{
+  font-family:var(--font-mono);font-size:10.5px;color:var(--dim);
+  padding:2px 7px;border-radius:var(--r-xs);border:1px solid transparent;
+  transition:color var(--t-fast),border-color var(--t-fast),background var(--t-fast);
+}
+.think-copy:hover{color:var(--text2);border-color:var(--border2);background:var(--elev)}
+.think-c{color:var(--dim);display:flex;flex:none;transition:transform var(--t-slow) var(--ease)}
+.think.open .think-c{transform:rotate(90deg)}
+
+.think-b{display:grid;grid-template-rows:0fr;transition:grid-template-rows var(--t-slow) var(--ease);position:relative;z-index:1}
+.think.open .think-b{grid-template-rows:1fr}
+.think-bi{overflow:hidden;min-height:0}
+.think-x{
+  padding:2px 14px 12px 15px;color:var(--text2);
+  font-family:var(--font-mono);font-size:var(--fs-125);line-height:1.72;letter-spacing:-.01em;
+  white-space:pre-wrap;word-break:break-word;
+  max-height:min(260px,40vh);overflow-y:auto;overscroll-behavior:contain;
+}
+.think-x::-webkit-scrollbar{width:8px}
+.think.streaming .think-x{color:color-mix(in srgb,var(--text2) 82%,transparent)}
+.think-x .cur{
+  display:inline-block;width:6px;height:13px;background:var(--accent);
+  vertical-align:-2px;margin-left:2px;animation:blink 1.1s steps(2) infinite;border-radius:4px;
+}
+.think-f{
+  display:flex;align-items:center;gap:8px;padding:0 14px 11px 15px;
+  font-size:var(--fs-11);color:var(--dim);font-family:var(--font-mono);
+}
+.think-dots{display:flex;gap:3px;align-items:center}
+.think-dots i{width:3px;height:3px;border-radius:50%;background:var(--accent);display:block;opacity:.35}
+.think.streaming .think-dots i{animation:tdot 1.2s ease-in-out infinite}
+.think-dots i:nth-child(2){animation-delay:.15s}
+.think-dots i:nth-child(3){animation-delay:.3s}
+
+/* ================= TOOL SUMMARY (collapsed group) ================= */
+.tools{margin:13px auto}
+.tools-h{
+  display:flex;align-items:center;gap:9px;padding:7px 11px;border-radius:var(--r-sm);
+  background:var(--panel);border:1px solid transparent;font-size:var(--fs-125);color:var(--muted);
+  width:100%;text-align:left;
+  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease);
+}
+.tools-h:hover{background:var(--panel2);color:var(--text2);border-color:var(--border)}
+.tools-h .dot{width:6px;height:6px;border-radius:50%;flex:none;background:var(--add-fg)}
+.tools-h.err .dot{background:var(--del-fg)}
+.tools-h.run .dot{background:var(--accent);animation:pulse 1.2s ease-in-out infinite}
+.tools-h .txt{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tools-h .cnt{
+  font-family:var(--font-mono);font-size:10.5px;color:var(--dim);
+  background:var(--chip);border-radius:var(--r-full);padding:0 6px;min-width:18px;text-align:center;
+}
+.tools-h .cnt:empty{display:none}
+.tools-h .chev{color:var(--dim);display:flex;transition:transform var(--t-mid) var(--ease)}
+.tools.open .tools-h .chev{transform:rotate(90deg)}
+.tools-b{display:grid;grid-template-rows:0fr;transition:grid-template-rows var(--t-slow) var(--ease)}
+.tools.open .tools-b{grid-template-rows:1fr}
+.tools-bi{overflow:hidden;min-height:0}
+.tools-in{padding:6px 0 0}
+.trow{
+  display:flex;align-items:baseline;gap:9px;padding:4px 11px;font-family:var(--font-mono);
+  font-size:var(--fs-12);color:var(--muted);border-radius:var(--r-xs);
+}
+.trow:hover{background:var(--panel)}
+.trow .v{color:var(--accent);font-weight:500;flex:none;min-width:52px}
+.trow .a{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2)}
+.trow .m{color:var(--dim);flex:none;font-size:var(--fs-11)}
+.trow .m.ok{color:var(--add-fg)}.trow .m.no{color:var(--del-fg)}
+.tout{
+  margin:2px 11px 6px 72px;padding:10px 12px;border-radius:var(--r-sm);background:var(--code-bg);
+  color:var(--code-fg);font-family:var(--font-mono);font-size:var(--fs-11);line-height:1.6;
+  white-space:pre-wrap;max-height:260px;overflow:auto;display:none;
+  border:1px solid var(--border);
+}
+.tout.show{display:block}
+
+/* ================= DIFF CARD ================= */
+.diffcard{
+  margin:13px auto;border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden;background:var(--panel2);
+  box-shadow:var(--shadow-sm);
+}
+.diffcard .dc-h{
+  display:flex;align-items:center;gap:9px;padding:8px 12px;background:var(--panel);
+  border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:var(--fs-11);color:var(--muted);
+  overflow:hidden;
+}
+.diffcard .dc-h .p{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;direction:rtl;text-align:left;color:var(--text2)}
+.diffcard .dc-h .s{flex:none;font-variant-numeric:tabular-nums}
+.diffcard .dc-h .s i{font-style:normal;color:var(--add-fg)}
+.diffcard .dc-h .s b{font-weight:400;color:var(--del-fg)}
+.dl{display:flex;white-space:pre;font-family:var(--font-mono);font-size:var(--fs-125);line-height:1.75}
+.dl .n{width:46px;flex:none;text-align:right;padding-right:10px;color:var(--dim);user-select:none}
+.dl .sg{width:16px;flex:none;color:var(--dim);user-select:none}
+.dl .c{flex:1;min-width:0;overflow-x:auto;white-space:pre}
+.dl.add{background:var(--add-bg);color:var(--add-fg)}.dl.add .n,.dl.add .sg{color:var(--add-gut)}
+.dl.del{background:var(--del-bg);color:var(--del-fg)}.dl.del .n,.dl.del .sg{color:var(--del-gut)}
+.dl.ctx{color:var(--muted)}
+.dl:hover{filter:brightness(1.06)}
+.tok-k{color:#c586c0}.tok-s{color:#8fce8f}.tok-n{color:#b5cea8}.tok-c{color:#5f7f5f;font-style:italic}
+.dl.del .tok-k,.dl.del .tok-s,.dl.del .tok-n{color:inherit}
+
+/* ================= ARTIFACTS ================= */
+.artifactcard{
+  display:flex;align-items:center;gap:9px;padding:8px 12px;border-radius:var(--r-sm);
+  background:var(--panel);border:1px solid var(--border);font-size:var(--fs-125);color:var(--muted);
+}
+.artifactcard .nm{color:var(--text2);font-family:var(--font-mono);font-size:var(--fs-12)}
+.artifactcard button{margin-left:auto}
+.aptools{display:flex;align-items:center;gap:7px;padding:8px 10px;border-bottom:1px solid var(--border);background:var(--panel);flex:none}
+.aptools select{width:auto;padding:4px 8px}
+.apbody{flex:1;min-height:0;display:flex;flex-direction:column;overflow:auto}
+.apframe{flex:1;width:100%;min-height:70vh;border:0;background:#fff}
+.apimg{max-width:100%;display:block;margin:0 auto;background:#fff}
+.apmd{padding:var(--sp-4)}
+.apmd p{margin:10px 0}
+.apmd h1,.apmd h2,.apmd h3{font-size:var(--fs-15);font-weight:600;margin:18px 0 8px}
+
+/* ================= TASK LIST ================= */
+.tasklist{margin:13px auto;border:1px solid var(--border);border-radius:var(--r-md);background:var(--panel);overflow:hidden}
+.tasklist .th{
+  display:flex;align-items:center;gap:var(--sp-2);padding:9px 13px;border-bottom:1px solid var(--border);
+  font-size:var(--fs-12);color:var(--muted);
+}
+.tasklist .th .n{font-family:var(--font-mono);font-size:var(--fs-11);color:var(--dim);margin-left:auto}
+.task{display:flex;align-items:flex-start;gap:10px;padding:8px 13px;font-size:var(--fs-13);line-height:1.5}
+.task .bx{width:13px;flex:none;margin-top:2px;color:var(--dim);display:flex;justify-content:center}
+.task.completed{color:var(--dim)}.task.completed .bx{color:var(--add-fg)}
+.task.completed .tx{text-decoration:line-through}
+.task.in_progress{color:var(--text)}.task.in_progress .bx{color:var(--accent)}
+.task.pending{color:var(--muted)}
+
+/* ================= PERMISSION ================= */
+.perm{
+  margin:13px auto;border:1px solid color-mix(in srgb,var(--accent) 24%,var(--border2));
+  border-radius:var(--r-lg);background:var(--panel);padding:var(--sp-4);box-shadow:var(--shadow-sm);
+  position:relative;overflow:hidden;
+}
+.perm::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--accent);opacity:.7}
+.perm.answered{border-color:var(--border);box-shadow:none}
+.perm.answered::before{opacity:.25}
+.perm .ph{display:flex;align-items:center;gap:9px;font-size:var(--fs-13);font-weight:500;margin-bottom:11px}
+.perm .ph svg{color:var(--accent);flex:none}
+.perm .ph .why{color:var(--muted);font-weight:400}
+.perm .pb{
+  font-family:var(--font-mono);font-size:var(--fs-12);padding:10px 12px;border-radius:var(--r-sm);
+  background:var(--code-bg);color:var(--code-fg);white-space:pre-wrap;overflow-x:auto;max-height:200px;
+  border:1px solid var(--border);
+}
+.perm .pa{display:flex;gap:var(--sp-2);margin-top:var(--sp-3);flex-wrap:wrap;align-items:center}
+.btn{
+  padding:7px 14px;border-radius:var(--r-sm);border:1px solid var(--border2);background:var(--panel);
+  font-size:var(--fs-125);color:var(--text);
+  transition:background var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
+}
+.btn:hover{background:var(--elev)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);font-weight:500}
+.btn.pri:hover{background:var(--accent-h);border-color:var(--accent-h)}
+.btn.dgr{color:var(--del-fg);border-color:color-mix(in srgb,var(--del-fg) 40%,var(--border2))}
+.btn.dgr:hover{background:color-mix(in srgb,var(--del-fg) 10%,transparent)}
+.btn.sm{padding:5px 10px;font-size:var(--fs-12)}
+
+/* ================= COMPOSER ================= */
+.composer{flex:none;padding:0 var(--sp-6) var(--sp-4);position:relative;background:var(--bg)}
+.cwrap{max-width:var(--col);margin:0 auto;position:relative}
+.cbox{
+  display:flex;align-items:flex-end;gap:10px;padding:11px 13px;border-radius:var(--r-xl);
+  background:var(--elev);border:1px solid var(--border2);box-shadow:var(--shadow-md);
+  transition:border-color var(--t-mid) var(--ease),box-shadow var(--t-mid) var(--ease);
+}
+.cbox:focus-within{
+  border-color:color-mix(in srgb,var(--accent) 42%,var(--border2));
+  box-shadow:var(--shadow-md),0 0 0 3px color-mix(in srgb,var(--accent) 9%,transparent);
+}
+.cbox textarea{
+  flex:1;border:0;outline:0;background:transparent;color:var(--text);resize:none;
+  font-size:var(--fs-14);line-height:1.55;min-height:24px;max-height:200px;
+}
+.cbox textarea::placeholder{color:var(--dim)}
+.kbdh{
+  flex:none;width:30px;height:30px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center;
+  background:var(--accent);color:var(--accent-fg);font-family:var(--font-mono);font-size:var(--fs-13);line-height:1;
+  transition:background var(--t-fast) var(--ease),transform var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
+}
+.kbdh:hover{background:var(--accent-h)}
+.kbdh:active{transform:scale(.94)}
+.kbdh.stop{
+  background:var(--panel2);color:var(--del-fg);
+  border:1px solid color-mix(in srgb,var(--del-fg) 45%,var(--border2));
+}
+.kbdh.stop:hover{background:var(--panel)}
+.crow{display:flex;align-items:center;gap:var(--sp-1);margin-top:var(--sp-2);padding:0 2px;flex-wrap:wrap}
+.cbtn{
+  display:flex;align-items:center;gap:7px;padding:5px 9px;border-radius:var(--r-sm);
+  font-size:var(--fs-125);color:var(--muted);
+  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
+}
+.cbtn:hover{background:var(--panel);color:var(--text)}
+.cbtn.ico{padding:5px 7px}
+.cbtn.send{
+  width:30px;height:30px;padding:0;justify-content:center;border-radius:var(--r-full);
+  background:var(--accent);color:var(--accent-fg);
+}
+.cbtn.send:hover{background:var(--accent-h);color:var(--accent-fg)}
+.ring{position:relative;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:var(--r-sm)}
+.ring:hover{background:var(--panel)}
+.ring svg{transform:rotate(-90deg)}
+.ring .tr{stroke:var(--border2)}
+.ring .fg{stroke:var(--accent);stroke-linecap:round;transition:stroke-dashoffset .4s var(--ease)}
+.workbar{
+  display:none;align-items:center;gap:9px;margin-top:var(--sp-2);padding:7px 12px;
+  border:1px solid var(--border);border-radius:var(--r-md);background:var(--panel);
+  font-size:var(--fs-12);color:var(--muted);animation:slideDown var(--t-mid) var(--ease);
+}
+.workbar.on{display:flex}
+.wdot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none;animation:pulse 1.2s ease-in-out infinite}
+.wlbl{font-family:var(--font-mono);font-size:var(--fs-11);color:var(--text2);font-variant-numeric:tabular-nums}
+.jump{
+  position:absolute;left:50%;transform:translateX(-50%) translateY(4px);bottom:calc(100% + 10px);
+  width:30px;height:30px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center;
+  background:var(--panel);border:1px solid var(--border2);color:var(--text2);box-shadow:var(--shadow-md);
+  opacity:0;pointer-events:none;transition:opacity var(--t-mid) var(--ease),transform var(--t-mid) var(--ease);z-index:20;
+}
+.jump.on{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)}
+.jump:hover{background:var(--elev);color:var(--text)}
+.tip{
+  position:absolute;bottom:calc(100% + 8px);right:0;background:var(--panel);border:1px solid var(--border2);
+  border-radius:var(--r-sm);padding:8px 11px;font-size:var(--fs-12);white-space:nowrap;box-shadow:var(--shadow);
+  opacity:0;pointer-events:none;transition:opacity var(--t-fast) var(--ease);z-index:40;font-family:var(--font-mono);
+}
+.ring:hover .tip,.tip.hov{opacity:1}
+
+/* ================= MENUS ================= */
+.menu{
+  position:fixed;top:0;left:0;min-width:250px;max-height:min(64vh,440px);
+  overflow-y:auto;overscroll-behavior:contain;background:var(--panel);
+  border:1px solid var(--border2);border-radius:var(--r-md);padding:5px;box-shadow:var(--shadow);z-index:80;
+  animation:menuIn var(--t-fast) var(--ease);
+}
+.mi{
+  display:flex;align-items:center;gap:10px;width:100%;padding:7px 10px;border-radius:var(--r-sm);
+  font-size:var(--fs-13);color:var(--text2);text-align:left;
+  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
+}
+.mi:hover{background:var(--elev);color:var(--text)}
+.mi .k{margin-left:auto;font-family:var(--font-mono);font-size:var(--fs-11);color:var(--dim)}
+.mi.on{color:var(--text)}
+.mi.on .tick{margin-left:auto;color:var(--accent)}
+.mi .sub{font-size:var(--fs-11);color:var(--dim);font-family:var(--font-mono);margin-left:6px}
+.msep{height:1px;background:var(--border);margin:5px 4px}
+.mh{padding:8px 10px 5px;font-size:10.5px;letter-spacing:.05em;color:var(--dim);text-transform:uppercase}
+
+/* ================= MODEL PICKER ================= */
+.mp{padding:0;display:flex;flex-direction:column;max-height:min(70vh,520px);min-width:380px;animation:menuIn var(--t-fast) var(--ease)}
+.mp-s{padding:var(--sp-2);border-bottom:1px solid var(--border);flex:none}
+.mp-s .inp{width:100%}
+.mp-list{overflow-y:auto;flex:1;padding:5px}
+.mp-list .mh{position:sticky;top:0;background:var(--panel);z-index:1}
+.mp-f{border-top:1px solid var(--border);padding:5px;flex:none}
+.mp .mi .sub{margin-left:auto;flex:none}
+
+.slash{
+  position:absolute;bottom:calc(100% + 10px);left:0;right:0;background:var(--panel);
+  border:1px solid var(--border2);border-radius:var(--r-md);box-shadow:var(--shadow);overflow:hidden;z-index:45;
+  max-height:300px;overflow-y:auto;animation:menuIn var(--t-fast) var(--ease);
+}
+.si{display:flex;gap:var(--sp-3);align-items:baseline;padding:8px 13px;cursor:pointer;transition:background var(--t-fast) var(--ease)}
+.si:hover,.si.sel{background:var(--elev)}
+.si .n{font-family:var(--font-mono);font-size:var(--fs-125);color:var(--accent);min-width:92px}
+.si .d{font-size:var(--fs-125);color:var(--muted)}
+
+/* ================= RIGHT PANES (tabbed) ================= */
+.panes{width:420px;flex:none;display:flex;flex-direction:column;border-left:1px solid var(--border);overflow:hidden;background:var(--bg)}
+.panes.hide{display:none}
+.pane-tabs{
+  display:flex;align-items:center;gap:2px;padding:6px 8px;background:var(--sidebar);
+  border-bottom:1px solid var(--border);flex:none;overflow-x:auto;scrollbar-width:none;
+}
+.pane-tabs::-webkit-scrollbar{height:0}
+.ptab{
+  display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:var(--r-sm);
+  font-size:var(--fs-125);color:var(--muted);white-space:nowrap;flex:none;
+  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
+}
+.ptab:hover{background:var(--hover);color:var(--text2)}
+.ptab.on{background:var(--panel);color:var(--text);font-weight:500;box-shadow:var(--shadow-sm)}
+.ptab .badge{
+  font-family:var(--font-mono);font-size:10px;padding:0 5px;border-radius:var(--r-full);
+  background:var(--chip-on);color:var(--text2);min-width:16px;text-align:center;
+}
+.ptab .x{opacity:0;color:var(--dim);padding:0 2px;border-radius:4px;font-size:13px;line-height:1;transition:opacity var(--t-fast)}
+.ptab:hover .x{opacity:1}
+.ptab .x:hover{background:var(--chip-on);color:var(--text)}
+.ptab-add{color:var(--muted);padding:5px 8px;border-radius:var(--r-sm);font-size:14px;line-height:1}
+.ptab-add:hover{background:var(--hover);color:var(--text)}
+.pane-body{flex:1;min-height:0;display:flex;flex-direction:column}
+.pane-row{flex:1;min-height:0;display:none;flex-direction:column}
+.pane-row.active{display:flex;animation:fadeIn var(--t-mid) var(--ease)}
+.pane-sub{
+  display:flex;align-items:center;gap:7px;padding:8px 12px;background:var(--panel);
+  border-bottom:1px solid var(--border);flex:none;font-size:var(--fs-125);color:var(--text2);
+}
+.pane-sub .spacer{flex:1}
+.pane-b{overflow:auto;font-size:var(--fs-125);flex:1;min-height:0}
+.pane-b.pad{padding:var(--sp-4)}
+.pempty{padding:34px 18px;text-align:center;color:var(--dim);font-size:var(--fs-125);line-height:1.7}
+.term{
+  background:var(--termbg);padding:10px 13px;font-family:var(--font-mono);font-size:var(--fs-11);
+  line-height:1.7;color:var(--code-fg);flex:1;min-height:120px;overflow:auto;white-space:pre-wrap;
+}
+.term .rt{color:#8c8c88}
+.term .pr{color:var(--code-fg)}
+.term .er{color:#ec9494}
+.plan-body{padding:var(--sp-4);font-size:var(--fs-13);line-height:1.65;color:var(--text2)}
+.plan-body h1,.plan-body h2,.plan-body h3{font-size:var(--fs-13);font-weight:600;color:var(--text);margin:15px 0 6px;letter-spacing:-.01em}
+.plan-body h1:first-child,.plan-body h2:first-child,.plan-body h3:first-child{margin-top:0}
+.plan-body ul,.plan-body ol{padding-left:20px;margin:8px 0}
+.plan-body p{margin:9px 0}
+
+/* ================= PR BAR ================= */
+.prbar{
+  flex:none;display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--purple);
+  color:var(--purple-fg);font-size:var(--fs-125);border-top:1px solid var(--border);
+}
+.prbar .num{font-family:var(--font-mono);font-size:var(--fs-11);opacity:.85}
+.prbar .br{font-family:var(--font-mono);font-size:var(--fs-11);opacity:.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prbar .st{margin-left:auto;opacity:.9}
+.prbar button{color:var(--purple-fg);opacity:.7;padding:3px;border-radius:var(--r-xs);display:flex}
+.prbar button:hover{opacity:1;background:color-mix(in srgb,var(--purple-fg) 10%,transparent)}
+
+/* ================= LANDING ================= */
+.landing{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:var(--sp-5);padding:var(--sp-8) var(--sp-6);overflow-y:auto;
+}
+.landing .lmark{
+  display:flex;align-items:center;justify-content:center;
+  width:54px;height:54px;border-radius:var(--r-lg);background:var(--panel);border:1px solid var(--border);
+  box-shadow:var(--shadow-sm);animation:popIn var(--t-slow) var(--ease);
+}
+.landing .lmark svg{display:block;border-radius:var(--r-md)}
+.landing h1{
+  margin:0;font-family:var(--title-font);font-size:clamp(22px,3vw,30px);font-weight:500;
+  letter-spacing:-.02em;text-align:center;
+}
+.landing .lsub{margin:-6px 0 0;font-size:var(--fs-13);color:var(--muted);text-align:center;max-width:520px;line-height:1.65}
+.bigbox{
+  width:min(660px,100%);background:var(--elev);border:1px solid var(--border2);border-radius:var(--r-xl);
+  padding:14px;display:flex;flex-direction:column;gap:var(--sp-3);box-shadow:var(--shadow-md);
+  transition:border-color var(--t-mid) var(--ease),box-shadow var(--t-mid) var(--ease);
+}
+.bigbox:focus-within{border-color:color-mix(in srgb,var(--accent) 42%,var(--border2));box-shadow:var(--shadow-md),0 0 0 3px color-mix(in srgb,var(--accent) 9%,transparent)}
+.bigbox textarea{
+  border:0;outline:0;background:transparent;color:var(--text);font-size:var(--fs-15);
+  resize:none;min-height:50px;line-height:1.55;width:100%;
+}
+.bigbox textarea::placeholder{color:var(--dim)}
+.starters{display:flex;flex-wrap:wrap;gap:var(--sp-2);justify-content:center;width:min(660px,100%)}
+.chip{
+  display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:var(--r-full);
+  border:1px solid var(--border);background:var(--panel);font-size:var(--fs-125);color:var(--text2);
+  transition:background var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease),color var(--t-fast) var(--ease),transform var(--t-fast) var(--ease);
+}
+.chip:hover{background:var(--panel2);border-color:var(--border2);color:var(--text);transform:translateY(-1px)}
+.chip svg{flex:none;color:var(--dim)}
+.envl{width:min(660px,100%);display:flex;flex-direction:column;gap:6px}
+.envl .lab{font-size:var(--fs-11);letter-spacing:.05em;text-transform:uppercase;color:var(--dim);padding:0 3px}
+.envlist{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden}
+.envrow{
+  display:flex;gap:var(--sp-3);align-items:flex-start;padding:13px 14px;width:100%;text-align:left;
+  border-bottom:1px solid var(--border);transition:background var(--t-fast) var(--ease);
+}
+.envrow:last-child{border-bottom:0}
+.envrow:hover{background:var(--panel2)}
+.envrow.on{background:var(--elev)}
+.envrow.on .tt{color:var(--text)}
+.radio{width:15px;height:15px;flex:none;margin-top:3px;border-radius:var(--r-full);border:1.5px solid var(--dim);transition:border-color var(--t-fast) var(--ease),border-width var(--t-fast) var(--ease)}
+.envrow.on .radio{border:5px solid var(--accent)}
+.envrow .tt{font-size:var(--fs-13);font-weight:500;color:var(--text2)}
+.envrow .dd{display:block;font-size:var(--fs-125);color:var(--muted);line-height:1.55;margin-top:2px}
+
+/* ================= SETTINGS PAGE ================= */
+.settings{
+  position:fixed;inset:0;background:var(--bg);z-index:100;display:none;flex-direction:column;
+}
+.settings.on{display:flex;animation:fadeIn var(--t-mid) var(--ease)}
+.set-top{
+  height:52px;flex:none;display:flex;align-items:center;gap:var(--sp-2);padding:0 var(--sp-4);
+  border-bottom:1px solid var(--border);background:var(--bg);
+}
+.set-top .t{font-family:var(--title-font);font-size:var(--fs-15);font-weight:500;margin-left:4px}
+.set-body{flex:1;min-height:0;display:flex}
+.set-nav{
+  width:224px;flex:none;border-right:1px solid var(--border);padding:var(--sp-3) 9px;background:var(--sidebar);overflow-y:auto;
+}
+.set-nav button{
+  display:flex;align-items:center;gap:9px;width:100%;padding:8px 10px;border-radius:var(--r-sm);
+  font-size:var(--fs-13);color:var(--muted);text-align:left;margin-bottom:2px;
+  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
+}
+.set-nav button:hover{background:var(--hover);color:var(--text2)}
+.set-nav button.on{background:var(--elev);color:var(--text);font-weight:500;box-shadow:var(--shadow-sm)}
+.set-nav button svg{flex:none;opacity:.85}
+.set-main{flex:1;overflow-y:auto;padding:var(--sp-8) var(--sp-8) var(--sp-10)}
+.set-main .h{font-family:var(--title-font);font-size:var(--fs-22);font-weight:500;letter-spacing:-.02em;margin:0 0 6px}
+.set-main .sh{font-size:var(--fs-125);color:var(--muted);margin:0 0 var(--sp-6);line-height:1.65}
+.set-main .sect{max-width:660px}
+.card{
+  background:var(--panel);border:1px solid var(--border);border-radius:var(--r-lg);
+  padding:var(--sp-5) var(--sp-5);margin-bottom:var(--sp-4);box-shadow:var(--shadow-sm);
+}
+.card .ct{display:flex;align-items:center;gap:9px;font-size:var(--fs-13);font-weight:600;margin-bottom:4px}
+.card .cs{font-size:var(--fs-12);color:var(--muted);margin-bottom:var(--sp-4);line-height:1.6}
+.row{display:flex;align-items:center;gap:var(--sp-3);padding:13px 0;border-bottom:1px solid var(--border)}
+.row:last-child{border-bottom:0;padding-bottom:0}
+.row:first-of-type{padding-top:0}
+.row .rl{flex:1;min-width:0}
+.row .rt{font-size:var(--fs-13);color:var(--text)}
+.row .rd{font-size:var(--fs-12);color:var(--muted);margin-top:3px;line-height:1.55}
+.row .rc{flex:none;display:flex;align-items:center;gap:var(--sp-2)}
+.inp{
+  width:100%;background:var(--bg);border:1px solid var(--border2);color:var(--text);
+  border-radius:var(--r-sm);padding:8px 11px;font-size:var(--fs-13);
+  transition:border-color var(--t-fast) var(--ease),box-shadow var(--t-fast) var(--ease);
+}
+.inp:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 12%,transparent)}
+.inp.mono{font-family:var(--font-mono);font-size:var(--fs-12)}
+select.inp{font-family:inherit;cursor:pointer}
+textarea.inp{line-height:1.6;resize:vertical}
+.fld{margin-bottom:var(--sp-3)}
+.fld:last-child{margin-bottom:0}
+.fld label{display:block;font-size:var(--fs-12);color:var(--muted);margin-bottom:6px}
+.tog{
+  width:38px;height:22px;border-radius:var(--r-full);background:var(--border2);position:relative;
+  transition:background var(--t-mid) var(--ease);flex:none;cursor:pointer;
+}
+.tog::after{
+  content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:var(--r-full);
+  background:#fff;transition:transform var(--t-mid) var(--ease);box-shadow:0 1px 2px rgba(0,0,0,.3);
+}
+.tog.on{background:var(--accent)}
+.tog.on::after{transform:translateX(16px);background:var(--accent-fg)}
+.segbtn{display:flex;gap:2px;padding:3px;background:var(--chip);border-radius:var(--r-sm)}
+.segbtn button{padding:6px 13px;border-radius:var(--r-xs);font-size:var(--fs-125);color:var(--muted);transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease)}
+.segbtn button:hover{color:var(--text2)}
+.segbtn button.on{background:var(--panel);color:var(--text);font-weight:500;box-shadow:var(--shadow-sm)}
+.pill{
+  font-size:var(--fs-11);padding:2px 9px;border-radius:var(--r-full);background:var(--chip);color:var(--muted);
+  font-family:var(--font-mono);white-space:nowrap;
+}
+.pill.ok{background:color-mix(in srgb,var(--add-fg) 16%,transparent);color:var(--add-fg)}
+.pill.no{background:color-mix(in srgb,var(--del-fg) 16%,transparent);color:var(--del-fg)}
+.pill.warn{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent)}
+.prov{
+  display:flex;align-items:center;gap:var(--sp-3);padding:12px 0;border-bottom:1px solid var(--border);
+  width:100%;text-align:left;transition:background var(--t-fast) var(--ease);
+}
+.prov:last-child{border-bottom:0;padding-bottom:0}
+.prov:hover .pn{color:var(--text)}
+.prov .pn{font-size:var(--fs-13);color:var(--text2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prov .pd{font-size:var(--fs-11);color:var(--dim);font-family:var(--font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}
+.sc-row{display:flex;justify-content:space-between;align-items:center;gap:var(--sp-3);font-size:var(--fs-13);padding:9px 0;border-bottom:1px solid var(--border)}
+.sc-row:last-child{border-bottom:0}
+.kbd{
+  font-family:var(--font-mono);font-size:var(--fs-11);background:var(--chip);border:1px solid var(--border);
+  border-radius:var(--r-xs);padding:2px 8px;color:var(--muted);white-space:nowrap;
+}
+.banner{
+  display:flex;align-items:center;gap:9px;padding:11px 13px;border-radius:var(--r-sm);font-size:var(--fs-125);
+  margin-bottom:var(--sp-4);line-height:1.5;
+  background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--text2);
+  border:1px solid color-mix(in srgb,var(--accent) 20%,var(--border));
+}
+.banner svg{flex:none;color:var(--accent)}
+.banner.err{background:color-mix(in srgb,var(--del-fg) 10%,transparent);color:var(--del-fg);border-color:color-mix(in srgb,var(--del-fg) 26%,var(--border))}
+.banner.ok{background:color-mix(in srgb,var(--add-fg) 10%,transparent);color:var(--add-fg);border-color:color-mix(in srgb,var(--add-fg) 26%,var(--border))}
+.settings details summary{border-radius:var(--r-xs);padding:2px 4px}
+.settings details summary:hover{color:var(--text2)}
+
+/* ================= MISC ================= */
+.toast{
+  position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(6px);background:var(--panel);
+  border:1px solid var(--border2);color:var(--text);font-size:var(--fs-125);padding:10px 16px;border-radius:var(--r-md);
+  z-index:200;opacity:0;pointer-events:none;transition:opacity var(--t-mid) var(--ease),transform var(--t-mid) var(--ease);
+  box-shadow:var(--shadow);max-width:min(560px,90vw);text-align:center;
+}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.ctxmenu{
+  position:fixed;background:var(--panel);border:1px solid var(--border2);border-radius:var(--r-sm);
+  padding:5px;box-shadow:var(--shadow);z-index:150;min-width:186px;animation:menuIn var(--t-fast) var(--ease);
+}
+.ctxmenu .mi{font-size:var(--fs-125);padding:7px 10px}
+.sb-scrim{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:64;animation:fadeIn var(--t-fast) var(--ease)}
+
+/* ============================ MOTION ============================ */
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes blink{50%{opacity:0}}
+@keyframes pulse{50%{opacity:.35}}
+@keyframes tdot{0%,60%,100%{opacity:.35;transform:translateY(0)}30%{opacity:1;transform:translateY(-2px)}}
+@keyframes msgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes menuIn{from{opacity:0;transform:translateY(-4px) scale(.99)}to{opacity:1;transform:none}}
+@keyframes slideDown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes popIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.001ms!important;animation-iteration-count:1!important;
+    transition-duration:.001ms!important;scroll-behavior:auto!important;
+  }
+  .chip:hover{transform:none}
+}
+
+/* ============================ RESPONSIVE ============================ */
+@media(max-width:1240px){.panes{width:340px}}
+@media(max-width:1000px){
+  .panes{
+    position:fixed;top:0;right:0;bottom:0;width:min(420px,88vw);z-index:45;
+    box-shadow:var(--shadow-md);border-left:1px solid var(--border2);
+    transform:translateX(100%);visibility:hidden;
+    transition:transform var(--t-slow) var(--ease),visibility var(--t-slow);
+  }
+  body.pane-open .panes{transform:none;visibility:visible}
+  .panes.hide{display:flex}
+}
+@media(max-width:820px){
+  .sidebar{display:none}
+  body.sb-over .sidebar{
+    display:flex;position:fixed;left:0;top:0;bottom:0;z-index:70;width:min(300px,86vw);
+    box-shadow:var(--shadow-md);border-right:1px solid var(--border2);
+  }
+  body.sb-over .sb-scrim{display:block}
+  .set-nav{width:180px}
+  .set-main{padding:var(--sp-6) var(--sp-5) var(--sp-8)}
+}
+@media(max-width:700px){
+  :root{--sp-6:16px}
+  #stream > *{padding-left:var(--sp-4);padding-right:var(--sp-4)}
+  .msg-u .b{max-width:92%}
+  .composer{padding:0 var(--sp-3) var(--sp-3)}
+  .shead .proj{display:none}
+  .set-nav{
+    width:100%;border-right:0;border-bottom:1px solid var(--border);
+    display:flex;gap:4px;overflow-x:auto;padding:var(--sp-2);
+  }
+  .set-nav button{width:auto;white-space:nowrap;margin-bottom:0}
+  .set-body{flex-direction:column}
+  .landing{gap:var(--sp-4);padding:var(--sp-6) var(--sp-4)}
+  .landing .lmark{width:46px;height:46px}
+}
+</style>
+</head>
+<body>
+
+<!-- ==================== TITLE BAR ==================== -->
+<div class="titlebar">
+  <div class="lights" aria-hidden="true"><i></i><i></i><i></i></div>
+  <span class="brand">
+    <svg width="20" height="20" viewBox="0 0 512 512" aria-hidden="true">
+      <defs>
+        <linearGradient id="bt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a1a1a"/><stop offset="1" stop-color="#141414"/></linearGradient>
+        <linearGradient id="bcs" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f7f7f5"/><stop offset="1" stop-color="#b9b9b5"/></linearGradient>
+        <linearGradient id="bs" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e9e9e7"/></linearGradient>
+      </defs>
+      <rect width="512" height="512" rx="112" fill="url(#bt)"/>
+      <path d="M178 172 L298 256 L178 340" fill="none" stroke="url(#bcs)" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="178" y="386" width="120" height="24" rx="9" fill="#8c8c88" opacity="0.38"/>
+      <path d="M366 154c5 33 20 48 53 53-33 5-48 20-53 53-5-33-20-48-53-53 33-5 48-20 53-53z" fill="url(#bs)"/>
+    </svg>
+    <span class="nm" id="brandVer">Star Code</span>
+  </span>
+  <button class="tb-btn" id="btnSidebar" title="Toggle sidebar" aria-label="Toggle sidebar">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M6 2.5v11"/></svg>
+  </button>
+  <button class="tb-btn" id="btnSearch" title="Search sessions" aria-label="Search sessions">
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+  </button>
+  <span class="spacer"></span>
+  <button class="tb-text" id="btnPanes" title="Toggle panes">
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" style="vertical-align:-2px"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M9.5 2.5v11"/></svg>
+  </button>
+  <button class="tb-text" id="btnTheme" title="Toggle theme">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" style="vertical-align:-2px"><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.5 3.5l1.4 1.4M11.1 11.1l1.4 1.4M12.5 3.5l-1.4 1.4M4.9 11.1l-1.4 1.4"/><circle cx="8" cy="8" r="2.6"/></svg>
+  </button>
+  <span class="tb-sep" aria-hidden="true"></span>
+  <button class="tb-text" id="btnSettings">Settings</button>
+</div>
+
+<div class="updatebar" id="updateBar">
+  <span class="ic">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 2.5v7M8 9.5L5 6.5M8 9.5l3-3M3 12.5h10"/></svg>
+  </span>
+  <span><b>Star Code <span class="rel" id="updateVer">—</span></b> is available — you have <span class="rel" id="updateCur">—</span>.</span>
+  <span class="spacer"></span>
+  <span class="rel" id="updateState"></span>
+  <button class="btn pri sm" id="updateNow">Update now</button>
+  <button class="btn sm" id="updateGet">Download page</button>
+  <button class="x" id="updateDismiss" title="Dismiss until next version">×</button>
+</div>
+
+<div class="shell">
+  <!-- ==================== SIDEBAR ==================== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="seg">
+      <button class="on" title="Star Code">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M5.5 4L2 8l3.5 4M10.5 4L14 8l-3.5 4"/></svg>
+        Star Code
+      </button>
+    </div>
+    <div class="sb-links">
+      <button class="sb-link" id="btnNew">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>
+        New session
+      </button>
+      <button class="sb-link" id="btnOpenFolder">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1.8 4.5A1.5 1.5 0 013.3 3h2.4l1.3 1.6h5.7a1.5 1.5 0 011.5 1.5v5.4a1.5 1.5 0 01-1.5 1.5H3.3a1.5 1.5 0 01-1.5-1.5z"/></svg>
+        Open folder
+      </button>
+      <button class="sb-link" id="btnSettings2">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="2.4"/><path d="M8 1.6v2M8 12.4v2M1.6 8h2M12.4 8h2M3.5 3.5l1.4 1.4M11.1 11.1l1.4 1.4M12.5 3.5l-1.4 1.4M4.9 11.1l-1.4 1.4"/></svg>
+        Settings
+      </button>
+      <button class="sb-link" id="btnMore">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="3.5" r="1.2"/><circle cx="8" cy="8" r="1.2"/><circle cx="8" cy="12.5" r="1.2"/></svg>
+        More
+      </button>
+    </div>
+    <div class="sb-sec">Sessions<span class="spacer"></span>
+      <button title="Toggle sort order" aria-label="Toggle sort order" id="btnSort">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M4 3v10M4 13l-2-2M4 13l2-2M12 13V3M12 3l-2 2M12 3l2 2"/></svg>
+      </button>
+    </div>
+    <div class="sb-search">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+      <input id="sessSearch" type="text" placeholder="Search sessions" aria-label="Search sessions" autocomplete="off" spellcheck="false">
+      <button class="clr" id="sessClear" title="Clear search" aria-label="Clear session search" hidden>
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+      </button>
+    </div>
+    <div class="sessions" id="sessions"></div>
+    <div class="sb-sec">Project files<span class="spacer"></span>
+      <button title="Refresh files" aria-label="Refresh project files" id="btnTreeRefresh">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M13 8a5 5 0 11-1.5-3.5M13 2.5V5h-2.5"/></svg>
+      </button>
+    </div>
+    <div class="sb-tree" id="fileTree"></div>
+  </aside>
+  <div class="sb-scrim" id="sbScrim" aria-hidden="true"></div>
+
+  <!-- ==================== SESSION ==================== -->
+  <main class="session">
+    <div class="shead">
+      <span class="ico">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M2 6h12M5 4.2h.01M7 4.2h.01"/></svg>
+      </span>
+      <span class="ttl" id="sTitle">New session</span>
+      <span class="proj" id="sProj">—</span>
+      <span class="spacer"></span>
+      <span class="acts">
+        <button class="hbtn" id="hbTerm" title="Terminal pane">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 5l3 3-3 3M8.5 11.5h4.5"/></svg>
+        </button>
+        <button class="hbtn" id="hbDiff" title="Diff pane">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M6 2.5v11"/></svg>
+        </button>
+        <button class="hbtn" id="hbBrowser" title="Browser pane">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6"/><path d="M8 2c1.8 1.7 2.8 3.7 2.8 6S9.8 12.3 8 14c-1.8-1.7-2.8-3.7-2.8-6S6.2 3.7 8 2zM2.4 6h11.2M2.4 10h11.2"/></svg>
+        </button>
+        <button class="hbtn" id="hbPanes" title="More panes">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="3" cy="8" r="1.2"/><circle cx="8" cy="8" r="1.2"/><circle cx="13" cy="8" r="1.2"/></svg>
+        </button>
+      </span>
+    </div>
+
+    <div id="stream" style="display:none"></div>
+
+    <div class="landing" id="landing">
+      <span class="lmark" aria-hidden="true">
+        <svg width="34" height="34" viewBox="0 0 512 512">
+          <defs>
+            <linearGradient id="lt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a1a1a"/><stop offset="1" stop-color="#141414"/></linearGradient>
+            <linearGradient id="lcs" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f7f7f5"/><stop offset="1" stop-color="#b9b9b5"/></linearGradient>
+            <linearGradient id="ls" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e9e9e7"/></linearGradient>
+          </defs>
+          <rect width="512" height="512" rx="112" fill="url(#lt)"/>
+          <path d="M178 172 L298 256 L178 340" fill="none" stroke="url(#lcs)" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="178" y="386" width="120" height="24" rx="9" fill="#8c8c88" opacity="0.38"/>
+          <path d="M366 154c5 33 20 48 53 53-33 5-48 20-53 53-5-33-20-48-53-53 33-5 48-20 53-53z" fill="url(#ls)"/>
+        </svg>
+      </span>
+      <h1 id="landingTitle">What should we build today?</h1>
+      <p class="lsub">Star Code works in your project folder — it reads, searches, edits, and runs commands on this machine.</p>
+      <div class="bigbox">
+        <textarea id="bigInput" rows="2" placeholder="Describe a task or ask a question about the project" aria-label="Describe a task"></textarea>
+        <div class="crow">
+          <button class="cbtn" id="bigProj" title="Working directory">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M1.8 4.5A1.5 1.5 0 013.3 3h2.4l1.3 1.6h5.7a1.5 1.5 0 011.5 1.5v5.4a1.5 1.5 0 01-1.5 1.5H3.3a1.5 1.5 0 01-1.5-1.5z"/></svg>
+            <span id="bigProjName" class="mono">—</span>
+          </button>
+          <button class="cbtn" id="bigMode">Ask permissions</button>
+          <span class="spacer"></span>
+          <button class="cbtn" id="bigModel"><span class="mono" id="bigModelName">—</span></button>
+          <button class="cbtn send" id="bigSend" title="Send" aria-label="Send message">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13.5V3M3.5 7.5L8 3l4.5 4.5"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="starters">
+        <button class="chip" data-starter="Explain the structure of this project and how to run it.">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M8 5.4v3.2M8 10.8h.01"/></svg>
+          Explain this project
+        </button>
+        <button class="chip" data-starter="Review the uncommitted changes: run `git diff`, then report risks and suggested fixes.">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M3 13V6.5M13 13v-3M3 3v1.5M13 8V3.5"/><circle cx="3" cy="5" r="1.6"/><circle cx="13" cy="5" r="1.6"/></svg>
+          Review my changes
+        </button>
+        <button class="chip" data-starter="Find the most important gaps in the test suite and write the missing tests.">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 5"/></svg>
+          Write the missing tests
+        </button>
+        <button class="chip" data-starter="Search this project for TODOs and FIXMEs and suggest the highest-value next step.">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M8 2.5l5.5 9.5h-11z"/><path d="M8 6.6v2.6M8 10.9h.01"/></svg>
+          Find TODOs
+        </button>
+      </div>
+      <div class="envl">
+        <div class="lab">Where should Star run?</div>
+        <div class="envlist" id="envList" role="radiogroup" aria-label="Where Star runs">
+          <button class="envrow on" data-env="local" role="radio" aria-checked="true">
+            <span class="radio" aria-hidden="true"></span>
+            <span><span class="tt">Local</span><span class="dd">Runs on this machine in your working directory, with full read and write access.</span></span>
+          </button>
+          <button class="envrow" data-env="plan" role="radio" aria-checked="false">
+            <span class="radio" aria-hidden="true"></span>
+            <span><span class="tt">Plan first</span><span class="dd">Star explores read-only and proposes a plan before touching anything.</span></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="composer" id="composer" style="display:none">
+      <div class="cwrap">
+      <div class="slash" id="slashMenu" style="display:none"></div>
+      <button class="jump" id="jumpBtn" type="button" title="Jump to latest" aria-label="Jump to the latest message">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v10M3.5 8.5L8 13l4.5-4.5"/></svg>
+      </button>
+      <div class="cbox">
+        <textarea id="input" rows="1" placeholder="Type / for commands" aria-label="Message Star Code"></textarea>
+        <button class="kbdh" id="kbdHint" type="button" title="Send" aria-label="Send message">⏎</button>
+      </div>
+      <div class="crow">
+        <button class="cbtn" id="cMode">Ask permissions</button>
+        <button class="cbtn ico" id="cPanels" title="Add pane" aria-label="Add a pane">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M9.5 2.5v11"/></svg>
+        </button>
+        <button class="cbtn ico" id="cAttach" title="Attach context" aria-label="Attach context">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 3.5v9M3.5 8h9"/></svg>
+        </button>
+        <button class="cbtn ico" id="cShell" title="Shell mode" aria-label="Shell mode">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 5.5l3 3-3 3M8.5 12h4.5"/></svg>
+        </button>
+        <button class="cbtn ico" id="cMore" title="More" aria-label="More options">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6.5l4 4 4-4"/></svg>
+        </button>
+        <span class="spacer"></span>
+        <button class="cbtn" id="cModel" title="Model and reasoning effort">
+          <span class="mono" id="cModelName" style="font-size:12px">—</span>
+          <span style="color:var(--dim)">·</span>
+          <span id="cEffort" style="font-size:12px">—</span>
+        </button>
+        <span class="ring" id="cRing">
+          <svg width="17" height="17" viewBox="0 0 20 20" aria-hidden="true">
+            <circle class="tr" cx="10" cy="10" r="7.5" fill="none" stroke-width="2.5"/>
+            <circle class="fg" id="ringFg" cx="10" cy="10" r="7.5" fill="none" stroke-width="2.5"
+              stroke-dasharray="47.1" stroke-dashoffset="47.1"/>
+          </svg>
+          <span class="tip" id="ringTip">Context —</span>
+        </span>
+      </div>
+      <div class="workbar" id="workBar" role="status" aria-live="polite">
+        <span class="wdot" aria-hidden="true"></span>
+        <span class="wlbl" id="workLabel">Working…</span>
+        <span class="spacer"></span>
+        <button class="btn sm" id="workStop">Stop</button>
+      </div>
+      </div>
+    </div>
+
+    <div class="prbar" id="prbar" style="display:none">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="4" cy="3.5" r="1.8"/><circle cx="4" cy="12.5" r="1.8"/><circle cx="12" cy="6" r="1.8"/><path d="M4 5.3v5.4M12 7.8c0 2-1.6 2.7-3.5 2.7H6.5"/></svg>
+      <span class="num" id="prNum">#1</span>
+      <span class="br" id="prBranch">branch</span>
+      <span class="st" id="prState">Open</span>
+      <button id="prClose" title="Dismiss" aria-label="Dismiss changes bar"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+    </div>
+  </main>
+
+  <!-- ==================== PANES (tabbed) ==================== -->
+  <div class="panes" id="panes">
+    <div class="pane-tabs" id="paneTabs"></div>
+    <div class="pane-body" id="paneBody">
+
+      <section class="pane-row" data-pane="preview">
+        <div class="pane-sub"><span id="previewTitle">Preview</span></div>
+        <div class="pane-b"><div class="pempty" id="previewEmpty">Not running<br><span style="font-size:11.5px">Start a dev server, open an artifact, or click a file — previews appear here.</span></div><div id="filePreview" style="display:none;min-height:100%"></div></div>
+      </section>
+
+      <section class="pane-row" data-pane="tasks">
+        <div class="pane-b"><div class="pempty" id="tasksEmpty">No tasks yet.</div><div id="tasksList"></div></div>
+      </section>
+
+      <section class="pane-row" data-pane="plan">
+        <div class="pane-b">
+          <div class="plan-body" id="planBody">
+            <div style="font-weight:600;color:var(--text);margin-bottom:6px">No plan yet.</div>
+            <div style="color:var(--dim)">Star writes the plan here as it explores. Keep chatting.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="pane-row" data-pane="terminal">
+        <div class="term" id="term">[shell] ready — commands Star runs appear here</div>
+      </section>
+
+      <section class="pane-row" data-pane="diff">
+        <div class="pane-sub">Changes<span class="spacer"></span><button class="btn sm" data-act="review" style="font-size:11.5px;padding:3px 9px">Review code</button></div>
+        <div class="pane-b"><div class="pempty" id="diffEmpty">No changes to show</div><div id="diffList"></div></div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<!-- ==================== SETTINGS ==================== -->
+<div class="settings" id="settings">
+  <div class="set-top">
+    <button class="hbtn" id="setBack" title="Close settings">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M9.5 3.5L5 8l4.5 4.5"/></svg>
+    </button>
+    <span class="t">Settings</span>
+    <span class="spacer"></span>
+    <span class="pill" id="setSaved">saved</span>
+  </div>
+  <div class="set-body">
+    <nav class="set-nav">
+      <button class="on" data-s="providers">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.8l5 2.9v6.6l-5 2.9-5-2.9V4.7z"/><path d="M8 8l5-2.9M8 8v6.3M8 8L3 5.1"/></svg>
+        Providers
+      </button>
+      <button data-s="appearance">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="3"/><path d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3.1 3.1l1.1 1.1M11.8 11.8l1.1 1.1M12.9 3.1l-1.1 1.1M4.2 11.8l-1.1 1.1"/></svg>
+        Appearance
+      </button>
+      <button data-s="session">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.4 1.6"/></svg>
+        Session
+      </button>
+      <button data-s="knowledge">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 2.5h7.5a2 2 0 012 2v9H5a2 2 0 01-2-2z"/><path d="M3 11.5a2 2 0 012-2h7.5"/></svg>
+        Knowledge
+      </button>
+      <button data-s="keys">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><rect x="1.5" y="4" width="13" height="8" rx="2"/><path d="M4.5 7h2M8 7h3.5M4.5 9.5h5"/></svg>
+        Shortcuts
+      </button>
+      <button data-s="about">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6"/><path d="M8 7.2v4M8 5.2h.01"/></svg>
+        About
+      </button>
+    </nav>
+    <div class="set-main" id="setMain"></div>
+  </div>
+</div>
+
+<!-- ==================== MENUS / MODALS ==================== -->
+<div class="slash" id="ctxHost" style="display:none"></div>
+<div class="toast" id="toast"></div>
+<div class="ctxmenu" id="ctxMenu" style="display:none"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const LS = "ccd.state.v4";
+
+/* ============================ STATE ============================ */
+const DEFAULT_STATE = {
+  theme: "dark",
+  current: "deepseek",
+  providers: {
+    deepseek: { apiKey: "", baseUrl: "https://api.deepseek.com", model: "deepseek-chat" },
+    openai: { apiKey: "", baseUrl: "https://api.openai.com/v1", model: "gpt-4o" },
+    anthropic: { apiKey: "", baseUrl: "https://api.anthropic.com/v1", model: "claude-sonnet-4-20250514" },
+    ollama: { apiKey: "", baseUrl: "http://localhost:11434/v1", model: "llama3.1" },
+    custom: { apiKey: "", baseUrl: "http://localhost:1234/v1", model: "model-name" },
+  },
+  defaultMode: "manual",
+  effort: "medium",
+  showThinking: true,
+  dismissedUpdate: "",
+  sortAsc: false,
+  autoCollapseThinking: true,
+  root: "",
+  sessions: [],
+};
+
+let state = load();
+function load() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(LS) || "null");
+    if (!raw) return structuredClone(DEFAULT_STATE);
+    const s = structuredClone(DEFAULT_STATE);
+    Object.assign(s, raw);
+    s.providers = Object.assign(structuredClone(DEFAULT_STATE.providers), raw.providers || {});
+    return s;
+  } catch { return structuredClone(DEFAULT_STATE); }
+}
+function save() { try { localStorage.setItem(LS, JSON.stringify(state)); } catch {} flashSaved(); }
+let saveTimer = null;
+function flashSaved() {
+  const el = $("setSaved"); if (!el) return;
+  el.textContent = "saving…"; el.className = "pill warn";
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => { el.textContent = "saved"; el.className = "pill ok"; }, 380);
+}
+
+function prov() { return state.providers[state.current] || state.providers.deepseek; }
+
+/** Send a client baseUrl only when it truly overrides the catalog default.
+ *  A stale copy would otherwise beat the stored override server-side. */
+function payloadBaseUrl() {
+  const p = prov();
+  const cfg = meta.providers.find(x => x.id === state.current) || {};
+  return (p.baseUrl && p.baseUrl !== cfg.baseUrl) ? p.baseUrl : undefined;
+}
+
+/* ============================ THEME ============================ */
+function applyTheme() {
+  const t = state.theme === "system"
+    ? (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")
+    : state.theme;
+  document.documentElement.setAttribute("data-theme", t);
+  // keep the native window chrome (titleBarOverlay / system theme) in sync
+  if (typeof bridge !== "undefined" && bridge) {
+    try { bridge.setTheme(state.theme === "system" ? "system" : theThemeIsLight() ? "light" : "dark"); } catch {}
+  }
+}
+function theThemeIsLight() {
+  return document.documentElement.getAttribute("data-theme") === "light";
+}
+matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => { if (state.theme === "system") applyTheme(); });
+
+/* ============================ RUNTIME ============================ */
+let meta = null;
+let appVersion = "";
+let sessionId = null, streaming = false, todos = [], diffs = [], termLines = [];
+let currentMsg = null, currentThink = null, toolGroup = null, thinkStart = 0, thinkTimer = null;
+let slashIdx = 0, slashMatches = [], planText = "", lastUsage = null;
+
+const MODES = [
+  { id: "manual", label: "Ask permissions", d: "Star asks before editing files or running commands" },
+  { id: "acceptEdits", label: "Accept edits", d: "File edits are auto-accepted; commands still ask" },
+  { id: "plan", label: "Plan mode", d: "Read-only exploration; proposes a plan first" },
+  { id: "bypass", label: "Bypass permissions", d: "Runs everything without asking" },
+];
+const EFFORTS = ["low", "medium", "high"];
+const UNITS = [];
+
+const ICONS = {
+  read_file: ["Read", "Read"], list_dir: ["List", "Listed"], search_files: ["Search", "Searched code"],
+  glob_files: ["Find", "Found files"], write_file: ["Write", "Wrote"], edit_file: ["Edit", "Edited"],
+  multi_edit: ["Edit", "Edited"], run_command: ["Run", "Ran"],
+  fetch_url: ["Fetch", "Fetched"], websearch: ["Web", "Searched web"],
+  task: ["Explore", "Explored"], self_knowledge: ["Learn", "Learned"],
+  search_knowledge: ["Knowledge", "Searched knowledge"], error: ["Error", "Error"],
+};
+
+/* ============================ BOOT ============================ */
+const bridge = (typeof window !== "undefined" && window.desktop && window.desktop.isElectron) ? window.desktop : null;
+
+(async function boot() {
+  applyTheme();
+  if (bridge) {
+    document.body.classList.add("is-electron");
+    try {
+      const info = await bridge.info();
+      if (info.platform === "darwin") document.body.classList.add("is-mac");
+      if (info.appVersion) {
+        appVersion = info.appVersion;
+        $("brandVer").textContent = "Star Code " + info.appVersion;
+      }
+      if (info.root) state.root = info.root;
+    } catch {}
+  }
+  meta = await (await fetch("/api/providers")).json();
+  state.root = state.root || meta.root;
+  if (!localStorage.getItem(LS)) save();
+  $("setSaved").textContent = "saved"; $("setSaved").className = "pill ok";
+  await importLocalKeys();
+  updateChrome();
+  loadLocalSessionFlags();
+  await loadSessions();
+  loadTree();
+  buildSlash();
+  wirePanes();
+  applyMode(state.defaultMode);
+  autoGrow($("input"));
+  lastUsage = { contextTokens: 0, contextLimit: 200000, contextPct: 0 };
+  renderRing();
+  renderSettings();
+  // Quiet update check a few seconds after launch. Deliberately delayed so it
+  // never competes with first paint, and it only surfaces a banner when there
+  // is genuinely something newer than the running build.
+  if (bridge && bridge.checkUpdates) setTimeout(() => checkUpdates({ quiet: true }), 3500);
+})();
+
+function updateChrome() {
+  const r = state.root || "";
+  const base = r.split(/[\\/]/).filter(Boolean).pop() || r;
+  $("sProj").textContent = base;
+  $("sProj").title = r;
+  $("bigProjName").textContent = base;
+  $("cModelName").textContent = prov().model || "—";
+  $("bigModelName").textContent = prov().model || "—";
+  $("cEffort").textContent = state.effort[0].toUpperCase() + state.effort.slice(1);
+}
+
+/* ============================ MODE / MENUS ============================ */
+function applyMode(id) {
+  const m = MODES.find(x => x.id === id) || MODES[0];
+  state.defaultMode = m.id;
+  $("cMode").textContent = m.label;
+  $("bigMode").textContent = m.label;
+}
+function closeMenus() { document.querySelectorAll(".menu").forEach(m => m.remove()); $("ctxMenu").style.display = "none"; }
+document.addEventListener("click", e => { if (!e.target.closest(".menu") && !e.target.closest("[data-menu]")) closeMenus(); });
+
+function openMenu(anchor, items, opts = {}) {
+  closeMenus();
+  const m = document.createElement("div");
+  m.className = "menu" + (opts.right ? " right" : "");
+  m.dataset.menu = "1";
+  for (const it of items) {
+    if (it.sep) { m.insertAdjacentHTML("beforeend", '<div class="msep"></div>'); continue; }
+    if (it.head) { m.insertAdjacentHTML("beforeend", `<div class="mh">${esc(it.head)}</div>`); continue; }
+    const b = document.createElement("button");
+    b.className = "mi" + (it.on ? " on" : "");
+    b.innerHTML = (it.ico || "") + `<span>${esc(it.label)}${it.sub ? ` <span class="sub">${esc(it.sub)}</span>` : ""}</span>` +
+      (it.on ? '<span class="tick">✓</span>' : (it.k ? `<span class="k">${esc(it.k)}</span>` : ""));
+    b.addEventListener("click", ev => { ev.stopPropagation(); closeMenus(); it.run && it.run(); });
+    m.appendChild(b);
+  }
+  document.body.appendChild(m);
+  // measure, then place: below the anchor when it fits, else above; never
+  // let a menu leave the viewport (sidebar "More" used to open off-screen).
+  m.style.visibility = "hidden";
+  const rect = anchor.getBoundingClientRect();
+  const mw = m.offsetWidth, mh = m.offsetHeight, margin = 8;
+  let left = opts.right ? rect.right - mw : rect.left;
+  left = Math.max(margin, Math.min(left, innerWidth - mw - margin));
+  let top = rect.bottom + 6;
+  if (top + mh > innerHeight - margin) top = rect.top - 6 - mh;
+  top = Math.max(margin, Math.min(top, innerHeight - mh - margin));
+  m.style.left = left + "px";
+  m.style.top = top + "px";
+  m.style.visibility = "";
+  const dismiss = () => closeMenus();
+  window.addEventListener("scroll", dismiss, { capture: true, once: true });
+  window.addEventListener("resize", dismiss, { once: true });
+}
+
+function modeMenu(anchor) {
+  openMenu(anchor, MODES.map(m => ({
+    label: m.label, sub: m.d, on: m.id === state.defaultMode,
+    run: () => { applyMode(m.id); save(); toast("Mode: " + m.label); },
+  })));
+}
+
+/* ============================ MODEL PICKER ============================ */
+let liveModels = {};   // provider id -> { models, live } from /api/models
+let mpQuery = "";
+let mpItems = [];      // flat, selectable rows (keyboard order)
+let mpSel = 0;
+
+async function refreshPickableModels() {
+  const want = new Set([state.current]);
+  try {
+    const det = await (await fetch("/api/detect")).json();
+    for (const [id, st] of Object.entries(det)) if (st.up) want.add(id);
+  } catch { /* detection is best-effort */ }
+  await Promise.all([...want].map(async (id) => {
+    try {
+      const r = await (await fetch("/api/models", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: id }),
+      })).json();
+      if (r && Array.isArray(r.models)) liveModels[id] = r;
+    } catch { /* keep whatever we had */ }
+  }));
+}
+
+function chooseModel(pid, mid) {
+  state.current = pid;
+  state.providers[pid] = state.providers[pid] || {};
+  state.providers[pid].model = mid;
+  save(); updateChrome(); renderSessions();
+  if ($("settings").classList.contains("on")) renderSettings();
+  toast(pid + " · " + mid);
+}
+
+function moveMp(d) {
+  if (!mpItems.length) return;
+  mpSel = (mpSel + d + mpItems.length) % mpItems.length;
+  const rows = document.querySelectorAll(".mp .mi[data-i]");
+  rows.forEach((el, i) => el.classList.toggle("on", i === mpSel));
+  if (rows[mpSel]) rows[mpSel].scrollIntoView({ block: "nearest" });
+}
+
+function renderModelPicker(menu) {
+  const q = mpQuery.trim().toLowerCase();
+  mpItems = [];
+  const groups = [];
+  for (const p of meta.providers) {
+    const cached = liveModels[p.id];
+    const cfg = state.providers[p.id] || {};
+    const cur = cfg.model || p.defaultModel;
+    let models = (cached && cached.models.length) ? cached.models.slice()
+      : (p.models || []).map(id => ({ id, reasoning: (p.reasoning || []).includes(id) }));
+    if (cur && !models.some(m => m.id === cur)) models.unshift({ id: cur, reasoning: false });
+    const filtered = models.filter(m => {
+      if (!q) return true;
+      const hay = (p.label + " " + p.id + " " + m.id + " " + p.id + "/" + m.id).toLowerCase();
+      return hay.includes(q);
+    });
+    if (!filtered.length) continue;
+    groups.push({ p, models: filtered, live: !!(cached && cached.live) });
+  }
+  for (const g of groups) {
+    for (const m of g.models) {
+      mpItems.push({ pid: g.p.id, mid: m.id, reasoning: !!m.reasoning, contextLength: m.contextLength, live: g.live });
+    }
+  }
+  let idx = 0;
+  const listHtml = groups.map(g => `
+    <div class="mh">${esc(g.p.label)}${g.p.id === state.current ? ' <span style="color:var(--dim)">· active</span>' : ""}${g.live ? ' <span class="pill ok" style="font-size:9.5px;padding:1px 6px">live</span>' : ""}</div>` +
+    g.models.map(m => {
+      const i = idx++;
+      const active = g.p.id === state.current && m.id === (state.providers[g.p.id] || {}).model;
+      const badges = [m.reasoning ? "reasoning" : "", m.contextLength ? Math.round(m.contextLength / 1000) + "k" : ""].filter(Boolean).join(" · ");
+      return `<button class="mi ${i === 0 ? "on" : ""}" data-i="${i}">
+        <span class="mono" style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.id)}</span>
+        ${badges ? `<span class="sub">${esc(badges)}</span>` : ""}
+        ${active ? '<span class="tick">✓</span>' : ""}
+      </button>`;
+    }).join("")).join("");
+  menu.innerHTML = `
+    <div class="mp-s"><input class="inp" id="mpSearch" value="${esc(mpQuery)}" placeholder="Search models…" autocomplete="off"></div>
+    <div class="mp-list">${listHtml || '<div class="pempty">No matches.</div>'}</div>
+    <div class="mp-f">
+      <button class="mi" id="mpConnect">Connect a provider…</button>
+      <button class="mi" id="mpCustom">Custom model…</button>
+    </div>`;
+  menu.querySelectorAll(".mi[data-i]").forEach(el => el.addEventListener("click", () => {
+    const it = mpItems[+el.dataset.i];
+    if (it) { closeMenus(); chooseModel(it.pid, it.mid); }
+  }));
+  menu.querySelector("#mpConnect").addEventListener("click", () => {
+    closeMenus();
+    settingsSection = "providers"; providerDetailId = null;
+    openSettings();
+    document.querySelectorAll(".set-nav button").forEach(x => x.classList.toggle("on", x.dataset.s === "providers"));
+    renderSettings();
+  });
+  menu.querySelector("#mpCustom").addEventListener("click", () => {
+    closeMenus();
+    const cur = prov().model || "";
+    const next = prompt("Model name for " + state.current + ":", cur);
+    if (next && next.trim()) chooseModel(state.current, next.trim());
+  });
+}
+
+function modelPicker(anchor) {
+  closeMenus();
+  mpQuery = ""; mpSel = 0;
+  const menu = document.createElement("div");
+  menu.className = "menu mp";
+  menu.dataset.menu = "1";
+  const r = anchor.getBoundingClientRect();
+  menu.style.position = "fixed";
+  menu.style.left = Math.max(8, Math.min(r.left, innerWidth - 400)) + "px";
+  menu.style.bottom = (innerHeight - r.top + 6) + "px";
+  menu.style.top = "auto";
+  menu.style.right = "auto";
+  document.body.appendChild(menu);
+
+  const draw = () => renderModelPicker(menu);
+  draw();
+  const focusSearch = () => {
+    const s = menu.querySelector("#mpSearch");
+    if (s) { s.focus(); s.setSelectionRange(s.value.length, s.value.length); }
+  };
+  focusSearch();
+  menu.addEventListener("input", (e) => {
+    if (e.target && e.target.id === "mpSearch") {
+      mpQuery = e.target.value; mpSel = 0; draw(); focusSearch();
+    }
+  });
+  menu.addEventListener("keydown", e => {
+    if (e.key === "ArrowDown") { e.preventDefault(); moveMp(1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); moveMp(-1); }
+    else if (e.key === "Enter") { e.preventDefault(); const it = mpItems[mpSel]; if (it) { closeMenus(); chooseModel(it.pid, it.mid); } }
+    else if (e.key === "Escape") { e.preventDefault(); closeMenus(); }
+  });
+  refreshPickableModels().then(() => { if (document.body.contains(menu)) draw(); });
+}
+
+$("cMode").addEventListener("click", e => { e.stopPropagation(); modeMenu($("cMode")); });
+$("bigMode").addEventListener("click", e => { e.stopPropagation(); modeMenu($("bigMode")); });
+$("cModel").addEventListener("click", e => { e.stopPropagation(); modelPicker($("cModel")); });
+$("bigModel").addEventListener("click", e => { e.stopPropagation(); modelPicker($("bigModel")); });
+
+/* ============================ PANES (tabbed) ============================ */
+const PANE_DEFS = [
+  { id: "preview", label: "Preview" },
+  { id: "tasks", label: "Tasks" },
+  { id: "plan", label: "Plan" },
+  { id: "terminal", label: "Terminal" },
+  { id: "diff", label: "Changes" },
+];
+const paneOpen = new Set(["preview", "tasks", "plan", "terminal", "diff"]);
+const paneBadges = { tasks: 0, diff: 0, terminal: 0 };
+let activePane = "preview";
+
+function renderPaneTabs() {
+  const host = $("paneTabs");
+  if (!host) return;
+  host.innerHTML = PANE_DEFS.filter(d => paneOpen.has(d.id)).map(d => {
+    const b = paneBadges[d.id];
+    return `<button class="ptab ${d.id === activePane ? "on" : ""}" data-tab="${d.id}" role="tab" aria-selected="${d.id === activePane}">
+      ${esc(d.label)}${b ? `<span class="badge">${b > 9 ? "9+" : b}</span>` : ""}<span class="x" data-x="${d.id}" title="Close pane">×</span>
+    </button>`;
+  }).join("") + '<button class="ptab-add" id="paneAdd" title="Add a pane">+</button>';
+  host.querySelectorAll("[data-tab]").forEach(el => el.addEventListener("click", (e) => {
+    if (e.target && e.target.dataset && e.target.dataset.x) { closePaneTab(e.target.dataset.x); return; }
+    setActivePane(el.dataset.tab);
+  }));
+  const add = host.querySelector("#paneAdd");
+  if (add) add.addEventListener("click", (e) => { e.stopPropagation(); paneMenu(add); });
+}
+
+function applyActivePane() {
+  document.querySelectorAll(".pane-row").forEach(p => {
+    p.classList.toggle("active", p.dataset.pane === activePane);
+  });
+}
+
+function setActivePane(id) {
+  if (!paneOpen.has(id)) return;
+  activePane = id;
+  applyActivePane();
+  renderPaneTabs();
+  if (id === "plan" && $("planBody")) $("planBody").scrollIntoView({ block: "nearest" });
+}
+
+function closePaneTab(id) {
+  paneOpen.delete(id);
+  if (activePane === id) activePane = [...paneOpen][0] || null;
+  applyActivePane();
+  renderPaneTabs();
+  if (!paneOpen.size) document.body.classList.remove("pane-open");
+}
+
+function showPane(id) {
+  $("panes").classList.remove("hide");
+  if (innerWidth <= 1000) document.body.classList.add("pane-open");
+  if (!paneOpen.has(id)) paneOpen.add(id);
+  setActivePane(id);
+}
+
+/** Sidebar visibility. Below 820px it becomes an overlay drawer. */
+function toggleSidebar(show) {
+  const el = $("sidebar");
+  if (!el) return;
+  const visible = getComputedStyle(el).display !== "none";
+  const next = show === undefined ? !visible : !!show;
+  el.style.display = next ? "flex" : "none";
+  document.body.classList.toggle("sb-over", next && innerWidth <= 820);
+}
+function hidePane(id) { closePaneTab(id); }
+
+function paneMenu(anchor) {
+  openMenu(anchor, PANE_DEFS.map(d => ({
+    label: d.label + (paneOpen.has(d.id) ? "  · open" : ""),
+    run: () => showPane(d.id),
+  })), { right: true });
+}
+
+function wirePanes() {
+  document.querySelectorAll(".pane-row [data-act]").forEach(b => b.addEventListener("click", () => {
+    const act = b.dataset.act;
+    if (act === "review") { showChat(); sendToAgent("Review the uncommitted changes: run `git diff`, then report correctness issues, risks, and suggested fixes grouped by file."); }
+  }));
+  applyActivePane();
+  renderPaneTabs();
+}
+$("hbPanes").addEventListener("click", e => { e.stopPropagation(); paneMenu($("hbPanes")); });
+$("cPanels").addEventListener("click", e => { e.stopPropagation(); paneMenu($("cPanels")); });
+$("hbTerm").addEventListener("click", () => showPane("terminal"));
+$("hbDiff").addEventListener("click", () => showPane("diff"));
+$("hbBrowser").addEventListener("click", () => showPane("preview"));
+$("btnPanes").addEventListener("click", () => {
+  // a narrow window slides the panes over the conversation instead of squeezing it
+  if (innerWidth <= 1000) { document.body.classList.toggle("pane-open"); return; }
+  $("panes").classList.toggle("hide");
+});
+$("btnSidebar").addEventListener("click", () => toggleSidebar());
+$("sbScrim").addEventListener("click", () => toggleSidebar(false));
+$("btnSearch").addEventListener("click", () => {
+  if (getComputedStyle($("sidebar")).display === "none") toggleSidebar(true);
+  const s = $("sessSearch");
+  if (s) { s.focus(); s.select(); }
+});
+$("sessSearch").addEventListener("input", (e) => {
+  sessQuery = e.target.value;
+  $("sessClear").hidden = !sessQuery;
+  renderSessions();
+});
+$("sessSearch").addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { e.stopPropagation(); $("sessClear").click(); }
+});
+$("sessClear").addEventListener("click", () => {
+  sessQuery = "";
+  $("sessSearch").value = "";
+  $("sessClear").hidden = true;
+  renderSessions();
+  $("sessSearch").focus();
+});
+$("btnTheme").addEventListener("click", () => {
+  state.theme = state.theme === "dark" ? "light" : state.theme === "light" ? "system" : "dark";
+  applyTheme(); save(); renderSettings(); toast("Theme: " + state.theme);
+});
+$("prClose").addEventListener("click", () => $("prbar").style.display = "none");
+
+/* ============================ TERMINAL ============================ */
+function pushTerm(cmd, kind) {
+  termLines.push({ cmd, kind });
+  if (termLines.length > 80) termLines.shift();
+  $("term").innerHTML = `<span class="rt">[shell] ready — commands Star runs appear here</span>\n` +
+    termLines.map(l => `<span class="${l.kind === "er" ? "er" : l.kind === "rt" ? "rt" : "pr"}">$ ${esc(l.cmd)}</span>`).join("\n");
+  $("term").scrollTop = $("term").scrollHeight;
+  paneBadges.terminal = termLines.length;
+  renderPaneTabs();
+}
+
+/* ============================ SESSIONS ============================ */
+// Real sessions, served by the backend and persisted to disk, so they survive
+// a restart and can be switched between.
+let sessionList = [];
+let pinnedIds = [];
+let unreadIds = [];
+let sessQuery = "";       // sidebar search filter
+
+function loadLocalSessionFlags() {
+  try {
+    pinnedIds = JSON.parse(localStorage.getItem("sc.pinned") || "[]");
+    unreadIds = JSON.parse(localStorage.getItem("sc.unread") || "[]");
+  } catch { pinnedIds = []; unreadIds = []; }
+}
+function saveLocalSessionFlags() {
+  try {
+    localStorage.setItem("sc.pinned", JSON.stringify(pinnedIds));
+    localStorage.setItem("sc.unread", JSON.stringify(unreadIds));
+  } catch {}
+}
+
+async function loadSessions() {
+  try {
+    const j = await (await fetch("/api/sessions")).json();
+    sessionList = j.sessions || [];
+  } catch { sessionList = []; }
+  renderSessions();
+}
+
+function ago(ts) {
+  const s = Math.max(0, Math.round((Date.now() - ts) / 1000));
+  if (s < 60) return "just now";
+  if (s < 3600) return Math.floor(s / 60) + "m ago";
+  if (s < 86400) return Math.floor(s / 3600) + "h ago";
+  return Math.floor(s / 86400) + "d ago";
+}
+
+/** Which day group a session belongs to in the sidebar. */
+function dayBucket(ts) {
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  if (ts >= startOfToday) return "Today";
+  if (ts >= startOfToday - 86400000) return "Yesterday";
+  return "Earlier";
+}
+
+/** One sidebar row. Kept separate so grouped and flat lists share it. */
+function sessionRow(s) {
+  const on = s.id === sessionId;
+  const pinned = pinnedIds.includes(s.id);
+  const unread = unreadIds.includes(s.id);
+  return `
+    <button class="sess ${on ? "on" : ""}" data-id="${esc(s.id)}" title="${esc(s.title)}"${on ? ' aria-current="true"' : ""}>
+      <span class="ico">${
+        pinned
+          ? '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M9.6 1.8l4.6 4.6-1.4 1.4-.7-.7-2.6 2.6.3 2.4-1.3 1.3-3.3-3.3-3 3-.9-.9 3-3L1.3 6.4l1.3-1.3 2.4.3L7.6 2.8l-.7-.7z"/></svg>'
+          : '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="5"/></svg>'
+      }</span>
+      <span class="lbl">${esc(s.title)}</span>
+      ${unread ? '<span class="dotnew" title="Unread"></span>' : ""}
+      <span class="more" data-more="${esc(s.id)}" title="More">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="3.5" r="1.1"/><circle cx="8" cy="8" r="1.1"/><circle cx="8" cy="12.5" r="1.1"/></svg>
+      </span>
+      <span class="meta">${esc(ago(s.updated))}${s.turns ? " · " + s.turns + " turns" : ""}</span>
+    </button>`;
+}
+
+function renderSessions() {
+  const box = $("sessions");
+  // the live session may not be saved yet, so show it even when absent
+  const list = sessionList.slice();
+  if (sessionId && !list.some((s) => s.id === sessionId)) {
+    list.unshift({ id: sessionId, title: $("sTitle").textContent, updated: Date.now(), turns: 0, cwd: state.root });
+  }
+
+  const dir = state.sortAsc ? 1 : -1;
+  list.sort((a, b) => {
+    const pa = pinnedIds.includes(a.id) ? 1 : 0;
+    const pb = pinnedIds.includes(b.id) ? 1 : 0;
+    if (pa !== pb) return pb - pa;              // pinned first
+    return (a.updated - b.updated) * dir;
+  });
+
+  const q = sessQuery.trim().toLowerCase();
+  const matches = q ? list.filter((s) => String(s.title || "").toLowerCase().includes(q)) : list;
+
+  if (!list.length) {
+    box.innerHTML = '<div class="sess-empty">No sessions yet.</div>';
+    return;
+  }
+  if (!matches.length) {
+    box.innerHTML = '<div class="sess-empty">No sessions match “' + esc(sessQuery.trim()) + '”.</div>';
+    return;
+  }
+
+  let html = "";
+  if (q) {
+    html = matches.map(sessionRow).join("");    // a flat list reads better while searching
+  } else {
+    const pinned = matches.filter((s) => pinnedIds.includes(s.id));
+    const rest = matches.filter((s) => !pinnedIds.includes(s.id));
+    if (pinned.length) html += '<div class="sess-group">Pinned</div>' + pinned.map(sessionRow).join("");
+    for (const bucket of ["Today", "Yesterday", "Earlier"]) {
+      const group = rest.filter((s) => dayBucket(s.updated) === bucket);
+      if (group.length) html += `<div class="sess-group">${bucket}</div>` + group.map(sessionRow).join("");
+    }
+  }
+  box.innerHTML = html;
+
+  box.querySelectorAll(".more").forEach((m) =>
+    m.addEventListener("click", (e) => { e.stopPropagation(); sessionMenu(e.currentTarget, m.dataset.more); }));
+  box.querySelectorAll(".sess").forEach((el) =>
+    el.addEventListener("click", () => {
+      switchSession(el.dataset.id);
+      if (innerWidth <= 820) toggleSidebar(false);
+    }));
+}
+
+async function switchSession(id) {
+  if (!id || id === sessionId) return;
+  if (streaming) { toast("Wait for the current reply to finish."); return; }
+  try {
+    const res = await fetch("/api/sessions/messages?id=" + encodeURIComponent(id));
+    const j = await res.json();
+    if (!res.ok) return toast(j.error || "Could not open that session");
+    sessionId = id;
+    $("sTitle").textContent = j.title || "Untitled";
+    $("sProj").textContent = (j.cwd || state.root || "").split(/[\\/]/).filter(Boolean).pop() || "";
+    applyMode(j.mode || "manual");
+    renderTranscript(j.messages || []);
+    unreadIds = unreadIds.filter((x) => x !== id);
+    saveLocalSessionFlags();
+    renderSessions();
+    toast("Opened “" + (j.title || "session") + "”");
+  } catch (e) {
+    toast("Could not open that session");
+  }
+}
+
+/** Rebuild the transcript from stored messages, stripping control blocks. */
+function renderTranscript(msgs) {
+  $("stream").innerHTML = "";
+  currentMsg = null; currentThink = null; toolGroup = null; lastDiff = []; diffs = [];
+  artifacts = []; msgArtifacts = []; msgCards = 0; artifactView = { i: 0, mode: "render" };
+  if (!msgs.length) { showLanding(); renderSessions(); return; }
+  showChat();
+  for (const m of msgs) {
+    if (m.role === "user") { addUser(m.content); continue; }
+    const clean = stripBlocks(m.content);
+    if (clean.trim()) {
+      startAssistant();
+      currentMsg._t = clean;
+      setMsgHtml(currentMsg, md(clean));
+      wireCopy(currentMsg);
+      endAssistant();
+    }
+    for (const a of parseArtifacts(m.content)) {
+      artifacts.push({ lang: a.lang, code: a.code });
+      addArtifactCard(artifacts.length - 1);
+    }
+  }
+  scrollDown(true);
+  renderSessions();
+}
+
+function sessionMenu(anchor, id) {
+  const s = sessionList.find((x) => x.id === id) || { id, title: "this session" };
+  const pinned = pinnedIds.includes(id);
+  const unread = unreadIds.includes(id);
+  const r = anchor.getBoundingClientRect();
+  const m = $("ctxMenu");
+  m.style.display = "block";
+  m.style.left = Math.min(r.left, innerWidth - 210) + "px";
+  m.style.top = Math.min(r.bottom + 4, innerHeight - 250) + "px";
+
+  const items = [
+    { label: "Open", k: "↵", run: () => switchSession(id) },
+    { label: "Rename…", k: "R", run: async () => {
+        const next = prompt("Rename session", s.title);
+        if (next == null) return;
+        const r2 = await (await fetch("/api/sessions/rename", { method: "POST",
+          headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, title: next }) })).json();
+        if (r2.ok) {
+          if (id === sessionId) $("sTitle").textContent = r2.title;
+          await loadSessions();
+          toast("Renamed");
+        }
+      } },
+    { label: pinned ? "Unpin" : "Pin to top", k: "P", run: () => {
+        pinnedIds = pinned ? pinnedIds.filter((x) => x !== id) : [...pinnedIds, id];
+        saveLocalSessionFlags(); renderSessions();
+        toast(pinned ? "Unpinned" : "Pinned");
+      } },
+    { label: unread ? "Mark as read" : "Mark as unread", k: "U", run: () => {
+        unreadIds = unread ? unreadIds.filter((x) => x !== id) : [...new Set([...unreadIds, id])];
+        saveLocalSessionFlags(); renderSessions();
+      } },
+    { sep: true },
+    { label: "Delete", k: "D", danger: true, run: async () => {
+        if (!confirm("Delete “" + s.title + "”? This cannot be undone.")) return;
+        await fetch("/api/sessions/delete", { method: "POST",
+          headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+        pinnedIds = pinnedIds.filter((x) => x !== id);
+        unreadIds = unreadIds.filter((x) => x !== id);
+        saveLocalSessionFlags();
+        const wasCurrent = id === sessionId;
+        await loadSessions();
+        if (wasCurrent) await newSession();
+        toast("Deleted");
+      } },
+  ];
+
+  m.innerHTML = items.map((it) => it.sep
+    ? '<div class="msep"></div>'
+    : `<button class="mi" ${it.danger ? 'style="color:var(--del-fg)"' : ""}><span>${esc(it.label)}</span>${it.k ? `<span class="k">${esc(it.k)}</span>` : ""}</button>`
+  ).join("");
+  m.querySelectorAll(".mi").forEach((b, i) => {
+    const real = items.filter((x) => !x.sep)[i];
+    if (real && real.run) b.addEventListener("click", (e) => { e.stopPropagation(); closeMenus(); real.run(); });
+  });
+}
+
+/* ============================ PROJECT FILES ============================ */
+let treeEntries = [];
+let treeCollapsed = new Set();
+let currentFile = null;              // { path, kind, content, error }
+let fileView = { mode: "render" };   // "render" | "code" for md/html/svg
+
+const PREVIEW_KIND = { ".md": "md", ".html": "frame", ".htm": "frame", ".svg": "frame", ".png": "img", ".jpg": "img", ".jpeg": "img", ".gif": "img", ".webp": "img" };
+
+async function loadTree() {
+  try {
+    const j = await (await fetch("/api/tree")).json();
+    treeEntries = j.entries || [];
+  } catch { treeEntries = []; }
+  renderTree();
+}
+
+function treeChildren(prefix) {
+  return treeEntries.filter(e => {
+    const idx = e.path.lastIndexOf("/");
+    const parent = idx >= 0 ? e.path.slice(0, idx) : "";
+    return parent === prefix;
+  });
+}
+
+function renderTree() {
+  const box = $("fileTree");
+  if (!treeEntries.length) { box.innerHTML = '<div class="sess-empty">No files yet.</div>'; return; }
+  box.innerHTML = "";
+  const add = (prefix) => {
+    for (const e of treeChildren(prefix)) {
+      const el = document.createElement("button");
+      const open = e.dir && !treeCollapsed.has(e.path);
+      el.className = "ft-item" + (open ? " open" : "");
+      el.style.paddingLeft = (6 + e.depth * 14) + "px";
+      el.innerHTML = `<span class="ft-caret">${e.dir ? CHEV_SVG : ""}</span><span class="nm">${esc(e.name)}</span>`;
+      el.title = e.path;
+      if (e.dir) {
+        el.addEventListener("click", () => {
+          if (treeCollapsed.has(e.path)) treeCollapsed.delete(e.path); else treeCollapsed.add(e.path);
+          renderTree();
+        });
+      } else {
+        el.addEventListener("click", () => previewFile(e.path));
+      }
+      box.appendChild(el);
+      if (open) add(e.path);
+    }
+  };
+  add("");
+}
+
+async function previewFile(path) {
+  showPane("preview");
+  const ext = ("." + (path.split(".").pop() || "")).toLowerCase();
+  const kind = PREVIEW_KIND[ext] || "source";
+  let j = {};
+  if (kind !== "img") {
+    try { j = await (await fetch("/api/file?path=" + encodeURIComponent(path))).json(); } catch {}
+  }
+  currentFile = { path, kind, content: j.content, error: j.error };
+  fileView = { mode: kind === "source" ? "code" : "render" };
+  $("previewTitle").textContent = path;
+  $("previewEmpty").style.display = "none";
+  $("filePreview").style.display = "block";
+  renderFilePreview();
+}
+
+function renderFilePreview() {
+  const host = $("filePreview");
+  if (!currentFile) return;
+  const f = currentFile;
+
+  if (f.kind === "img") {
+    host.innerHTML = '<div class="apbody"></div>';
+    const img = document.createElement("img");
+    img.className = "apimg";
+    img.alt = f.path;
+    img.src = "/api/file/raw?path=" + encodeURIComponent(f.path);
+    host.querySelector(".apbody").appendChild(img);
+    return;
+  }
+
+  if (f.kind === "source" || f.content == null) {
+    host.innerHTML = (f.content != null)
+      ? `<pre class="fpre">${hl(f.content)}</pre>`
+      : `<div class="pempty">${esc(f.error || "Could not read that file.")}</div>`;
+    return;
+  }
+
+  host.innerHTML = `
+    <div class="aptools">
+      <button class="btn sm" id="fpMode">${fileView.mode === "render" ? "Code" : "Render"}</button>
+      <span class="spacer"></span>
+    </div>
+    <div class="apbody"></div>`;
+  const body = host.querySelector(".apbody");
+  if (fileView.mode === "code") {
+    body.innerHTML = `<pre class="fpre">${hl(f.content)}</pre>`;
+  } else if (f.kind === "md") {
+    body.innerHTML = `<div class="apmd">${md(f.content)}</div>`;
+    wireCopy(body);
+  } else {
+    const frame = document.createElement("iframe");
+    frame.className = "apframe";
+    frame.setAttribute("sandbox", "allow-scripts");
+    frame.srcdoc = f.path.toLowerCase().endsWith(".svg")
+      ? `<!doctype html><body style="margin:0;display:grid;place-items:center;height:100vh;background:#fff">${f.content}</body>`
+      : f.content;
+    body.appendChild(frame);
+  }
+  const tog = host.querySelector("#fpMode");
+  if (tog) tog.addEventListener("click", () => {
+    fileView.mode = fileView.mode === "render" ? "code" : "render";
+    renderFilePreview();
+  });
+}
+
+function resetPreview() {
+  currentFile = null;
+  $("previewTitle").textContent = "Preview";
+  $("previewEmpty").style.display = "block";
+  const host = $("filePreview");
+  host.style.display = "none";
+  host.innerHTML = "";
+}
+
+/* ============================ UPDATES ============================ */
+// There is no in-app updater (that needs code signing on macOS and a token
+// for a private repo). Instead we check the public release list when we can,
+// and otherwise hand the user a link their browser is already signed in for.
+let updateInfo = null;   // last check result
+let checking = false;
+
+async function checkUpdates({ quiet = true } = {}) {
+  if (!bridge || !bridge.checkUpdates || checking) return null;
+  checking = true;
+  try {
+    updateInfo = await bridge.checkUpdates();
+  } catch (e) {
+    updateInfo = { ok: false, reason: "bridge-error" };
+  }
+  checking = false;
+  applyUpdateInfo(quiet);
+  if ($("settings").classList.contains("on")) renderSettings();
+  return updateInfo;
+}
+
+function applyUpdateInfo(quiet) {
+  const info = updateInfo;
+  const bar = $("updateBar");
+  if (!info) return;
+  // only show the banner for a genuinely newer version the user has not
+  // already dismissed, and never during a quiet launch check that found nothing
+  const dismissed = state.dismissedUpdate === info.latest;
+  if (info.ok && info.newer && !dismissed) {
+    $("updateVer").textContent = "v" + info.latest;
+    $("updateCur").textContent = "v" + info.current;
+    bar.classList.add("on");
+  } else {
+    bar.classList.remove("on");
+  }
+  if (!quiet) return;
+}
+
+$("updateGet").addEventListener("click", () => {
+  const url = (updateInfo && updateInfo.url) || "https://github.com/Star-Code-Prod/Star-Code/releases";
+  if (bridge) bridge.openExternal(url);
+  else window.open(url, "_blank");
+});
+$("updateNow").addEventListener("click", async () => {
+  const info = updateInfo;
+  const st = $("updateState");
+  const b = $("updateNow");
+  if (!info) return;
+  const page = () => {
+    const url = info.url || "https://github.com/Star-Code-Prod/Star-Code/releases";
+    if (bridge) bridge.openExternal(url); else window.open(url, "_blank");
+  };
+  if (!bridge || !bridge.updateRun || !info.asset) {
+    // Browser build, or no matching installer: the page is the honest path.
+    page();
+    return;
+  }
+  b.disabled = true;
+  st.textContent = "Downloading " + info.asset.name + "…";
+  const r = await bridge.updateRun({ asset: info.asset, latestYmlUrl: info.latestYmlUrl });
+  if (r && r.ok && r.launching) {
+    st.textContent = "Installing — the app will close and reopen.";
+  } else if (r && r.ok) {
+    st.textContent = "Installer opened.";
+    b.disabled = false;
+  } else {
+    st.textContent = "Update failed (" + ((r && r.error) || "unknown") + ") — opening the download page.";
+    b.disabled = false;
+    page();
+  }
+});
+$("updateDismiss").addEventListener("click", () => {
+  if (updateInfo && updateInfo.latest) {
+    state.dismissedUpdate = updateInfo.latest;
+    save();
+  }
+  $("updateBar").classList.remove("on");
+});
+
+/** Human-readable status line for a check result. */
+function updateStatusText() {
+  if (checking) return "Checking…";
+  const info = updateInfo;
+  if (!info) return "Not checked yet.";
+  if (info.ok && info.newer) return "v" + info.latest + " is available (you have v" + info.current + "). Update now installs it in place.";
+  if (info.ok) return "You are on the latest version (v" + info.current + ").";
+  if (info.reason === "private-or-none" || info.reason === "no-release") return "No published releases found yet — check the releases page.";
+  if (info.reason === "rate-limited") return "GitHub rate limit reached — try again later.";
+  if (info.reason === "timeout") return "The check timed out.";
+  if (info.reason === "network") return "Could not reach GitHub.";
+  return "Could not check right now.";
+}
+
+/* ============================ MARKDOWN ============================ */
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+// Single pass over the RAW code: escape the gaps, wrap the matches. Escaping
+// first (the old approach) meant quote-based patterns could never match, and
+// anything already wrapped got escaped a second time, leaking markup as text.
+const HL_RE = new RegExp(
+  "(\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'|`(?:[^`\\\\]|\\\\.)*`)" +   // 1 string
+  "|(//[^\\n]*|#(?![0-9a-fA-F]{3,8}\\b)[^\\n]*)" +                              // 2 comment
+  "|\\b(const|let|var|function|return|if|else|for|while|class|new|import|export" + // 3 keyword
+  "|from|await|async|try|catch|throw|extends|def|self|None|True|False|public" +
+  "|private|static|void|int|string|bool|interface|type|enum|readonly)\\b" +
+  "|\\b(\\d+(?:\\.\\d+)?)\\b",                                                  // 4 number
+  "g"
+);
+function hl(code) {
+  const src = String(code ?? "");
+  let out = "";
+  let last = 0;
+  let m;
+  HL_RE.lastIndex = 0;
+  while ((m = HL_RE.exec(src)) !== null) {
+    out += esc(src.slice(last, m.index));
+    if (m[1]) out += '<span class="tok-s">' + esc(m[1]) + "</span>";
+    else if (m[2]) out += '<span class="tok-c">' + esc(m[2]) + "</span>";
+    else if (m[3]) out += '<span class="tok-k">' + esc(m[3]) + "</span>";
+    else out += '<span class="tok-n">' + esc(m[4]) + "</span>";
+    last = m.index + m[0].length;
+  }
+  return out + esc(src.slice(last));
+}
+function md(src, plain) {
+  // Pull code fences out of the RAW source first. Escaping first and then
+  // calling hl() double-escapes, which leaks <span class="tok-..."> as text.
+  const blocks = [];
+  let body = String(src || "").replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+    blocks.push({ lang: lang || "text", code: code.replace(/\n$/, "") });
+    return `\u0000B${blocks.length - 1}\u0000`;
+  });
+  let html = esc(body);
+  html = html.replace(/((?:^\|.*\|$\n?)+)/gm, tbl => {
+    const rows = tbl.trim().split("\n").map(r => r.split("|").slice(1, -1).map(c => c.trim()));
+    if (rows.length < 2) return tbl;
+    const head = rows[0], body = rows.slice(rows[1].every(c => /^-+$/.test(c)) ? 2 : 1);
+    return "<table><thead><tr>" + head.map(c => `<th>${c}</th>`).join("") + "</tr></thead><tbody>" +
+      body.map(r => "<tr>" + r.map(c => `<td>${c}</td>`).join("") + "</tr>").join("") + "</tbody></table>";
+  });
+  html = html.replace(/`([^`]+)`/g, '<code class="ic">$1</code>')
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/^### (.*)$/gm, "<h3>$1</h3>")
+    .replace(/^## (.*)$/gm, "<h2>$1</h2>")
+    .replace(/^# (.*)$/gm, "<h1>$1</h1>");
+  html = html.replace(/(?:^|\n)((?:[-*] .*(?:\n|$))+)/g, (m, l) =>
+    "\n<ul>" + l.trim().split("\n").map(x => "<li>" + x.replace(/^[-*]\s+/, "") + "</li>").join("") + "</ul>");
+  html = html.replace(/(?:^|\n)((?:\d+\. .*(?:\n|$))+)/g, (m, l) =>
+    "\n<ol>" + l.trim().split("\n").map(x => "<li>" + x.replace(/^\d+\.\s+/, "") + "</li>").join("") + "</ol>");
+  html = html.replace(/\n{2,}/g, "</p><p>").replace(/\n/g, "<br>");
+  html = "<p>" + html + "</p>";
+  html = html.replace(/\u0000B(\d+)\u0000/g, (_, i) => {
+    const b = blocks[+i];
+    return `<div class="codeblock"><div class="cb-h"><span>${esc(b.lang)}</span><button class="cp">copy</button></div><pre><code>${plain ? esc(b.code) : hl(b.code)}</code></pre></div>`;
+  });
+  return html;
+}
+function wireCopy(scope) {
+  scope.querySelectorAll(".cp").forEach(b => {
+    if (b.dataset.w) return; b.dataset.w = "1";
+    b.addEventListener("click", () => {
+      navigator.clipboard.writeText(b.closest(".codeblock").querySelector("code").textContent);
+      b.textContent = "copied"; setTimeout(() => b.textContent = "copy", 1200);
+    });
+  });
+}
+
+/* ============================ STREAM RENDER ============================ */
+function showChat() {
+  $("landing").style.display = "none";
+  $("stream").style.display = "block";
+  $("composer").style.display = "block";
+  updateJump();
+}
+function showLanding() {
+  $("landing").style.display = "flex";
+  $("stream").style.display = "none";
+  $("composer").style.display = "none";
+  $("jumpBtn").classList.remove("on");
+}
+function atBottom() { const s = $("stream"); return s.scrollHeight - s.scrollTop - s.clientHeight < 120; }
+function scrollDown(force) { const s = $("stream"); if (force || atBottom()) s.scrollTop = s.scrollHeight; }
+/** The "jump to latest" pill only shows when there is something to scroll back to. */
+function updateJump() {
+  const j = $("jumpBtn");
+  if (!j) return;
+  const s = $("stream");
+  const live = s.style.display !== "none" && s.scrollHeight > s.clientHeight + 40;
+  j.classList.toggle("on", live && !atBottom());
+}
+function node(cls, html) {
+  const d = document.createElement("div");
+  d.className = cls; if (html) d.innerHTML = html;
+  $("stream").appendChild(d); scrollDown(true);
+  return d;
+}
+
+/* ---- per-message actions. Icon-only on purpose: a message's innerText stays
+   exactly the message, so “export conversation” never picks up button words. */
+const COPY_SVG = '<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6"/><path d="M10.5 5.5V3.9A1.4 1.4 0 009.1 2.5H3.9A1.4 1.4 0 002.5 3.9v5.2A1.4 1.4 0 003.9 10.5h1.6"/></svg>';
+const COPIED_SVG = '<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 8.5l3.2 3.2L13 5"/></svg>';
+
+function msgActs(el, getText) {
+  const bar = document.createElement("div");
+  bar.className = "msg-acts";
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "ma-btn";
+  b.title = "Copy";
+  b.setAttribute("aria-label", "Copy message");
+  b.innerHTML = COPY_SVG;
+  b.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    const text = getText();
+    if (!text) return;
+    try { await navigator.clipboard.writeText(text); } catch {}
+    b.innerHTML = COPIED_SVG;
+    b.classList.add("done");
+    setTimeout(() => { b.innerHTML = COPY_SVG; b.classList.remove("done"); }, 1100);
+  });
+  bar.appendChild(b);
+  el._acts = bar;
+  el.appendChild(bar);
+  return bar;
+}
+/** Replace a message's HTML but keep its hover actions attached. */
+function setMsgHtml(el, html) {
+  el.innerHTML = html;
+  if (el._acts) el.appendChild(el._acts);
+}
+
+function addUser(text) {
+  const n = node("msg-u");
+  const bubble = document.createElement("div");
+  bubble.className = "b";
+  bubble.textContent = text;
+  n.appendChild(bubble);
+  msgActs(n, () => text);
+  toolGroup = null;
+}
+
+function startAssistant() {
+  currentMsg = node("msg-a streaming");
+  msgActs(currentMsg, () => currentMsg._t || "");
+  toolGroup = null;
+  msgArtifacts = [];
+  msgCards = 0;
+}
+/** Hide ```tool / ```todo / ```artifact control blocks from what the user
+ *  sees, including a block still streaming in (no closing fence yet).
+ *  Fences are line-anchored and length-matched so an artifact whose body
+ *  contains its own fence survives (open with four backticks for that). */
+function stripBlocks(s) {
+  let out = String(s || "");
+  out = out.replace(/^(`{3,})artifact\b[^\n]*\n[\s\S]*?^\1[ \t]*$/gm, "");
+  out = out.replace(/^`{3,}(?:tool|todo)\b[\s\S]*?^`{3,}[ \t]*$/gm, "");
+  out = out.replace(/^(`{3,})artifact\b[\s\S]*$/m, "");
+  out = out.replace(/^`{3,}(?:tool|todo)\b[\s\S]*$/m, "");
+  // collapse the blank gap the removal leaves behind
+  return out.replace(/\n{3,}/g, "\n\n");
+}
+
+/** Complete ```artifact <lang> fences, in order. lang: html | svg | md.
+ *  The closer must repeat the opener's backtick count on its own line, so
+ *  inner fences stay inside the artifact. */
+function parseArtifacts(s) {
+  const out = [];
+  const re = /^(`{3,})artifact[ \t]*(\w*)[ \t]*\r?\n([\s\S]*?)^\1[ \t]*$/gm;
+  let m;
+  while ((m = re.exec(String(s || ""))) !== null) {
+    let lang = (m[2] || "html").toLowerCase();
+    if (lang === "markdown") lang = "md";
+    if (["html", "svg", "md"].includes(lang)) out.push({ lang, code: m[3].replace(/\n$/, "") });
+  }
+  return out;
+}
+
+/* ---- artifacts: streaming sync, cards, pane renderer ---- */
+let artifacts = [];        // session-wide, rebuilt from the transcript
+let msgArtifacts = [];     // parsed from the message currently streaming
+let msgCards = 0;          // cards committed for that message
+let artifactView = { i: 0, mode: "render" };
+let lastArtRender = 0;
+
+function syncArtifacts(raw, streaming) {
+  const arts = parseArtifacts(raw || "");
+  for (let k = msgArtifacts.length; k < arts.length; k++) {
+    artifacts.push({ lang: arts[k].lang, code: arts[k].code });
+  }
+  if (arts.length) {
+    const last = artifacts[artifacts.length - 1];
+    last.lang = arts[arts.length - 1].lang;
+    last.code = arts[arts.length - 1].code;
+  }
+  msgArtifacts = arts;
+  if (artifacts.length) {
+    artifactView.i = artifacts.length - 1;
+    const now = Date.now();
+    if (!streaming || now - lastArtRender > 450) {
+      lastArtRender = now;
+      renderArtifact();
+    }
+  }
+}
+
+function addArtifactCard(i) {
+  const a = artifacts[i];
+  const n = node("artifactcard");
+  n.innerHTML = `<span class="nm">Artifact · ${esc(a.lang)} · v${i + 1}</span>
+    <button class="btn sm" data-v="${i}">View</button>`;
+  n.querySelector("button").addEventListener("click", () => {
+    artifactView.i = i;
+    showPane("preview");
+    renderArtifact();
+  });
+  toolGroup = null;
+}
+
+function renderArtifact() {
+  const a = artifacts[artifactView.i];
+  if (!a) return;
+  showPane("preview");
+  $("previewTitle").textContent = `Artifact · ${a.lang} · v${artifactView.i + 1}`;
+  $("previewEmpty").style.display = "none";
+  const host = $("filePreview");
+  host.style.display = "block";
+  const versionOpts = artifacts
+    .map((_, k) => `<option value="${k}" ${k === artifactView.i ? "selected" : ""}>v${k + 1}</option>`)
+    .join("");
+  host.innerHTML = `
+    <div class="aptools">
+      <button class="btn sm" id="apMode">${artifactView.mode === "render" ? "Code" : "Render"}</button>
+      <select class="inp" id="apVersion">${versionOpts}</select>
+      <span class="spacer"></span>
+      <button class="btn sm" id="apOpen">Open in browser</button>
+    </div>
+    <div class="apbody"></div>`;
+  const body = host.querySelector(".apbody");
+  if (artifactView.mode === "code") {
+    body.innerHTML = `<pre class="fpre">${hl(a.code)}</pre>`;
+  } else if (a.lang === "md") {
+    body.innerHTML = `<div class="apmd">${md(a.code)}</div>`;
+    wireCopy(body);
+  } else {
+    const frame = document.createElement("iframe");
+    frame.className = "apframe";
+    frame.setAttribute("sandbox", "allow-scripts");
+    frame.srcdoc = a.lang === "svg"
+      ? `<!doctype html><body style="margin:0;display:grid;place-items:center;height:100vh;background:#fff">${a.code}</body>`
+      : a.code;
+    body.appendChild(frame);
+  }
+  host.querySelector("#apMode").addEventListener("click", () => {
+    artifactView.mode = artifactView.mode === "render" ? "code" : "render";
+    renderArtifact();
+  });
+  host.querySelector("#apVersion").addEventListener("change", (e) => {
+    artifactView.i = Number(e.target.value);
+    renderArtifact();
+  });
+  host.querySelector("#apOpen").addEventListener("click", () => {
+    const html = a.lang === "html" ? a.code
+      : a.lang === "svg" ? `<!doctype html><body style="margin:0;display:grid;place-items:center;height:100vh">${a.code}</body>`
+      : `<pre style="font:13px ui-monospace,monospace;padding:24px;white-space:pre-wrap">${esc(a.code)}</pre>`;
+    if (bridge && bridge.openHtml) {
+      // Desktop: blob URLs are denied by the window-open handler, so the
+      // main process writes a temp .html and hands it to the real browser.
+      bridge.openHtml("artifact", html);
+    } else {
+      const type = a.lang === "svg" ? "image/svg+xml" : a.lang === "md" ? "text/markdown" : "text/html";
+      const url = URL.createObjectURL(new Blob([a.code], { type }));
+      window.open(url, "_blank");
+    }
+  });
+}
+function addDelta(t) {
+  if (!currentMsg) startAssistant();
+  currentMsg._raw = (currentMsg._raw || "") + t;
+  const shown = stripBlocks(currentMsg._raw);
+  currentMsg._t = shown;
+  syncArtifacts(currentMsg._raw, true);
+  if (!shown.trim()) { currentMsg.style.display = "none"; scrollDown(); return; }
+  currentMsg.style.display = "";
+  setMsgHtml(currentMsg, md(shown));
+  wireCopy(currentMsg);
+  scrollDown();
+}
+function endAssistant() {
+  if (currentMsg) currentMsg.classList.remove("streaming");
+  if (msgArtifacts.length > msgCards) {
+    for (let k = msgCards; k < msgArtifacts.length; k++) {
+      addArtifactCard(artifacts.length - msgArtifacts.length + k);
+    }
+    msgCards = msgArtifacts.length;
+    renderArtifact();
+  }
+  currentMsg = null;
+}
+
+/* ---- modern thinking block ---- */
+const SPARK_SVG = '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 .9l1.5 5.6L15.1 8l-5.6 1.5L8 15.1 6.5 9.5.9 8l5.6-1.5z"/></svg>';
+const CHEV_SVG = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 3.5l4.5 4.5L6 12.5"/></svg>';
+
+function startThinking() {
+  thinkStart = performance.now();
+  const n = node("think streaming");
+  n.innerHTML = `
+    <div class="think-h" role="button" tabindex="0">
+      <span class="spark">${SPARK_SVG}</span>
+      <span class="think-t">Thinking</span>
+      <span class="think-m"><b data-live>0.0s</b><i data-words></i></span>
+      <span class="think-prev" data-prev></span>
+      <span class="think-act">
+        <button class="think-copy" data-copy title="Copy reasoning">copy</button>
+        <span class="think-c">${CHEV_SVG}</span>
+      </span>
+    </div>
+    <div class="think-b"><div class="think-bi">
+      <div class="think-x" data-body></div>
+      <div class="think-f"><span class="think-dots"><i></i><i></i><i></i></span><span data-status>reasoning…</span></div>
+    </div></div>`;
+
+  const head = n.querySelector(".think-h");
+  const toggle = () => n.classList.toggle("open");
+  head.addEventListener("click", (e) => { if (!e.target.closest(".think-copy")) toggle(); });
+  head.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
+
+  const copyBtn = n.querySelector("[data-copy]");
+  copyBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const text = currentThink ? currentThink.text : "";
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    copyBtn.textContent = "copied";
+    setTimeout(() => { copyBtn.textContent = "copy"; }, 1200);
+  });
+
+  currentThink = {
+    node: n,
+    text: "",
+    body: n.querySelector("[data-body]"),
+    prev: n.querySelector("[data-prev]"),
+    live: n.querySelector("[data-live]"),
+    words: n.querySelector("[data-words]"),
+  };
+  thinkTimer = setInterval(() => {
+    if (!currentThink) return;
+    currentThink.live.textContent = ((performance.now() - thinkStart) / 1000).toFixed(1) + "s";
+  }, 100);
+  toolGroup = null;
+}
+
+function addThinking(t) {
+  if (!currentThink) startThinking();
+  currentThink.text += t;
+  currentThink.body.textContent = currentThink.text;
+  const words = (currentThink.text.trim().match(/\S+/g) || []).length;
+  currentThink.words.textContent = words > 30 ? words.toLocaleString() + " words" : "";
+  // while streaming, show where it is now
+  currentThink.prev.textContent = currentThink.text.trim().replace(/\s+/g, " ").slice(-96);
+  currentThink.body.scrollTop = currentThink.body.scrollHeight;
+  scrollDown();
+}
+
+function endThinking(ms) {
+  if (!currentThink) return;   // idempotent: the server may close a block twice
+  clearInterval(thinkTimer);
+  thinkTimer = null;
+  const secs = ((ms || performance.now() - thinkStart) / 1000);
+  const n = currentThink.node;
+  const words = (currentThink.text.trim().match(/\S+/g) || []).length;
+
+  n.classList.remove("streaming");
+  n.querySelector("[data-live]").textContent = secs.toFixed(1) + "s";
+  n.querySelector("[data-words]").textContent = words.toLocaleString() + " words";
+  n.querySelector("[data-status]").textContent = "thought for " + secs.toFixed(1) + "s";
+
+  // once finished, the opening line says more than the trailing fragment
+  const firstLine = (currentThink.text.trim().split(/\n/)[0] || "").replace(/\s+/g, " ").trim();
+  currentThink.prev.textContent = firstLine.length > 110 ? firstLine.slice(0, 110) + "…" : firstLine;
+
+  currentThink = null;
+  if (state.autoCollapseThinking) n.classList.remove("open");
+  scrollDown();
+}
+
+/* ---- tool summary group ---- */
+function ensureToolGroup() {
+  if (toolGroup) return toolGroup;
+  const n = node("tools");
+  n.innerHTML = `
+    <button class="tools-h run">
+      <span class="dot"></span>
+      <span class="txt" data-txt>Working…</span>
+      <span class="cnt" data-cnt></span>
+      <span class="chev"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 3.5l4.5 4.5L6 12.5"/></svg></span>
+    </button>
+    <div class="tools-b"><div class="tools-bi"><div class="tools-in" data-in></div></div></div>`;
+  n.querySelector(".tools-h").addEventListener("click", () => n.classList.toggle("open"));
+  toolGroup = { node: n, items: [] };
+  currentMsg = null;
+  return toolGroup;
+}
+function addTool({ name, args, status, detail }) {
+  const g = ensureToolGroup();
+  const [verb, past] = ICONS[name] || [name, name];
+  let arg = "";
+  if (args) {
+    if (name === "run_command") arg = args.command || "";
+    else if (args.path) arg = args.path;
+    else if (args.pattern) arg = args.pattern;
+    else arg = Object.entries(args).map(([k, v]) => `${k}=${String(v).slice(0, 36)}`).join(" ");
+  }
+  const item = { name, verb, past, arg, status, detail };
+  g.items.push(item);
+  renderToolGroup(g);
+  if (name === "run_command" && args?.command) pushTerm(args.command, status === "denied" ? "er" : "pr");
+  return item;
+}
+function renderToolGroup(g) {
+  const items = g.items;
+  const running = items.some(i => i.status === "running");
+  const anyDenied = items.some(i => i.status === "denied");
+  const verbs = [...new Set(items.map(i => i.past))];
+  let txt;
+  if (verbs.length === 1) txt = verbs[0] + (items.length > 1 ? ` ${items.length} times` : "");
+  else txt = verbs.slice(0, 3).join(", ") + (verbs.length > 3 ? ` +${verbs.length - 3} more` : "");
+  const h = g.node.querySelector(".tools-h");
+  h.className = "tools-h" + (running ? " run" : anyDenied ? " err" : "");
+  g.node.querySelector("[data-txt]").textContent = running ? txt + "…" : txt;
+  g.node.querySelector("[data-cnt]").textContent = items.length > 1 ? items.length : "";
+  g.node.querySelector("[data-in]").innerHTML = items.map((i, idx) => `
+    <div class="trow" data-i="${idx}">
+      <span class="v">${esc(i.verb)}</span>
+      <span class="a">${esc(i.arg)}</span>
+      <span class="m ${i.status === "ok" ? "ok" : i.status === "denied" ? "no" : ""}">${
+        i.status === "running" ? "…" : i.status === "denied" ? "denied" : "done"}</span>
+    </div>
+    <pre class="tout" data-out="${idx}">${esc(i.detail || "")}</pre>`).join("");
+  g.node.querySelectorAll(".trow").forEach(r => r.addEventListener("click", () => {
+    const out = g.node.querySelector(`[data-out="${r.dataset.i}"]`);
+    if (out && out.textContent.trim()) out.classList.toggle("show");
+  }));
+}
+function finishTool(status, preview) {
+  if (!toolGroup || !toolGroup.items.length) return;
+  const last = [...toolGroup.items].reverse().find(i => i.status === "running");
+  if (last) { last.status = status; last.detail = preview || ""; }
+  renderToolGroup(toolGroup);
+}
+
+/* ---- diff card ---- */
+function diffRows(before, after) {
+  const a = (before || "").split("\n"), b = (after || "").split("\n");
+  let s = 0; while (s < a.length && s < b.length && a[s] === b[s]) s++;
+  let ea = a.length, eb = b.length;
+  while (ea > s && eb > s && a[ea - 1] === b[eb - 1]) { ea--; eb--; }
+  const rows = [];
+  for (let i = Math.max(0, s - 3); i < s; i++) rows.push({ t: "ctx", n: i + 1, x: a[i] });
+  for (let i = s; i < ea; i++) rows.push({ t: "del", n: i + 1, x: a[i] });
+  for (let i = s; i < eb; i++) rows.push({ t: "add", n: i + 1, x: b[i] });
+  for (let i = ea; i < Math.min(a.length, ea + 3); i++) rows.push({ t: "ctx", n: i + 1, x: a[i] });
+  return rows;
+}
+function renderDiff({ path: p, before, after }) {
+  diffs.push({ path: p, before, after });
+  const rows = diffRows(before, after);
+  const adds = rows.filter(r => r.t === "add").length, dels = rows.filter(r => r.t === "del").length;
+  const n = node("diffcard");
+  n.innerHTML = `
+    <div class="dc-h">
+      <span class="p" title="${esc(p)}">${esc(p)}</span>
+      <span class="s"><i>+${adds}</i> <b>−${dels}</b></span>
+    </div>` +
+    rows.map(r => `<div class="dl ${r.t}"><span class="n">${r.n}</span><span class="sg">${r.t === "add" ? "+" : r.t === "del" ? "−" : ""}</span><span class="c">${hl(r.x || "")}</span></div>`).join("");
+  currentMsg = null; toolGroup = null;
+  renderDiffPane();
+}
+function renderDiffPane() {
+  $("diffEmpty").style.display = diffs.length ? "none" : "block";
+  $("diffList").innerHTML = diffs.map(d => {
+    const rows = diffRows(d.before, d.after);
+    const adds = rows.filter(r => r.t === "add").length, dels = rows.filter(r => r.t === "del").length;
+    return `<div style="border-bottom:1px solid var(--border)">
+      <div class="dc-h" style="border-bottom:1px solid var(--border)">
+        <span class="p" title="${esc(d.path)}">${esc(d.path)}</span><span class="s"><i>+${adds}</i> <b>−${dels}</b></span>
+      </div>
+      ${rows.map(r => `<div class="dl ${r.t}"><span class="n">${r.n}</span><span class="sg">${r.t === "add" ? "+" : r.t === "del" ? "−" : ""}</span><span class="c">${hl(r.x || "")}</span></div>`).join("")}
+    </div>`;
+  }).join("");
+  paneBadges.diff = diffs.length;
+  renderPaneTabs();
+}
+
+/* ---- tasks ---- */
+function renderTodos(list) {
+  todos = list;
+  $("tasksEmpty").style.display = list.length ? "none" : "block";
+  $("tasksList").innerHTML = list.map(t => {
+    const bx = t.status === "completed"
+      ? '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8.5l3.2 3.2L13 5"/></svg>'
+      : t.status === "in_progress"
+      ? '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="5.5"/><path d="M8 8V2.5" stroke-width="2"/></svg>'
+      : '<svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="5.5"/></svg>';
+    return `<div class="task ${t.status}"><span class="bx">${bx}</span><span class="tx">${esc(t.text)}</span></div>`;
+  }).join("");
+  paneBadges.tasks = list.filter(t => t.status !== "completed").length;
+  renderPaneTabs();
+}
+
+/* ---- plan pane ---- */
+function renderPlan(text) {
+  planText = text || "";
+  if (!text) return;
+  $("planBody").innerHTML = md(text);
+  wireCopy($("planBody"));
+  showPane("plan");
+}
+
+/* ---- permission ---- */
+function askPermission({ id, name, args, dangerous }) {
+  const isCmd = name === "run_command";
+  const body = isCmd ? (args.command || "") : JSON.stringify(args, null, 2);
+  const n = node("perm");
+  n.innerHTML = `
+    <div class="ph">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.8l5 2.2v4.2c0 3-2.1 5.4-5 6-2.9-.6-5-3-5-6V4z"/></svg>
+      Star wants to ${isCmd ? "run a command" : "edit a file"}${dangerous ? "" : ""}
+    </div>
+    <div class="pb">${esc(body)}</div>
+    <div class="pa">
+      <button class="btn dgr" data-scope="deny">Deny</button>
+      <button class="btn pri" data-scope="once">Allow once</button>
+      <button class="btn" data-scope="session">Allow for session</button>
+    </div>`;
+  toolGroup = null; currentMsg = null;
+  n.querySelectorAll("[data-scope]").forEach(b => b.addEventListener("click", async () => {
+    const scope = b.dataset.scope;
+    n.classList.add("answered");
+    n.querySelector(".pa").innerHTML = `<span class="pill ${scope === "deny" ? "no" : "ok"}">${scope === "deny" ? "Denied" : "Allowed"}</span>`;
+    await fetch("/api/permission", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId, id, allowed: scope !== "deny", scope }),
+    });
+  }));
+}
+
+/* ---- usage ring ---- */
+function renderRing() {
+  if (!lastUsage) return;
+  const { contextTokens, contextLimit, contextPct } = lastUsage;
+  const C = 2 * Math.PI * 7.5;
+  $("ringFg").setAttribute("stroke-dashoffset", String(C - (C * Math.min(100, contextPct)) / 100));
+  const k = v => v >= 1000 ? (v / 1000).toFixed(1) + "k" : String(v);
+  $("ringTip").textContent = `Context ${k(contextTokens)} / ${k(contextLimit)} (${contextPct}%)`;
+}
+
+/* ============================ SEND ============================ */
+async function send() {
+  const text = $("input").value.trim();
+  if (!text || streaming) return;
+  $("input").value = ""; autoGrow($("input")); hideSlash();
+  showChat();
+  if (text.startsWith("!")) { pushTerm(text.slice(1).trim(), "pr"); return sendToAgent("Run this shell command and report the exact output: `" + text.slice(1).trim() + "`"); }
+  if (text.startsWith("/")) return handleCommand(text);
+  return sendToAgent(text);
+}
+
+async function handleCommand(text) {
+  const [name, ...rest] = text.slice(1).split(" ");
+  const arg = rest.join(" ");
+  addUser(text);
+  if (name === "clear") { newSession(); return; }
+  if (name === "model" || name === "models") { modelPicker($("cModel")); return; }
+  if (name === "connect") {
+    settingsSection = "providers"; providerDetailId = null;
+    openSettings();
+    document.querySelectorAll(".set-nav button").forEach(x => x.classList.toggle("on", x.dataset.s === "providers"));
+    renderSettings();
+    return;
+  }
+  if (name === "knowledge") {
+    try {
+      const j = await (await fetch("/api/knowledge")).json();
+      const files = j.files || [];
+      say(files.length
+        ? "**Knowledge** — " + files.length + " file" + (files.length === 1 ? "" : "s") + ": " + files.map(f => "`" + f.name + "`").join(", ")
+        : "No knowledge yet. Add markdown files under `.star-code/knowledge/` or in **Settings → Knowledge**.");
+    } catch { say("Could not read the knowledge index."); }
+    return;
+  }
+  if (name === "plan") { applyMode("plan"); save(); say("Switched to **plan mode**. I'll explore read-only and propose a plan."); return; }
+  if (name === "export") { exportConv(); return; }
+  if (name === "settings") { openSettings(); return; }
+  if (name === "theme") { $("btnTheme").click(); return; }
+  if (name === "btw") { return sendToAgent("(side question, do not modify files) " + arg); }
+  if (name === "compact") return sendToAgent("Summarize our conversation into a compact brief preserving decisions, file paths, and open tasks.");
+  if (name === "init") return sendToAgent("Create a CLAUDE.md file documenting this project: purpose, structure, how to build/test, and conventions. Write the file.");
+  if (name === "review") return sendToAgent("Review the uncommitted changes: run `git diff`, then report correctness issues, risks, and suggested fixes grouped by file.");
+  const r = await fetch("/api/command", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId, name, args: arg }) });
+  const j = await r.json();
+  say(j.text || j.error || "(no output)");
+  if (name === "memory" && j.text) renderPlan(j.text);
+}
+function say(t) { startAssistant(); currentMsg._t = t; setMsgHtml(currentMsg, md(t)); wireCopy(currentMsg); endAssistant(); }
+
+async function sendToAgent(message) {
+  addUser(message); showChat();
+  streaming = true; setWorking(true);
+  const p = prov();
+  const payload = {
+    sessionId, message, mode: state.defaultMode,
+    provider: state.current, model: p.model, apiKey: p.apiKey, baseUrl: payloadBaseUrl(),
+  };
+  const wasNew = !sessionId;
+  try {
+    const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    if (!res.ok || !res.body) throw new Error("HTTP " + res.status);
+    const reader = res.body.getReader(), dec = new TextDecoder(); let buf = "";
+    while (true) {
+      const { value, done } = await reader.read(); if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const parts = buf.split("\n\n"); buf = parts.pop() || "";
+      for (const part of parts) {
+        const line = part.trim(); if (!line.startsWith("data:")) continue;
+        let evt; try { evt = JSON.parse(line.slice(5).trim()); } catch { continue; }
+        handle(evt);
+      }
+    }
+  } catch (e) {
+    addTool({ name: "error", args: {}, status: "denied", detail: e.message });
+  } finally {
+    endAssistant(); endThinking(); streaming = false;
+    setWorking(false);
+    // the server titles a session from its first message; pull the new title in
+    if (wasNew && sessionId) {
+      fetch("/api/sessions/rename", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: sessionId, title: message.replace(/\s+/g, " ").slice(0, 60) }),
+      }).then((r) => r.json()).then((j) => {
+        if (j && j.title) $("sTitle").textContent = j.title;
+      }).catch(() => {});
+    }
+    loadSessions().then(() => renderRing());
+    $("input").focus();
+  }
+}
+
+function handle(evt) {
+  switch (evt.type) {
+    case "session":
+      sessionId = evt.sessionId;
+      if (evt.title && evt.title !== "New session") $("sTitle").textContent = evt.title;
+      if (evt.root) { state.root = evt.root; updateChrome(); }
+      break;
+    case "assistant_start": startAssistant(); break;
+    case "delta": addDelta(evt.text); break;
+    case "assistant_end": endAssistant(); break;
+    case "thinking_start": if (state.showThinking) startThinking(); break;
+    case "thinking_delta": if (state.showThinking) addThinking(evt.text); break;
+    case "thinking_end": if (state.showThinking) endThinking(evt.ms); break;
+    case "todos": renderTodos(evt.todos); break;
+    case "permission_request": askPermission(evt); break;
+    case "tool": addTool({ name: evt.name, args: evt.args, status: evt.allowed === false ? "denied" : "running", detail: "" }); break;
+    case "tool_result": finishTool(evt.status, evt.preview); break;
+    case "diff": renderDiff(evt); updatePrBar(evt); break;
+    case "usage": lastUsage = evt; renderRing(); break;
+    case "error": addTool({ name: "error", args: {}, status: "denied", detail: evt.message }); break;
+    case "done":
+      endAssistant(); endThinking();
+      if (evt.text && state.defaultMode === "plan" && evt.text.length > 80) renderPlan(evt.text);
+      break;
+  }
+}
+
+function updatePrBar(evt) {
+  const branch = "star/change-" + (evt.path || "").split(/[\\/]/).pop().replace(/\.\w+$/, "").slice(0, 14).toLowerCase();
+  $("prNum").textContent = "#" + (diffs.length);
+  $("prBranch").textContent = branch;
+  $("prState").textContent = "Local changes";
+  $("prbar").style.display = "flex";
+}
+
+/* ============================ NEW / EXPORT ============================ */
+async function newSession(opts = {}) {
+  // create the session server-side so it appears in the sidebar immediately
+  // and is persisted, rather than existing only once a message is sent
+  try {
+    const j = await (await fetch("/api/sessions/new", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: opts.title || "" }),
+    })).json();
+    if (j && j.id) sessionId = j.id;
+  } catch { sessionId = null; }
+
+  todos = []; diffs = []; lastDiff = []; termLines = [];
+  paneBadges.tasks = 0; paneBadges.diff = 0; paneBadges.terminal = 0;
+  artifacts = []; msgArtifacts = []; msgCards = 0; artifactView = { i: 0, mode: "render" };
+  currentMsg = null; currentThink = null; toolGroup = null;
+  $("stream").innerHTML = "";
+  $("term").innerHTML = '<span class="rt">[shell] ready — commands Star runs appear here</span>';
+  $("sTitle").textContent = opts.title || "New session";
+  $("prbar").style.display = "none";
+  renderTodos([]); renderDiffPane();
+  $("diffEmpty").style.display = "block";
+  showLanding();
+  await loadSessions();
+}
+function exportConv() {
+  const text = [...$("stream").querySelectorAll(".msg-u,.msg-a,.think,.tools,.diffcard,.tasklist,.perm")].map(e => e.innerText).join("\n\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+  a.download = "star-code-session.txt"; a.click();
+}
+
+/* ============================ SLASH MENU ============================ */
+const COMMANDS = [
+  { n: "/clear", d: "Start a new conversation" },
+  { n: "/compact", d: "Summarize the conversation to free context" },
+  { n: "/init", d: "Create a CLAUDE.md project guide" },
+  { n: "/diff", d: "Show uncommitted git changes" },
+  { n: "/context", d: "Show context and project stats" },
+  { n: "/status", d: "Session and repo status" },
+  { n: "/memory", d: "Show the project memory file" },
+  { n: "/plan", d: "Switch to plan mode" },
+  { n: "/review", d: "Ask for a code review" },
+  { n: "/btw", d: "Ask a side question without touching the thread" },
+  { n: "/model", d: "Choose provider and model" },
+  { n: "/models", d: "Pick a model (searchable)" },
+  { n: "/connect", d: "Connect a provider (key, models)" },
+  { n: "/knowledge", d: "List the project knowledge files" },
+  { n: "/theme", d: "Cycle dark, light, and system" },
+  { n: "/settings", d: "Open settings" },
+  { n: "/export", d: "Download the conversation" },
+  { n: "/help", d: "Show available commands" },
+];
+function buildSlash() { /* rendered on demand */ }
+function showSlash(f) {
+  const m = COMMANDS.filter(c => c.n.startsWith(f));
+  slashMatches = m; slashIdx = 0;
+  if (!m.length) { $("slashMenu").style.display = "none"; return; }
+  $("slashMenu").style.display = "block";
+  $("jumpBtn").classList.remove("on");
+  $("slashMenu").innerHTML = m.map((c, i) =>
+    `<div class="si ${i === 0 ? "sel" : ""}" data-n="${c.n}"><span class="n">${c.n}</span><span class="d">${c.d}</span></div>`).join("");
+  $("slashMenu").querySelectorAll(".si").forEach(el => el.addEventListener("click", () => {
+    $("input").value = el.dataset.n + " "; hideSlash(); $("input").focus();
+  }));
+}
+function hideSlash() { $("slashMenu").style.display = "none"; slashMatches = []; updateJump(); }
+function moveSlash(d) {
+  if (!slashMatches.length) return;
+  slashIdx = (slashIdx + d + slashMatches.length) % slashMatches.length;
+  $("slashMenu").querySelectorAll(".si").forEach((el, i) => el.classList.toggle("sel", i === slashIdx));
+}
+function acceptSlash() {
+  if (!slashMatches.length) return false;
+  $("input").value = slashMatches[slashIdx].n + " "; hideSlash(); return true;
+}
+
+/* ============================ INPUT ============================ */
+function autoGrow(el) { el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, 200) + "px"; }
+$("input").addEventListener("input", () => {
+  autoGrow($("input"));
+  const v = $("input").value;
+  if (v.startsWith("/") && !v.includes(" ")) showSlash(v); else hideSlash();
+});
+$("input").addEventListener("keydown", e => {
+  if ($("slashMenu").style.display === "block") {
+    if (e.key === "ArrowDown") { e.preventDefault(); return moveSlash(1); }
+    if (e.key === "ArrowUp") { e.preventDefault(); return moveSlash(-1); }
+    if (e.key === "Tab") { e.preventDefault(); return acceptSlash(); }
+    if (e.key === "Escape") { e.preventDefault(); return hideSlash(); }
+  }
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+});
+$("kbdHint").addEventListener("click", () => { if (streaming) abort(); else send(); });
+$("cShell").addEventListener("click", () => { $("input").value = "! "; $("input").focus(); });
+$("cAttach").addEventListener("click", () => { $("input").value += "@"; $("input").focus(); });
+$("cMore").addEventListener("click", e => {
+  e.stopPropagation();
+  openMenu($("cMore"), [
+    { label: "Side chat", k: "⌘;", run: () => { $("input").value = "/btw "; $("input").focus(); } },
+    { label: "Attach file", k: "@", run: () => { $("input").value += "@"; $("input").focus(); } },
+    { label: "Run shell command", k: "!", run: () => { $("input").value = "! "; $("input").focus(); } },
+    { sep: true },
+    { label: "Export conversation", run: exportConv },
+    { label: "New session", k: "⌘N", run: newSession },
+  ]);
+});
+$("bigSend").addEventListener("click", () => {
+  const v = $("bigInput").value.trim(); if (!v) return;
+  $("bigInput").value = ""; sendToAgent(v);
+});
+$("bigInput").addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("bigSend").click(); }
+});
+$("envList").querySelectorAll(".envrow").forEach(r => r.addEventListener("click", () => {
+  $("envList").querySelectorAll(".envrow").forEach(x => {
+    x.classList.remove("on");
+    x.setAttribute("aria-checked", "false");
+  });
+  r.classList.add("on");
+  r.setAttribute("aria-checked", "true");
+  const env = r.dataset.env;
+  applyMode(env === "plan" ? "plan" : "manual");
+  save();
+}));
+function abort() { fetch("/api/abort", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId }) }); }
+
+/* ---- composer state: send/stop button + the working indicator ---- */
+let workTimer = null, workStart = 0;
+function setWorking(on) {
+  const btn = $("kbdHint");
+  clearInterval(workTimer); workTimer = null;
+  if (btn) {
+    btn.textContent = on ? "■" : "⏎";
+    btn.classList.toggle("stop", !!on);
+    btn.title = on ? "Stop" : "Send";
+    btn.setAttribute("aria-label", on ? "Stop the response" : "Send message");
+  }
+  const bar = $("workBar");
+  if (!bar) return;
+  bar.classList.toggle("on", !!on);
+  if (!on) return;
+  workStart = Date.now();
+  const tick = () => {
+    const secs = Math.round((Date.now() - workStart) / 1000);
+    $("workLabel").textContent = secs < 60
+      ? "Working · " + secs + "s"
+      : "Working · " + Math.floor(secs / 60) + "m " + (secs % 60) + "s";
+  };
+  tick();
+  workTimer = setInterval(tick, 1000);
+}
+$("workStop").addEventListener("click", abort);
+$("jumpBtn").addEventListener("click", () => {
+  const s = $("stream");
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) s.scrollTop = s.scrollHeight;
+  else s.scrollTo({ top: s.scrollHeight, behavior: "smooth" });
+  $("jumpBtn").classList.remove("on");
+});
+$("stream").addEventListener("scroll", () => updateJump(), { passive: true });
+document.querySelectorAll("[data-starter]").forEach((b) => b.addEventListener("click", () => {
+  $("bigInput").value = b.getAttribute("data-starter") || "";
+  autoGrow($("bigInput"));
+  $("bigInput").focus();
+}));
+
+/* ============================ SHORTCUTS ============================ */
+const SHORTCUTS = [
+  ["Open settings", "⌘,"], ["New session", "⌘N"], ["Search sessions", "⌘K"], ["Cycle permission mode", "⇧Tab"],
+  ["Toggle panes", "⇧⌘D"], ["Terminal pane", "⌃`"], ["Icons: Preview / Diff / Browser", "⇧⌘P / ⇧⌘D / ⇧⌘B"],
+  ["Stop response", "Esc"], ["Send", "⏎"], ["Newline", "⇧⏎"],
+  ["Command menu", "/"], ["Mention a file", "@"], ["Shell command", "!"],
+  ["Side chat", "⌘;"], ["Clear transcript", "⌘L"], ["Cycle theme", "⌘⇧T"],
+];
+document.addEventListener("keydown", e => {
+  const mod = e.metaKey || e.ctrlKey;
+  if (e.key === "Tab" && e.shiftKey) { e.preventDefault(); const i = MODES.findIndex(m => m.id === state.defaultMode); applyMode(MODES[(i + 1) % MODES.length].id); save(); return; }
+  if (mod && e.key === ",") { e.preventDefault(); openSettings(); return; }
+  if (mod && (e.key === "n" || e.key === "N")) { e.preventDefault(); newSession(); return; }
+  if (mod && (e.key === "k" || e.key === "K")) {
+    if (!$("settings").classList.contains("on")) { e.preventDefault(); $("btnSearch").click(); }
+    return;
+  }
+  if (mod && (e.key === "l" || e.key === "L")) { e.preventDefault(); $("stream").innerHTML = ""; return; }
+  if (mod && e.shiftKey && (e.key === "t" || e.key === "T")) { e.preventDefault(); $("btnTheme").click(); return; }
+  if (mod && !e.shiftKey && (e.key === "o" || e.key === "O")) { e.preventDefault(); $("panes").classList.toggle("hide"); return; }
+  if (e.key === "Escape") {
+    closeMenus(); hideSlash();
+    if ($("settings").classList.contains("on")) closeSettings();
+    else if (document.body.classList.contains("sb-over")) toggleSidebar(false);
+    else if (document.body.classList.contains("pane-open")) document.body.classList.remove("pane-open");
+    else if (streaming) abort();
+  }
+});
+
+/* ============================ SETTINGS ============================ */
+let settingsSection = "providers";
+function openSettings() { $("settings").classList.add("on"); renderSettings(); }
+function closeSettings() { $("settings").classList.remove("on"); }
+$("btnSettings").addEventListener("click", openSettings);
+$("setBack").addEventListener("click", closeSettings);
+document.querySelectorAll(".set-nav button").forEach(b => b.addEventListener("click", () => {
+  settingsSection = b.dataset.s;
+  document.querySelectorAll(".set-nav button").forEach(x => x.classList.toggle("on", x === b));
+  renderSettings();
+}));
+
+function renderSettings() {
+  const host = $("setMain");
+  if (settingsSection === "providers") host.innerHTML = settingsProviders();
+  else if (settingsSection === "appearance") host.innerHTML = settingsAppearance();
+  else if (settingsSection === "session") host.innerHTML = settingsSession();
+  else if (settingsSection === "knowledge") host.innerHTML = settingsKnowledge();
+  else if (settingsSection === "keys") host.innerHTML = settingsKeys();
+  else host.innerHTML = settingsAbout();
+  wireSettings();
+  if (settingsSection === "providers") {
+    // detection may change the list ("Detected" / "Not running"); refresh it
+    // once, then re-render only if something actually changed and the page
+    // is still open (refreshLocals caches, so this cannot loop).
+    refreshLocals().then(changed => {
+      if (changed && settingsSection === "providers" && $("settings").classList.contains("on")) renderSettings();
+    });
+  }
+  if (settingsSection === "knowledge") {
+    loadKnowledge().then(changed => {
+      if (changed && settingsSection === "knowledge" && $("settings").classList.contains("on")) renderSettings();
+    });
+  }
+}
+
+/* ---- providers: connect-first list + detail ---- */
+let providerDetailId = null;
+let provFilter = "";
+let connectState = { error: "", warning: "", message: "" };
+let localStatus = {};
+let localFetchedAt = 0;
+let modelListCache = {};   // provider id -> { models, live, error, hint }
+
+async function refreshMeta() { meta = await (await fetch("/api/providers")).json(); }
+
+/** Local runtime detection, cached briefly client-side (server caches 60s). */
+async function refreshLocals(force) {
+  if (!force && Date.now() - localFetchedAt < 30000) return false;
+  try { localStatus = await (await fetch("/api/detect")).json(); localFetchedAt = Date.now(); return true; }
+  catch { return false; }
+}
+
+/** One-time move of browser-stored keys into ~/.star-code/auth.json. */
+async function importLocalKeys() {
+  let imported = 0;
+  for (const [id, cfg] of Object.entries(state.providers || {})) {
+    if (!cfg || !cfg.apiKey) continue;
+    try {
+      const r = await (await fetch("/api/auth", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: id, apiKey: cfg.apiKey, baseUrl: cfg.baseUrl || undefined }),
+      })).json();
+      if (r.ok) { delete cfg.apiKey; delete cfg.baseUrl; imported++; }
+    } catch { /* keep the key client-side; chat still sends it */ }
+  }
+  if (imported) {
+    save();
+    await refreshMeta();
+    toast("Imported " + imported + " API key" + (imported === 1 ? "" : "s"));
+  }
+}
+
+function provPill(p) {
+  if (p.connected) return ["ok", "Connected"];
+  if (p.envConfigured) return ["ok", "Env key"];
+  if (p.local && localStatus[p.id]?.up) return ["", "Detected"];
+  if (p.noKeyRequired) return ["", localStatus[p.id] ? "Not running" : "Not required"];
+  return ["warn", "Needs key"];
+}
+
+function provRow(p) {
+  const [cls, text] = provPill(p);
+  return `<button class="prov" data-prov="${esc(p.id)}">
+    <span class="pn">${esc(p.label)}${p.id === state.current ? ' <span class="pill" style="margin-left:6px">active</span>' : ""}</span>
+    <span class="pd">${esc((state.providers[p.id] || {}).model || "")}</span>
+    <span class="pill ${cls}">${text}</span>
+  </button>`;
+}
+
+function settingsProviders() {
+  if (providerDetailId) return settingsProviderDetail(providerDetailId);
+  const q = provFilter.trim().toLowerCase();
+  const all = meta.providers.filter(x => !q || x.label.toLowerCase().includes(q) || x.id.includes(q));
+  const isConnected = (p) => p.connected || p.envConfigured || (p.local && localStatus[p.id]?.up);
+  const connected = all.filter(isConnected);
+  const available = all.filter(p => !isConnected(p));
+  return `
+  <div class="sect">
+    <h2 class="h">Providers</h2>
+    <p class="sh">Pick a provider, paste its API key, then choose a model. Local runtimes are detected automatically and need no key.</p>
+    ${meta.providers.length > 8 ? `
+    <div class="fld"><input class="inp" id="fProvSearch" value="${esc(provFilter)}" placeholder="Search providers…"></div>` : ""}
+    ${connected.length ? `
+    <div class="card">
+      <div class="ct">Connected</div>
+      <div class="cs">Ready to use.</div>
+      ${connected.map(provRow).join("")}
+    </div>` : ""}
+    <div class="card">
+      <div class="ct">${connected.length ? "Available" : "All providers"}</div>
+      <div class="cs">Connect one to use it.</div>
+      ${available.map(provRow).join("") || '<div class="pempty">No matches.</div>'}
+    </div>
+    <p class="sh" style="margin:0">Keys are stored on this machine in <span class="mono">~/.star-code/auth.json</span> and only ever go to the provider itself.</p>
+  </div>`;
+}
+
+function modelPreviewHtml(id) {
+  const cached = modelListCache[id];
+  if (!cached) return '<div class="pempty">Refresh to fetch this provider\'s models.</div>';
+  const rows = cached.models.slice(0, 60).map(m =>
+    `<div class="trow" style="cursor:default"><span class="v">${m.reasoning ? "reason" : ""}</span><span class="a">${esc(m.id)}</span><span class="m">${m.contextLength ? Math.round(m.contextLength / 1000) + "k" : ""}</span></div>`).join("");
+  return (cached.live ? "" : `<div class="sh" style="margin:0 0 8px">Live list unavailable${cached.error ? ` (${esc(cached.error)})` : ""} — showing the built-in list.</div>`) +
+    `<div style="max-height:220px;overflow:auto">${rows}</div>`;
+}
+
+function settingsProviderDetail(id) {
+  const p = meta.providers.find(x => x.id === id);
+  if (!p) { providerDetailId = null; return settingsProviders(); }
+  const det = localStatus[id];
+  const cached = modelListCache[id];
+  return `
+  <div class="sect">
+    <h2 class="h">${esc(p.label)}${p.id === state.current ? ' <span class="pill" style="margin-left:8px">active</span>' : ""}</h2>
+    <p class="sh">${p.local ? `Local runtime at <span class="mono">${esc(p.baseUrlOverride || p.baseUrl)}</span> — no key required.` : "Paste an API key and connect; the model list comes from the provider itself."}</p>
+    ${connectState.error ? `<div class="banner err">${esc(connectState.error)}</div>` : ""}
+    ${connectState.warning ? `<div class="banner">${esc(connectState.warning)}</div>` : ""}
+    ${connectState.message ? `<div class="banner ok">${esc(connectState.message)}</div>` : ""}
+
+    <div class="card">
+      ${p.needsKey ? `
+      <div class="fld">
+        <label>API key ${p.connected ? `<span class="pill ok" style="margin-left:6px">stored ${esc(p.masked)}</span>` : p.envConfigured ? '<span class="pill ok" style="margin-left:6px">env</span>' : ""}</label>
+        <input class="inp mono" id="fKey" type="password" value="" placeholder="${p.connected ? "paste to replace the stored key" : "sk-…"}" autocomplete="off">
+      </div>` : ""}
+      ${p.local ? `
+      <div class="row">
+        <div class="rl">
+          <div class="rt">${det && det.up ? "Running" : "Not running"}</div>
+          <div class="rd">${det && det.up ? `${(det.models || []).length} models loaded` : "Start it, then refresh — it will show up here."}</div>
+        </div>
+      </div>` : ""}
+      <div class="row" style="border-top:1px solid var(--border);margin-top:4px;padding-top:13px">
+        <div class="rl">
+          <div class="rt">Models</div>
+          <div class="rd">${cached ? `${cached.models.length} available${cached.live ? " (live)" : " (built-in list)"}` : "Not fetched yet."}</div>
+        </div>
+        <div class="rc">
+          <button class="btn sm" id="fRefresh">Refresh</button>
+          ${p.id !== state.current ? '<button class="btn sm" id="fSetActive">Set active</button>' : ""}
+          ${p.needsKey ? '<button class="btn pri sm" id="fConnect">Connect</button>' : ""}
+        </div>
+      </div>
+      ${p.connected ? `
+      <div class="row">
+        <div class="rl"><div class="rt">Stored key</div><div class="rd">${esc(p.masked)}</div></div>
+        <div class="rc"><button class="btn sm dgr" id="fDisconnect">Disconnect</button></div>
+      </div>` : ""}
+      <details style="margin-top:14px">
+        <summary style="cursor:pointer;font-size:12.5px;color:var(--muted)">Advanced</summary>
+        <div class="fld" style="margin-top:10px">
+          <label>Base URL</label>
+          <input class="inp mono" id="fBase" value="${esc(p.baseUrlOverride || "")}" placeholder="${esc(p.baseUrl)}">
+        </div>
+        <button class="btn sm" id="fSaveBase">Save base URL</button>
+      </details>
+    </div>
+
+    <div class="card">
+      <div class="ct">Model list</div>
+      ${modelPreviewHtml(id)}
+    </div>
+    <button class="btn sm" id="fBack">← All providers</button>
+  </div>`;
+}
+
+function settingsAppearance() {
+  const t = state.theme;
+  return `
+  <div class="sect">
+    <h2 class="h">Appearance</h2>
+    <p class="sh">Dark matches the shipping Star Code desktop app. Light is the warm paper theme.</p>
+    <div class="card">
+      <div class="ct">Theme</div>
+      <div class="cs">Applies immediately and is remembered.</div>
+      <div class="row">
+        <div class="rl"><div class="rt">Color theme</div><div class="rd">System follows your OS setting.</div></div>
+        <div class="rc">
+          <div class="segbtn" id="fTheme">
+            <button data-t="dark" class="${t === "dark" ? "on" : ""}">Dark</button>
+            <button data-t="light" class="${t === "light" ? "on" : ""}">Light</button>
+            <button data-t="system" class="${t === "system" ? "on" : ""}">System</button>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="rl"><div class="rt">Show reasoning</div><div class="rd">Display the model's thinking before its answer.</div></div>
+        <div class="rc"><span class="tog ${state.showThinking ? "on" : ""}" id="fThink"></span></div>
+      </div>
+      <div class="row">
+        <div class="rl"><div class="rt">Auto-collapse reasoning</div><div class="rd">Fold the thinking block once the answer starts.</div></div>
+        <div class="rc"><span class="tog ${state.autoCollapseThinking ? "on" : ""}" id="fCollapse"></span></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function settingsSession() {
+  return `
+  <div class="sect">
+    <h2 class="h">Session</h2>
+    <p class="sh">Defaults applied to new sessions.</p>
+    <div class="card">
+      <div class="ct">Permissions</div>
+      <div class="cs">How much Star may do without asking.</div>
+      <div class="fld">
+        <label>Default permission mode</label>
+        <select class="inp" id="fMode">
+          ${MODES.map(m => `<option value="${m.id}" ${m.id === state.defaultMode ? "selected" : ""}>${m.label} — ${m.d}</option>`).join("")}
+        </select>
+      </div>
+      <div class="fld">
+        <label>Effort</label>
+        <select class="inp" id="fEffort">
+          ${EFFORTS.map(e => `<option value="${e}" ${e === state.effort ? "selected" : ""}>${e[0].toUpperCase() + e.slice(1)}</option>`).join("")}
+        </select>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ct">Working directory</div>
+      <div class="cs">The folder Star reads and edits. Changing it starts a fresh session.</div>
+      <div class="row" style="align-items:flex-start">
+        <div class="rl"><div class="rd" style="font-family:'JetBrains Mono',monospace;word-break:break-all;color:var(--text2)" id="fRootLabel">${esc(state.root || "")}</div></div>
+        <div class="rc">
+          ${bridge ? '<button class="btn sm" id="fRootPick">Browse…</button>' : ""}
+          <button class="btn sm" id="fRootReveal">Open folder</button>
+        </div>
+      </div>
+      <div class="fld" style="margin-top:13px">
+        <label>Or type a path</label>
+        <input class="inp mono" id="fRoot" value="${esc(state.root || "")}">
+      </div>
+      <button class="btn sm" id="fRootApply">Use this path</button>
+    </div>
+    ${bridge ? "" : `<div class="banner" style="margin-top:14px">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 7.2v4M8 5.2h.01"/></svg>
+      Running in a browser. Launch with <b>&nbsp;npm run electron&nbsp;</b> to get the native folder picker.
+    </div>`}
+  </div>`;
+}
+
+/* ---- knowledge settings ---- */
+let kFiles = [];
+let kView = "";
+let kContentCache = {};
+let kLoadedAt = 0;
+
+/** Fetch the index at most every 5s; returns true when it re-rendered. */
+async function loadKnowledge() {
+  if (Date.now() - kLoadedAt < 5000) return false;
+  try { kFiles = (await (await fetch("/api/knowledge")).json()).files || []; } catch { kFiles = []; }
+  kLoadedAt = Date.now();
+  return true;
+}
+
+function settingsKnowledge() {
+  return `
+  <div class="sect">
+    <h2 class="h">Knowledge</h2>
+    <p class="sh">Markdown notes the agent always sees the titles of and can search in full. Stored in <span class="mono">.star-code/knowledge/</span> inside this project — commit it or ignore it, your call.</p>
+    <div class="card">
+      <div class="ct">Files</div>
+      <div class="cs">${kFiles.length ? kFiles.length + " file" + (kFiles.length === 1 ? "" : "s") : "No knowledge yet."}</div>
+      ${kFiles.map(f => `<div class="prov">
+        <span class="pn">${esc(f.name)}</span>
+        <span class="pd">${(f.bytes / 1024).toFixed(1)} KB</span>
+        <button class="btn sm" data-kview="${esc(f.name)}">View</button>
+        <button class="btn sm dgr" data-kdel="${esc(f.name)}">Delete</button>
+      </div>`).join("")}
+      ${kView && kContentCache[kView] != null ? `<div class="fld" style="margin-top:12px"><label>${esc(kView)}</label><div id="kPreview" style="font-family:'JetBrains Mono',monospace;font-size:12px;padding:10px;border-radius:8px;background:var(--code-bg);color:var(--code-fg);white-space:pre-wrap;max-height:240px;overflow:auto">${esc(kContentCache[kView])}</div></div>` : ""}
+    </div>
+    <div class="card">
+      <div class="ct">Add or update</div>
+      <div class="cs">Saved as <span class="mono">name.md</span>; an existing name is overwritten.</div>
+      <div class="fld"><label>Name</label><input class="inp" id="fKAlias" placeholder="deploy-notes" autocomplete="off"></div>
+      <div class="fld"><label>Content (markdown)</label><textarea class="inp" id="fKContent" rows="8" placeholder="# Heading&#10;Notes the agent should know…"></textarea></div>
+      <button class="btn pri sm" id="fKSave">Save</button>
+    </div>
+  </div>`;
+}
+
+function settingsKeys() {
+  return `
+  <div class="sect">
+    <h2 class="h">Shortcuts</h2>
+    <p class="sh">Mirrors the shortcuts in the desktop app.</p>
+    <div class="card">
+      ${SHORTCUTS.map(([d, k]) => `<div class="sc-row"><span>${esc(d)}</span><span class="kbd">${esc(k)}</span></div>`).join("")}
+    </div>
+  </div>`;
+}
+
+function settingsAbout() {
+  const p = prov();
+  const cfg = meta.providers.find(x => x.id === state.current);
+  const ver = (updateInfo && updateInfo.current) || (bridge ? "…" : (meta && meta.version)) || "—";
+  const newer = updateInfo && updateInfo.ok && updateInfo.newer;
+  return `
+  <div class="sect">
+    <h2 class="h">About</h2>
+    <p class="sh">Star Code Desktop runs entirely on this machine — the same agent also ships as <b>Star Code CLI</b> (<span class="mono">star-code</span>). It only talks to the model provider you configure.</p>
+
+    <div class="card">
+      <div class="ct">Updates</div>
+      <div class="cs">Star Code never installs updates on its own. This checks the release list and, if a newer version exists, points you at the download page.</div>
+      <div class="row">
+        <div class="rl">
+          <div class="rt">Version <span class="pill" style="margin-left:6px">v${esc(String(ver))}</span>${
+            newer ? ' <span class="pill warn">v' + esc(updateInfo.latest) + " available</span>" : ""}</div>
+          <div class="rd" id="upStatus">${esc(updateStatusText())}</div>
+        </div>
+        <div class="rc">
+          <button class="btn sm" id="upCheck">Check for updates</button>
+          <button class="btn sm" id="upOpen">Releases</button>
+        </div>
+      </div>
+    </div>
+
+    ${"" /* public release: no special access needed for updates */}
+
+    <div class="card">
+      <div class="row"><div class="rl"><div class="rt">Provider</div><div class="rd">${esc(cfg?.label || state.current)}</div></div><div class="rc"><span class="pill">${esc(p.model || "")}</span></div></div>
+      <div class="row"><div class="rl"><div class="rt">Working directory</div><div class="rd" style="font-family:'JetBrains Mono',monospace;word-break:break-all">${esc(state.root || "")}</div></div></div>
+      <div class="row"><div class="rl"><div class="rt">Tools</div><div class="rd">read_file · list_dir · search_files · glob_files · write_file · edit_file · run_command</div></div></div>
+      <div class="row"><div class="rl"><div class="rt">Runtime</div><div class="rd">${bridge ? "Electron desktop app" : "Browser"}</div></div></div>
+    </div>
+
+    <div class="card">
+      <div class="ct">Reset</div>
+      <div class="cs">Clear all locally stored settings, keys, and session history.</div>
+      <button class="btn sm dgr" id="fReset">Reset everything</button>
+    </div>
+  </div>`;
+}
+
+function wireSettings() {
+  const pv = prov();
+  const on = (id, ev, fn) => { const el = $(id); if (el) el.addEventListener(ev, fn); };
+
+  document.querySelectorAll("[data-prov]").forEach(el => el.addEventListener("click", () => {
+    providerDetailId = el.dataset.prov;
+    connectState = { error: "", warning: "", message: "" };
+    renderSettings();
+  }));
+  on("fProvSearch", "input", e => {
+    provFilter = e.target.value;
+    renderSettings();
+    const s = $("fProvSearch");
+    if (s) { s.focus(); s.setSelectionRange(s.value.length, s.value.length); }
+  });
+  on("fBack", "click", () => {
+    providerDetailId = null;
+    connectState = { error: "", warning: "", message: "" };
+    renderSettings();
+  });
+  on("fSetActive", "click", () => {
+    state.current = providerDetailId;
+    state.providers[state.current] = state.providers[state.current] || {};
+    if (!state.providers[state.current].model) {
+      state.providers[state.current].model = (meta.providers.find(x => x.id === state.current) || {}).defaultModel;
+    }
+    save(); updateChrome(); renderSessions(); renderSettings();
+    toast("Active provider: " + state.current);
+  });
+  on("fRefresh", "click", async () => {
+    const id = providerDetailId;
+    try {
+      const r = await (await fetch("/api/models", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: id,
+          baseUrl: ($("fBase") || {}).value ? $("fBase").value.trim() : undefined,
+          apiKey: ($("fKey") || {}).value ? $("fKey").value.trim() : undefined,
+          refresh: true,
+        }),
+      })).json();
+      modelListCache[id] = r;
+      if (["ollama", "lmstudio", "vllm"].includes(id)) await refreshLocals(true);
+      connectState = r.live
+        ? { error: "", warning: "", message: `Fetched ${r.models.length} models.` }
+        : { error: "", warning: "Using the built-in list" + (r.error ? ` — ${r.error}` : "."), message: "" };
+    } catch (e) {
+      connectState = { error: e.message, warning: "", message: "" };
+    }
+    renderSettings();
+  });
+  on("fConnect", "click", async () => {
+    const id = providerDetailId;
+    const key = ($("fKey") ? $("fKey").value : "").trim();
+    const base = ($("fBase") ? $("fBase").value : "").trim() || undefined;
+    if (!key) { connectState = { error: "Paste an API key first.", warning: "", message: "" }; return renderSettings(); }
+    try {
+      const probe = await (await fetch("/api/models", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: id, baseUrl: base, apiKey: key }),
+      })).json();
+      modelListCache[id] = probe;
+      if (probe.authFailed) {
+        connectState = { error: probe.error ? `The provider rejected this key (${probe.error}).` : "The provider rejected this key.", warning: "", message: "" };
+        return renderSettings();
+      }
+      await fetch("/api/auth", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: id, apiKey: key, baseUrl: base }),
+      });
+      await refreshMeta();
+      connectState = probe.live
+        ? { error: "", warning: "", message: `Connected — ${probe.models.length} models.` }
+        : { error: "", warning: "Connected — model list unavailable, using the built-in list.", message: "" };
+    } catch (e) {
+      connectState = { error: e.message, warning: "", message: "" };
+    }
+    renderSettings();
+  });
+  on("fDisconnect", "click", async () => {
+    await fetch("/api/auth?provider=" + encodeURIComponent(providerDetailId), { method: "DELETE" });
+    await refreshMeta();
+    connectState = { error: "", warning: "", message: "Disconnected." };
+    renderSettings();
+  });
+  on("fSaveBase", "click", async () => {
+    await fetch("/api/auth", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: providerDetailId, baseUrl: ($("fBase") ? $("fBase").value : "").trim() }),
+    });
+    await refreshMeta();
+    connectState = { error: "", warning: "", message: "Base URL saved." };
+    renderSettings();
+  });
+
+  document.querySelectorAll("#fTheme button").forEach(b => b.addEventListener("click", () => {
+    state.theme = b.dataset.t; applyTheme(); save();
+    document.querySelectorAll("#fTheme button").forEach(x => x.classList.toggle("on", x === b));
+  }));
+  document.querySelectorAll("[data-kview]").forEach(el => el.addEventListener("click", async () => {
+    const name = el.dataset.kview;
+    try {
+      const j = await (await fetch("/api/knowledge/file?path=" + encodeURIComponent(name))).json();
+      kContentCache[name] = j.content || j.error || "";
+    } catch { kContentCache[name] = "(could not read)"; }
+    kView = name;
+    renderSettings();
+  }));
+  document.querySelectorAll("[data-kdel]").forEach(el => el.addEventListener("click", async () => {
+    const name = el.dataset.kdel;
+    if (!confirm("Delete " + name + "?")) return;
+    await fetch("/api/knowledge?path=" + encodeURIComponent(name), { method: "DELETE" });
+    if (kView === name) kView = "";
+    kLoadedAt = 0;
+    await loadKnowledge();
+    renderSettings();
+  }));
+  on("fKSave", "click", async () => {
+    const name = ($("fKAlias") ? $("fKAlias").value : "").trim();
+    const content = $("fKContent") ? $("fKContent").value : "";
+    if (!name) { toast("Name the note first"); return; }
+    const r = await (await fetch("/api/knowledge", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, content }),
+    })).json();
+    if (r.ok) { toast("Saved " + r.name); kLoadedAt = 0; await loadKnowledge(); renderSettings(); }
+    else toast(r.error || "Could not save");
+  });
+  on("fThink", "click", e => { state.showThinking = !state.showThinking; save(); e.target.classList.toggle("on", state.showThinking); });
+  on("fCollapse", "click", e => { state.autoCollapseThinking = !state.autoCollapseThinking; save(); e.target.classList.toggle("on", state.autoCollapseThinking); });
+
+  on("fMode", "change", e => { applyMode(e.target.value); save(); });
+  on("fEffort", "change", e => { state.effort = e.target.value; save(); updateChrome(); });
+  on("fRootApply", "click", async () => {
+    const root = $("fRoot").value.trim();
+    if (!root) return;
+    if (bridge) {
+      const r = await bridge.setRoot(root);
+      if (r && r.ok) { state.root = r.root; save(); updateChrome(); newSession(); treeCollapsed.clear(); loadTree(); toast("Working directory set"); renderSettings(); }
+      else toast((r && r.error) || "Could not set directory");
+      return;
+    }
+    const j = await (await fetch("/api/setroot", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ root }) })).json();
+    if (j.ok) { state.root = j.root; save(); updateChrome(); newSession(); treeCollapsed.clear(); loadTree(); toast("Working directory set"); renderSettings(); }
+    else toast(j.error || "Could not set directory");
+  });
+  on("fRootPick", "click", async () => {
+    try {
+      const picked = await bridge.pickFolder();
+      if (!picked) return;
+      state.root = picked; save(); updateChrome(); newSession(); renderSettings();
+      toast("Working directory: " + picked.split(/[\\/]/).pop());
+    } catch (e) { toast("Could not open picker"); }
+  });
+  on("fRootReveal", "click", async () => {
+    if (bridge) { bridge.reveal($("fRoot").value.trim() || state.root); return; }
+    toast(state.root || "");
+  });
+
+  on("fReset", "click", () => {
+    if (!confirm("Reset all settings, keys, and session history?")) return;
+    localStorage.removeItem(LS);
+    state = structuredClone(DEFAULT_STATE);
+    applyTheme(); save(); updateChrome(); renderSettings(); renderSessions();
+    toast("Reset complete");
+  });
+
+  on("upCheck", "click", async () => {
+    const b = $("upCheck");
+    b.textContent = "Checking…"; b.disabled = true;
+    await checkUpdates({ quiet: false });
+    b.textContent = "Check for updates"; b.disabled = false;
+    if (updateInfo) toast(updateStatusText());
+  });
+  on("upOpen", "click", () => {
+    const url = (updateInfo && updateInfo.url) || "https://github.com/Star-Code-Prod/Star-Code/releases";
+    if (bridge) bridge.openExternal(url);
+    else window.open(url, "_blank");
+  });
+}
+
+/* ============================ MISC UI ============================ */
+function toast(msg) {
+  const t = $("toast"); t.textContent = msg; t.classList.add("on");
+  clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove("on"), 1900);
+}
+$("btnNew").addEventListener("click", () => {
+  if (innerWidth <= 820) toggleSidebar(false);
+  newSession();
+});
+$("btnOpenFolder").addEventListener("click", async () => {
+  if (bridge) {
+    try {
+      const picked = await bridge.pickFolder();
+      if (!picked) return;
+      state.root = picked; save(); updateChrome();
+      await newSession(); loadTree(); renderSettings();
+      toast("Working directory: " + picked.split(/[\\/]/).pop());
+    } catch { toast("Could not open the folder picker"); }
+    return;
+  }
+  // browser: ask the server for a native picker, otherwise point at settings
+  try {
+    const r = await fetch("/api/pick-folder", { method: "POST" });
+    const j = await r.json();
+    if (j.supported && j.path) {
+      state.root = j.path; save(); updateChrome(); await newSession(); loadTree();
+      toast("Working directory: " + j.path.split(/[\\/]/).pop());
+      return;
+    }
+  } catch {}
+  settingsSection = "session";
+  document.querySelectorAll(".set-nav button").forEach(x => x.classList.toggle("on", x.dataset.s === "session"));
+  openSettings();
+  toast("Set the working directory here");
+});
+$("btnSettings2").addEventListener("click", openSettings);
+$("btnMore").addEventListener("click", e => {
+  e.stopPropagation();
+  openMenu($("btnMore"), [
+    { label: "Settings", k: "⌘,", run: openSettings },
+    { label: "Keyboard shortcuts", run: () => { settingsSection = "keys"; openSettings(); document.querySelectorAll(".set-nav button").forEach(x => x.classList.toggle("on", x.dataset.s === "keys")); renderSettings(); } },
+    { sep: true },
+    { label: state.sortAsc ? "Sort: oldest first" : "Sort: newest first", run: () => { state.sortAsc = !state.sortAsc; save(); renderSessions(); } },
+    { label: "Reload project files", run: () => { loadTree(); toast("File list refreshed"); } },
+    { sep: true },
+    { label: "Toggle panes", k: "⌘O", run: () => $("panes").classList.toggle("hide") },
+    { label: "Cycle theme", k: "⌘⇧T", run: () => $("btnTheme").click() },
+    { sep: true },
+    { label: "Check for updates", run: async () => { await checkUpdates({ quiet: false }); toast(updateStatusText()); } },
+    { label: "Open releases page", run: () => {
+        const url = (updateInfo && updateInfo.url) || "https://github.com/Star-Code-Prod/Star-Code/releases";
+        if (bridge) bridge.openExternal(url); else window.open(url, "_blank");
+      } },
+    { label: "Empty this transcript", k: "⌘L", run: () => { $("stream").innerHTML = ""; showLanding(); } },
+  ]);
+});
+$("btnSort").addEventListener("click", () => {
+  state.sortAsc = !state.sortAsc;
+  save();
+  renderSessions();
+  toast(state.sortAsc ? "Oldest first" : "Newest first");
+});
+$("btnTreeRefresh").addEventListener("click", () => { loadTree(); toast("File list refreshed"); });
+</script>
+</body>
+</html>

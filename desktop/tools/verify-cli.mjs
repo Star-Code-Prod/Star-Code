@@ -1,6 +1,8 @@
 // Behaviour checks for the CLI: usage, honest failures without a key, and a
 // full one-shot turn against a local OpenAI-compatible stub. No browser, no
-// Electron, loopback only.
+// Electron, loopback only. Also checks the terminal look (banner, status
+// line, boxed prompt and diff, one line per tool call) on piped output,
+// which must stay plain text: no escape codes when stdout is not a TTY.
 import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
@@ -19,6 +21,10 @@ const help = spawnSync(process.execPath, [BIN, "--help"], { encoding: "utf8" });
 ok("help exits 0", help.status === 0, String(help.status));
 ok("help names the tool", /Star Code CLI/.test(help.stdout || ""));
 ok("help lists modes", /--mode/.test(help.stdout || ""));
+const badMode = spawnSync(process.execPath, [BIN, "--mode", "nope"], { encoding: "utf8" });
+ok("unknown --mode is a usage error", badMode.status === 2, String(badMode.status));
+const badProvider = spawnSync(process.execPath, [BIN, "hi", "--model", "nope/model"], { encoding: "utf8" });
+ok("unknown provider is a usage error", badProvider.status === 2, String(badProvider.status));
 
 // 2. no key anywhere: real guidance, exit 1, no hang
 const cleanEnv = { ...process.env, STAR_CODE_DATA: tmp };
@@ -59,6 +65,7 @@ const run = await new Promise((resolve) => {
 });
 ok("one-shot streams the answer", (run.stdout || "").includes("stub-ok"), (run.stdout || "").slice(0, 120));
 ok("one-shot exits 0", run.status === 0, String(run.status));
+ok("piped output carries no escape codes", !/\x1b\[/.test(run.stdout + run.stderr), JSON.stringify((run.stdout || "").slice(0, 60)));
 stub.close();
 
 // 4. REPL: /model listing and /connect storage (piped stdin, temp store)
@@ -80,6 +87,22 @@ async function runCliPipe(args, input, envExtra = {}) {
 
 const list = await runCliPipe([], "/model\n/exit\n");
 ok("repl /model lists providers", /deepseek/.test(list.stdout) && /openai/.test(list.stdout) && /openrouter/.test(list.stdout), (list.stdout || "").slice(0, 160));
+ok("banner names the tool, model and root",
+  /✦ Star Code/.test(list.stdout || "") &&
+  (list.stdout || "").includes("deepseek · deepseek-chat · effort medium") &&
+  (list.stdout || "").includes(process.cwd()),
+  (list.stdout || "").slice(0, 160));
+ok("tips line points at the slash commands", /Tips: .*\/model.*switch model/.test(list.stdout || ""));
+ok("status line shows the mode, the model and the context bar",
+  /⏵ Ask permissions/.test(list.stdout || "") &&
+  (list.stdout || "").includes("deepseek/deepseek-chat · medium") &&
+  /▱▱▱▱▱ 0%/.test(list.stdout || ""));
+ok("the user's turn sits in a bordered box", /╭─+╮/.test(list.stdout || "") && /│ {2}> \/model/.test(list.stdout || ""));
+
+const slashRun = await runCliPipe([], "/m\n/exit\n");
+ok("a slash prefix lists commands instead of calling the model",
+  slashRun.status === 0 && /\/model/.test(slashRun.stdout || "") && /Choose provider and model/.test(slashRun.stdout || ""),
+  (slashRun.stdout || "").slice(-160));
 
 const tmp2 = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-connect-"));
 const conn = await runCliPipe([], "/connect openai\nsk-cli-test-1234\n/exit\n", { STAR_CODE_DATA: tmp2 });
@@ -165,8 +188,13 @@ const permStub = sseServer((send, res) => {
 });
 await listen(permStub);
 const permRun = await spawnCli(["do it", "--model", "custom/model-name", "--mode", "manual"], "a\n", { STAR_CODE_TEST_BASE: "http://127.0.0.1:" + permStub.address().port + "/v1" });
-ok("one prompt for two calls", (permRun.stdout.match(/allow\?/g) || []).length === 1, (permRun.stdout || "").slice(-200));
-ok("both calls ran after the session allow", permRun.stdout.includes("echo one") && permRun.stdout.includes("echo two"));
+const permBoxes = (permRun.stdout.match(/Star wants to run a command/g) || []).length;
+ok("one permission box covers two calls", permBoxes === 1, String(permBoxes));
+ok("the box numbers its options", /1  Allow once/.test(permRun.stdout || "") && /2  Allow for this session/.test(permRun.stdout || "") && /3  Deny/.test(permRun.stdout || ""));
+ok("the 'a' key picked the session option", /Allowed for this session\./.test(permRun.stdout || ""), (permRun.stdout || "").slice(-160));
+ok("both calls ran after the session allow",
+  /● Run echo one +exit 0/.test(permRun.stdout || "") && /● Run echo two +exit 0/.test(permRun.stdout || ""),
+  (permRun.stdout || "").slice(-200));
 ok("raw control blocks are hidden", !/"name":/.test(permRun.stdout), (permRun.stdout || "").slice(0, 200));
 ok("permission run exits 0", permRun.status === 0, String(permRun.status));
 permStub.close();
@@ -181,7 +209,7 @@ const planStub = sseServer((send, res) => {
 });
 await listen(planStub);
 const planRun = await spawnCli(["try a write", "--model", "custom/model-name", "--mode", "plan", "--root", planRoot], "", { STAR_CODE_TEST_BASE: "http://127.0.0.1:" + planStub.address().port + "/v1" });
-ok("plan mode denies writes", /denied/i.test(planRun.stdout || ""), (planRun.stdout || "").slice(0, 160));
+ok("plan mode denies writes", /● Write plan-escape\.js +denied/.test(planRun.stdout || ""), (planRun.stdout || "").slice(0, 160));
 ok("plan mode writes nothing", !fs.existsSync(path.join(planRoot, "plan-escape.js")));
 planStub.close();
 fs.rmSync(planRoot, { recursive: true, force: true });
@@ -214,10 +242,36 @@ const taskStub = http.createServer((req, res) => {
 });
 await listen(taskStub);
 const taskRun = await spawnCli(["research it", "--model", "custom/model-name", "--mode", "manual"], "n\n", { STAR_CODE_TEST_BASE: "http://127.0.0.1:" + taskStub.address().port + "/v1" });
-ok("task tool ran and reported", /→ task/.test(taskRun.stdout || "") && (taskRun.stdout || "").includes("parent-final"), (taskRun.stdout || "").slice(-200));
+ok("task tool ran and reported", /● Task find the config +report/.test(taskRun.stdout || "") && (taskRun.stdout || "").includes("parent-final"), (taskRun.stdout || "").slice(-200));
 ok("subagent call came with plan mode", sawPlan);
 ok("three model calls happened", taskHits === 3, String(taskHits));
 taskStub.close();
+
+// 10. edits collapse to one tool line plus a diff box: path, +N/−M and
+// numbered add/del lines.
+const editRoot = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-diff-"));
+fs.writeFileSync(path.join(editRoot, "greet.js"), "const a = 1;\nconst b = 2;\n");
+const diffStub = sseServer((send, res) => {
+  const text = "```tool\n" +
+    JSON.stringify({ name: "edit_file", args: { path: "greet.js", oldText: "const b = 2;", newText: "const b = 3;" } }) +
+    "\n```";
+  send({ choices: [{ delta: { content: text } }] });
+  res.write("data: [DONE]\n\n");
+  res.end();
+});
+await listen(diffStub);
+const diffRun = await spawnCli(["bump b", "--model", "custom/model-name", "--mode", "bypass", "--root", editRoot], "", { STAR_CODE_TEST_BASE: "http://127.0.0.1:" + diffStub.address().port + "/v1" });
+ok("the edit is one line with its meta",
+  /● Edit greet\.js +1 edit/.test(diffRun.stdout || ""), (diffRun.stdout || "").slice(0, 200));
+ok("the diff box has the path and the counts",
+  /greet\.js\s+\+1 −1/.test(diffRun.stdout || ""),
+  (diffRun.stdout || "").slice(-400));
+ok("the diff box numbers the changed lines",
+  /2 −  const b = 2;/.test(diffRun.stdout || "") && /2 \+  const b = 3;/.test(diffRun.stdout || ""),
+  (diffRun.stdout || "").slice(-300));
+ok("the edit landed on disk", fs.readFileSync(path.join(editRoot, "greet.js"), "utf8").includes("const b = 3;"));
+diffStub.close();
+fs.rmSync(editRoot, { recursive: true, force: true });
 
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(results.join("\n"));

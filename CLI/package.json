@@ -1,0 +1,33 @@
+{
+  "name": "star-code-cli",
+  "version": "1.3.6",
+  "description": "Star Code in the terminal — the same agent loop, tools and credential store as the desktop app, in one-shot or interactive mode. No server, no runtime dependencies.",
+  "keywords": [
+    "ai",
+    "coding-agent",
+    "llm",
+    "cli",
+    "deepseek",
+    "openai",
+    "anthropic",
+    "ollama",
+    "developer-tools"
+  ],
+  "license": "MIT",
+  "author": {
+    "name": "praisethefacts",
+    "email": "cryphor@outlook.com"
+  },
+  "type": "module",
+  "bin": {
+    "star-code": "bin/star-code.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "README.md"
+  ]
+}

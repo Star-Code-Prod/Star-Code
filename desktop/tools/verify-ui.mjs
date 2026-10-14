@@ -77,6 +77,12 @@ ok("dark + light themes defined",
 ok("no top-level 'const desktop' (would clash with window.desktop)",
   !/^\s*const\s+desktop\b/m.test(script));
 
+// 6. no leftover debugging: this file ships as-is, so the inline script must
+// not log to the console.
+const logCalls = (script.match(/console\.log\s*\(/g) || []).length;
+ok("no console.log in the inline script", logCalls === 0,
+  logCalls ? logCalls + " call(s) found" : "0 found");
+
 console.log(results.join("\n"));
 const failed = results.filter((r) => r.startsWith("FAIL")).length;
 console.log("\n" + (results.length - failed) + "/" + results.length + " checks passed" +

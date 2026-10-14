@@ -21,6 +21,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
+# The app now lives in desktop/ (monorepo: desktop/ + CLI/). Every run step
+# resolves there, and the build paths below stay relative to it.
+defaults:
+  run:
+    working-directory: desktop
+
 jobs:
   # ---------------------------------------------------------------------------
   # Fast gate. Catches syntax errors and broken references before spending
@@ -43,6 +49,9 @@ jobs:
 
       - name: UI markup and element ids
         run: node tools/verify-ui.mjs
+
+      - name: Design contract (palette, motion, focus, a11y)
+        run: node tools/verify-design.mjs
 
       - name: Render layer (highlighting, escaping, layout)
         run: node tools/verify-render.mjs
@@ -109,13 +118,13 @@ jobs:
         with:
           name: star-code-${{ matrix.artifact }}
           path: |
-            release/*.exe
-            release/*.dmg
-            release/*.zip
-            release/*.AppImage
-            release/*.deb
-            release/*.blockmap
-            release/latest*.yml
+            desktop/release/*.exe
+            desktop/release/*.dmg
+            desktop/release/*.zip
+            desktop/release/*.AppImage
+            desktop/release/*.deb
+            desktop/release/*.blockmap
+            desktop/release/latest*.yml
           if-no-files-found: error
 
   # ---------------------------------------------------------------------------
@@ -179,7 +188,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          path: artifacts
+          path: desktop/artifacts
 
       - name: Collect files
         run: |
@@ -207,7 +216,7 @@ jobs:
         with:
           tag_name: ${{ steps.t.outputs.tag }}
           name: Star Code ${{ steps.t.outputs.tag }}
-          files: out/*
+          files: desktop/out/*
           generate_release_notes: true
           draft: false
           fail_on_unmatched_files: true
@@ -222,6 +231,6 @@ jobs:
             | macOS | `Star-Code-Desktop-*-arm64.dmg` |
             | Linux | `Star-Code-Desktop-*-x86_64.AppImage` or `Star-Code-Desktop-*-amd64.deb` |
 
-            The CLI ships with the source: `npm i -g .` then `star-code "…"`.
+            The CLI ships with the source: `cd CLI && npm i -g .` then `star-code "…"`.
 
             Builds are unsigned, so your OS will warn on first launch.
