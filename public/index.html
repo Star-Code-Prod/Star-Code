@@ -398,6 +398,7 @@ body.is-mac.is-electron .brand{margin-left:2px}
 
 /* ================= COMPOSER ================= */
 .composer{flex:none;padding:0 20px 14px;position:relative}
+.cwrap{max-width:940px;margin:0 auto;position:relative}
 .cbox{
   display:flex;align-items:flex-end;gap:10px;padding:11px 13px;border-radius:12px;
   background:var(--elev);border:1px solid var(--border2);
@@ -427,17 +428,16 @@ body.is-mac.is-electron .brand{margin-left:2px}
 
 /* ================= MENUS ================= */
 .menu{
-  position:absolute;bottom:calc(100% + 6px);left:0;min-width:250px;max-height:min(64vh,440px);
+  position:fixed;top:0;left:0;min-width:250px;max-height:min(64vh,440px);
   overflow-y:auto;overscroll-behavior:contain;background:var(--panel);
   border:1px solid var(--border2);border-radius:10px;padding:5px;box-shadow:var(--shadow);z-index:50;
 }
-.menu.right{left:auto;right:0}
 .mi{display:flex;align-items:center;gap:10px;width:100%;padding:7px 10px;border-radius:7px;font-size:13px;color:var(--text2);text-align:left}
 .mi:hover{background:var(--elev);color:var(--text)}
 .mi .k{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--dim)}
 .mi.on{color:var(--text)}
 .mi.on .tick{margin-left:auto;color:var(--accent)}
-.mi .sub{font-size:11.5px;color:var(--dim);font-family:'JetBrains Mono',monospace}
+.mi .sub{font-size:11.5px;color:var(--dim);font-family:'JetBrains Mono',monospace;margin-left:6px}
 .msep{height:1px;background:var(--border);margin:5px 4px}
 .mh{padding:7px 10px 4px;font-size:10.5px;letter-spacing:.05em;color:var(--dim);text-transform:uppercase}
 
@@ -451,7 +451,7 @@ body.is-mac.is-electron .brand{margin-left:2px}
 .mp .mi .sub{margin-left:auto;flex:none}
 
 .slash{
-  position:absolute;bottom:calc(100% + 10px);left:20px;right:20px;background:var(--panel);
+  position:absolute;bottom:calc(100% + 10px);left:0;right:0;background:var(--panel);
   border:1px solid var(--border2);border-radius:11px;box-shadow:var(--shadow);overflow:hidden;z-index:45;
   max-height:300px;overflow-y:auto;
 }
@@ -756,6 +756,7 @@ select.inp{font-family:inherit;cursor:pointer}
     </div>
 
     <div class="composer" id="composer" style="display:none">
+      <div class="cwrap">
       <div class="slash" id="slashMenu" style="display:none"></div>
       <div class="cbox">
         <textarea id="input" rows="1" placeholder="Type / for commands"></textarea>
@@ -789,6 +790,7 @@ select.inp{font-family:inherit;cursor:pointer}
           </svg>
           <span class="tip" id="ringTip">Context —</span>
         </span>
+      </div>
       </div>
     </div>
 
@@ -1060,9 +1062,23 @@ function openMenu(anchor, items, opts = {}) {
     b.addEventListener("click", ev => { ev.stopPropagation(); closeMenus(); it.run && it.run(); });
     m.appendChild(b);
   }
-  const host = anchor.closest(".crow") || anchor.parentElement;
-  host.style.position = "relative";
-  host.appendChild(m);
+  document.body.appendChild(m);
+  // measure, then place: below the anchor when it fits, else above; never
+  // let a menu leave the viewport (sidebar "More" used to open off-screen).
+  m.style.visibility = "hidden";
+  const rect = anchor.getBoundingClientRect();
+  const mw = m.offsetWidth, mh = m.offsetHeight, margin = 8;
+  let left = opts.right ? rect.right - mw : rect.left;
+  left = Math.max(margin, Math.min(left, innerWidth - mw - margin));
+  let top = rect.bottom + 6;
+  if (top + mh > innerHeight - margin) top = rect.top - 6 - mh;
+  top = Math.max(margin, Math.min(top, innerHeight - mh - margin));
+  m.style.left = left + "px";
+  m.style.top = top + "px";
+  m.style.visibility = "";
+  const dismiss = () => closeMenus();
+  window.addEventListener("scroll", dismiss, { capture: true, once: true });
+  window.addEventListener("resize", dismiss, { once: true });
 }
 
 function modeMenu(anchor) {
