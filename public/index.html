@@ -949,6 +949,14 @@ function flashSaved() {
 
 function prov() { return state.providers[state.current] || state.providers.deepseek; }
 
+/** Send a client baseUrl only when it truly overrides the catalog default.
+ *  A stale copy would otherwise beat the stored override server-side. */
+function payloadBaseUrl() {
+  const p = prov();
+  const cfg = meta.providers.find(x => x.id === state.current) || {};
+  return (p.baseUrl && p.baseUrl !== cfg.baseUrl) ? p.baseUrl : undefined;
+}
+
 /* ============================ THEME ============================ */
 function applyTheme() {
   const t = state.theme === "system"
@@ -2020,7 +2028,7 @@ async function sendToAgent(message) {
   const p = prov();
   const payload = {
     sessionId, message, mode: state.defaultMode,
-    provider: state.current, model: p.model, apiKey: p.apiKey, baseUrl: p.baseUrl,
+    provider: state.current, model: p.model, apiKey: p.apiKey, baseUrl: payloadBaseUrl(),
   };
   const wasNew = !sessionId;
   try {
@@ -2650,12 +2658,12 @@ function wireSettings() {
     if (!root) return;
     if (bridge) {
       const r = await bridge.setRoot(root);
-      if (r && r.ok) { state.root = r.root; save(); updateChrome(); newSession(); toast("Working directory set"); renderSettings(); }
+      if (r && r.ok) { state.root = r.root; save(); updateChrome(); newSession(); treeCollapsed.clear(); loadTree(); toast("Working directory set"); renderSettings(); }
       else toast((r && r.error) || "Could not set directory");
       return;
     }
     const j = await (await fetch("/api/setroot", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ root }) })).json();
-    if (j.ok) { state.root = j.root; save(); updateChrome(); newSession(); toast("Working directory set"); renderSettings(); }
+    if (j.ok) { state.root = j.root; save(); updateChrome(); newSession(); treeCollapsed.clear(); loadTree(); toast("Working directory set"); renderSettings(); }
     else toast(j.error || "Could not set directory");
   });
   on("fRootPick", "click", async () => {

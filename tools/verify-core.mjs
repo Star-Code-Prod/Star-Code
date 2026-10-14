@@ -104,6 +104,17 @@ ok("detect: ollama up with models", det.ollama.up && det.ollama.models[0] === "l
 ok("detect: lmstudio down", det.lmstudio.up === false);
 ok("detect: vllm down", det.vllm.up === false);
 
+/* ------------------------- garbage payload safety ------------------------- */
+// A provider answering 200 with a non-array list must never throw; it falls
+// back to the static list exactly like an empty one.
+ok("normalizer survives {data:{}}", Array.isArray(normalizeModels("openai", { data: {} })));
+ok("normalizer survives {data:5}", normalizeModels("openai", { data: 5 }).length === 0);
+ok("normalizer survives {models:{}}", Array.isArray(normalizeModels("ollama", { models: null })));
+const garbage = await discoverModels("openai", { baseUrl: "https://api.test/v1", apiKey: "sk-garbage1" }, jsonFetch({ data: { oops: true } }));
+ok("garbage payload falls back", !garbage.live && garbage.models.length > 0 && typeof garbage.error === "string");
+const weird = await discoverModels("openai", { baseUrl: "https://api.test/v1", apiKey: "sk-garbage2" }, jsonFetch("not json at all"));
+ok("non-object payload falls back", !weird.live && weird.models.length > 0);
+
 /* --------------------------- permission rules --------------------------- */
 const empty = new Set();
 ok("manual asks by default", decisionFor("manual", "edit_file", empty) === "ask");

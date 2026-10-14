@@ -223,7 +223,7 @@ const HELP_TEXT = `**Star Code — commands**
 **Modes** (cycle with Shift+Tab or the mode menu): Manual · Accept edits · Plan · Bypass
 **Input**: \`@\` mention files · \`!\` run a shell command`;
 
-async function handler(req, res) {
+async function route(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
   if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) {
@@ -497,6 +497,19 @@ async function handler(req, res) {
 }
 
 const server = http.createServer(handler);
+
+// One guard for every route: an unexpected throw answers 500 instead of
+// killing the process (in the desktop build that would close the app).
+async function handler(req, res) {
+  try {
+    await route(req, res);
+  } catch (e) {
+    try { sendJSON(res, 500, { error: e.message }); } catch { /* headers already sent */ }
+  }
+}
+process.on("unhandledRejection", (e) => {
+  console.error("unhandled rejection:", e?.message || e);
+});
 
 /**
  * Start the local server. Returns { port, url, close }.
