@@ -898,6 +898,10 @@ select.inp{font-family:inherit;cursor:pointer}
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.4 1.6"/></svg>
         Session
       </button>
+      <button data-s="knowledge">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 2.5h7.5a2 2 0 012 2v9H5a2 2 0 01-2-2z"/><path d="M3 11.5a2 2 0 012-2h7.5"/></svg>
+        Knowledge
+      </button>
       <button data-s="keys">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><rect x="1.5" y="4" width="13" height="8" rx="2"/><path d="M4.5 7h2M8 7h3.5M4.5 9.5h5"/></svg>
         Shortcuts
@@ -2200,6 +2204,16 @@ async function handleCommand(text) {
     renderSettings();
     return;
   }
+  if (name === "knowledge") {
+    try {
+      const j = await (await fetch("/api/knowledge")).json();
+      const files = j.files || [];
+      say(files.length
+        ? "**Knowledge** — " + files.length + " file" + (files.length === 1 ? "" : "s") + ": " + files.map(f => "`" + f.name + "`").join(", ")
+        : "No knowledge yet. Add markdown files under `.star-code/knowledge/` or in **Settings → Knowledge**.");
+    } catch { say("Could not read the knowledge index."); }
+    return;
+  }
   if (name === "plan") { applyMode("plan"); save(); say("Switched to **plan mode**. I'll explore read-only and propose a plan."); return; }
   if (name === "export") { exportConv(); return; }
   if (name === "settings") { openSettings(); return; }
@@ -2338,6 +2352,7 @@ const COMMANDS = [
   { n: "/model", d: "Choose provider and model" },
   { n: "/models", d: "Pick a model (searchable)" },
   { n: "/connect", d: "Connect a provider (key, models)" },
+  { n: "/knowledge", d: "List the project knowledge files" },
   { n: "/theme", d: "Cycle dark, light, and system" },
   { n: "/settings", d: "Open settings" },
   { n: "/export", d: "Download the conversation" },
@@ -2452,6 +2467,7 @@ function renderSettings() {
   if (settingsSection === "providers") host.innerHTML = settingsProviders();
   else if (settingsSection === "appearance") host.innerHTML = settingsAppearance();
   else if (settingsSection === "session") host.innerHTML = settingsSession();
+  else if (settingsSection === "knowledge") host.innerHTML = settingsKnowledge();
   else if (settingsSection === "keys") host.innerHTML = settingsKeys();
   else host.innerHTML = settingsAbout();
   wireSettings();
@@ -2461,6 +2477,11 @@ function renderSettings() {
     // is still open (refreshLocals caches, so this cannot loop).
     refreshLocals().then(changed => {
       if (changed && settingsSection === "providers" && $("settings").classList.contains("on")) renderSettings();
+    });
+  }
+  if (settingsSection === "knowledge") {
+    loadKnowledge().then(changed => {
+      if (changed && settingsSection === "knowledge" && $("settings").classList.contains("on")) renderSettings();
     });
   }
 }
@@ -2691,6 +2712,46 @@ function settingsSession() {
   </div>`;
 }
 
+/* ---- knowledge settings ---- */
+let kFiles = [];
+let kView = "";
+let kContentCache = {};
+let kLoadedAt = 0;
+
+/** Fetch the index at most every 5s; returns true when it re-rendered. */
+async function loadKnowledge() {
+  if (Date.now() - kLoadedAt < 5000) return false;
+  try { kFiles = (await (await fetch("/api/knowledge")).json()).files || []; } catch { kFiles = []; }
+  kLoadedAt = Date.now();
+  return true;
+}
+
+function settingsKnowledge() {
+  return `
+  <div class="sect">
+    <h2 class="h">Knowledge</h2>
+    <p class="sh">Markdown notes the agent always sees the titles of and can search in full. Stored in <span class="mono">.star-code/knowledge/</span> inside this project — commit it or ignore it, your call.</p>
+    <div class="card">
+      <div class="ct">Files</div>
+      <div class="cs">${kFiles.length ? kFiles.length + " file" + (kFiles.length === 1 ? "" : "s") : "No knowledge yet."}</div>
+      ${kFiles.map(f => `<div class="prov">
+        <span class="pn">${esc(f.name)}</span>
+        <span class="pd">${(f.bytes / 1024).toFixed(1)} KB</span>
+        <button class="btn sm" data-kview="${esc(f.name)}">View</button>
+        <button class="btn sm dgr" data-kdel="${esc(f.name)}">Delete</button>
+      </div>`).join("")}
+      ${kView && kContentCache[kView] != null ? `<div class="fld" style="margin-top:12px"><label>${esc(kView)}</label><div id="kPreview" style="font-family:'JetBrains Mono',monospace;font-size:12px;padding:10px;border-radius:8px;background:var(--code-bg);color:var(--code-fg);white-space:pre-wrap;max-height:240px;overflow:auto">${esc(kContentCache[kView])}</div></div>` : ""}
+    </div>
+    <div class="card">
+      <div class="ct">Add or update</div>
+      <div class="cs">Saved as <span class="mono">name.md</span>; an existing name is overwritten.</div>
+      <div class="fld"><label>Name</label><input class="inp" id="fKAlias" placeholder="deploy-notes" autocomplete="off"></div>
+      <div class="fld"><label>Content (markdown)</label><textarea class="inp" id="fKContent" rows="8" placeholder="# Heading&#10;Notes the agent should know…"></textarea></div>
+      <button class="btn pri sm" id="fKSave">Save</button>
+    </div>
+  </div>`;
+}
+
 function settingsKeys() {
   return `
   <div class="sect">
@@ -2842,6 +2903,35 @@ function wireSettings() {
     state.theme = b.dataset.t; applyTheme(); save();
     document.querySelectorAll("#fTheme button").forEach(x => x.classList.toggle("on", x === b));
   }));
+  document.querySelectorAll("[data-kview]").forEach(el => el.addEventListener("click", async () => {
+    const name = el.dataset.kview;
+    try {
+      const j = await (await fetch("/api/knowledge/file?path=" + encodeURIComponent(name))).json();
+      kContentCache[name] = j.content || j.error || "";
+    } catch { kContentCache[name] = "(could not read)"; }
+    kView = name;
+    renderSettings();
+  }));
+  document.querySelectorAll("[data-kdel]").forEach(el => el.addEventListener("click", async () => {
+    const name = el.dataset.kdel;
+    if (!confirm("Delete " + name + "?")) return;
+    await fetch("/api/knowledge?path=" + encodeURIComponent(name), { method: "DELETE" });
+    if (kView === name) kView = "";
+    kLoadedAt = 0;
+    await loadKnowledge();
+    renderSettings();
+  }));
+  on("fKSave", "click", async () => {
+    const name = ($("fKAlias") ? $("fKAlias").value : "").trim();
+    const content = $("fKContent") ? $("fKContent").value : "";
+    if (!name) { toast("Name the note first"); return; }
+    const r = await (await fetch("/api/knowledge", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, content }),
+    })).json();
+    if (r.ok) { toast("Saved " + r.name); kLoadedAt = 0; await loadKnowledge(); renderSettings(); }
+    else toast(r.error || "Could not save");
+  });
   on("fThink", "click", e => { state.showThinking = !state.showThinking; save(); e.target.classList.toggle("on", state.showThinking); });
   on("fCollapse", "click", e => { state.autoCollapseThinking = !state.autoCollapseThinking; save(); e.target.classList.toggle("on", state.autoCollapseThinking); });
 
