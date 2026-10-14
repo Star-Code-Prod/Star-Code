@@ -125,6 +125,8 @@ ok("bypass allows everything", decisionFor("bypass", "run_command", empty) === "
 ok("acceptEdits edits without asking", decisionFor("acceptEdits", "write_file", empty) === "allow");
 ok("acceptEdits commands ask", decisionFor("acceptEdits", "run_command", empty) === "ask");
 ok("acceptEdits commands honour the allowlist", decisionFor("acceptEdits", "run_command", new Set(["run_command"])) === "allow");
+ok("plan allows knowledge search", decisionFor("plan", "search_knowledge", empty) === "allow");
+ok("manual allows knowledge search without asking", decisionFor("manual", "search_knowledge", empty) === "allow");
 
 /* ------------------------------ knowledge ------------------------------ */
 const kdir = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-knowledge-"));

@@ -1793,23 +1793,30 @@ function startAssistant() {
   msgCards = 0;
 }
 /** Hide ```tool / ```todo / ```artifact control blocks from what the user
- *  sees, including a block still streaming in (no closing fence yet). */
+ *  sees, including a block still streaming in (no closing fence yet).
+ *  Fences are line-anchored and length-matched so an artifact whose body
+ *  contains its own fence survives (open with four backticks for that). */
 function stripBlocks(s) {
-  let out = s.replace(/```(?:tool|todo|artifact)\b[\s\S]*?```/g, "");
-  out = out.replace(/```(?:tool|todo|artifact)\b[\s\S]*$/, "");
+  let out = String(s || "");
+  out = out.replace(/^(`{3,})artifact\b[^\n]*\n[\s\S]*?^\1[ \t]*$/gm, "");
+  out = out.replace(/^`{3,}(?:tool|todo)\b[\s\S]*?^`{3,}[ \t]*$/gm, "");
+  out = out.replace(/^(`{3,})artifact\b[\s\S]*$/m, "");
+  out = out.replace(/^`{3,}(?:tool|todo)\b[\s\S]*$/m, "");
   // collapse the blank gap the removal leaves behind
   return out.replace(/\n{3,}/g, "\n\n");
 }
 
-/** Complete ```artifact <lang> fences, in order. lang: html | svg | md. */
+/** Complete ```artifact <lang> fences, in order. lang: html | svg | md.
+ *  The closer must repeat the opener's backtick count on its own line, so
+ *  inner fences stay inside the artifact. */
 function parseArtifacts(s) {
   const out = [];
-  const re = /```artifact[ \t]*(\w*)[ \t]*\r?\n([\s\S]*?)```/g;
+  const re = /^(`{3,})artifact[ \t]*(\w*)[ \t]*\r?\n([\s\S]*?)^\1[ \t]*$/gm;
   let m;
   while ((m = re.exec(String(s || ""))) !== null) {
-    let lang = (m[1] || "html").toLowerCase();
+    let lang = (m[2] || "html").toLowerCase();
     if (lang === "markdown") lang = "md";
-    if (["html", "svg", "md"].includes(lang)) out.push({ lang, code: m[2].replace(/\n$/, "") });
+    if (["html", "svg", "md"].includes(lang)) out.push({ lang, code: m[3].replace(/\n$/, "") });
   }
   return out;
 }
@@ -1898,9 +1905,18 @@ function renderArtifact() {
     renderArtifact();
   });
   host.querySelector("#apOpen").addEventListener("click", () => {
-    const type = a.lang === "svg" ? "image/svg+xml" : a.lang === "md" ? "text/markdown" : "text/html";
-    const url = URL.createObjectURL(new Blob([a.code], { type }));
-    window.open(url, "_blank");
+    const html = a.lang === "html" ? a.code
+      : a.lang === "svg" ? `<!doctype html><body style="margin:0;display:grid;place-items:center;height:100vh">${a.code}</body>`
+      : `<pre style="font:13px ui-monospace,monospace;padding:24px;white-space:pre-wrap">${esc(a.code)}</pre>`;
+    if (bridge && bridge.openHtml) {
+      // Desktop: blob URLs are denied by the window-open handler, so the
+      // main process writes a temp .html and hands it to the real browser.
+      bridge.openHtml("artifact", html);
+    } else {
+      const type = a.lang === "svg" ? "image/svg+xml" : a.lang === "md" ? "text/markdown" : "text/html";
+      const url = URL.createObjectURL(new Blob([a.code], { type }));
+      window.open(url, "_blank");
+    }
   });
 }
 function addDelta(t) {

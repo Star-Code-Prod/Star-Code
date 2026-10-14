@@ -92,6 +92,100 @@ try {
 ok("auth.json holds the connected key", storedOk);
 fs.rmSync(tmp2, { recursive: true, force: true });
 
+// helper: spawn the CLI with piped stdin and a private stub
+function spawnCli(args, input, envExtra) {
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, [BIN, ...args], {
+      env: { ...cleanEnv, ...envExtra },
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    let stdout = "", stderr = "";
+    child.stdout.on("data", (d) => { stdout += d; });
+    child.stderr.on("data", (d) => { stderr += d; });
+    if (input) child.stdin.write(input);
+    child.stdin.end();
+    const killer = setTimeout(() => child.kill(), 25000);
+    child.on("exit", (code) => { clearTimeout(killer); resolve({ status: code, stdout, stderr }); });
+  });
+}
+function sseServer(handler) {
+  return http.createServer((req, res) => {
+    if (req.method === "POST" && req.url.endsWith("/chat/completions")) {
+      res.writeHead(200, { "Content-Type": "text/event-stream" });
+      const send = (obj) => res.write("data: " + JSON.stringify(obj) + "\n\n");
+      handler(send, res);
+      return;
+    }
+    res.writeHead(404);
+    res.end();
+  });
+}
+const listen = (srv) => new Promise((r) => srv.listen(0, "127.0.0.1", r));
+
+// 5. a failing turn must exit 1 with the provider's error
+const badStub = http.createServer((req, res) => {
+  if (req.method === "POST" && req.url.endsWith("/chat/completions")) {
+    res.writeHead(500, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: { message: "boom" } }));
+    return;
+  }
+  res.writeHead(404); res.end();
+});
+await listen(badStub);
+const failRun = await spawnCli(["say ok", "--model", "custom/model-name", "--mode", "bypass"], "", { STAR_CODE_TEST_BASE: "http://127.0.0.1:" + badStub.address().port + "/v1" });
+ok("failed turn exits 1", failRun.status === 1, String(failRun.status));
+ok("failed turn explains", /HTTP 500/.test((failRun.stdout || "") + (failRun.stderr || "")), (failRun.stderr || "").slice(0, 120));
+badStub.close();
+
+// 6. a big single burst of output must still exit 0 (Windows teardown proof)
+const big = "x".repeat(200_000);
+const burstStub = sseServer((send, res) => {
+  send({ choices: [{ delta: { content: big } }] });
+  res.write("data: [DONE]\n\n");
+  res.end();
+});
+await listen(burstStub);
+const burstRun = await spawnCli(["say ok", "--model", "custom/model-name", "--mode", "bypass"], "", { STAR_CODE_TEST_BASE: "http://127.0.0.1:" + burstStub.address().port + "/v1" });
+ok("big burst exits 0", burstRun.status === 0, String(burstRun.status));
+ok("big burst arrives intact", (burstRun.stdout || "").length >= 200000, String((burstRun.stdout || "").length));
+burstStub.close();
+
+// 7. one permission prompt covers two calls after "a" (session scope)
+let permHits = 0;
+const permStub = sseServer((send, res) => {
+  permHits++;
+  if (permHits === 1) {
+    const text = "Running two commands:\n```tool\n{\"name\":\"run_command\",\"args\":{\"command\":\"echo one\"}}\n```\n```tool\n{\"name\":\"run_command\",\"args\":{\"command\":\"echo two\"}}\n```";
+    send({ choices: [{ delta: { content: text } }] });
+  } else {
+    send({ choices: [{ delta: { content: "done" } }] });
+  }
+  res.write("data: [DONE]\n\n");
+  res.end();
+});
+await listen(permStub);
+const permRun = await spawnCli(["do it", "--model", "custom/model-name", "--mode", "manual"], "a\n", { STAR_CODE_TEST_BASE: "http://127.0.0.1:" + permStub.address().port + "/v1" });
+ok("one prompt for two calls", (permRun.stdout.match(/allow\?/g) || []).length === 1, (permRun.stdout || "").slice(-200));
+ok("both calls ran after the session allow", permRun.stdout.includes("echo one") && permRun.stdout.includes("echo two"));
+ok("raw control blocks are hidden", !/"name":/.test(permRun.stdout), (permRun.stdout || "").slice(0, 200));
+ok("permission run exits 0", permRun.status === 0, String(permRun.status));
+permStub.close();
+
+// 8. plan mode refuses writes and writes nothing
+const planRoot = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-plan-"));
+const planStub = sseServer((send, res) => {
+  const text = "```tool\n{\"name\":\"write_file\",\"args\":{\"path\":\"plan-escape.js\",\"content\":\"x\"}}\n```";
+  send({ choices: [{ delta: { content: text } }] });
+  res.write("data: [DONE]\n\n");
+  res.end();
+});
+await listen(planStub);
+const planRun = await spawnCli(["try a write", "--model", "custom/model-name", "--mode", "plan", "--root", planRoot], "", { STAR_CODE_TEST_BASE: "http://127.0.0.1:" + planStub.address().port + "/v1" });
+ok("plan mode denies writes", /denied/i.test(planRun.stdout || ""), (planRun.stdout || "").slice(0, 160));
+ok("plan mode writes nothing", !fs.existsSync(path.join(planRoot, "plan-escape.js")));
+planStub.close();
+fs.rmSync(planRoot, { recursive: true, force: true });
+
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(results.join("\n"));
 const failed = results.filter((r) => r.startsWith("FAIL")).length;

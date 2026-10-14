@@ -76,6 +76,16 @@ ok("stripBlocks removes complete artifacts", !s1.includes("artifact") && s1.incl
 const s2 = fns.stripBlocks("a\n```artifact html\n<b>streaming…");
 ok("stripBlocks removes an unclosed streaming artifact", !s2.includes("streaming"));
 
+// ---- 8. fence-aware artifacts (review fixes) ----
+const p3 = fns.parseArtifacts("text\n```artifact html\n<pre>```</pre>\n```\ndone");
+ok("mid-line fence stays inside the artifact", p3.length === 1 && p3[0].code.includes("<pre>```</pre>"));
+const s3 = fns.stripBlocks("a\n```artifact html\n<pre>```</pre>\n```\nb");
+ok("stripBlocks keeps mid-line fences intact", !s3.includes("<pre>") && s3.includes("a") && s3.includes("b"));
+const p4 = fns.parseArtifacts("````artifact md\n# Title\n```js\nlet a=1;\n```\nmore prose\n````");
+ok("four-backtick artifact holds inner fences", p4.length === 1 && p4[0].code.includes("```js") && p4[0].code.includes("more prose"));
+const s4 = fns.stripBlocks("x\n````artifact md\n```js\nlet a=1;\n```\n````\ny");
+ok("stripBlocks handles four-backtick artifacts", !s4.includes("let a") && s4.includes("x") && s4.includes("y"));
+
 console.log(results.join("\n"));
 const failed = results.filter((r) => r.startsWith("FAIL")).length;
 console.log("\n" + (results.length - failed) + "/" + results.length + " checks passed" +

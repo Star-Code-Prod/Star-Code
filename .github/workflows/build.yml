@@ -215,10 +215,13 @@ jobs:
             Automated build from `${{ github.sha }}`.
 
             **Downloads**
+            <!-- keep in sync with the artifactName templates in package.json -->
             | Platform | File |
             |---|---|
-            | Windows | `Star-Code-Setup-*.exe` (installer) or `Star-Code-*-portable.exe` |
-            | macOS | `Star-Code-*-arm64.dmg` |
-            | Linux | `Star-Code-*-x86_64.AppImage` or `Star-Code-*-amd64.deb` |
+            | Windows | `Star-Code-Desktop-Setup-*.exe` (installer) or `Star-Code-Desktop-*-portable.exe` |
+            | macOS | `Star-Code-Desktop-*-arm64.dmg` |
+            | Linux | `Star-Code-Desktop-*-x86_64.AppImage` or `Star-Code-Desktop-*-amd64.deb` |
+
+            The CLI ships with the source: `npm i -g .` then `star-code "…"`.
 
             Builds are unsigned, so your OS will warn on first launch.

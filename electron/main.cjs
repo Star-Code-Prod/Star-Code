@@ -265,6 +265,22 @@ function wire() {
     return true;
   });
 
+  // "Open in browser" for artifacts: blob URLs cannot cross the window-open
+  // handler, so write the document to a temp file and hand it to the OS.
+  ipcMain.handle("desktop:open-html", async (_e, { title, html } = {}) => {
+    try {
+      const dir = path.join(app.getPath("temp"), "star-code-preview");
+      fs.mkdirSync(dir, { recursive: true });
+      const safe = String(title || "artifact").replace(/[^a-z0-9\-_]/gi, "_").slice(0, 60) || "artifact";
+      const file = path.join(dir, Date.now() + "-" + safe + ".html");
+      fs.writeFileSync(file, String(html || ""), "utf8");
+      await shell.openPath(file);
+      return { ok: true, file };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  });
+
   ipcMain.handle("desktop:set-theme", (_e, theme) => {
     nativeTheme.themeSource = theme === "light" ? "light" : theme === "dark" ? "dark" : "system";
     return true;

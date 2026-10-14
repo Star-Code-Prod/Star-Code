@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld("desktop", {
   setRoot: (p) => ipcRenderer.invoke("desktop:set-root", p),
   reveal: (p) => ipcRenderer.invoke("desktop:reveal", p),
   openExternal: (u) => ipcRenderer.invoke("desktop:open-external", u),
+  openHtml: (title, html) => ipcRenderer.invoke("desktop:open-html", { title, html }),
   setTheme: (t) => ipcRenderer.invoke("desktop:set-theme", t),
   window: (a) => ipcRenderer.invoke("desktop:window", a),
   checkUpdates: () => ipcRenderer.invoke("desktop:check-updates"),

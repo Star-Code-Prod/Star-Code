@@ -86,17 +86,47 @@ function currentKey() {
 /* -------------------------------- output --------------------------------- */
 const out = (s) => process.stdout.write(s);
 const err = (s) => process.stderr.write(s + "\n");
+
+// Control blocks (tool/todo/artifact fences) are machine traffic, not part
+// of the answer: the CLI strips them from the stream the way the UI does,
+// printing only genuinely new stable text as the message grows.
+let turnRaw = "";
+let turnShown = "";
+const stripCtl = (s) => String(s)
+  .replace(/^(`{3,})artifact\b[^\n]*\n[\s\S]*?^\1[ \t]*$/gm, "")
+  .replace(/^`{3,}(?:tool|todo)\b[\s\S]*?^`{3,}[ \t]*$/gm, "")
+  .replace(/^(`{3,})artifact\b[\s\S]*$/m, "")
+  .replace(/^`{3,}(?:tool|todo)\b[\s\S]*$/m, "");
+function flushShown() {
+  const shown = stripCtl(turnRaw);
+  if (shown.length > turnShown.length) {
+    let i = 0;
+    while (i < turnShown.length && shown[i] === turnShown[i]) i++;
+    out(shown.slice(i));
+  }
+  turnShown = shown;
+}
+
 const emit = (evt) => {
-  if (evt.type === "delta") out(evt.text);
+  if (evt.type === "assistant_start") { turnRaw = ""; turnShown = ""; }
+  else if (evt.type === "delta") { turnRaw += evt.text; flushShown(); }
   else if (evt.type === "thinking_delta") out(dim(evt.text));
-  else if (evt.type === "tool") out("\n" + yellow("→ " + evt.name + (evt.allowed === false ? " (denied)" : "")) + "\n");
-  else if (evt.type === "tool_result") out(evt.status === "ok" ? dim("  ✓") + "\n" : dim("  ✗") + "\n");
+  else if (evt.type === "tool") {
+    const arg = evt.args ? (evt.args.command || evt.args.path || evt.args.pattern || evt.args.query || "") : "";
+    out("\n" + yellow("→ " + evt.name + (arg ? " " + String(arg).slice(0, 120) : "") + (evt.allowed === false ? " (denied)" : "")) + "\n");
+  }
+  else if (evt.type === "tool_result") {
+    out(evt.status === "ok" ? dim("  ✓") + "\n" : dim("  ✗") + "\n");
+    if (evt.name === "run_command" && evt.preview) {
+      out(dim("  " + String(evt.preview).trim().split("\n").join("\n  ")) + "\n");
+    }
+  }
   else if (evt.type === "diff") {
     const before = String(evt.before || "").split("\n"), after = String(evt.after || "").split("\n");
     out(dim(`  ${evt.path} (+${Math.max(0, after.length - before.length)} lines)\n`));
   }
-  else if (evt.type === "error") err(red("error: " + evt.message));
-  else if (evt.type === "done") out("\n");
+  else if (evt.type === "error") { err(red("error: " + evt.message)); process.exitCode = 1; }
+  else if (evt.type === "done") { flushShown(); out("\n"); }
 };
 
 /* ------------------------------ conversation ----------------------------- */
@@ -220,10 +250,12 @@ async function repl() {
 }
 
 /* --------------------------------- main ---------------------------------- */
+// No process.exit(): with bursty stdout, exiting mid-write aborts the
+// process on Windows (libuv assertion, 0xC0000409). Setting exitCode and
+// letting the loop drain is what the exit contract actually needs.
 if (prompt.length) {
   await runTurn(prompt.join(" "));
-  process.exit(process.exitCode || 0);
+  if (rl) rl.close();
 } else {
   await repl();
-  process.exit(process.exitCode || 0);
 }
