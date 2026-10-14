@@ -1,0 +1,88 @@
+# =============================================================================
+# Star Code — what NOT to commit
+#
+# Everything below is either installed, generated locally, or built by CI.
+# GitHub Actions produces the installers (.github/workflows/build.yml), so no
+# build output should ever be tracked. See "never ignored" at the bottom for
+# the files that MUST stay in the repo.
+# =============================================================================
+
+# --- dependencies (installed via `npm ci` on CI) ---
+node_modules/
+.pnp
+.pnp.js
+.yarn/
+.yarnrc.yml
+
+# --- build output: electron-builder (see `build.directories.output`) ---
+release/
+dist/
+out/
+build/
+app/
+app-*/
+
+# --- packaging artifacts, wherever they end up ---
+*.blockmap
+*.nsis.7z
+*.asar
+latest.yml
+latest-mac.yml
+latest-linux.yml
+__uninstaller-*.exe
+
+# --- caches & temp ---
+.cache/
+.parcel-cache/
+.eslintcache
+*.tsbuildinfo
+*.tmp
+*.temp
+
+# --- logs ---
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# --- local diagnostics (produced by tools/smoketest.ps1, tools/screenshot.ps1) ---
+# CCD_SHOT / CCD_DIAG outputs in electron/main.cjs
+app-shot.png
+diag.json
+startup-error.log
+
+# --- local environment / secrets ---
+# NB: API keys live in browser localStorage or Electron userData, never a file.
+# These are here so a stray .env never gets pushed.
+.env
+.env.local
+.env.*.local
+*.pem
+*.p12
+*.pfx
+*.key
+
+# --- editors / OS ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+desktop.ini
+# note: `.vscode/` wholesale can't be un-ignored, so ignore contents instead
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+\#*\#
+.\#*
+
+# --- packaging config that can contain local paths ---
+builder-effective-config.yaml

@@ -1,0 +1,62 @@
+# =============================================================================
+# Star Code — line endings & binary handling
+#
+# Normalise text to LF inside the repository, then check out native endings.
+# Batch and PowerShell files are pinned to CRLF because cmd.exe and some
+# PowerShell hosts mis-parse LF-only batch files.
+# =============================================================================
+
+# default: detect text, normalise to LF in the repo
+* text=auto eol=lf
+
+# --- Windows scripts must have CRLF ---
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# --- shell scripts must have LF (CRLF breaks the shebang) ---
+*.sh text eol=lf
+*.bash text eol=lf
+
+# --- explicit text types ---
+*.js   text
+*.cjs  text
+*.mjs  text
+*.json text
+*.html text
+*.css  text
+*.md   text
+*.yml  text
+*.yaml text
+*.svg  text
+*.txt  text
+
+# --- binary: never diff, never merge, never convert ---
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.icns binary
+*.woff binary
+*.woff2 binary
+*.ttf  binary
+*.eot  binary
+*.exe  binary
+*.dll  binary
+*.dmg  binary
+*.zip  binary
+*.7z   binary
+*.asar binary
+
+# --- generated assets: keep them, but collapse them in diffs ---
+assets/icon*.png  binary
+assets/icon.ico   binary
+docs/screenshot.png binary
+
+# --- keep lockfile diffs readable, but don't hide them ---
+package-lock.json text -diff linguist-generated=true
+
+# --- exclude vendored code from language stats ---
+node_modules/** linguist-vendored
+release/**      linguist-vendored
