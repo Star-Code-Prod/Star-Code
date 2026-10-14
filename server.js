@@ -178,7 +178,7 @@ async function runLocalCommand(name, args, sessionId) {
     }
     case "status": {
       const g = await sh("git rev-parse --abbrev-ref HEAD 2>$null");
-      return { text: `**Status**\n\n- Version: 1.1.0\n- Working dir: \`${ROOT}\`\n- Git branch: ${g.stdout.trim() || "n/a"}` };
+      return { text: `**Status**\n\n- Version: ${VERSION}\n- Working dir: \`${ROOT}\`\n- Git branch: ${g.stdout.trim() || "n/a"}` };
     }
     case "memory": {
       const mem = readProjectMemory(ROOT);

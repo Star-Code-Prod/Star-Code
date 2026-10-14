@@ -984,6 +984,7 @@ const bridge = (typeof window !== "undefined" && window.desktop && window.deskto
   state.root = state.root || meta.root;
   if (!localStorage.getItem(LS)) save();
   $("setSaved").textContent = "saved"; $("setSaved").className = "pill ok";
+  await importLocalKeys();
   updateChrome();
   loadLocalSessionFlags();
   await loadSessions();
@@ -994,12 +995,6 @@ const bridge = (typeof window !== "undefined" && window.desktop && window.deskto
   lastUsage = { contextTokens: 0, contextLimit: 200000, contextPct: 0 };
   renderRing();
   renderSettings();
-  // Load project plan/memory if present
-  try {
-    const m = await (await fetch("/api/command", { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId: "x", name: "memory" }) })).json();
-    if (m.text && !m.text.includes("No memory file")) { /* keep plan pane clean */ }
-  } catch {}
   // Quiet update check a few seconds after launch. Deliberately delayed so it
   // never competes with first paint, and it only surfaces a banner when there
   // is genuinely something newer than the running build.
@@ -1808,6 +1803,13 @@ async function handleCommand(text) {
   addUser(text);
   if (name === "clear") { newSession(); return; }
   if (name === "model") { modelMenu($("cModel")); return; }
+  if (name === "connect") {
+    settingsSection = "providers"; providerDetailId = null;
+    openSettings();
+    document.querySelectorAll(".set-nav button").forEach(x => x.classList.toggle("on", x.dataset.s === "providers"));
+    renderSettings();
+    return;
+  }
   if (name === "plan") { applyMode("plan"); save(); say("Switched to **plan mode**. I'll explore read-only and propose a plan."); return; }
   if (name === "export") { exportConv(); return; }
   if (name === "settings") { openSettings(); return; }
@@ -1943,6 +1945,7 @@ const COMMANDS = [
   { n: "/review", d: "Ask for a code review" },
   { n: "/btw", d: "Ask a side question without touching the thread" },
   { n: "/model", d: "Choose provider and model" },
+  { n: "/connect", d: "Connect a provider (key, models)" },
   { n: "/theme", d: "Cycle dark, light, and system" },
   { n: "/settings", d: "Open settings" },
   { n: "/export", d: "Download the conversation" },
@@ -2060,61 +2063,164 @@ function renderSettings() {
   else if (settingsSection === "keys") host.innerHTML = settingsKeys();
   else host.innerHTML = settingsAbout();
   wireSettings();
+  if (settingsSection === "providers") {
+    // detection may change the list ("Detected" / "Not running"); refresh it
+    // once, then re-render only if something actually changed and the page
+    // is still open (refreshLocals caches, so this cannot loop).
+    refreshLocals().then(changed => {
+      if (changed && settingsSection === "providers" && $("settings").classList.contains("on")) renderSettings();
+    });
+  }
+}
+
+/* ---- providers: connect-first list + detail ---- */
+let providerDetailId = null;
+let provFilter = "";
+let connectState = { error: "", warning: "", message: "" };
+let localStatus = {};
+let localFetchedAt = 0;
+let modelListCache = {};   // provider id -> { models, live, error, hint }
+
+async function refreshMeta() { meta = await (await fetch("/api/providers")).json(); }
+
+/** Local runtime detection, cached briefly client-side (server caches 60s). */
+async function refreshLocals(force) {
+  if (!force && Date.now() - localFetchedAt < 30000) return false;
+  try { localStatus = await (await fetch("/api/detect")).json(); localFetchedAt = Date.now(); return true; }
+  catch { return false; }
+}
+
+/** One-time move of browser-stored keys into ~/.star-code/auth.json. */
+async function importLocalKeys() {
+  let imported = 0;
+  for (const [id, cfg] of Object.entries(state.providers || {})) {
+    if (!cfg || !cfg.apiKey) continue;
+    try {
+      const r = await (await fetch("/api/auth", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: id, apiKey: cfg.apiKey, baseUrl: cfg.baseUrl || undefined }),
+      })).json();
+      if (r.ok) { delete cfg.apiKey; delete cfg.baseUrl; imported++; }
+    } catch { /* keep the key client-side; chat still sends it */ }
+  }
+  if (imported) {
+    save();
+    await refreshMeta();
+    toast("Imported " + imported + " API key" + (imported === 1 ? "" : "s"));
+  }
+}
+
+function provPill(p) {
+  if (p.connected) return ["ok", "Connected"];
+  if (p.envConfigured) return ["ok", "Env key"];
+  if (p.local && localStatus[p.id]?.up) return ["", "Detected"];
+  if (p.noKeyRequired) return ["", localStatus[p.id] ? "Not running" : "Not required"];
+  return ["warn", "Needs key"];
+}
+
+function provRow(p) {
+  const [cls, text] = provPill(p);
+  return `<button class="prov" data-prov="${esc(p.id)}">
+    <span class="pn">${esc(p.label)}${p.id === state.current ? ' <span class="pill" style="margin-left:6px">active</span>' : ""}</span>
+    <span class="pd">${esc((state.providers[p.id] || {}).model || "")}</span>
+    <span class="pill ${cls}">${text}</span>
+  </button>`;
 }
 
 function settingsProviders() {
-  const p = prov();
-  const cfg = meta.providers.find(x => x.id === state.current);
-  const needsKey = cfg?.needsKey !== false;
+  if (providerDetailId) return settingsProviderDetail(providerDetailId);
+  const q = provFilter.trim().toLowerCase();
+  const all = meta.providers.filter(x => !q || x.label.toLowerCase().includes(q) || x.id.includes(q));
+  const isConnected = (p) => p.connected || p.envConfigured || (p.local && localStatus[p.id]?.up);
+  const connected = all.filter(isConnected);
+  const available = all.filter(p => !isConnected(p));
   return `
   <div class="sect">
     <h2 class="h">Providers</h2>
-    <p class="sh">Connect any OpenAI-compatible endpoint. Keys are stored only in this browser and sent to your own local server.</p>
+    <p class="sh">Pick a provider, paste its API key, then choose a model. Local runtimes are detected automatically and need no key.</p>
+    ${meta.providers.length > 8 ? `
+    <div class="fld"><input class="inp" id="fProvSearch" value="${esc(provFilter)}" placeholder="Search providers…"></div>` : ""}
+    ${connected.length ? `
+    <div class="card">
+      <div class="ct">Connected</div>
+      <div class="cs">Ready to use.</div>
+      ${connected.map(provRow).join("")}
+    </div>` : ""}
+    <div class="card">
+      <div class="ct">${connected.length ? "Available" : "All providers"}</div>
+      <div class="cs">Connect one to use it.</div>
+      ${available.map(provRow).join("") || '<div class="pempty">No matches.</div>'}
+    </div>
+    <p class="sh" style="margin:0">Keys are stored on this machine in <span class="mono">~/.star-code/auth.json</span> and only ever go to the provider itself.</p>
+  </div>`;
+}
+
+function modelPreviewHtml(id) {
+  const cached = modelListCache[id];
+  if (!cached) return '<div class="pempty">Refresh to fetch this provider\'s models.</div>';
+  const rows = cached.models.slice(0, 60).map(m =>
+    `<div class="trow" style="cursor:default"><span class="v">${m.reasoning ? "reason" : ""}</span><span class="a">${esc(m.id)}</span><span class="m">${m.contextLength ? Math.round(m.contextLength / 1000) + "k" : ""}</span></div>`).join("");
+  return (cached.live ? "" : `<div class="sh" style="margin:0 0 8px">Live list unavailable${cached.error ? ` (${esc(cached.error)})` : ""} — showing the built-in list.</div>`) +
+    `<div style="max-height:220px;overflow:auto">${rows}</div>`;
+}
+
+function settingsProviderDetail(id) {
+  const p = meta.providers.find(x => x.id === id);
+  if (!p) { providerDetailId = null; return settingsProviders(); }
+  const det = localStatus[id];
+  const cached = modelListCache[id];
+  return `
+  <div class="sect">
+    <h2 class="h">${esc(p.label)}${p.id === state.current ? ' <span class="pill" style="margin-left:8px">active</span>' : ""}</h2>
+    <p class="sh">${p.local ? `Local runtime at <span class="mono">${esc(p.baseUrlOverride || p.baseUrl)}</span> — no key required.` : "Paste an API key and connect; the model list comes from the provider itself."}</p>
+    ${connectState.error ? `<div class="banner err">${esc(connectState.error)}</div>` : ""}
+    ${connectState.warning ? `<div class="banner">${esc(connectState.warning)}</div>` : ""}
+    ${connectState.message ? `<div class="banner ok">${esc(connectState.message)}</div>` : ""}
 
     <div class="card">
-      <div class="ct">Active provider</div>
-      <div class="cs">The provider used for new messages in this session.</div>
+      ${p.needsKey ? `
       <div class="fld">
-        <label>Provider</label>
-        <select class="inp" id="fProvider">
-          ${meta.providers.map(x => `<option value="${x.id}" ${x.id === state.current ? "selected" : ""}>${esc(x.label)}${x.envConfigured ? " — env key detected" : ""}</option>`).join("")}
-        </select>
-      </div>
-      <div class="fld">
-        <label>Model</label>
-        <input class="inp mono" id="fModel" value="${esc(p.model || "")}" list="modelOpts" placeholder="${esc(cfg?.defaultModel || "model")}">
-        <datalist id="modelOpts">${(cfg?.models || []).map(m => `<option value="${esc(m)}">`).join("")}</datalist>
-      </div>
-      <div class="fld" style="display:${needsKey ? "block" : "none"}">
-        <label>API key ${cfg?.envConfigured ? '<span class="pill ok" style="margin-left:6px">env</span>' : ""}</label>
-        <input class="inp mono" id="fKey" type="password" value="${esc(p.apiKey || "")}" placeholder="${needsKey ? "sk-…" : "not required"}" autocomplete="off">
-      </div>
-      <div class="fld">
-        <label>Base URL</label>
-        <input class="inp mono" id="fBase" value="${esc(p.baseUrl || "")}" placeholder="${esc(cfg?.baseUrl || "")}">
-      </div>
+        <label>API key ${p.connected ? `<span class="pill ok" style="margin-left:6px">stored ${esc(p.masked)}</span>` : p.envConfigured ? '<span class="pill ok" style="margin-left:6px">env</span>' : ""}</label>
+        <input class="inp mono" id="fKey" type="password" value="" placeholder="${p.connected ? "paste to replace the stored key" : "sk-…"}" autocomplete="off">
+      </div>` : ""}
+      ${p.local ? `
+      <div class="row">
+        <div class="rl">
+          <div class="rt">${det && det.up ? "Running" : "Not running"}</div>
+          <div class="rd">${det && det.up ? `${(det.models || []).length} models loaded` : "Start it, then refresh — it will show up here."}</div>
+        </div>
+      </div>` : ""}
       <div class="row" style="border-top:1px solid var(--border);margin-top:4px;padding-top:13px">
         <div class="rl">
-          <div class="rt">Connection</div>
-          <div class="rd" id="testMsg">Send a one-word probe to check the key and URL.</div>
+          <div class="rt">Models</div>
+          <div class="rd">${cached ? `${cached.models.length} available${cached.live ? " (live)" : " (built-in list)"}` : "Not fetched yet."}</div>
         </div>
-        <div class="rc"><button class="btn sm" id="fTest">Test</button></div>
+        <div class="rc">
+          <button class="btn sm" id="fRefresh">Refresh</button>
+          ${p.id !== state.current ? '<button class="btn sm" id="fSetActive">Set active</button>' : ""}
+          ${p.needsKey ? '<button class="btn pri sm" id="fConnect">Connect</button>' : ""}
+        </div>
       </div>
+      ${p.connected ? `
+      <div class="row">
+        <div class="rl"><div class="rt">Stored key</div><div class="rd">${esc(p.masked)}</div></div>
+        <div class="rc"><button class="btn sm dgr" id="fDisconnect">Disconnect</button></div>
+      </div>` : ""}
+      <details style="margin-top:14px">
+        <summary style="cursor:pointer;font-size:12.5px;color:var(--muted)">Advanced</summary>
+        <div class="fld" style="margin-top:10px">
+          <label>Base URL</label>
+          <input class="inp mono" id="fBase" value="${esc(p.baseUrlOverride || "")}" placeholder="${esc(p.baseUrl)}">
+        </div>
+        <button class="btn sm" id="fSaveBase">Save base URL</button>
+      </details>
     </div>
 
     <div class="card">
-      <div class="ct">All providers</div>
-      <div class="cs">Each provider keeps its own key, base URL, and model.</div>
-      ${meta.providers.map(x => {
-        const c = state.providers[x.id] || {};
-        const has = c.apiKey ? "key set" : x.envConfigured ? "env key" : "no key";
-        return `<div class="prov">
-          <span class="pn">${esc(x.label)}${x.id === state.current ? ' <span class="pill" style="margin-left:6px">active</span>' : ""}</span>
-          <span class="pd">${esc(c.model || x.defaultModel)}</span>
-          <span class="pill ${c.apiKey || x.envConfigured ? "ok" : "no"}">${has}</span>
-        </div>`;
-      }).join("")}
+      <div class="ct">Model list</div>
+      ${modelPreviewHtml(id)}
     </div>
+    <button class="btn sm" id="fBack">← All providers</button>
   </div>`;
 }
 
@@ -2207,7 +2313,7 @@ function settingsKeys() {
 function settingsAbout() {
   const p = prov();
   const cfg = meta.providers.find(x => x.id === state.current);
-  const ver = (updateInfo && updateInfo.current) || (bridge && "…") || "—";
+  const ver = (updateInfo && updateInfo.current) || (bridge ? "…" : (meta && meta.version)) || "—";
   const newer = updateInfo && updateInfo.ok && updateInfo.newer;
   return `
   <div class="sect">
@@ -2249,46 +2355,95 @@ function wireSettings() {
   const pv = prov();
   const on = (id, ev, fn) => { const el = $(id); if (el) el.addEventListener(ev, fn); };
 
-  on("fProvider", "change", e => {
-    state.current = e.target.value;
-    const c = state.providers[state.current];
-    const cfg = meta.providers.find(x => x.id === state.current);
-    if (!c.model) c.model = cfg.defaultModel;
-    save(); updateChrome(); renderSettings(); renderSessions();
+  document.querySelectorAll("[data-prov]").forEach(el => el.addEventListener("click", () => {
+    providerDetailId = el.dataset.prov;
+    connectState = { error: "", warning: "", message: "" };
+    renderSettings();
+  }));
+  on("fProvSearch", "input", e => {
+    provFilter = e.target.value;
+    renderSettings();
+    const s = $("fProvSearch");
+    if (s) { s.focus(); s.setSelectionRange(s.value.length, s.value.length); }
   });
-  on("fModel", "change", e => { prov().model = e.target.value.trim(); save(); updateChrome(); renderSessions(); });
-  on("fModel", "input", e => { prov().model = e.target.value; save(); updateChrome(); });
-  on("fKey", "input", e => { prov().apiKey = e.target.value.trim(); save(); });
-  on("fBase", "input", e => { prov().baseUrl = e.target.value.trim(); save(); });
-  on("fTest", "click", async () => {
-    const b = $("fTest"), msg = $("testMsg");
-    b.textContent = "Testing…"; b.disabled = true;
-    msg.textContent = "Sending probe…";
+  on("fBack", "click", () => {
+    providerDetailId = null;
+    connectState = { error: "", warning: "", message: "" };
+    renderSettings();
+  });
+  on("fSetActive", "click", () => {
+    state.current = providerDetailId;
+    state.providers[state.current] = state.providers[state.current] || {};
+    if (!state.providers[state.current].model) {
+      state.providers[state.current].model = (meta.providers.find(x => x.id === state.current) || {}).defaultModel;
+    }
+    save(); updateChrome(); renderSessions(); renderSettings();
+    toast("Active provider: " + state.current);
+  });
+  on("fRefresh", "click", async () => {
+    const id = providerDetailId;
     try {
-      const res = await fetch("/api/chat", {
+      const r = await (await fetch("/api/models", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sessionId: "probe-" + Date.now(), message: "Say OK and nothing else.",
-          provider: state.current, model: prov().model, apiKey: prov().apiKey, baseUrl: prov().baseUrl,
+          provider: id,
+          baseUrl: ($("fBase") || {}).value ? $("fBase").value.trim() : undefined,
+          apiKey: ($("fKey") || {}).value ? $("fKey").value.trim() : undefined,
+          refresh: true,
         }),
-      });
-      const reader = res.body.getReader(), dec = new TextDecoder(); let buf = "", ok = false, err = "";
-      const to = setTimeout(() => reader.cancel().catch(() => {}), 25000);
-      while (true) {
-        const { value, done } = await reader.read(); if (done) break;
-        buf += dec.decode(value, { stream: true });
-        if (buf.includes('"delta"')) { ok = true; break; }
-        const m = buf.match(/"message":"([^"]+)"/);
-        if (buf.includes('"error"') && m) { err = m[1]; break; }
-      }
-      clearTimeout(to); reader.cancel().catch(() => {});
-      if (ok) { msg.textContent = "Connected successfully."; b.textContent = "✓ Works"; b.className = "btn sm"; }
-      else { msg.textContent = err || "No response from the model."; b.textContent = "✗ Failed"; }
+      })).json();
+      modelListCache[id] = r;
+      if (["ollama", "lmstudio", "vllm"].includes(id)) await refreshLocals(true);
+      connectState = r.live
+        ? { error: "", warning: "", message: `Fetched ${r.models.length} models.` }
+        : { error: "", warning: "Using the built-in list" + (r.error ? ` — ${r.error}` : "."), message: "" };
     } catch (e) {
-      $("testMsg").textContent = e.message;
-      b.textContent = "✗ Failed";
+      connectState = { error: e.message, warning: "", message: "" };
     }
-    setTimeout(() => { b.textContent = "Test"; b.disabled = false; }, 2200);
+    renderSettings();
+  });
+  on("fConnect", "click", async () => {
+    const id = providerDetailId;
+    const key = ($("fKey") ? $("fKey").value : "").trim();
+    const base = ($("fBase") ? $("fBase").value : "").trim() || undefined;
+    if (!key) { connectState = { error: "Paste an API key first.", warning: "", message: "" }; return renderSettings(); }
+    try {
+      const probe = await (await fetch("/api/models", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: id, baseUrl: base, apiKey: key }),
+      })).json();
+      modelListCache[id] = probe;
+      if (probe.authFailed) {
+        connectState = { error: probe.error ? `The provider rejected this key (${probe.error}).` : "The provider rejected this key.", warning: "", message: "" };
+        return renderSettings();
+      }
+      await fetch("/api/auth", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: id, apiKey: key, baseUrl: base }),
+      });
+      await refreshMeta();
+      connectState = probe.live
+        ? { error: "", warning: "", message: `Connected — ${probe.models.length} models.` }
+        : { error: "", warning: "Connected — model list unavailable, using the built-in list.", message: "" };
+    } catch (e) {
+      connectState = { error: e.message, warning: "", message: "" };
+    }
+    renderSettings();
+  });
+  on("fDisconnect", "click", async () => {
+    await fetch("/api/auth?provider=" + encodeURIComponent(providerDetailId), { method: "DELETE" });
+    await refreshMeta();
+    connectState = { error: "", warning: "", message: "Disconnected." };
+    renderSettings();
+  });
+  on("fSaveBase", "click", async () => {
+    await fetch("/api/auth", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: providerDetailId, baseUrl: ($("fBase") ? $("fBase").value : "").trim() }),
+    });
+    await refreshMeta();
+    connectState = { error: "", warning: "", message: "Base URL saved." };
+    renderSettings();
   });
 
   document.querySelectorAll("#fTheme button").forEach(b => b.addEventListener("click", () => {
