@@ -1,7 +1,14 @@
 // Measure real token usage on a multi-step agent turn, and how much the
 // pruning + elision recover.
+//
+// Needs a key: set STAR_CODE_TEST_KEY and run against a local server.
 const base = "http://localhost:4180";
-const KEY = "REDACTED-SECRET-FROM-HISTORY";
+const KEY = process.env.STAR_CODE_TEST_KEY || "";
+if (!KEY) {
+  console.log("skipped: set STAR_CODE_TEST_KEY to run this measurement");
+  console.log("  $env:STAR_CODE_TEST_KEY=\"sk-...\"; node tools/measure-cost.mjs");
+  process.exit(0);
+}
 
 const res = await fetch(base + "/api/chat", {
   method: "POST", headers: { "Content-Type": "application/json" },

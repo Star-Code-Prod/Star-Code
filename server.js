@@ -5,6 +5,7 @@ import http from "node:http";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
+import os from "node:os";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { randomUUID } from "node:crypto";
 import { exec } from "node:child_process";
@@ -18,22 +19,103 @@ let ROOT = path.resolve(process.env.AGENT_ROOT || process.cwd());
 let runner = createToolRunner(ROOT);
 
 const sessions = new Map();
-function getSession(id) {
-  if (!id || !sessions.has(id)) {
-    const sid = id || randomUUID();
-    sessions.set(sid, {
-      id: sid,
-      title: "New session",
-      mode: "manual",
-      messages: [{ role: "system", content: systemPrompt(ROOT, "manual") }],
-      pending: new Map(),
-      aborts: new Set(),
-      createdAt: Date.now(),
-    });
-    return sessions.get(sid);
-  }
-  return sessions.get(id);
+
+/* ------------------------------ persistence ------------------------------ */
+// Sessions live in memory for speed and are mirrored to disk so they survive a
+// restart. Location: STAR_CODE_DATA when the desktop app sets it, otherwise
+// ~/.star-code.
+const STORE_DIR = process.env.STAR_CODE_DATA
+  ? path.resolve(process.env.STAR_CODE_DATA)
+  : path.join(os.homedir(), ".star-code");
+const STORE_FILE = path.join(STORE_DIR, "sessions.json");
+const MAX_STORED_MESSAGES = 120;
+
+function loadStore() {
+  try {
+    const raw = JSON.parse(fs.readFileSync(STORE_FILE, "utf8"));
+    if (Array.isArray(raw.sessions)) {
+      for (const s of raw.sessions) {
+        if (s && s.id) {
+          sessions.set(s.id, {
+            id: s.id,
+            title: s.title || "Untitled",
+            mode: PERMISSION_MODES.includes(s.mode) ? s.mode : "manual",
+            cwd: s.cwd || ROOT,
+            created: s.created || Date.now(),
+            updated: s.updated || Date.now(),
+            messages: Array.isArray(s.messages) ? s.messages : [],
+            pending: new Map(),
+            aborts: new Set(),
+          });
+        }
+      }
+    }
+  } catch { /* first run, or unreadable - start empty */ }
 }
+
+let saveTimer = null;
+function persist() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try {
+      fs.mkdirSync(STORE_DIR, { recursive: true });
+      const list = [...sessions.values()]
+        .sort((a, b) => b.updated - a.updated)
+        .slice(0, 50)
+        .map((s) => ({
+          id: s.id,
+          title: s.title,
+          mode: s.mode,
+          cwd: s.cwd,
+          created: s.created,
+          updated: s.updated,
+          messages: s.messages.slice(-MAX_STORED_MESSAGES),
+        }));
+      fs.writeFileSync(STORE_FILE, JSON.stringify({ version: 1, sessions: list }, null, 1));
+    } catch (e) {
+      console.error("could not persist sessions:", e.message);
+    }
+  }, 400);
+}
+
+function summarise(s) {
+  const turns = s.messages.filter((m) => m.role === "user" && !String(m.content).startsWith("Tool result for ")).length;
+  return {
+    id: s.id,
+    title: s.title,
+    mode: s.mode,
+    cwd: s.cwd,
+    created: s.created,
+    updated: s.updated,
+    turns,
+  };
+}
+
+function newSession(title) {
+  const sid = randomUUID();
+  const s = {
+    id: sid,
+    title: title || "New session",
+    mode: "manual",
+    cwd: ROOT,
+    created: Date.now(),
+    updated: Date.now(),
+    messages: [{ role: "system", content: systemPrompt(ROOT, "manual") }],
+    pending: new Map(),
+    aborts: new Set(),
+  };
+  sessions.set(sid, s);
+  persist();
+  return s;
+}
+
+function getSession(id) {
+  if (id && sessions.has(id)) return sessions.get(id);
+  return newSession();
+}
+
+loadStore();
+
 
 function readBody(req) {
   return new Promise((resolve) => {
@@ -92,7 +174,7 @@ async function runLocalCommand(name, args, sessionId) {
     }
     case "status": {
       const g = await sh("git rev-parse --abbrev-ref HEAD 2>$null");
-      return { text: `**Status**\n\n- Version: 1.0.0 (replica)\n- Working dir: \`${ROOT}\`\n- Git branch: ${g.stdout.trim() || "n/a"}` };
+      return { text: `**Status**\n\n- Version: 1.1.0\n- Working dir: \`${ROOT}\`\n- Git branch: ${g.stdout.trim() || "n/a"}` };
     }
     case "memory": {
       const mem = readProjectMemory(ROOT);
@@ -219,12 +301,59 @@ async function handler(req, res) {
     return sendJSON(res, 200, { ...out, sessionId: session.id });
   }
 
+  /* ----------------------------- sessions ----------------------------- */
+  if (req.method === "GET" && url.pathname === "/api/sessions") {
+    const list = [...sessions.values()].sort((a, b) => b.updated - a.updated).map(summarise);
+    return sendJSON(res, 200, { sessions: list, store: STORE_FILE });
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/sessions/messages") {
+    const s = sessions.get(url.searchParams.get("id"));
+    if (!s) return sendJSON(res, 404, { error: "no such session" });
+    // The client only needs the visible conversation: no system prompt, and
+    // tool-result turns are noise in a transcript.
+    const visible = s.messages
+      .filter((m) => m.role !== "system")
+      .filter((m) => !String(m.content).startsWith("Tool result for "))
+      .map((m) => ({ role: m.role, content: m.content }));
+    return sendJSON(res, 200, { id: s.id, title: s.title, mode: s.mode, cwd: s.cwd, messages: visible });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/sessions/new") {
+    const { title } = await readBody(req);
+    const s = newSession(title);
+    return sendJSON(res, 200, { id: s.id, title: s.title });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/sessions/rename") {
+    const { id, title } = await readBody(req);
+    const s = sessions.get(id);
+    if (!s) return sendJSON(res, 404, { error: "no such session" });
+    s.title = String(title || "").slice(0, 120).trim() || s.title;
+    s.updated = Date.now();
+    persist();
+    return sendJSON(res, 200, { ok: true, title: s.title });
+  }
+
+  if (req.method === "POST" && url.pathname === "/api/sessions/delete") {
+    const { id } = await readBody(req);
+    const s = sessions.get(id);
+    if (!s) return sendJSON(res, 404, { error: "no such session" });
+    for (const c of s.aborts) c.abort = true;
+    sessions.delete(id);
+    persist();
+    return sendJSON(res, 200, { ok: true });
+  }
+
   if (req.method === "POST" && url.pathname === "/api/chat") {
     const body = await readBody(req);
     const session = getSession(body.sessionId);
     const { provider, model, apiKey, baseUrl, message, mode } = body;
     session.mode = PERMISSION_MODES.includes(mode) ? mode : session.mode;
-    if (message && session.messages.length <= 1) session.title = message.slice(0, 48);
+    if (message && session.messages.length <= 1) {
+      session.title = message.replace(/\s+/g, " ").slice(0, 60);
+      persist();
+    }
 
     if (!provider || !PROVIDERS[provider]) return sendJSON(res, 400, { error: "unknown provider" });
     if (message) session.messages.push({ role: "user", content: message });
@@ -254,6 +383,8 @@ async function handler(req, res) {
     } catch (e) {
       emit({ type: "error", message: e.message });
     }
+    session.updated = Date.now();
+    persist();
     session.aborts.delete(controller);
     return res.end();
   }
@@ -304,7 +435,7 @@ export async function startServer({ port = PORT, root, silent = false } = {}) {
   });
   const actual = server.address().port;
   if (!silent) {
-    console.log("\n  Star Code (replica) running");
+    console.log("\n  Star Code running");
     console.log("  -> http://127.0.0.1:" + actual);
     console.log("  Working directory: " + ROOT + "\n");
   }

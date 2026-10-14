@@ -56,6 +56,9 @@ jobs:
       - name: Server boots and serves the UI
         run: node tools/verify-server.mjs
 
+      - name: Sessions API
+        run: node tools/verify-sessions.mjs
+
   # ---------------------------------------------------------------------------
   # Build every platform. Nothing is published from here.
   # ---------------------------------------------------------------------------
