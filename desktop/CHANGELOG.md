@@ -1,5 +1,9 @@
 # What's new in Star
 
+## 1.9.1 — 2026-10-15
+- Thinking shows as a card per phase while it happens - the reasoning is visible as it streams, then folds to a 'Thought for a moment' pill.
+- The transcript reads think, answer, tools, think, answer - one card per phase, never one reused block.
+
 ## 1.9.0 â€” 2026-10-15
 - Star is working now shows in the chat itself, with a small word on what it is doing: thinking, reading a file, running a command, writing your slides.
 - The sidebar brings back the circles next to session names - and a circle spins while that session is working.
