@@ -507,6 +507,7 @@ body.is-mac.is-electron .brand{margin-left:2px}
   background:var(--code-bg);color:var(--code-fg);white-space:pre-wrap;overflow-x:auto;max-height:200px;
   border:1px solid var(--border);
 }
+.perm .pm{font-family:var(--font-mono);font-size:var(--fs-11);color:var(--muted);margin-top:8px;word-break:break-all}
 .perm .pa{display:flex;gap:var(--sp-2);margin-top:var(--sp-3);flex-wrap:wrap;align-items:center}
 .btn{
   padding:7px 14px;border-radius:var(--r-sm);border:1px solid var(--border2);background:var(--panel);
@@ -739,16 +740,25 @@ body.is-mac.is-electron .brand{margin-left:2px}
 .envrow .tt{font-size:var(--fs-13);font-weight:500;color:var(--text2)}
 .envrow .dd{display:block;font-size:var(--fs-125);color:var(--muted);line-height:1.55;margin-top:2px}
 
-/* ================= SETTINGS PAGE ================= */
+/* ================= SETTINGS DIALOG ================= */
 .settings{
-  position:fixed;inset:0;background:var(--bg);z-index:100;display:none;flex-direction:column;
+  position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;
+  background:color-mix(in srgb,var(--bg) 34%,rgba(0,0,0,.5));
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
 }
 .settings.on{display:flex;animation:fadeIn var(--t-mid) var(--ease)}
+.set-card{
+  display:flex;flex-direction:column;flex:none;overflow:hidden;
+  width:min(1040px,calc(100vw - 96px));height:min(760px,calc(100vh - 96px));
+  background:var(--bg);border:1px solid var(--border);border-radius:var(--r-xl);box-shadow:var(--shadow);
+  animation:cardIn var(--t-mid) var(--ease);
+}
 .set-top{
-  height:52px;flex:none;display:flex;align-items:center;gap:var(--sp-2);padding:0 var(--sp-4);
+  height:52px;flex:none;display:flex;align-items:center;gap:var(--sp-2);padding:0 var(--sp-2) 0 var(--sp-4);
   border-bottom:1px solid var(--border);background:var(--bg);
 }
-.set-top .t{font-family:var(--title-font);font-size:var(--fs-15);font-weight:500;margin-left:4px}
+.set-top .t{font-family:var(--title-font);font-size:var(--fs-15);font-weight:500;margin-left:2px}
+.set-top #setBack{width:30px;height:30px;margin-left:2px;color:var(--muted)}
 .set-body{flex:1;min-height:0;display:flex}
 .set-nav{
   width:224px;flex:none;border-right:1px solid var(--border);padding:var(--sp-3) 9px;background:var(--sidebar);overflow-y:auto;
@@ -862,6 +872,7 @@ textarea.inp{line-height:1.6;resize:vertical}
 @keyframes slideDown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes popIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+@keyframes cardIn{from{opacity:0;transform:scale(.98)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{
     animation-duration:.001ms!important;animation-iteration-count:1!important;
@@ -898,12 +909,9 @@ textarea.inp{line-height:1.6;resize:vertical}
   .msg-u .b{max-width:92%}
   .composer{padding:0 var(--sp-3) var(--sp-3)}
   .shead .proj{display:none}
-  .set-nav{
-    width:100%;border-right:0;border-bottom:1px solid var(--border);
-    display:flex;gap:4px;overflow-x:auto;padding:var(--sp-2);
-  }
-  .set-nav button{width:auto;white-space:nowrap;margin-bottom:0}
-  .set-body{flex-direction:column}
+  .set-card{width:calc(100vw - 24px);height:calc(100vh - 24px)}
+  .set-nav{width:172px;padding:var(--sp-2) 7px}
+  .set-main{padding:var(--sp-4) var(--sp-4) var(--sp-6)}
   .landing{gap:var(--sp-4);padding:var(--sp-6) var(--sp-4)}
   .landing .lmark{width:46px;height:46px}
 }
@@ -929,17 +937,17 @@ textarea.inp{line-height:1.6;resize:vertical}
     <span class="nm" id="brandVer">Star Code</span>
   </span>
   <button class="tb-btn" id="btnSidebar" title="Toggle sidebar" aria-label="Toggle sidebar">
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M6 2.5v11"/></svg>
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M5.6 2.5v11"/></svg>
   </button>
   <button class="tb-btn" id="btnSearch" title="Search sessions" aria-label="Search sessions">
     <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
   </button>
   <span class="spacer"></span>
   <button class="tb-text" id="btnPanes" title="Toggle panes">
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" style="vertical-align:-2px"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M9.5 2.5v11"/></svg>
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><rect x="1.5" y="2.5" width="5.6" height="11" rx="1.8"/><rect x="8.9" y="2.5" width="5.6" height="11" rx="1.8"/></svg>
   </button>
   <button class="tb-text" id="btnTheme" title="Toggle theme">
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" style="vertical-align:-2px"><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.5 3.5l1.4 1.4M11.1 11.1l1.4 1.4M12.5 3.5l-1.4 1.4M4.9 11.1l-1.4 1.4"/><circle cx="8" cy="8" r="2.6"/></svg>
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" style="vertical-align:-2px"><circle cx="8" cy="8" r="2.7"/><path d="M8 1.5v1.7M8 12.8v1.7M1.5 8h1.7M12.8 8h1.7M3.4 3.4l1.2 1.2M11.4 11.4l1.2 1.2M12.6 3.4l-1.2 1.2M4.6 11.4l-1.2 1.2"/></svg>
   </button>
   <span class="tb-sep" aria-hidden="true"></span>
   <button class="tb-text" id="btnSettings">Settings</button>
@@ -972,11 +980,11 @@ textarea.inp{line-height:1.6;resize:vertical}
         New session
       </button>
       <button class="sb-link" id="btnOpenFolder">
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1.8 4.5A1.5 1.5 0 013.3 3h2.4l1.3 1.6h5.7a1.5 1.5 0 011.5 1.5v5.4a1.5 1.5 0 01-1.5 1.5H3.3a1.5 1.5 0 01-1.5-1.5z"/></svg>
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M1.8 9.8V4.5A1.5 1.5 0 013.3 3h2.4l1.3 1.6h5.5a1.5 1.5 0 011.5 1.5v1.3"/><path d="M4.9 7.5h8.9l-2.6 5.4H2.3z"/></svg>
         Open folder
       </button>
       <button class="sb-link" id="btnSettings2">
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="2.4"/><path d="M8 1.6v2M8 12.4v2M1.6 8h2M12.4 8h2M3.5 3.5l1.4 1.4M11.1 11.1l1.4 1.4M12.5 3.5l-1.4 1.4M4.9 11.1l-1.4 1.4"/></svg>
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="4.4"/><circle cx="8" cy="8" r="1.9"/><path d="M8 1.7v1.9M8 12.4v1.9M1.7 8h1.9M12.4 8h1.9M4.89 4.89l1.34 1.34M11.11 11.11l1.34 1.34M11.11 4.89l-1.34 1.34M4.89 11.11l-1.34 1.34"/></svg>
         Settings
       </button>
       <button class="sb-link" id="btnMore">
@@ -986,7 +994,7 @@ textarea.inp{line-height:1.6;resize:vertical}
     </div>
     <div class="sb-sec">Sessions<span class="spacer"></span>
       <button title="Toggle sort order" aria-label="Toggle sort order" id="btnSort">
-        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M4 3v10M4 13l-2-2M4 13l2-2M12 13V3M12 3l-2 2M12 3l2 2"/></svg>
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.4 5.4h8M2.4 9.8h4.6"/><path d="M12.8 4.6v6.8M12.8 11.4l-1.9-1.9M12.8 11.4l1.9-1.9"/></svg>
       </button>
     </div>
     <div class="sb-search">
@@ -1017,10 +1025,10 @@ textarea.inp{line-height:1.6;resize:vertical}
       <span class="spacer"></span>
       <span class="acts">
         <button class="hbtn" id="hbTerm" title="Terminal pane">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 5l3 3-3 3M8.5 11.5h4.5"/></svg>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M4.4 6l2 2-2 2M8.4 10.2h3.2"/></svg>
         </button>
         <button class="hbtn" id="hbDiff" title="Diff pane">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M6 2.5v11"/></svg>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M1.5 8h13"/><path d="M4.2 5.25h2.6M5.5 3.95v2.6M9.2 10.75h2.6"/></svg>
         </button>
         <button class="hbtn" id="hbBrowser" title="Browser pane">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6"/><path d="M8 2c1.8 1.7 2.8 3.7 2.8 6S9.8 12.3 8 14c-1.8-1.7-2.8-3.7-2.8-6S6.2 3.7 8 2zM2.4 6h11.2M2.4 10h11.2"/></svg>
@@ -1110,10 +1118,10 @@ textarea.inp{line-height:1.6;resize:vertical}
       <div class="crow">
         <button class="cbtn" id="cMode">Ask permissions</button>
         <button class="cbtn ico" id="cPanels" title="Add pane" aria-label="Add a pane">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M9.5 2.5v11"/></svg>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M8 6.2v5.1M5.45 8.75h5.1"/></svg>
         </button>
         <button class="cbtn ico" id="cAttach" title="Attach context" aria-label="Attach context">
-          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 3.5v9M3.5 8h9"/></svg>
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13.2 7.4l-4.9 4.9a3.3 3.3 0 01-4.67-4.67l5.2-5.2a2.2 2.2 0 013.11 3.11l-5.1 5.1a1.1 1.1 0 01-1.56-1.56l4.7-4.7"/></svg>
         </button>
         <button class="cbtn ico" id="cShell" title="Shell mode" aria-label="Shell mode">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 5.5l3 3-3 3M8.5 12h4.5"/></svg>
@@ -1192,42 +1200,44 @@ textarea.inp{line-height:1.6;resize:vertical}
 
 <!-- ==================== SETTINGS ==================== -->
 <div class="settings" id="settings">
-  <div class="set-top">
-    <button class="hbtn" id="setBack" title="Close settings">
-      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M9.5 3.5L5 8l4.5 4.5"/></svg>
-    </button>
-    <span class="t">Settings</span>
-    <span class="spacer"></span>
-    <span class="pill" id="setSaved">saved</span>
-  </div>
-  <div class="set-body">
-    <nav class="set-nav">
-      <button class="on" data-s="providers">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1.8l5 2.9v6.6l-5 2.9-5-2.9V4.7z"/><path d="M8 8l5-2.9M8 8v6.3M8 8L3 5.1"/></svg>
-        Providers
+  <div class="set-card" role="dialog" aria-modal="true" aria-label="Settings">
+    <div class="set-top">
+      <span class="t">Settings</span>
+      <span class="spacer"></span>
+      <span class="pill" id="setSaved">saved</span>
+      <button class="hbtn" id="setBack" title="Close settings" aria-label="Close settings">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4.2 4.2l7.6 7.6M11.8 4.2l-7.6 7.6"/></svg>
       </button>
-      <button data-s="appearance">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="3"/><path d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3.1 3.1l1.1 1.1M11.8 11.8l1.1 1.1M12.9 3.1l-1.1 1.1M4.2 11.8l-1.1 1.1"/></svg>
-        Appearance
-      </button>
-      <button data-s="session">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6"/><path d="M8 4.5V8l2.4 1.6"/></svg>
-        Session
-      </button>
-      <button data-s="knowledge">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 2.5h7.5a2 2 0 012 2v9H5a2 2 0 01-2-2z"/><path d="M3 11.5a2 2 0 012-2h7.5"/></svg>
-        Knowledge
-      </button>
-      <button data-s="keys">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><rect x="1.5" y="4" width="13" height="8" rx="2"/><path d="M4.5 7h2M8 7h3.5M4.5 9.5h5"/></svg>
-        Shortcuts
-      </button>
-      <button data-s="about">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6"/><path d="M8 7.2v4M8 5.2h.01"/></svg>
-        About
-      </button>
-    </nav>
-    <div class="set-main" id="setMain"></div>
+    </div>
+    <div class="set-body">
+      <nav class="set-nav">
+        <button class="on" data-s="providers">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11.7 12.7H6a4.6 4.6 0 1 1 4.4-6h1.2a3 3 0 1 1 0 6z"/></svg>
+          Providers
+        </button>
+        <button data-s="appearance">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="3"/><path d="M8 1v1.6M8 13.4V15M1 8h1.6M13.4 8H15M3.1 3.1l1.1 1.1M11.8 11.8l1.1 1.1M12.9 3.1l-1.1 1.1M4.2 11.8l-1.1 1.1"/></svg>
+          Appearance
+        </button>
+        <button data-s="session">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M4.5 2.5v3.7M4.5 8.6v4.9M2.7 7.4h3.6M11.5 2.5v5.5M11.5 10v3.5M9.7 9h3.6"/></svg>
+          Session
+        </button>
+        <button data-s="knowledge">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 2.5h7.5a2 2 0 012 2v9H5a2 2 0 01-2-2z"/><path d="M3 11.5a2 2 0 012-2h7.5"/></svg>
+          Knowledge
+        </button>
+        <button data-s="keys">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><rect x="1.5" y="4" width="13" height="8" rx="2"/><path d="M4.5 7h2M8 7h3.5M4.5 9.5h5"/></svg>
+          Shortcuts
+        </button>
+        <button data-s="about">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6"/><path d="M8 7.2v4M8 5.2h.01"/></svg>
+          About
+        </button>
+      </nav>
+      <div class="set-main" id="setMain"></div>
+    </div>
   </div>
 </div>
 
@@ -2678,14 +2688,29 @@ function renderPlan(text) {
 /* ---- permission ---- */
 function askPermission({ id, name, args, dangerous }) {
   const isCmd = name === "run_command";
+  const isDl = name === "download";
+  const url = isDl ? String((args && args.url) || "") : "";
+  const src = isDl ? String((args && args.source) || "") : "";
+  const srcWarn = src.startsWith("SOURCE WARNING");
+  const extras = (isDl && args)
+    ? [["dest", args.dest], ["sha256", args.sha256], ["maxBytes", args.maxBytes]]
+        .filter(([, v]) => v !== undefined && v !== null && String(v) !== "")
+        .map(([k, v]) => k + ": " + String(v)).join("  ·  ")
+    : "";
   const body = isCmd ? (args.command || "") : JSON.stringify(args, null, 2);
   const n = node("perm");
   n.innerHTML = `
     <div class="ph">
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.8l5 2.2v4.2c0 3-2.1 5.4-5 6-2.9-.6-5-3-5-6V4z"/></svg>
-      Star wants to ${isCmd ? "run a command" : "edit a file"}${dangerous ? "" : ""}
+      Star wants to ${isCmd ? "run a command" : isDl ? "download a file" : "edit a file"}${dangerous ? "" : ""}
     </div>
-    <div class="pb">${esc(body)}</div>
+    ${isDl ? `
+    <div class="pb" style="word-break:break-all">${esc(url || body)}</div>
+    ${src ? (srcWarn
+      ? `<div class="banner err" style="margin:12px 0 0">${esc(src)}</div>`
+      : `<div class="pm">${esc(src)}</div>`) : ""}
+    ${extras ? `<div class="pm">${esc(extras)}</div>` : ""}` : `
+    <div class="pb">${esc(body)}</div>`}
     <div class="pa">
       <button class="btn dgr" data-scope="deny">Deny</button>
       <button class="btn pri" data-scope="once">Allow once</button>
@@ -3036,10 +3061,52 @@ document.addEventListener("keydown", e => {
 
 /* ============================ SETTINGS ============================ */
 let settingsSection = "providers";
-function openSettings() { $("settings").classList.add("on"); renderSettings(); }
-function closeSettings() { $("settings").classList.remove("on"); }
+let settingsReturnFocus = null;   // whatever had focus before the dialog opened
+/** Focusables inside the card, in DOM order (skips hidden / disabled). */
+function settingsFocusables() {
+  const card = document.querySelector("#settings .set-card");
+  if (!card) return [];
+  const sel = 'button,[href],input,select,textarea,summary,[tabindex]:not([tabindex="-1"])';
+  return [...card.querySelectorAll(sel)].filter(el => !el.disabled && el.getClientRects().length);
+}
+function openSettings() {
+  const el = $("settings");
+  const wasOpen = el.classList.contains("on");
+  if (!wasOpen) settingsReturnFocus = document.activeElement;
+  el.classList.add("on");
+  renderSettings();
+  if (!wasOpen) { const b = $("setBack"); if (b) b.focus(); }
+}
+function closeSettings() {
+  const el = $("settings");
+  if (!el.classList.contains("on")) return;
+  el.classList.remove("on");
+  const back = settingsReturnFocus;
+  settingsReturnFocus = null;
+  if (back && back !== document.body && document.contains(back) && back.focus) back.focus();
+}
 $("btnSettings").addEventListener("click", openSettings);
 $("setBack").addEventListener("click", closeSettings);
+/* Clicking the dimmed backdrop (never the card) closes the dialog. */
+let setDownOnBackdrop = false;
+$("settings").addEventListener("pointerdown", e => { setDownOnBackdrop = e.target === $("settings"); });
+$("settings").addEventListener("click", e => {
+  if (setDownOnBackdrop && e.target === $("settings")) closeSettings();
+  setDownOnBackdrop = false;
+});
+/* Keep Tab / Shift+Tab inside the card while it is open (capture, so the
+   global Shift+Tab mode-cycle can never fire behind the dialog). */
+document.addEventListener("keydown", e => {
+  if (e.key !== "Tab" || !$("settings").classList.contains("on")) return;
+  const items = settingsFocusables();
+  if (!items.length) return;
+  const i = items.indexOf(document.activeElement);
+  const next = e.shiftKey
+    ? (i <= 0 ? items.length - 1 : i - 1)
+    : (i < 0 || i === items.length - 1 ? 0 : i + 1);
+  e.preventDefault(); e.stopPropagation();
+  items[next].focus();
+}, true);
 document.querySelectorAll(".set-nav button").forEach(b => b.addEventListener("click", () => {
   settingsSection = b.dataset.s;
   document.querySelectorAll(".set-nav button").forEach(x => x.classList.toggle("on", x === b));
@@ -3124,6 +3191,19 @@ function provRow(p) {
   </button>`;
 }
 
+/* ---- auxiliary credential: VirusTotal (not a model provider) ---- */
+let vtState = { error: "", message: "" };   // save/clear feedback for the reputation card
+/** Latest VirusTotal credential state from /api/providers (tolerant of an older server). */
+function reputation() {
+  return (meta && meta.reputation) || { id: "virustotal", connected: false, masked: "", envConfigured: false };
+}
+function vtPill() {
+  const r = reputation();
+  if (r.connected) return `<span class="pill ok" style="margin-left:6px">configured${r.masked ? " · " + esc(r.masked) : ""}</span>`;
+  if (r.envConfigured) return '<span class="pill ok" style="margin-left:6px">from environment</span>';
+  return '<span class="pill" style="margin-left:6px">not set</span>';
+}
+
 function settingsProviders() {
   if (providerDetailId) return settingsProviderDetail(providerDetailId);
   const q = provFilter.trim().toLowerCase();
@@ -3147,6 +3227,23 @@ function settingsProviders() {
       <div class="ct">${connected.length ? "Available" : "All providers"}</div>
       <div class="cs">Connect one to use it.</div>
       ${available.map(provRow).join("") || '<div class="pempty">No matches.</div>'}
+    </div>
+    <div class="card">
+      <div class="ct">Online reputation</div>
+      <div class="cs">Star Code hashes every file it downloads and, with this key, checks that hash against VirusTotal — detections, community votes and comments — before keeping the file or letting it run. Paste a free API key from virustotal.com → Profile → API key.</div>
+      <div class="fld">
+        <label>VirusTotal API key ${vtPill()}</label>
+        <input class="inp mono" id="fVtKey" type="password" value="" placeholder="VirusTotal API key" autocomplete="off">
+      </div>
+      ${vtState.error ? `<div class="banner err">${esc(vtState.error)}</div>` : ""}
+      ${vtState.message ? `<div class="banner ok">${esc(vtState.message)}</div>` : ""}
+      <div class="row" style="border-top:1px solid var(--border);margin-top:12px;padding-top:13px">
+        <div class="rl"><div class="rd" style="margin-top:0">Stored locally with your provider keys and sent only to virustotal.com.</div></div>
+        <div class="rc">
+          <button class="btn pri sm" id="fVtSave">Save key</button>
+          ${reputation().connected ? '<button class="btn sm dgr" id="fVtClear">Clear</button>' : ""}
+        </div>
+      </div>
     </div>
     <p class="sh" style="margin:0">Keys are stored on this machine in <span class="mono">~/.star-code/auth.json</span> and only ever go to the provider itself.</p>
   </div>`;
@@ -3482,6 +3579,40 @@ function wireSettings() {
     });
     await refreshMeta();
     connectState = { error: "", warning: "", message: "Base URL saved." };
+    renderSettings();
+  });
+
+  /* VirusTotal key — an auxiliary credential, not a model provider. */
+  on("fVtSave", "click", async () => {
+    const key = ($("fVtKey") ? $("fVtKey").value : "").trim();
+    if (!key) { vtState = { error: "Paste a VirusTotal API key first.", message: "" }; return renderSettings(); }
+    try {
+      const r = await (await fetch("/api/auth", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: "virustotal", apiKey: key }),
+      })).json();
+      if (!r.ok) throw new Error(r.error || "the server rejected the key");
+      await refreshMeta();
+      vtState = { error: "", message: "VirusTotal key saved" + (r.masked ? ` (${r.masked})` : "") + "." };
+      flashSaved();
+      toast("VirusTotal key saved");
+    } catch (e) {
+      vtState = { error: "Could not save the key — " + (e && e.message ? e.message : "request failed") + ".", message: "" };
+    }
+    renderSettings();
+  });
+  on("fVtClear", "click", async () => {
+    try {
+      const res = await fetch("/api/auth?provider=virustotal", { method: "DELETE" });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok || j.ok === false) throw new Error(j.error || "the server rejected the request");
+      await refreshMeta();
+      vtState = { error: "", message: "VirusTotal key cleared." };
+      flashSaved();
+      toast("VirusTotal key cleared");
+    } catch (e) {
+      vtState = { error: "Could not clear the key — " + (e && e.message ? e.message : "request failed") + ".", message: "" };
+    }
     renderSettings();
   });
 

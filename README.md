@@ -32,6 +32,12 @@ npm start             # or just the server + UI: http://localhost:4180
 
 ### CLI
 
+Download the packaged CLI from the
+[GitHub Releases page](https://github.com/Star-Code-Prod/Star-Code/releases) —
+`star-code-cli-<version>.tgz` (install with
+`npm i -g ./star-code-cli-<version>.tgz`) or `star-code-cli-<version>.zip`
+(extract and run `node bin/star-code.mjs`). Or build from source:
+
 ```bash
 cd CLI
 npm i -g .            # installs the `star-code` command

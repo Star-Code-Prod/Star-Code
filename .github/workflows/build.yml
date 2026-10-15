@@ -74,6 +74,54 @@ jobs:
       - name: CLI behaviour
         run: node tools/verify-cli.mjs
 
+      - name: Desktop and CLI versions match
+        run: node -e "const a=require('./package.json').version,b=require('../CLI/package.json').version;if(a!==b){console.error('desktop '+a+' != CLI '+b);process.exit(1)}console.log('versions match:',a)"
+
+      - name: Download tool (sources, hashes, virus scan)
+        run: node tools/verify-download.mjs
+
+  # ---------------------------------------------------------------------------
+  # Pack the standalone CLI and prove the tarball installs and runs before
+  # anything ships. The CLI lives at CLI/, not desktop/, so this job overrides
+  # the workflow's default run directory.
+  # ---------------------------------------------------------------------------
+  cli:
+    name: CLI package
+    needs: check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: CLI
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Pack the CLI (.tgz and .zip)
+        run: |
+          V=$(node -p "require('./package.json').version")
+          npm pack
+          sudo apt-get update && sudo apt-get install -y zip
+          zip -r "star-code-cli-$V.zip" bin lib package.json README.md
+
+      - name: Smoke test the packaged CLI
+        run: |
+          V=$(node -p "require('./package.json').version")
+          npm i -g --prefix "$PWD/.prefix-test" "./star-code-cli-$V.tgz"
+          "$PWD/.prefix-test/bin/star-code" --help
+          "$PWD/.prefix-test/bin/star-code" --demo start
+
+      - name: Upload CLI artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: star-code-cli
+          path: |
+            CLI/star-code-cli-*.tgz
+            CLI/star-code-cli-*.zip
+          if-no-files-found: error
+
   # ---------------------------------------------------------------------------
   # Build every platform. Nothing is published from here.
   # ---------------------------------------------------------------------------
@@ -135,7 +183,7 @@ jobs:
   # ---------------------------------------------------------------------------
   tag:
     name: Tag version
-    needs: [check, build]
+    needs: [check, build, cli]
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
@@ -177,7 +225,7 @@ jobs:
   # ---------------------------------------------------------------------------
   release:
     name: Publish release
-    needs: [build, tag]
+    needs: [build, tag, cli]
     if: |
       always()
       && needs.build.result == 'success'
@@ -232,7 +280,10 @@ jobs:
             | Windows | `Star-Code-Desktop-Setup-*.exe` (installer) or `Star-Code-Desktop-*-portable.exe` |
             | macOS | `Star-Code-Desktop-*-arm64.dmg` |
             | Linux | `Star-Code-Desktop-*-x86_64.AppImage` or `Star-Code-Desktop-*-amd64.deb` |
+            | CLI (any OS) | `star-code-cli-<version>.tgz` or `star-code-cli-<version>.zip` |
 
-            The CLI ships with the source: `cd CLI && npm i -g .` then `star-code "…"`.
+            The CLI (Node 18+, no dependencies):
+            - `star-code-cli-<version>.tgz` — `npm i -g ./star-code-cli-<version>.tgz`, then `star-code "…"`
+            - `star-code-cli-<version>.zip` — extract it, then run `node bin/star-code.mjs` (or `npm i -g .` inside the extracted folder)
 
             Builds are unsigned, so your OS will warn on first launch.

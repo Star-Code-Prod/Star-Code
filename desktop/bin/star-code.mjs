@@ -237,6 +237,7 @@ function flushShown() {
 const VERB = {
   read_file: "Read", list_dir: "List", search_files: "Search", glob_files: "Glob",
   write_file: "Write", edit_file: "Edit", multi_edit: "Edit", run_command: "Run",
+  download: "Download",
   search_knowledge: "Search knowledge", fetch_url: "Fetch", websearch: "Websearch",
   task: "Task", self_knowledge: "Self knowledge",
 };
@@ -245,7 +246,7 @@ const VERB = {
 const ARG_OF = {
   read_file: "path", write_file: "path", edit_file: "path", multi_edit: "path", list_dir: "path",
   search_files: "pattern", glob_files: "pattern", search_knowledge: "query", websearch: "query",
-  fetch_url: "url", run_command: "command", task: "instructions", self_knowledge: "topic",
+  fetch_url: "url", run_command: "command", download: "url", task: "instructions", self_knowledge: "topic",
 };
 
 function toolArg(name, args) {
@@ -428,7 +429,7 @@ const emit = (evt) => {
 
 /* ------------------------------ conversation ----------------------------- */
 const messages = [{ role: "system", content: systemPrompt(root, flags.mode) }];
-const SUBAGENT_BLOCKED = new Set(["write_file", "edit_file", "multi_edit", "run_command", "fetch_url", "websearch", "task"]);
+const SUBAGENT_BLOCKED = new Set(["write_file", "edit_file", "multi_edit", "run_command", "download", "fetch_url", "websearch", "task"]);
 const runner = createToolRunner(root, {
   runSubagent: async ({ instructions }) => {
     const base = createToolRunner(root);
@@ -511,8 +512,11 @@ async function askPrompt() {
 
 async function requestPermission({ name, args }) {
   if (autoAllow.has(name)) return { allowed: true, scope: "once" };
-  const detail = name === "run_command" ? String(args.command || "") : JSON.stringify(args);
+  const detail = name === "run_command" ? String(args.command || "")
+    : name === "download" ? String(args.url || "") + (args.source ? " — " + args.source : "")
+    : JSON.stringify(args);
   const title = name === "run_command" ? "Star wants to run a command"
+    : name === "download" ? "Star wants to download a file"
     : ["write_file", "edit_file", "multi_edit"].includes(name) ? "Star wants to edit a file"
     : "Star wants to use " + (VERB[name] || name);
   out(box([

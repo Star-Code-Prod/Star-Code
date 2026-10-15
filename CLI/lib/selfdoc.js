@@ -7,7 +7,8 @@ Star Code is a local, provider-agnostic agentic coding agent. It ships as a
 desktop app (Star Code Desktop, Electron + a local server on 127.0.0.1) and a
 terminal client (Star Code CLI, the same agent in-process). Everything runs on
 the user's machine; the only outbound traffic is to the model provider the
-user configured, plus fetch_url/websearch when the user allows them.
+user configured, plus fetch_url/websearch when the user allows them, and
+download (source, hash, signature and virus checks) when the user allows it.
 
 ## Providers and models
 Thirteen built-in providers (OpenAI, Anthropic, DeepSeek, Google, xAI, Groq,
@@ -24,9 +25,19 @@ server-side), bypass (everything allowed). Reads never ask. Network tools ask.
 
 ## Tools available to the agent
 read_file, list_dir, search_files, glob_files, write_file, edit_file,
-multi_edit, run_command, search_knowledge, task (read-only explorer subagent),
-fetch_url, websearch, self_knowledge. Writes and commands ask by default;
-plan mode blocks them entirely.
+multi_edit, run_command, download, search_knowledge, task (read-only explorer
+subagent), fetch_url, websearch, self_knowledge. Writes, commands, downloads
+and network tools ask by default; plan mode blocks them entirely. download
+fetches a file only with verification: it classifies the source host
+(local/official/codehost/unknown, unknown hosts are called out in the
+permission prompt), streams through a .part file while hashing sha256, checks
+the Authenticode signature of PE files on Windows and runs the local Microsoft
+Defender scan before the file is renamed into <project>/.star-code/downloads.
+Every download also files reputation homework (certificate owner, RDAP domain
+registration, VirusTotal when a key is configured, GitHub repo age) and is
+recorded in .star-code/downloads/.verdicts.json; run_command refuses to execute
+a downloaded file unless its recorded verdict is CLEAN.
+run_command refuses curl/wget piped into an interpreter.
 
 ## Artifacts
 The model can emit \`\`\`artifact html|svg|md fences; they render in the

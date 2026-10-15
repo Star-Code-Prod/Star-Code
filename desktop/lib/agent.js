@@ -4,8 +4,11 @@
 import { buildRequest, streamCompletion, PROVIDERS, getDiscoveredLimit } from "./providers.js";
 import { readProjectMemory, TOOL_SPECS } from "./tools.js";
 import { knowledgeIndex } from "./knowledge.js";
+import { classifySource } from "./sources.js";
 
-const MAX_STEPS = 25;
+// 25 was too tight for "set up the whole thing" work: install + write + run +
+// fix loops burn steps fast, and a truncated turn leaves half-built state.
+const MAX_STEPS = 60; // was 25
 
 // ---------------------------------------------------------------------------
 // Cost control.
@@ -99,14 +102,68 @@ export function systemPrompt(root, mode) {
 
   return `You are a coding agent working in: ${root}
 ${memBlock}${knBlock}${planNote}
-Tools: read_file, list_dir, search_files, glob_files, write_file, edit_file, multi_edit, run_command, search_knowledge, task, fetch_url, websearch, self_knowledge.
-task spawns a read-only explorer subagent with fresh context for research; fetch_url and websearch ask for permission and plan mode blocks them; self_knowledge answers questions about Star Code itself.
+Tools: read_file, list_dir, search_files, glob_files, write_file, edit_file, multi_edit, run_command, download, search_knowledge, task, fetch_url, websearch, self_knowledge.
+task spawns a read-only explorer subagent with fresh context for research; fetch_url and websearch ask for permission and plan mode blocks them; download fetches a file with source, hash, signature and virus checks (see the doctrine below); self_knowledge answers questions about Star Code itself.
 
 Rules:
 - Read a file before editing it; never guess file contents.
 - Keep changes minimal and consistent with surrounding style.
 - Verify with tests/build/lint when a way exists.
 - Reply concisely in markdown.
+
+Execution doctrine - how to finish a build:
+- Research before writing: websearch/fetch_url the official docs, read the project's own
+  files, and use the task tool to explore. Never invent flags, APIs or file contents.
+- Plan the whole job, then build ALL of it: configs, code, assets, data, installs and
+  scripts. The deliverable must run end to end, not be a sketch.
+- No placeholders: no TODO comments, no stubs, no "you could also...", and never describe
+  an install instead of doing it. If the real thing is achievable, achieve it.
+- Then RUN it and prove it: start the server and request it, execute the script, run the
+  test suite, run --version on the tool. Capture the exact command and its real output.
+- Iterate: read the error, fix the cause, run again - until the run succeeds. Never claim
+  something works without an observed run.
+- Complete everything that can be completed; if a step truly needs the user (admin
+  elevation, credentials, a licence, a reboot), finish all the rest and hand over the one
+  exact command that remains, with one line on what it will do.
+- Independent chunks of work go in parallel via the task tool; output files must match
+  the project's existing conventions (naming, layout, style).
+- Match the environment: check what is already installed and what the project pins
+  (manifests, lockfiles, \`winget list\`, \`<tool> --version\`) before fetching anything.
+- Once the plan is set, do not pause to ask whether to continue - build until the job runs
+  or you hit a real blocker. Asking for what only the user can supply is fine; asking
+  whether to proceed is not.
+- Say what did not work or could not be verified, and why - honesty over optimism.
+
+Downloads, installs and running what you fetched (strict, no exceptions):
+- Fetch files ONLY with the download tool (source tier, sha256, Windows signature, local
+  virus scan, plus reputation homework on every call) or an official package manager:
+  winget install --id <Id> --exact (use \`winget show --id <Id>\` first to confirm the
+  publisher), apt, brew, npm, cargo, pip.
+- Never curl|sh, iwr|iex, certutil -urlcache, or a third-party mirror, a rehosted build
+  or "download from this blog". run_command hard-blocks the worst of those.
+- Reputation homework runs on every download: certificate owner and RDAP domain
+  registration, VirusTotal stats/votes/comments when a key is configured (env
+  VIRUSTOTAL_API_KEY works today; the Settings > Providers field lands separately), and
+  GitHub repo age for code hosts. Read the owner/virustotal lines before trusting a file.
+- A download is CLEAN only when the local scan ran clean, authenticity is proven (valid
+  vendor signature or a matched expected sha256), the tier is official/local, and
+  VirusTotal - when configured - found it with 0 malicious engines, no negative votes
+  and no red-flag comments. Everything else is UNVERIFIED.
+- NEVER run a downloaded executable, installer or script unless its verdict is CLEAN -
+  not even in bypass, not even "just to see if it works". run_command refuses unverified
+  downloads itself. When the verdict is UNVERIFIED, stop and hand the user the file, the
+  evidence and the exact command they can run themselves after deciding.
+- If the official source is unclear, or the domain is not an official one, stop and ask
+  the user with the domain shown. Never guess a download URL.
+- After installing, run the tool (--version or a small smoke command) to confirm it works.
+- In the report, state where each file came from and its download verdict (hash,
+  signature, scan, reputation).
+
+Finish every non-trivial task with a short verification report: what was built; how it
+was verified (each command + the observed result); how to run it. Example: "make me a
+FiveM server" means the full server folder (server.cfg, resources, txAdmin wiring), the
+FXServer artifact fetched via download from the official CFX host with its verdict
+checked, the server started locally and health-checked, plus a README with the run steps.
 
 For any task of 3+ steps, emit a task list whenever it changes:
 \`\`\`todo
@@ -151,13 +208,41 @@ export function parseAssistantContent(content) {
   return { text, calls, todos };
 }
 
-export function decisionFor(mode, toolName, autoAllow = new Set()) {
+export function decisionFor(mode, toolName, autoAllow = new Set(), args = null) {
   if (mode === "bypass") return "allow";
   if (READ_ONLY_TOOLS.has(toolName)) return "allow";
   if (mode === "plan") return "deny";
   if (autoAllow.has(toolName)) return "allow";
+  // A download from a known official host needs no prompt: the source tier is
+  // the whole point of the curated list, and every hash/signature/scan check
+  // still runs before the file is kept or anything may execute it. Unknown and
+  // code-host sources keep asking, with the domain shown.
+  if (toolName === "download" && args && ["official", "local"].includes(classifySource(String(args.url || "")).tier)) return "allow";
   if (mode === "acceptEdits") return AUTO_EDIT_TOOLS.has(toolName) ? "allow" : "ask";
   return "ask";
+}
+
+/**
+ * The payload an asker (desktop UI, CLI) renders before a tool runs. For
+ * `download` the args are annotated with the classified source and an `ask`
+ * line, so the prompt always shows the full URL and, for a host that is not a
+ * known official source, says so in the args the UIs already display.
+ * Every other tool passes through untouched.
+ */
+export function permissionAskFor(name, args, dangerous) {
+  if (name !== "download") return { name, args, dangerous };
+  const shown = { ...(args || {}) };
+  const url = String(shown.url || "");
+  const src = classifySource(url);
+  const note = src.tier === "unknown"
+    ? "SOURCE WARNING: " + (src.host || url) + " is NOT a known official source. Only allow this if you recognise the domain."
+    : "source: " + src.host + " (" + src.tier + " - " + src.label + ")";
+  return {
+    name,
+    args: { ...shown, source: note },
+    dangerous,
+    ask: note + "  URL: " + url,
+  };
 }
 
 export async function runAgentTurn({
@@ -240,7 +325,7 @@ export async function runAgentTurn({
     }
 
     for (const call of calls) {
-      const decision = decisionFor(mode, call.name, autoAllow);
+      const decision = decisionFor(mode, call.name, autoAllow, call.args);
 
       if (decision === "deny") {
         emit({ type: "tool", name: call.name, args: call.args, dangerous: true, allowed: false, status: "denied" });
@@ -254,7 +339,7 @@ export async function runAgentTurn({
 
       let allowed = decision === "allow";
       if (decision === "ask") {
-        const verdict = await requestPermission({ name: call.name, args: call.args, dangerous: runner.isDangerous(call.name) });
+        const verdict = await requestPermission(permissionAskFor(call.name, call.args, runner.isDangerous(call.name)));
         allowed = !!(verdict && verdict.allowed);
         if (allowed && verdict.scope === "session") autoAllow.add(call.name);
       }

@@ -8,7 +8,17 @@ dependencies.
 
 ## Install
 
-From this folder:
+Download the `.tgz` or `.zip` from the
+[GitHub Releases page](https://github.com/Star-Code-Prod/Star-Code/releases):
+
+```bash
+# .tgz — installs the `star-code` command
+npm i -g ./star-code-cli-<version>.tgz
+```
+
+The `.zip` needs no install — extract it, then run `node bin/star-code.mjs`
+(or `npm i -g .` inside the extracted folder). From this folder in the source
+tree:
 
 ```bash
 npm i -g .        # installs the `star-code` command

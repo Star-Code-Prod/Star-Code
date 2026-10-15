@@ -20,6 +20,10 @@ const VERSION = JSON.parse(fs.readFileSync(path.join(__dirname, "package.json"),
 const PORT = Number(process.env.PORT || 4180);
 let ROOT = path.resolve(process.env.AGENT_ROOT || process.cwd());
 
+// Credentials that are not model providers but live in the same store: the
+// download verifier reads the VirusTotal key from here.
+const AUX_CREDENTIAL_IDS = new Set(["virustotal"]);
+
 const sessions = new Map();
 
 /* ------------------------------- subagents ------------------------------- */
@@ -307,6 +311,12 @@ async function route(req, res) {
       root: ROOT,
       version: VERSION,
       modes: PERMISSION_MODES,
+      reputation: {
+        id: "virustotal",
+        connected: !!auth.providers.virustotal?.apiKey,
+        masked: mask(auth.providers.virustotal?.apiKey || ""),
+        envConfigured: !!process.env.VIRUSTOTAL_API_KEY,
+      },
       providers: Object.entries(PROVIDERS).map(([id, p]) => {
         const stored = auth.providers[id] || {};
         return {
@@ -321,11 +331,12 @@ async function route(req, res) {
     });
   }
 
-  // Store or clear a provider credential. Full keys never come back out.
+  // Store or clear a provider credential (or an auxiliary key such as the
+  // VirusTotal one). Full keys never come back out.
   if (req.method === "POST" && url.pathname === "/api/auth") {
     const body = await readBody(req);
     const provider = body.provider;
-    if (!provider || !PROVIDERS[provider]) return sendJSON(res, 400, { ok: false, error: "unknown provider" });
+    if (!provider || !(PROVIDERS[provider] || AUX_CREDENTIAL_IDS.has(provider))) return sendJSON(res, 400, { ok: false, error: "unknown provider" });
     writeAuthEntry(provider, {
       apiKey: typeof body.apiKey === "string" ? body.apiKey : "",
       baseUrl: typeof body.baseUrl === "string" ? body.baseUrl : undefined,
@@ -336,7 +347,7 @@ async function route(req, res) {
 
   if (req.method === "DELETE" && url.pathname === "/api/auth") {
     const provider = url.searchParams.get("provider");
-    if (!provider || !PROVIDERS[provider]) return sendJSON(res, 400, { ok: false, error: "unknown provider" });
+    if (!provider || !(PROVIDERS[provider] || AUX_CREDENTIAL_IDS.has(provider))) return sendJSON(res, 400, { ok: false, error: "unknown provider" });
     removeAuthEntry(provider);
     return sendJSON(res, 200, { ok: true });
   }
