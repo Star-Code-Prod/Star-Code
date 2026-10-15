@@ -1353,6 +1353,9 @@ const DEFAULT_STATE = {
   dismissedUpdate: "",
   sortAsc: false,
   autoCollapseThinking: true,
+  // Transcript detail: minimal hides reasoning/args/previews, verbose keeps
+  // reasoning expanded and shows tool outputs inline.
+  verbosity: "normal",
   root: "",
   sessions: [],
 };
@@ -3620,7 +3623,7 @@ function endThinking(ms) {
 
   // autoCollapseThinking on → fold (unless the person opened it, or a new
   // phase went live again in the meantime); off → stay in the current mode.
-  if (state.autoCollapseThinking) {
+  if (state.autoCollapseThinking && state.verbosity !== "verbose") {
     const keepOpen = n.dataset.mode === "open";
     setTimeout(() => { if (!keepOpen && n.isConnected && !n.hasAttribute("data-live")) thinkMode(n, "closed"); }, 500);
   }
@@ -3657,7 +3660,7 @@ function addTool({ name, args, status, detail }) {
   const g = ensureToolGroup();
   const [verb, past] = ICONS[name] || [name, name];
   let arg = "";
-  if (args) {
+  if (args && state.verbosity !== "minimal") {
     if (name === "run_command") arg = args.command || "";
     else if (args.path) arg = args.path;
     else if (args.pattern) arg = args.pattern;
@@ -3688,7 +3691,7 @@ function renderToolGroup(g) {
       <span class="m ${i.status === "ok" ? "ok" : i.status === "denied" ? "no" : ""}">${
         i.status === "running" ? "…" : i.status === "denied" ? "denied" : "done"}</span>
     </div>
-    <pre class="tout" data-out="${idx}">${esc(i.detail || "")}</pre>`).join("");
+    <pre class="tout${state.verbosity === "verbose" ? " show" : ""}" data-out="${idx}">${esc(i.detail || "")}</pre>`).join("");
   g.node.querySelectorAll(".trow").forEach(r => r.addEventListener("click", () => {
     const out = g.node.querySelector(`[data-out="${r.dataset.i}"]`);
     if (out && out.textContent.trim()) out.classList.toggle("show");
@@ -3697,7 +3700,7 @@ function renderToolGroup(g) {
 function finishTool(status, preview) {
   if (!toolGroup || !toolGroup.items.length) return;
   const last = [...toolGroup.items].reverse().find(i => i.status === "running");
-  if (last) { last.status = status; last.detail = preview || ""; }
+  if (last) { last.status = status; last.detail = state.verbosity === "minimal" ? "" : (preview || ""); }
   renderToolGroup(toolGroup);
 }
 
@@ -4015,9 +4018,9 @@ function handle(evt) {
     case "assistant_start": sessStats.calls += 1; startAssistant(); break;
     case "delta": addDelta(evt.text); break;
     case "assistant_end": endAssistant(); break;
-    case "thinking_start": if (state.showThinking) startThinking(); break;
-    case "thinking_delta": if (state.showThinking) addThinking(evt.text); break;
-    case "thinking_end": if (state.showThinking) endThinking(evt.ms); break;
+    case "thinking_start": if (state.showThinking && state.verbosity !== "minimal") startThinking(); break;
+    case "thinking_delta": if (state.showThinking && state.verbosity !== "minimal") addThinking(evt.text); break;
+    case "thinking_end": if (state.showThinking && state.verbosity !== "minimal") endThinking(evt.ms); break;
     case "todos": renderTodos(evt.todos); break;
     case "permission_request": askPermission(evt); break;
     case "tool": sessStats.tools[evt.name] = (sessStats.tools[evt.name] || 0) + 1; addTool({ name: evt.name, args: evt.args, status: evt.allowed === false ? "denied" : "running", detail: "" }); break;
@@ -4706,6 +4709,20 @@ function settingsSession() {
       </div>
     </div>
     <div class="card">
+      <div class="ct">Transcript</div>
+      <div class="cs">How much of Star's work the conversation shows.</div>
+      <div class="row">
+        <div class="rl"><div class="rt">Verbosity</div><div class="rd">Minimal hides reasoning, tool arguments and result previews. Verbose keeps reasoning expanded and opens tool outputs inline.</div></div>
+        <div class="rc">
+          <div class="segbtn" id="fVerbosity">
+            <button data-v="minimal" class="${state.verbosity === "minimal" ? "on" : ""}">Minimal</button>
+            <button data-v="normal" class="${state.verbosity === "normal" ? "on" : ""}">Normal</button>
+            <button data-v="verbose" class="${state.verbosity === "verbose" ? "on" : ""}">Verbose</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
       <div class="ct">Working directory</div>
       <div class="cs">The folder Star reads and edits. Changing it starts a fresh session.</div>
       <div class="row" style="align-items:flex-start">
@@ -4982,6 +4999,10 @@ function wireSettings() {
   document.querySelectorAll("#fTheme button").forEach(b => b.addEventListener("click", () => {
     state.theme = b.dataset.t; applyTheme(); save();
     document.querySelectorAll("#fTheme button").forEach(x => x.classList.toggle("on", x === b));
+  }));
+  document.querySelectorAll("#fVerbosity button").forEach(b => b.addEventListener("click", () => {
+    state.verbosity = b.dataset.v; save();
+    document.querySelectorAll("#fVerbosity button").forEach(x => x.classList.toggle("on", x === b));
   }));
   document.querySelectorAll("[data-kview]").forEach(el => el.addEventListener("click", async () => {
     const name = el.dataset.kview;
