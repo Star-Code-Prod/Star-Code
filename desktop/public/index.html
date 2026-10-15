@@ -554,6 +554,42 @@ body.is-mac.is-electron .brand{margin-left:2px}
 .mo-status{flex:none;padding:8px 12px;font-size:var(--fs-12);color:var(--muted);border-top:1px solid var(--border);line-height:1.5}
 .mo-status.err{color:var(--del-fg)}
 
+/* ---- motion comments + tweaks (the scene is code; these edit its knobs) ---- */
+.mo-track{position:relative;flex:1;min-width:64px;display:flex}
+.mo-marks{position:absolute;inset:0;pointer-events:none}
+.mo-mark{
+  position:absolute;top:50%;width:8px;height:8px;margin-left:-4px;transform:translateY(-50%);
+  border-radius:var(--r-full);background:var(--accent);pointer-events:auto;cursor:pointer;
+  box-shadow:0 0 0 2px var(--panel);padding:0;border:0;
+}
+.mo-mark:hover{transform:translateY(-50%) scale(1.25)}
+.mo-panel{
+  flex:none;display:flex;flex-direction:column;gap:8px;padding:10px 12px;
+  background:var(--panel2);border-bottom:1px solid var(--border);
+}
+.mo-note-head{font-size:var(--fs-12);color:var(--muted)}
+.mo-notes{display:flex;flex-direction:column;gap:5px;max-height:150px;overflow:auto}
+.mo-note{display:flex;align-items:center;gap:8px;font-size:var(--fs-12);color:var(--text2)}
+.mo-note-t{
+  flex:none;font-family:var(--font-mono);font-size:var(--fs-11);color:var(--accent);
+  padding:2px 7px;border-radius:var(--r-full);background:var(--chip);cursor:pointer;border:0;
+}
+.mo-note-t:hover{background:var(--chip-on)}
+.mo-note-x{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mo-note-d{
+  flex:none;width:20px;height:20px;border-radius:var(--r-full);color:var(--dim);cursor:pointer;border:0;background:transparent;
+}
+.mo-note-d:hover{background:var(--chip-on);color:var(--text)}
+.mo-note-add{display:flex;align-items:center;gap:7px}
+.mo-note-at{flex:none;font-family:var(--font-mono);font-size:var(--fs-11);color:var(--accent)}
+.mo-note-add .inp{flex:1;min-width:0}
+.mo-tw{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mo-tw-l{font-size:var(--fs-11);color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.mo-tw-u{font-size:var(--fs-11);color:var(--dim)}
+.mo-tw #moLen{width:92px}
+.mo-tw-words{display:flex;flex-direction:column;gap:6px}
+.mo-tw .segbtn{flex:none}
+
 /* ================= TASK LIST ================= */
 .tasklist{margin:13px auto;border:1px solid var(--border);border-radius:var(--r-md);background:var(--panel);overflow:hidden}
 .tasklist .th{
@@ -1656,6 +1692,7 @@ const DEFAULT_STATE = {
   lastSession: "",      // reopened on the next start; a cut-off turn continues
   paneOpen: [],         // the rail's open panes (order/heights/active persist too)
   paneActive: "",
+  motionNotes: {},      // per-artifact comments: key -> [{ t, text, sent }]
   root: "",
   sessions: [],
 };
@@ -4099,6 +4136,65 @@ function motionStamp() {
 /** The full runtime document: what the preview iframe loads and what
  *  "Open in browser" opens. `code` is a script body, so sequences that would
  *  close the script element early get neutralised first. */
+/* ---- motion tweaks: what the user can change without touching the code ----
+   A motion scene IS a script, so the knobs are the code itself: the length
+   lives in the MOTION.scene options and the words on screen are the string
+   literals handed to fillText/strokeText. These pure helpers read and
+   rewrite exactly those spans, so the panel never guesses at anything the
+   source does not say. */
+
+/** Every drawable text literal in order: { value, start, end, raw }. */
+function motionTextSlots(code) {
+  const src = String(code || "");
+  const slots = [];
+  const re = /(fillText|strokeText)\s*\(\s*("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)/g;
+  let m;
+  while ((m = re.exec(src)) !== null) {
+    const raw = m[2];
+    slots.push({
+      raw,
+      start: m.index + m[0].length - raw.length,
+      end: m.index + m[0].length,
+      value: raw.slice(1, -1)
+        .replace(/\\(['"`\\])/g, "$1")
+        .replace(/\\n/g, "\n")
+        .replace(/\\t/g, "\t"),
+    });
+  }
+  return slots;
+}
+
+/** Rewrite the text literals to `values` (aligned with motionTextSlots). */
+function motionApplyTexts(code, values) {
+  let src = String(code || "");
+  const slots = motionTextSlots(src);
+  for (let i = slots.length - 1; i >= 0; i--) {
+    if (values[i] == null) continue;
+    const q = slots[i].raw[0];
+    const body = String(values[i])
+      .replace(/\\/g, "\\\\")
+      .replace(new RegExp("\\" + q, "g"), "\\" + q)
+      .replace(/\n/g, "\\n")
+      .replace(/\t/g, "\\t");
+    src = src.slice(0, slots[i].start) + q + body + q + src.slice(slots[i].end);
+  }
+  return src;
+}
+
+/** Rewrite the scene's duration option, clamped to something playable. */
+function motionSetDuration(code, seconds) {
+  const s = Math.max(0.2, Math.min(600, Number(seconds) || 1));
+  return String(code || "").replace(/(duration\s*:\s*)([\d.]+)/, (mm, head) => head + String(s));
+}
+
+/** The chat message a "Send to Claude" note becomes. */
+function motionNoteMessage(name, t, text) {
+  const mm = Math.floor((Number(t) || 0) / 60);
+  const ss = Math.floor((Number(t) || 0) % 60);
+  return "Motion feedback on \"" + name + "\" at " + mm + ":" + String(ss).padStart(2, "0") +
+    ' — "' + String(text || "").trim() + '". Please update the motion artifact accordingly.';
+}
+
 function motionDoc(code) {
   const safe = String(code || "").replace(/<\/script/gi, "<\\/script").replace(/<!--/g, "<\\!--");
   return `<!doctype html>
@@ -4117,7 +4213,7 @@ canvas{max-width:100%;max-height:100%;display:block}
   var canvas = document.getElementById("mo");
   var ctx = canvas ? canvas.getContext("2d") : null;
   var cfg = { width: 1280, height: 720, duration: 6, fps: 30 };
-  var draw = null, cur = 0, playing = false, raf = 0, base = 0, started = 0;
+  var draw = null, cur = 0, playing = false, raf = 0, base = 0, started = 0, speed = 1;
   var rec = null, chunks = [], stream = null, recTimer = 0, recActive = false;
   var lastPost = 0, visPlay = false, nextAt = 0;
   // Opened in a browser tab (Open in browser / a saved file) there is no host
@@ -4149,7 +4245,7 @@ canvas{max-width:100%;max-height:100%;display:block}
     var iv = 1000 / Math.max(1, cfg.fps);
     if (nextAt && now + 0.5 < nextAt) return;
     nextAt = Math.max(now, (nextAt || now) + iv);
-    var t = base + (now - started) / 1000;
+    var t = base + (now - started) / 1000 * speed;
     if (t >= cfg.duration) { t = t % cfg.duration; base = t; started = performance.now(); }
     render(t);
     // Progress to the host a few times a second, not every frame.
@@ -4244,6 +4340,12 @@ canvas{max-width:100%;max-height:100%;display:block}
     if (m.type === "motion-seek") seek(m.t);
     else if (m.type === "motion-play") play();
     else if (m.type === "motion-pause") pause();
+    else if (m.type === "motion-speed") {
+      // Playback speed only: the timeline is rebased so the picture does not
+      // jump when the rate changes mid-play.
+      speed = Math.max(0.1, Math.min(4, Number(m.speed) || 1));
+      if (playing) { base = cur; started = performance.now(); }
+    }
     else if (m.type === "motion-visibility") {
       // The pane is hidden: stop burning CPU; resume when it returns.
       if (!m.visible) { visPlay = playing; pause(); }
@@ -4281,11 +4383,16 @@ canvas{max-width:100%;max-height:100%;display:block}
 
 function renderMotionArtifact(body, a) {
   const idx = artifactView.i;
+  const noteKey = artifactKey(idx);
+  const notes = (state.motionNotes && state.motionNotes[noteKey]) || [];
   body.innerHTML = `
     <div class="mo">
       <div class="mo-bar">
         <button class="btn sm" id="moPlay" disabled>Play</button>
-        <input type="range" class="mo-scrub" id="moScrub" min="0" max="1" step="0.001" value="0" aria-label="Scrub the animation" disabled>
+        <span class="mo-track">
+          <input type="range" class="mo-scrub" id="moScrub" min="0" max="1" step="0.001" value="0" aria-label="Scrub the animation" disabled>
+          <span class="mo-marks" id="moMarks" aria-hidden="true"></span>
+        </span>
         <span class="mo-time" id="moTime">0.00s / 0.00s</span>
         <span class="spacer"></span>
         <select class="inp" id="moRes" aria-label="Recording size and frame rate">
@@ -4296,10 +4403,13 @@ function renderMotionArtifact(body, a) {
           <option value="1920x1080x30">1080p · 30fps</option>
           <option value="1920x1080x60">1080p · 60fps</option>
         </select>
+        <button class="btn sm" id="moComment" disabled title="Comment on the moment you are looking at">Comment</button>
+        <button class="btn sm" id="moTweaks" disabled title="Edit the scene without touching the code">Tweaks</button>
         <button class="btn pri sm" id="moRecord" disabled>Record</button>
         <button class="btn sm" id="moReveal" hidden>Reveal</button>
         <button class="btn sm" id="moOpen" hidden>Open</button>
       </div>
+      <div class="mo-panel" id="moPanel" hidden></div>
       <div class="mo-stage"></div>
       <div class="mo-status" id="moStatus">Waiting for the scene…</div>
     </div>`;
@@ -4311,14 +4421,18 @@ function renderMotionArtifact(body, a) {
 
   const playBtn = body.querySelector("#moPlay");
   const scrub = body.querySelector("#moScrub");
+  const marks = body.querySelector("#moMarks");
   const time = body.querySelector("#moTime");
   const res = body.querySelector("#moRes");
   const recBtn = body.querySelector("#moRecord");
   const relBtn = body.querySelector("#moReveal");
   const openBtn = body.querySelector("#moOpen");
   const status = body.querySelector("#moStatus");
+  const panel = body.querySelector("#moPanel");
+  const commentBtn = body.querySelector("#moComment");
+  const tweaksBtn = body.querySelector("#moTweaks");
 
-  const st = { ready: false, duration: 0, sceneW: 1280, sceneH: 720, t: 0, playing: false, recording: false, savedPath: "" };
+  const st = { ready: false, duration: 0, sceneW: 1280, sceneH: 720, t: 0, playing: false, recording: false, savedPath: "", speed: 1 };
   let autoPlayed = false;
   const fmt = (t) => (Number(t) || 0).toFixed(2) + "s";
   const setStatus = (text, err) => { status.textContent = text; status.classList.toggle("err", !!err); };
@@ -4439,6 +4553,9 @@ function renderMotionArtifact(body, a) {
       setFill(0);
       playBtn.disabled = false;
       recBtn.disabled = false;
+      commentBtn.disabled = false;
+      tweaksBtn.disabled = false;
+      renderMarks();
       // Hug the scene's aspect: full rail width, no empty letterbox bands.
       const stage = body.querySelector(".mo-stage");
       if (stage) {
@@ -4462,6 +4579,7 @@ function renderMotionArtifact(body, a) {
       st.t = Math.max(0, Number(m.t) || 0);
       if (!st.recording && !scrubbing) { scrub.value = String(st.t); setFill(st.t); }
       showTime();
+      syncNoteAt();
       return;
     }
     if (m.type === "motion-recorded") {
@@ -4483,6 +4601,150 @@ function renderMotionArtifact(body, a) {
       setStatus("No scene yet — the artifact should call MOTION.scene({ … }, (ctx, t, w, h) => { … }).", true);
     }
   }, 2500);
+
+  /* ---- comments: notes anchored to moments, sent to Star as feedback ---- */
+  const mmss = (t) => Math.floor((Number(t) || 0) / 60) + ":" + String(Math.floor((Number(t) || 0) % 60)).padStart(2, "0");
+  const persistNotes = () => {
+    state.motionNotes = state.motionNotes || {};
+    if (notes.length) state.motionNotes[noteKey] = notes;
+    else delete state.motionNotes[noteKey];
+    save();
+  };
+  const syncNoteAt = () => {
+    const el = panel.querySelector("#moNoteAt");
+    if (el) el.textContent = "at " + mmss(st.t);
+  };
+  const renderMarks = () => {
+    marks.innerHTML = "";
+    if (!st.duration) return;
+    notes.forEach((n) => {
+      const dot = document.createElement("button");
+      dot.type = "button";
+      dot.className = "mo-mark";
+      dot.style.left = Math.max(0, Math.min(100, (n.t / st.duration) * 100)) + "%";
+      dot.title = mmss(n.t) + " · " + n.text;
+      dot.setAttribute("aria-label", "Comment at " + mmss(n.t));
+      dot.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        scrub.value = String(n.t);
+        scrub.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      marks.appendChild(dot);
+    });
+  };
+  const closePanel = () => {
+    panel.hidden = true;
+    panel.dataset.mode = "";
+    panel.innerHTML = "";
+  };
+  const renderNotesPanel = () => {
+    panel.innerHTML = `
+      <div class="mo-note-head">${notes.length ? notes.length + " comment" + (notes.length === 1 ? "" : "s") : "Comment on the moment you are looking at, then send it to Star."}</div>
+      <div class="mo-notes"></div>
+      <div class="mo-note-add">
+        <span class="mo-note-at" id="moNoteAt"></span>
+        <input class="inp" id="moNoteText" placeholder="It's supposed to be…" autocomplete="off" aria-label="Comment text">
+        <button class="btn sm" id="moNoteAdd">Add</button>
+        <button class="btn sm pri" id="moNoteSend">Send to Star</button>
+      </div>`;
+    syncNoteAt();
+    const list = panel.querySelector(".mo-notes");
+    notes.forEach((n, i) => {
+      const row = document.createElement("div");
+      row.className = "mo-note";
+      const at = document.createElement("button");
+      at.className = "mo-note-t";
+      at.type = "button";
+      at.textContent = mmss(n.t);
+      at.title = "Jump to " + mmss(n.t);
+      at.addEventListener("click", () => { scrub.value = String(n.t); scrub.dispatchEvent(new Event("input", { bubbles: true })); });
+      const text = document.createElement("span");
+      text.className = "mo-note-x";
+      text.textContent = n.text;
+      const del = document.createElement("button");
+      del.className = "mo-note-d";
+      del.type = "button";
+      del.title = "Delete comment";
+      del.setAttribute("aria-label", "Delete comment");
+      del.textContent = "×";
+      del.addEventListener("click", () => { notes.splice(i, 1); persistNotes(); renderMarks(); renderNotesPanel(); });
+      row.append(at, text, del);
+      list.appendChild(row);
+    });
+    const input = panel.querySelector("#moNoteText");
+    const addNote = (send) => {
+      const text = input.value.trim();
+      if (!text) { input.focus(); return; }
+      const n = { t: st.t, text, sent: !!send };
+      notes.push(n);
+      persistNotes();
+      renderMarks();
+      if (send) {
+        closePanel();
+        toast("Sent to Star");
+        sendToAgent(motionNoteMessage(artifactName(a), n.t, text));
+      } else {
+        input.value = "";
+        renderNotesPanel();
+      }
+    };
+    panel.querySelector("#moNoteAdd").addEventListener("click", () => addNote(false));
+    panel.querySelector("#moNoteSend").addEventListener("click", () => addNote(true));
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addNote(false); } });
+    input.focus();
+  };
+  commentBtn.addEventListener("click", () => {
+    if (panel.dataset.mode === "notes") return closePanel();
+    closePanel();
+    panel.dataset.mode = "notes";
+    panel.hidden = false;
+    renderNotesPanel();
+  });
+
+  /* ---- tweaks: the code's own knobs, edited without touching code ---- */
+  const renderTweaksPanel = () => {
+    const slots = motionTextSlots(a.code);
+    const dm = /duration\s*:\s*([\d.]+)/.exec(a.code);
+    panel.innerHTML = `
+      <div class="mo-note-head">${esc(artifactName(a))}</div>
+      <div class="mo-tw">
+        <label class="mo-tw-l" for="moLen">Length</label>
+        <input class="inp" id="moLen" type="number" min="0.2" max="600" step="0.1" value="${dm ? esc(dm[1]) : ""}">
+        <span class="mo-tw-u">seconds</span>
+        <span class="spacer"></span>
+        <label class="mo-tw-l">Speed</label>
+        <div class="segbtn" id="moSpeed">
+          ${[0.5, 1, 1.5, 2].map((s) => `<button type="button" data-s="${s}" class="${s === st.speed ? "on" : ""}" title="Playback speed ${s}x" aria-label="Playback speed ${s}x">${s}×</button>`).join("")}
+        </div>
+      </div>
+      <div class="mo-tw-words">
+        <div class="mo-tw-l">${slots.length ? "Words on screen" : "No text drawn in this scene - add fillText in the code and it appears here."}</div>
+        ${slots.map((sl, i) => `<input class="inp" data-txt="${i}" value="${esc(sl.value)}" aria-label="On-screen text ${i + 1}">`).join("")}
+      </div>`;
+    panel.querySelector("#moLen").addEventListener("change", (e) => {
+      artifacts[idx].code = motionSetDuration(artifacts[idx].code, e.target.value);
+      renderArtifact();
+      toast("Length updated");
+    });
+    panel.querySelectorAll("#moSpeed button").forEach((b) => b.addEventListener("click", () => {
+      st.speed = Number(b.dataset.s) || 1;
+      panel.querySelectorAll("#moSpeed button").forEach((x) => x.classList.toggle("on", x === b));
+      send({ type: "motion-speed", speed: st.speed });
+    }));
+    panel.querySelectorAll("[data-txt]").forEach((inp) => inp.addEventListener("change", () => {
+      const values = [...panel.querySelectorAll("[data-txt]")].map((x) => x.value);
+      artifacts[idx].code = motionApplyTexts(artifacts[idx].code, values);
+      renderArtifact();
+      toast("Text updated");
+    }));
+  };
+  tweaksBtn.addEventListener("click", () => {
+    if (panel.dataset.mode === "tweaks") return closePanel();
+    closePanel();
+    panel.dataset.mode = "tweaks";
+    panel.hidden = false;
+    renderTweaksPanel();
+  });
 }
 
 const WORK_CURSOR_SVG = '<svg class="apwork-cursor" width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 2.5l11 6.2-4.8 1.2-1.9 4.8z" fill="var(--text)" stroke="var(--panel)" stroke-width="1.2"/></svg>';

@@ -27,9 +27,15 @@ if (stFrom < 0 || stTo < 0) {
   console.error("FAIL  could not locate toolGroupOf/groupToolCounts in the UI script");
   process.exit(1);
 }
+const twFrom = js.indexOf("function motionTextSlots(");
+const twTo = js.indexOf("function motionDoc(");
+if (twFrom < 0 || twTo < 0) {
+  console.error("FAIL  could not locate the motion tweak helpers in the UI script");
+  process.exit(1);
+}
 const fns = new Function(
-  js.slice(from, to) + js.slice(sbFrom, sbTo) + js.slice(stFrom, stTo) +
-  "; return { esc, hl, md, stripBlocks, parseArtifacts, pendingFence, toolGroupOf, groupToolCounts, fmtCount, splitArtifactParts, deckIframeHtml, docIframeHtml, boardIframeHtml };"
+  js.slice(from, to) + js.slice(sbFrom, sbTo) + js.slice(stFrom, stTo) + js.slice(twFrom, twTo) +
+  "; return { esc, hl, md, stripBlocks, parseArtifacts, pendingFence, toolGroupOf, groupToolCounts, fmtCount, splitArtifactParts, deckIframeHtml, docIframeHtml, boardIframeHtml, motionTextSlots, motionApplyTexts, motionSetDuration, motionNoteMessage };"
 )();
 
 const results = [];
@@ -293,6 +299,32 @@ ok("the motion scrub is styled, not the platform gray rail",
 ok("the fill and the clock follow the drag",
   js.includes("const setFill = (v)") && js.includes("setFill(st.t)") &&
   js.includes('time.innerHTML = (st.recording ? "record " : "")'));
+
+/* -------------------- motion comments + tweaks (the code's knobs) -------------------- */
+const tw1 = fns.motionTextSlots("MOTION.scene({ duration: 6, fps: 30 }, (ctx,t,w,h)=>{ ctx.fillText('Hello', 10, 10); ctx.strokeText(\"Two\", 20, 20); });");
+ok("motion tweaks find the drawn words", tw1.length === 2 && tw1[0].value === "Hello" && tw1[1].value === "Two");
+ok("escapes in the literals are decoded", fns.motionTextSlots("ctx.fillText('a\\'b\\nc', 0, 0)")[0].value === "a'b\nc");
+const twCode = "ctx.fillText('Hello', 10, 10); ctx.fillText(\"Two\", 20, 20);";
+const tw3 = fns.motionApplyTexts(twCode, ["Hi there", 'Say "cheese"']);
+ok("editing a word rewrites exactly that literal",
+  tw3.includes("fillText('Hi there'") && tw3.includes('fillText("Say \\"cheese\\"') && !tw3.includes("Hello"));
+ok("applying the same values again is stable", fns.motionApplyTexts(tw3, ["Hi there", 'Say "cheese"']) === tw3);
+ok("the untouched literal stays untouched", fns.motionApplyTexts(twCode, [null, "Two!"]) === twCode.replace('"Two"', '"Two!"'));
+const twLen = fns.motionSetDuration("MOTION.scene({ width: 640, duration: 6, fps: 30 }, draw);", 3.5);
+ok("length rewrites the duration option", /duration: 3\.5/.test(twLen) && !/duration: 6/.test(twLen));
+ok("length is clamped to something playable", /duration: 0\.2/.test(fns.motionSetDuration("duration: 6", -5)));
+const mmsg = fns.motionNoteMessage("Ride", 69, "by the moon");
+ok("a comment becomes the feedback message",
+  mmsg.includes('"Ride"') && mmsg.includes("1:09") && mmsg.includes("by the moon"));
+ok("the motion player carries Comment and Tweaks",
+  js.includes('id="moComment"') && js.includes('id="moTweaks"') && js.includes('id="moPanel"') &&
+  /\.mo-mark\{/.test(html.replace(/\s+/g, "")) && /\.mo-panel\{/.test(html.replace(/\s+/g, "")));
+ok("notes anchor to moments and persist", js.includes("state.motionNotes") && js.includes("persistNotes()") && js.includes("renderMarks()"));
+ok("a note can be sent to Star as feedback",
+  js.includes("sendToAgent(motionNoteMessage(artifactName(a)") && js.includes("Send to Star"));
+ok("the runtime plays at the chosen speed",
+  js.includes('m.type === "motion-speed"') && js.includes("/ 1000 * speed") &&
+  js.includes('send({ type: "motion-speed", speed: st.speed })'));
 ok("motion autoplays once per player",
   js.includes("let autoPlayed = false") && js.includes("autoPlayed = true") && js.includes('playBtn.textContent = "Pause"'));
 ok("motion pacing keeps the scene's cadence", js.includes("nextAt = Math.max(now, (nextAt || now) + iv)"));
