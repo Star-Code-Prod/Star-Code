@@ -1,7 +1,7 @@
 {
   "name": "star-code",
   "productName": "Star",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "Star — a local, provider-agnostic agentic desktop app. Bring your own model — DeepSeek, OpenAI, Anthropic, Ollama, or any OpenAI-compatible endpoint — and let it read, search, edit, and run commands in your project.",
   "keywords": [
     "ai",
