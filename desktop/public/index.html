@@ -358,6 +358,7 @@ body.is-mac.is-electron .brand{margin-left:2px}
 .think-t{
   margin-left:12px;padding:2px 0 2px 14px;border-left:2px solid var(--border);
   color:var(--muted);font-size:var(--fs-13);line-height:1.6;white-space:pre-wrap;word-break:break-word;
+  contain:content;
 }
 .think[data-live] .think-star{animation:spin 2.4s linear infinite}
 .think[data-live] .think-label{
@@ -1493,7 +1494,7 @@ matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => { i
 let meta = null;
 let appVersion = "";
 let sessionId = null, streaming = false, todos = [], diffs = [], termLines = [];
-let currentMsg = null, currentThink = null, toolGroup = null, thinkStart = 0, thinkTimer = null;
+let currentMsg = null, currentThink = null, toolGroup = null, thinkStart = 0, thinkTimer = null, thinkFlush = 0, answerFlush = 0, answerDirty = false, answerLast = 0;
 let slashIdx = 0, slashMatches = [], planText = "", lastUsage = null;
 
 const MODES = [
@@ -2404,6 +2405,9 @@ function renderTranscript(msgs) {
   $("stream").innerHTML = "";
   currentMsg = null; currentThink = null; toolGroup = null; lastDiff = []; diffs = [];
   turnThink = null;
+  if (thinkFlush) { cancelAnimationFrame(thinkFlush); thinkFlush = 0; }
+  if (answerFlush) { cancelAnimationFrame(answerFlush); answerFlush = 0; }
+  answerDirty = false;
   artifacts = []; msgArtifacts = []; msgCards = 0; artifactView = { i: 0, mode: "render" };
   artifactCards = new Map();
   if (!msgs.length) { showLanding(); renderSessions(); return; }
@@ -2784,6 +2788,13 @@ function showLanding() {
 }
 function atBottom() { const s = $("stream"); return s.scrollHeight - s.scrollTop - s.clientHeight < 120; }
 function scrollDown(force) { const s = $("stream"); if (force || atBottom()) s.scrollTop = s.scrollHeight; }
+/** Coalesced scroll: many stream deltas become one layout read + write per
+ *  frame instead of one forced layout per delta. */
+let scrollSoon = 0;
+function scrollDownSoon() {
+  if (scrollSoon) return;
+  scrollSoon = requestAnimationFrame(() => { scrollSoon = 0; scrollDown(); });
+}
 /** The "jump to latest" pill only shows when there is something to scroll back to. */
 function updateJump() {
   const j = $("jumpBtn");
@@ -3264,16 +3275,33 @@ function renderArtifact() {
 function addDelta(t) {
   if (!currentMsg) startAssistant();
   currentMsg._raw = (currentMsg._raw || "") + t;
+  answerDirty = true;
+  // Rendering the whole markdown per token was the worst hotspot in a long
+  // stream; dwell until ~80ms has passed, then re-render once.
+  if (!answerFlush) answerFlush = requestAnimationFrame(flushAnswer);
+}
+function flushAnswer() {
+  answerFlush = 0;
+  if (!answerDirty || !currentMsg) { answerDirty = false; return; }
+  const now = performance.now();
+  if (now - answerLast < 80) { answerFlush = requestAnimationFrame(flushAnswer); return; }
+  answerLast = performance.now();
+  answerDirty = false;
   const shown = stripBlocks(currentMsg._raw);
   currentMsg._t = shown;
   syncArtifacts(currentMsg._raw, true);
-  if (!shown.trim()) { currentMsg.style.display = "none"; scrollDown(); return; }
+  if (!shown.trim()) { currentMsg.style.display = "none"; scrollDownSoon(); return; }
   currentMsg.style.display = "";
   setMsgHtml(currentMsg, md(shown));
   wireCopy(currentMsg);
-  scrollDown();
+  scrollDownSoon();
+}
+function flushAnswerNow() {
+  if (answerFlush) { cancelAnimationFrame(answerFlush); answerFlush = 0; }
+  if (currentMsg && answerDirty) { answerLast = 0; flushAnswer(); }   // force, no dwell
 }
 function endAssistant() {
+  flushAnswerNow();
   if (currentMsg) currentMsg.classList.remove("streaming");
   if (msgArtifacts.length > msgCards) {
     for (let k = msgCards; k < msgArtifacts.length; k++) {
@@ -3725,9 +3753,11 @@ function startThinking() {
     thinkMode(n, n.dataset.mode === "open" ? "open" : "peek");
     n.setAttribute("data-live", "");
     currentThink.label.textContent = "Thinking…";
-    if (currentThink.text && !currentThink.text.endsWith("\n\n")) currentThink.text += "\n\n";
-    currentThink.panel.textContent = currentThink.text;
-    currentThink.body.scrollTop = currentThink.body.scrollHeight;
+    if (currentThink.text && !currentThink.text.endsWith("\n\n")) {
+      currentThink.text += "\n\n";
+      currentThink.pending = (currentThink.pending || "") + "\n\n";
+    }
+    if (!thinkFlush) thinkFlush = requestAnimationFrame(flushThink);
   } else {
     // Deferred DOM: an empty phase never flashes a pill that removes itself.
     currentThink = { node: null, text: "", body: null, panel: null, label: null, userScrolled: false };
@@ -3764,7 +3794,8 @@ function materializeThink() {
   cur.body = n.querySelector(".think-b");
   cur.panel = n.querySelector(".think-t");
   cur.label = n.querySelector(".think-label");
-  if (cur.text) cur.panel.textContent = cur.text;
+  if (cur.text) cur.panel.textContent = cur.text;   // one write, then appends
+  cur.pending = "";
   const pill = n.querySelector(".think-h");
   pill.addEventListener("click", () => {
     const live = n.hasAttribute("data-live");
@@ -3787,13 +3818,31 @@ function addThinking(t) {
   materializeThink();
   const cur = currentThink;
   cur.text += t;
-  cur.panel.textContent = cur.text;
+  // Append per frame instead of rewriting the whole text per delta: a long
+  // thinking stream used to re-set textContent thousands of times (O(n^2)).
+  cur.pending = (cur.pending || "") + t;
+  if (!thinkFlush) thinkFlush = requestAnimationFrame(flushThink);
+}
+
+/** The rAF callback: appends whatever text arrived this frame, then scrolls
+ *  once. Also called directly (no scheduling) from endThinking. */
+function flushThink() {
+  thinkFlush = 0;
+  writeThinkNow();
+}
+function writeThinkNow() {
+  const cur = currentThink;
+  if (!cur || !cur.node) return;
+  if (cur.pending) { cur.panel.appendChild(document.createTextNode(cur.pending)); cur.pending = ""; }
   if (!cur.userScrolled) cur.body.scrollTop = cur.body.scrollHeight;
-  scrollDown();
+  scrollDownSoon();
 }
 
 function endThinking(ms) {
   if (!currentThink) return;   // idempotent: the server may close a block twice
+  // Flush any text still waiting for a frame so the last words render.
+  if (thinkFlush) { cancelAnimationFrame(thinkFlush); thinkFlush = 0; }
+  writeThinkNow();
   clearInterval(thinkTimer);
   thinkTimer = null;
   const cur = currentThink;
@@ -4253,6 +4302,9 @@ async function newSession(opts = {}) {
   artifactCards = new Map();
   currentMsg = null; currentThink = null; toolGroup = null;
   turnThink = null;
+  if (thinkFlush) { cancelAnimationFrame(thinkFlush); thinkFlush = 0; }
+  if (answerFlush) { cancelAnimationFrame(answerFlush); answerFlush = 0; }
+  answerDirty = false;
   $("stream").innerHTML = "";
   $("term").innerHTML = '<span class="rt">[shell] ready — commands Star runs appear here</span>';
   $("sTitle").textContent = opts.title || "New session";
