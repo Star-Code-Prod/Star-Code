@@ -1,0 +1,51 @@
+name: Stars
+
+# Refresh website/assets/star-chart.svg from the stargazers API. The generator
+# is deterministic for a given set of stars, so the commit below only appears
+# when the data actually changed. Runs daily, on demand, and whenever the
+# chart tooling itself changes.
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+  push:
+    paths:
+      - desktop/tools/make-star-chart.mjs
+      - desktop/tools/verify-star-chart.mjs
+      - .github/workflows/stars.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: stars
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Offline gate: fixtures only, no network, so a broken tool cannot
+      # commit a broken chart.
+      - name: Verify the generator
+        run: node desktop/tools/verify-star-chart.mjs
+
+      - name: Regenerate the chart
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node desktop/tools/make-star-chart.mjs
+
+      - name: Commit if the chart changed
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add website/assets/star-chart.svg
+          git diff --cached --quiet || git commit -m "stars: refresh the chart"
+          git push

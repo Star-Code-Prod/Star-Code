@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 260" width="900" height="260" role="img" aria-label="0 stars">
+<title>Star history — 0 stars</title>
+<line x1="20" y1="206" x2="880" y2="206" stroke="#8C8C88" stroke-opacity="0.22"/>
+<text x="880" y="30" text-anchor="end" font-family="ui-monospace, JetBrains Mono, Consolas, monospace" font-size="18" font-weight="700" fill="#8C8C88">0 stars</text>
+<polyline points="20,206 880,206" fill="none" stroke="#F0B95A" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

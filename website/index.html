@@ -11,10 +11,13 @@
 <meta property="og:description" content="Your machine, your model, your keys — a coding agent and a chat assistant in one app, plus a full-screen terminal for the agent." />
 <meta property="og:url" content="https://star-code-prod.github.io/Star-Code/" />
 <meta property="og:image" content="https://star-code-prod.github.io/Star-Code/assets/chat-mode-dark.png" />
+<meta property="og:image:width" content="3000" />
+<meta property="og:image:height" content="1900" />
+<meta property="og:image:alt" content="Star in Chat mode — a sidebar with the Chat/Code switch and a prompt box reading “Ask Star anything”." />
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="theme-color" media="(prefers-color-scheme: light)" content="#F2F4F8" />
-<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0E1120" />
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23F2B544' d='M12 2C12.9 6.8 17.2 11.1 22 12C17.2 12.9 12.9 17.2 12 22C11.1 17.2 6.8 12.9 2 12C6.8 11.1 11.1 6.8 12 2Z'/%3E%3C/svg%3E" />
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#FAF9F5" />
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1a1a1a" />
+<link rel="icon" type="image/svg+xml" href="assets/icon.svg" />
 <script>
   (function () {
     try {
@@ -25,105 +28,98 @@
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" />
 <style>
-  /* ---- tokens: light ---- */
+  /* ==========================================================================
+     Tokens — mirrored from the app's own stylesheet
+     (desktop/public/index.html, :root + the two theme blocks) so the site
+     reads as the same product. Dark is the base; light is one media query
+     plus one [data-theme="light"] block, and ?theme= can force either.
+     ========================================================================== */
   :root {
+    /* non-color tokens, straight from the app */
+    --fs-11: 11px; --fs-12: 12px; --fs-125: 12.5px; --fs-13: 13px; --fs-14: 14px;
+    --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px;
+    --sp-8: 32px; --sp-10: 40px;
+    --r-xs: 6px; --r-sm: 8px; --r-md: 10px; --r-lg: 14px; --r-xl: 18px; --r-full: 999px;
+    --t-fast: 150ms; --t-mid: 200ms; --t-slow: 280ms;
+    --ease: cubic-bezier(.2, .8, .3, 1);
+    --col: 920px;
+    --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
+    --title-font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    /* site-only */
     --gutter: clamp(16px, 4vw, 28px);
-    --bg: #F2F4F8;
-    --surface: #FFFFFF;
-    --surface-2: #E9EDF4;
-    --ink: #0E1120;
-    --ink-2: #3A4054;
-    --muted: #61687D;
-    --line: #D8DDE7;
-    --line-strong: #BFC6D4;
-    --accent: #A35F00;
-    --accent-strong: #8A5100;
-    --accent-fg: #FFFFFF;
-    --accent-soft: rgba(163, 95, 0, 0.09);
-    --code-bg: #0E1120;
-    --code-bar: rgba(255, 255, 255, 0.035);
-    --code-line: rgba(255, 255, 255, 0.08);
-    --code-ink: #E9ECF4;
-    --code-dim: #8E97B5;
-    --gold-fixed: #F2B544;
-    --shadow-card: 0 1px 2px rgba(14, 17, 32, 0.04), 0 12px 32px -24px rgba(14, 17, 32, 0.35);
-    --shadow-term: 0 30px 70px -38px rgba(14, 17, 32, 0.55);
+    /* the CLI's gold — survives both themes, the way the TUI does */
+    --gold: #F2B544;
+
+    /* palette — dark (the app's default) */
+    --bg: #1a1a1a; --sidebar: #191919; --panel: #212121; --panel2: #262626;
+    --elev: #2a2a2a; --bubble: #2d2d2d; --hover: #242424;
+    --border: #2e2e2e; --border2: #3a3a3a;
+    --text: #e9e9e7; --text2: #b9b9b5; --muted: #8c8c88; --dim: #6b6b67;
+    --accent: #e6e6e4; --accent-h: #f7f7f5; --accent-fg: #141414;
+    --add-fg: #93d093; --del-fg: #ec9494;
+    --code-bg: #161616; --code-fg: #dcdcd8;
+    --chip: #2a2a2a; --chip-on: #383838;
+    --shadow: 0 12px 40px rgba(0, 0, 0, .5);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .32);
+    --shadow-md: 0 8px 24px -10px rgba(0, 0, 0, .62);
+    color-scheme: dark;
+  }
+  /* light, when the OS asks and nothing forced a theme */
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme]) {
+      --bg: #FAF9F5; --sidebar: #F0EEE6; --panel: #FFFFFF; --panel2: #F7F5EE;
+      --elev: #FFFFFF; --bubble: #EDEAE0; --hover: #EAE7DC;
+      --border: #E3E0D3; --border2: #D9D6C8;
+      --text: #141413; --text2: #2F2E2A; --muted: #55534C; --dim: #8A877D;
+      --accent: #21201e; --accent-h: #0a0a09; --accent-fg: #ffffff;
+      --add-fg: #1F4D1A; --del-fg: #7A2A17;
+      --code-bg: #141413; --code-fg: #E9E6DC;
+      --chip: #F0EEE6; --chip-on: #E6E3D8;
+      --shadow: 0 12px 40px rgba(20, 20, 19, .16);
+      --shadow-sm: 0 1px 2px rgba(20, 20, 19, .10);
+      --shadow-md: 0 8px 24px -12px rgba(20, 20, 19, .22);
+      color-scheme: light;
+    }
+  }
+  /* light, forced by ?theme=light */
+  :root[data-theme="light"] {
+    --bg: #FAF9F5; --sidebar: #F0EEE6; --panel: #FFFFFF; --panel2: #F7F5EE;
+    --elev: #FFFFFF; --bubble: #EDEAE0; --hover: #EAE7DC;
+    --border: #E3E0D3; --border2: #D9D6C8;
+    --text: #141413; --text2: #2F2E2A; --muted: #55534C; --dim: #8A877D;
+    --accent: #21201e; --accent-h: #0a0a09; --accent-fg: #ffffff;
+    --add-fg: #1F4D1A; --del-fg: #7A2A17;
+    --code-bg: #141413; --code-fg: #E9E6DC;
+    --chip: #F0EEE6; --chip-on: #E6E3D8;
+    --shadow: 0 12px 40px rgba(20, 20, 19, .16);
+    --shadow-sm: 0 1px 2px rgba(20, 20, 19, .10);
+    --shadow-md: 0 8px 24px -12px rgba(20, 20, 19, .22);
     color-scheme: light;
   }
 
-  /* ---- tokens: dark (system preference unless forced light) ---- */
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #0E1120;
-      --surface: #151A2E;
-      --surface-2: #1B2138;
-      --ink: #F1F3F8;
-      --ink-2: #B9C0D4;
-      --muted: #828CA6;
-      --line: #242C45;
-      --line-strong: #333D5C;
-      --accent: #F2B544;
-      --accent-strong: #FFC85F;
-      --accent-fg: #171200;
-      --accent-soft: rgba(242, 181, 68, 0.12);
-      --code-bg: #090C17;
-      --code-bar: rgba(255, 255, 255, 0.03);
-      --code-line: rgba(255, 255, 255, 0.07);
-      --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 16px 40px -28px rgba(0, 0, 0, 0.9);
-      --shadow-term: 0 30px 70px -34px rgba(0, 0, 0, 0.95);
-      color-scheme: dark;
-    }
-  }
-
-  /* ---- tokens: dark (forced) ---- */
-  :root[data-theme="dark"] {
-    --bg: #0E1120;
-    --surface: #151A2E;
-    --surface-2: #1B2138;
-    --ink: #F1F3F8;
-    --ink-2: #B9C0D4;
-    --muted: #828CA6;
-    --line: #242C45;
-    --line-strong: #333D5C;
-    --accent: #F2B544;
-    --accent-strong: #FFC85F;
-    --accent-fg: #171200;
-    --accent-soft: rgba(242, 181, 68, 0.12);
-    --code-bg: #090C17;
-    --code-bar: rgba(255, 255, 255, 0.03);
-    --code-line: rgba(255, 255, 255, 0.07);
-    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 16px 40px -28px rgba(0, 0, 0, 0.9);
-    --shadow-term: 0 30px 70px -34px rgba(0, 0, 0, 0.95);
-    color-scheme: dark;
-  }
-
+  /* ============================ base ============================ */
   * { box-sizing: border-box; }
-
   html { -webkit-text-size-adjust: 100%; }
-  @media (prefers-reduced-motion: no-preference) {
-    html { scroll-behavior: smooth; }
-  }
-
+  @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
   body {
     margin: 0;
     background: var(--bg);
-    color: var(--ink);
-    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-    font-size: 16px;
-    line-height: 1.55;
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
-
-  ::selection { background: var(--accent-soft); }
-
-  a:focus-visible, :focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-    border-radius: 4px;
-  }
+  img { max-width: 100%; }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+  ::selection { background: color-mix(in srgb, var(--accent) 25%, transparent); }
+  .mono { font-family: var(--font-mono); }
+  .spacer { flex: 1; }
 
   .wrap {
     width: 100%;
@@ -133,416 +129,340 @@
     padding-right: var(--gutter);
   }
 
-  /* ---- header ---- */
+  /* ============================ header ============================ */
   .site-head {
-    position: sticky;
-    top: 0;
-    z-index: 20;
-    background: var(--bg);
+    position: sticky; top: 0; z-index: 30;
     background: color-mix(in srgb, var(--bg) 88%, transparent);
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
-    border-bottom: 1px solid var(--line);
+    border-bottom: 1px solid var(--border);
   }
-  .head-inner {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    height: 60px;
-  }
-  .brand {
-    display: inline-flex;
-    align-items: center;
-    gap: 9px;
-    text-decoration: none;
-    color: var(--ink);
-  }
-  .brand svg { display: block; color: var(--accent); }
+  .head-inner { display: flex; align-items: center; gap: 10px; height: 56px; }
+  .brand { display: inline-flex; align-items: center; gap: 9px; text-decoration: none; color: var(--text); }
+  .brand img { display: block; width: 22px; height: 22px; border-radius: var(--r-xs); }
   .brand-name {
-    font-family: "Familjen Grotesk", "IBM Plex Sans", system-ui, sans-serif;
-    font-weight: 700;
-    font-size: 19px;
-    letter-spacing: -0.015em;
+    font-family: var(--title-font); font-weight: 600; font-size: 16.5px;
+    letter-spacing: -.015em; white-space: nowrap;
   }
-  .brand-ver {
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 10.5px;
-    letter-spacing: 0.04em;
-    color: var(--muted);
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    padding: 1px 7px 2px;
+  .ver {
+    font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .04em;
+    color: var(--muted); border: 1px solid var(--border); border-radius: var(--r-full);
+    padding: 2px 8px 3px; white-space: nowrap;
   }
   .site-nav { margin-left: auto; display: flex; align-items: center; gap: 2px; }
   .site-nav a {
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 12px;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
-    color: var(--ink-2);
-    text-decoration: none;
-    padding: 8px 10px;
-    border-radius: 8px;
-    white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12.5px; color: var(--muted); text-decoration: none;
+    padding: 6px 11px; border-radius: var(--r-sm); white-space: nowrap;
+    transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
   }
-  .site-nav a:hover { color: var(--accent); background: var(--accent-soft); }
-  .site-nav .nav-gh { display: inline-flex; align-items: center; gap: 6px; }
-  .site-nav .nav-gh svg { display: block; }
-  @media (max-width: 660px) {
-    .site-nav a:not(.nav-gh) { display: none; }
-  }
+  .site-nav a:hover { background: var(--panel); color: var(--text); }
+  .site-nav svg { display: block; flex: none; }
+  @media (max-width: 700px) { .site-nav a:not(.nav-gh) { display: none; } }
 
-  /* ---- hero ---- */
-  .hero { padding: clamp(52px, 8vw, 100px) 0 clamp(44px, 6vw, 76px); }
+  /* ============================ hero ============================ */
+  .hero { padding: clamp(44px, 6vw, 80px) 0 clamp(40px, 5vw, 64px); }
+  .hero-grid { display: grid; grid-template-columns: 1fr; gap: 44px; }
+  @media (min-width: 1000px) {
+    .hero-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr); gap: 56px; align-items: center; }
+  }
+  .hero-copy { min-width: 0; }
   .kicker {
-    margin: 0;
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 11.5px;
-    letter-spacing: 0.17em;
-    text-transform: uppercase;
-    color: var(--accent);
+    margin: 0; font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--dim);
   }
-  .wordmark {
-    display: inline-block;
-    margin: 10px 0 0;
-    font-family: "Familjen Grotesk", "IBM Plex Sans", system-ui, sans-serif;
-    font-weight: 700;
-    font-size: clamp(84px, 15vw, 200px);
-    line-height: 0.92;
-    letter-spacing: -0.045em;
-    color: var(--ink);
+  h1.wordmark {
+    margin: 12px 0 0; font-family: var(--title-font); font-weight: 600;
+    font-size: clamp(42px, 6.5vw, 64px); line-height: 1; letter-spacing: -.035em;
   }
-  .spark {
-    display: inline-block;
-    width: 0.235em;
-    height: 0.235em;
-    margin-left: 0.015em;
-    transform: translateY(-0.62em);
-    color: var(--accent);
-  }
-  .spark svg {
-    display: block;
-    width: 100%;
-    height: 100%;
-    animation: spark-spin 26s linear infinite;
-  }
-  @keyframes spark-spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
+  .spark { display: inline-block; width: .34em; height: .34em; margin-left: .04em; transform: translateY(-.64em); color: var(--gold); }
+  .spark svg { display: block; width: 100%; height: 100%; }
   .pitch {
-    margin: 26px 0 0;
-    max-width: 690px;
-    font-size: clamp(17px, 1.55vw, 20px);
-    line-height: 1.5;
-    color: var(--ink-2);
-    text-wrap: pretty;
+    margin: 22px 0 0; max-width: 600px;
+    font-size: clamp(16.5px, 1.35vw, 18.5px); line-height: 1.55;
+    color: var(--text2); text-wrap: pretty;
   }
-  .pitch b { color: var(--ink); font-weight: 600; }
-
-  .cta-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+  .pitch b { color: var(--text); font-weight: 600; }
+  .cta-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
   .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
-    font-weight: 600;
-    font-size: 15.5px;
-    letter-spacing: -0.005em;
-    line-height: 1;
-    padding: 13px 20px 14px;
-    border-radius: 11px;
-    border: 1px solid transparent;
-    text-decoration: none;
-    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    display: inline-flex; align-items: center; gap: 9px;
+    padding: 10px 16px; border-radius: var(--r-sm);
+    border: 1px solid var(--border2); background: var(--panel); color: var(--text);
+    font-size: 14px; font-weight: 500; line-height: 1.2; text-decoration: none;
+    transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
   }
+  .btn:hover { background: var(--elev); }
+  .btn.pri { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+  .btn.pri:hover { background: var(--accent-h); border-color: var(--accent-h); }
   .btn svg { display: block; flex: none; }
-  .btn-primary { background: var(--accent); color: var(--accent-fg); }
-  .btn-primary:hover { background: var(--accent-strong); }
-  .btn-ghost { background: var(--surface); color: var(--ink); border-color: var(--line-strong); }
-  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
-
-  /* ---- spec strip (small print as a data readout) ---- */
   .spec {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 18px 44px;
-    margin: 46px 0 0;
-    padding: 22px 0 0;
-    border-top: 1px solid var(--line);
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px 40px; margin: 40px 0 0; padding: 20px 0 0;
+    border-top: 1px solid var(--border);
   }
-  @media (max-width: 780px) {
-    .spec { grid-template-columns: 1fr; gap: 16px; }
-  }
+  @media (max-width: 780px) { .spec { grid-template-columns: 1fr; gap: 14px; } }
   .spec dt {
-    margin: 0 0 6px;
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 10.5px;
-    font-weight: 500;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--muted);
+    margin: 0 0 5px; font-family: var(--font-mono); font-size: 10.5px; font-weight: 500;
+    letter-spacing: .16em; text-transform: uppercase; color: var(--dim);
   }
-  .spec dd {
-    margin: 0;
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 13px;
-    line-height: 1.6;
-    color: var(--ink-2);
+  .spec dd { margin: 0; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.6; color: var(--text2); }
+
+  /* ======================= the app window (live HTML recreation) =======================
+     Markup and metric follow the real app: 46px title bar, slim sidebar,
+     conversation column, the reference thinking pill, the composer.        */
+  .appwin {
+    position: relative; min-width: 0;
+    background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: var(--r-xl);
+    box-shadow: var(--shadow); overflow: hidden;
+    font-size: var(--fs-14); line-height: 1.5;
   }
+  .aw-bar {
+    display: flex; align-items: center; gap: var(--sp-2);
+    height: 46px; padding: 0 var(--sp-4); background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .aw-brand { display: flex; align-items: center; gap: var(--sp-2); flex: none; }
+  .aw-brand img { display: block; width: 20px; height: 20px; border-radius: var(--r-xs); }
+  .aw-brand .nm { font-size: var(--fs-125); color: var(--muted); letter-spacing: -.01em; white-space: nowrap; }
+  .tb-btn {
+    width: 26px; height: 26px; border-radius: var(--r-sm); flex: none;
+    display: flex; align-items: center; justify-content: center; color: var(--muted);
+  }
+  .tb-text {
+    display: flex; align-items: center; padding: 6px 11px; border-radius: var(--r-sm);
+    font-size: var(--fs-125); color: var(--muted);
+  }
+  .aw-body { display: flex; height: clamp(430px, 40vw, 506px); min-height: 0; }
+  .aw-side {
+    width: 190px; flex: none; display: flex; flex-direction: column; gap: 1px;
+    padding: 10px var(--sp-2) var(--sp-2);
+    background: var(--sidebar); border-right: 1px solid var(--border); overflow: hidden;
+  }
+  .sb-link {
+    display: flex; align-items: center; gap: 9px; padding: 7px 9px;
+    border-radius: var(--r-sm); font-size: var(--fs-13); color: var(--text2);
+  }
+  .sb-link svg { flex: none; opacity: .72; }
+  .sb-sec {
+    display: flex; align-items: center; gap: 6px; padding: var(--sp-3) 6px 6px;
+    font-size: 10.5px; letter-spacing: .05em; color: var(--dim); text-transform: uppercase;
+  }
+  .sb-search {
+    display: flex; align-items: center; gap: 7px; margin: 0 2px; padding: 0 8px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-sm); color: var(--dim);
+  }
+  .sb-search span { font-size: var(--fs-125); padding: 6px 0; }
+  @media (max-width: 640px) { .aw-side { display: none; } }
+  .aw-main { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--bg); }
+  .aw-conv {
+    flex: 1; min-height: 0; overflow: hidden;
+    padding: var(--sp-5) var(--sp-6) var(--sp-2);
+    display: flex; flex-direction: column;
+  }
+  @media (max-width: 640px) { .aw-conv { padding: var(--sp-4) 14px var(--sp-1); } }
+  .msg-u { display: flex; justify-content: flex-end; }
+  .msg-u .b {
+    max-width: min(430px, 86%); padding: 9px 13px; border-radius: var(--r-lg);
+    background: var(--bubble); border: 1px solid color-mix(in srgb, var(--text) 7%, transparent);
+    font-size: var(--fs-14); line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+  }
+  /* the reference "Star Thinking Block" — same rules as the app */
+  .think { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; max-width: 100%; margin: 13px 0 0; }
+  .think-h {
+    display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px 0 10px;
+    border-radius: var(--r-full); background: var(--chip); color: var(--muted);
+    font-size: var(--fs-13); font-weight: 500;
+  }
+  .think-star { width: 14px; height: 14px; color: var(--accent); flex: none; }
+  .think-label { font-variant-numeric: tabular-nums; }
+  .think-chev { width: 12px; height: 12px; flex: none; transition: transform 200ms var(--ease); }
+  .think[data-mode="peek"] .think-chev { transform: rotate(180deg); }
+  .think-b { width: 100%; max-height: 0; overflow: hidden; transition: max-height 300ms ease; }
+  .think[data-mode="peek"] .think-b {
+    max-height: 68px;
+    -webkit-mask-image: linear-gradient(transparent, var(--text) 45%);
+    mask-image: linear-gradient(transparent, var(--text) 45%);
+  }
+  .think-t {
+    margin-left: 12px; padding: 2px 0 2px 14px; border-left: 2px solid var(--border);
+    color: var(--muted); font-size: var(--fs-13); line-height: 1.6;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .think[data-live] .think-star { animation: spin 2.4s linear infinite; }
+  .think[data-live] .think-label {
+    background: linear-gradient(90deg, var(--muted) 30%, var(--text) 50%, var(--muted) 70%);
+    background-size: 200% 100%;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: shimmer 1.8s linear infinite;
+  }
+  @keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes cursor-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+  .tools { margin: 13px 0 0; }
+  .tools-h {
+    display: flex; align-items: center; gap: 9px; padding: 7px 11px;
+    border-radius: var(--r-sm); background: var(--panel);
+    font-size: var(--fs-125); color: var(--muted);
+  }
+  .tools-h .dot { width: 6px; height: 6px; border-radius: 50%; flex: none; background: var(--add-fg); }
+  .tools-h.err .dot { background: var(--del-fg); }
+  .tools-h .txt { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tools-h .cnt {
+    font-family: var(--font-mono); font-size: 10.5px; color: var(--dim);
+    background: var(--chip); border-radius: var(--r-full); padding: 1px 6px; min-width: 18px; text-align: center;
+  }
+  .aw-comp { flex: none; padding: 0 var(--sp-6) var(--sp-4); background: var(--bg); }
+  @media (max-width: 640px) { .aw-comp { padding: 0 14px var(--sp-3); } }
+  .cbox {
+    display: flex; align-items: center; gap: 10px; padding: 9px 11px 9px 13px;
+    border-radius: var(--r-xl); background: var(--elev);
+    border: 1px solid var(--border2); box-shadow: var(--shadow-md);
+  }
+  .cbox .ph { flex: 1; min-width: 0; color: var(--dim); font-size: var(--fs-14); line-height: 1.5; }
+  .kbdh {
+    flex: none; width: 30px; height: 30px; border-radius: var(--r-full);
+    display: flex; align-items: center; justify-content: center;
+    background: var(--accent); color: var(--accent-fg);
+  }
+  .crow { display: flex; align-items: center; gap: var(--sp-1); margin-top: var(--sp-2); padding: 0 2px; flex-wrap: wrap; }
+  .cbtn { display: flex; align-items: center; gap: 7px; padding: 5px 9px; border-radius: var(--r-sm); font-size: var(--fs-125); color: var(--muted); white-space: nowrap; }
+  .cbtn.ico { padding: 5px 7px; }
+  .cbtn.model { margin-left: auto; }
+  .cbtn .sep { color: var(--dim); }
+  @media (max-width: 520px) { .cbtn.ico { display: none; } }
 
-  /* ---- sections ---- */
-  .section { padding: clamp(56px, 7vw, 92px) 0; }
-  main > section + section { border-top: 1px solid var(--line); }
-  section[id] { scroll-margin-top: 78px; }
-
+  /* ============================ sections ============================ */
+  .section { padding: clamp(48px, 6vw, 80px) 0; }
+  main > section + section { border-top: 1px solid var(--border); }
+  section[id] { scroll-margin-top: 76px; }
   .eyebrow {
-    margin: 0 0 14px;
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 11.5px;
-    font-weight: 500;
-    letter-spacing: 0.17em;
-    text-transform: uppercase;
-    color: var(--accent);
+    margin: 0 0 12px; font-family: var(--font-mono); font-size: 11px;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--dim);
   }
   h2 {
-    margin: 0;
-    font-family: "Familjen Grotesk", "IBM Plex Sans", system-ui, sans-serif;
-    font-weight: 600;
-    font-size: clamp(30px, 4.2vw, 42px);
-    letter-spacing: -0.022em;
-    line-height: 1.08;
-    text-wrap: balance;
+    margin: 0; font-family: var(--title-font); font-weight: 600;
+    font-size: clamp(26px, 3.4vw, 34px); letter-spacing: -.02em; line-height: 1.12; text-wrap: balance;
   }
-  .lede {
-    margin: 16px 0 0;
-    max-width: 620px;
-    font-size: 16.5px;
-    line-height: 1.6;
-    color: var(--ink-2);
-    text-wrap: pretty;
-  }
+  .lede { margin: 14px 0 0; max-width: 640px; font-size: 16px; line-height: 1.6; color: var(--text2); text-wrap: pretty; }
 
   /* ---- features ---- */
-  .features {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 14px;
-    margin-top: 38px;
-  }
+  .features { display: grid; grid-template-columns: 1fr; gap: 14px; margin-top: 32px; }
   @media (min-width: 700px) { .features { grid-template-columns: 1fr 1fr; } }
-  @media (min-width: 1000px) { .features { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (min-width: 1020px) { .features { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
   .card {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 22px 22px 24px;
-    box-shadow: var(--shadow-card);
+    min-width: 0; padding: var(--sp-5);
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
   }
-  .card svg { display: block; color: var(--accent); }
-  .card h3 {
-    margin: 16px 0 8px;
-    font-family: "Familjen Grotesk", "IBM Plex Sans", system-ui, sans-serif;
-    font-weight: 600;
-    font-size: 17.5px;
-    letter-spacing: -0.01em;
-  }
-  .card p { margin: 0; font-size: 15px; line-height: 1.62; color: var(--ink-2); }
+  .card svg { display: block; color: var(--muted); }
+  .card h3 { margin: 14px 0 7px; font-family: var(--title-font); font-weight: 600; font-size: 15.5px; letter-spacing: -.01em; }
+  .card p { margin: 0; font-size: 14px; line-height: 1.65; color: var(--muted); }
   .card code {
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 0.88em;
-    white-space: nowrap;
-    background: var(--surface-2);
-    border: 1px solid var(--line);
-    border-radius: 5px;
-    padding: 1px 5px;
+    font-family: var(--font-mono); font-size: .88em; white-space: nowrap;
+    background: var(--chip); color: var(--text);
+    border: 1px solid color-mix(in srgb, var(--text) 6%, transparent);
+    border-radius: var(--r-xs); padding: 1px 5px;
   }
 
-  /* ---- terminal section ---- */
+  /* ---- CLI ---- */
   .cli-grid { display: grid; grid-template-columns: 1fr; gap: 40px; align-items: center; }
-  @media (min-width: 940px) {
-    .cli-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr); gap: 58px; }
-  }
+  @media (min-width: 940px) { .cli-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr); gap: 56px; } }
   .cli-copy, .cli-grid > figure { min-width: 0; }
-  .ways { margin: 26px 0 0; }
-  .way { padding: 14px 0; border-top: 1px solid var(--line); }
-  .way:last-child { border-bottom: 1px solid var(--line); }
+  .ways { margin: 24px 0 0; }
+  .way { padding: 14px 0; border-top: 1px solid var(--border); }
+  .way:last-child { border-bottom: 1px solid var(--border); }
   .way code {
-    display: inline-block;
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 12.5px;
-    color: var(--ink);
-    white-space: nowrap;
-    background: var(--surface-2);
-    border: 1px solid var(--line);
-    border-radius: 7px;
-    padding: 3px 8px;
+    display: inline-block; font-family: var(--font-mono); font-size: var(--fs-125);
+    color: var(--text); white-space: nowrap; max-width: 100%; overflow-x: auto;
+    background: var(--chip); border: 1px solid color-mix(in srgb, var(--text) 6%, transparent);
+    border-radius: var(--r-xs); padding: 3px 8px;
   }
-  .way p { margin: 9px 0 0; font-size: 14.5px; line-height: 1.55; color: var(--ink-2); }
-  .way b { color: var(--ink); font-weight: 600; }
-  .cli-cta { margin-top: 28px; }
-
+  .way p { margin: 9px 0 0; font-size: 14.5px; line-height: 1.55; color: var(--muted); }
+  .way b { color: var(--text2); font-weight: 600; }
+  .cli-cta { margin-top: 26px; }
+  /* the terminal block wears the app's code-block chrome */
   .term {
-    margin: 0;
-    background: var(--code-bg);
-    border: 1px solid var(--code-line);
-    border-radius: 14px;
-    overflow: hidden;
-    box-shadow: var(--shadow-term);
+    margin: 0; background: var(--code-bg);
+    border: 1px solid var(--border); border-radius: var(--r-md);
+    overflow: hidden; box-shadow: var(--shadow-md);
   }
   .term-bar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 11px 14px;
-    background: var(--code-bar);
-    border-bottom: 1px solid var(--code-line);
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+    padding: 7px 12px; border-bottom: 1px solid #2a2a2a;
+    font-family: var(--font-mono); font-size: var(--fs-11); color: #8c8c88; letter-spacing: .02em;
   }
-  .term-bar i { width: 9px; height: 9px; border-radius: 50%; background: rgba(255, 255, 255, 0.16); }
-  .term-bar span {
-    margin-left: 6px;
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 12px;
-    letter-spacing: 0.02em;
-    color: var(--code-dim);
-  }
+  .term-bar .d { color: #6b6b67; flex: none; }
   .term pre {
-    margin: 0;
-    padding: 18px 20px 20px;
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 13.5px;
-    line-height: 1.85;
-    color: var(--code-ink);
-    overflow-x: auto;
+    margin: 0; padding: 16px 18px 18px;
+    font-family: var(--font-mono); font-size: 13.5px; line-height: 1.85;
+    color: var(--code-fg); overflow-x: auto;
   }
-  .t-dim { color: var(--code-dim); }
-  .t-accent { color: var(--gold-fixed); font-weight: 500; }
+  .t-dim { color: #8c8c88; }
+  .t-accent { color: var(--gold); font-weight: 500; }
   .cursor {
-    display: inline-block;
-    width: 8px;
-    height: 15px;
-    margin-left: 3px;
-    vertical-align: -3px;
-    background: var(--gold-fixed);
-    animation: cursor-pulse 1.1s ease-in-out infinite;
+    display: inline-block; width: 8px; height: 15px; margin-left: 3px; vertical-align: -3px;
+    background: var(--gold); animation: cursor-pulse 1.1s ease-in-out infinite;
   }
-  @keyframes cursor-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
-  }
-  @media (max-width: 560px) {
-    .term pre { font-size: 12.4px; padding: 16px 16px 18px; }
-  }
-  @media (max-width: 440px) {
-    .term pre { white-space: pre-wrap; }
-  }
+  @media (max-width: 560px) { .term pre { font-size: 12.4px; padding: 14px 14px 16px; } }
+  @media (max-width: 440px) { .term pre { white-space: pre-wrap; } }
 
   /* ---- screenshots ---- */
-  .gallery {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 30px 22px;
-    margin-top: 38px;
+  .gallery { display: grid; grid-template-columns: 1fr; gap: 28px 22px; margin-top: 32px; }
+  @media (min-width: 880px) { .gallery { grid-template-columns: 1fr 1fr; } }
+  .gallery figure { margin: 0; min-width: 0; }
+  .shot {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-sm);
   }
-  @media (min-width: 860px) { .gallery { grid-template-columns: 1fr 1fr; } }
-  .gallery figure { margin: 0; }
-  .gallery img {
-    display: block;
-    width: 100%;
-    height: auto;
-    border-radius: 12px;
-    border: 1px solid var(--line);
-    background: var(--surface);
+  .shot-bar {
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+    background: var(--panel); border-bottom: 1px solid var(--border);
   }
+  .shot-bar img { display: block; width: 16px; height: 16px; border-radius: 4px; flex: none; }
+  .shot-bar .t {
+    font-family: var(--font-mono); font-size: var(--fs-11); color: var(--muted);
+    letter-spacing: .02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .shot-bar .d { margin-left: auto; font-family: var(--font-mono); font-size: 10.5px; color: var(--dim); flex: none; }
+  .shot > img { display: block; width: 100%; height: auto; }
   .gallery figcaption {
-    margin-top: 12px;
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 12px;
-    line-height: 1.65;
-    color: var(--muted);
-    text-wrap: pretty;
-  }
-  .gallery figcaption b {
-    display: block;
-    margin-bottom: 2px;
-    color: var(--ink);
-    font-weight: 500;
-    letter-spacing: 0.03em;
+    margin-top: 11px; font-family: var(--font-mono); font-size: var(--fs-12);
+    line-height: 1.65; color: var(--muted); text-wrap: pretty;
   }
 
   /* ---- star history ---- */
-  .history-grid { display: grid; grid-template-columns: 1fr; gap: 40px; align-items: center; }
-  @media (min-width: 920px) {
-    .history-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.22fr); gap: 58px; }
+  .history-head { max-width: 760px; }
+  .history-cta { margin-top: 22px; }
+  .chart { margin: 34px 0 0; max-width: 900px; }
+  .chart img {
+    display: block; width: 100%; height: auto;
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-lg);
   }
-  .history-copy { min-width: 0; }
-  .history-cta { margin-top: 26px; }
-  .chart {
-    margin: 0;
-    min-width: 0;
-    background: #FFFFFF;
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 10px;
-    overflow: hidden;
-  }
-  .chart img { display: block; width: 100%; height: auto; border-radius: 6px; }
-  .chart figcaption {
-    margin: 8px 2px 2px;
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 11.5px;
-    color: #5B6378;
-  }
+  .chart figcaption { margin: 10px 2px 0; font-family: var(--font-mono); font-size: var(--fs-12); color: var(--muted); }
 
   /* ---- footer ---- */
-  .site-foot { border-top: 1px solid var(--line); padding: 34px 0 46px; }
+  .site-foot { border-top: 1px solid var(--border); padding: 30px 0 42px; }
   .foot-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
-  .foot-brand {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-family: "Familjen Grotesk", "IBM Plex Sans", system-ui, sans-serif;
-    font-weight: 600;
-    font-size: 15px;
-    color: var(--ink);
-  }
-  .foot-brand svg { display: block; color: var(--accent); }
-  .foot-ver {
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 10.5px;
-    color: var(--muted);
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    padding: 1.5px 8px;
-  }
-  .foot-links { margin-left: auto; display: flex; flex-wrap: wrap; gap: 6px 18px; }
-  .foot-links a {
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 12px;
-    color: var(--ink-2);
-    text-decoration: none;
-  }
-  .foot-links a:hover { color: var(--accent); }
+  .foot-brand { display: inline-flex; align-items: center; gap: 8px; font-family: var(--title-font); font-weight: 600; font-size: 14.5px; }
+  .foot-brand img { display: block; width: 18px; height: 18px; border-radius: 5px; }
+  .foot-links { margin-left: auto; display: flex; flex-wrap: wrap; gap: 4px 16px; }
+  .foot-links a { font-size: 12.5px; color: var(--muted); text-decoration: none; transition: color var(--t-fast) var(--ease); }
+  .foot-links a:hover { color: var(--text); }
   @media (max-width: 560px) { .foot-links { margin-left: 0; } }
   .foot-legal {
-    margin: 18px 0 0;
-    max-width: 940px;
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
-    font-size: 11.5px;
-    line-height: 2;
-    color: var(--muted);
-    text-wrap: pretty;
+    margin: 18px 0 0; max-width: 940px;
+    font-family: var(--font-mono); font-size: 11.5px; line-height: 2;
+    color: var(--muted); text-wrap: pretty;
   }
   .foot-legal a {
-    color: var(--ink-2);
-    text-decoration: underline;
-    text-decoration-color: var(--line-strong);
-    text-underline-offset: 3px;
+    color: var(--text2); text-decoration: underline;
+    text-decoration-color: var(--border2); text-underline-offset: 3px;
   }
-  .foot-legal a:hover { color: var(--accent); text-decoration-color: var(--accent); }
+  .foot-legal a:hover { color: var(--text); }
 
   @media (prefers-reduced-motion: reduce) {
-    .spark svg, .cursor { animation: none; }
+    *, *::before, *::after { animation: none !important; transition: none !important; }
   }
 </style>
 </head>
@@ -551,12 +471,10 @@
 <header class="site-head">
   <div class="wrap head-inner">
     <a class="brand" href="#top" aria-label="Star — back to top">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
-        <path d="M12 2C12.9 6.8 17.2 11.1 22 12C17.2 12.9 12.9 17.2 12 22C11.1 17.2 6.8 12.9 2 12C6.8 11.1 11.1 6.8 12 2Z"/>
-      </svg>
+      <img src="assets/icon.svg" alt="" width="22" height="22" />
       <span class="brand-name">Star</span>
-      <span class="brand-ver">v1.4.0</span>
     </a>
+    <span class="ver">v1.4.0</span>
     <nav class="site-nav" aria-label="Site">
       <a href="#features">Features</a>
       <a href="#cli">CLI</a>
@@ -573,25 +491,124 @@
 
 <main id="top">
 
-  <!-- hero -->
+  <!-- ============================ hero ============================ -->
   <section class="hero">
     <div class="wrap">
-      <p class="kicker">A coding agent &amp; chat assistant for Windows</p>
-      <h1 class="wordmark">Star<span class="spark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor" focusable="false"><path d="M12 2C12.9 6.8 17.2 11.1 22 12C17.2 12.9 12.9 17.2 12 22C11.1 17.2 6.8 12.9 2 12C6.8 11.1 11.1 6.8 12 2Z"/></svg></span></h1>
-      <p class="pitch"><b>Your machine, your model, your keys</b> — a coding agent and a chat assistant in one app, plus a full-screen terminal for the agent.</p>
-      <div class="cta-row">
-        <a class="btn btn-primary" href="https://github.com/Star-Code-Prod/Star-Code/releases/latest" rel="noopener">
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-            <path d="M10 3.5v8.3"/><path d="m6.4 8.4 3.6 3.6 3.6-3.6"/><path d="M4 15.5h12"/>
-          </svg>
-          Download for Windows
-        </a>
-        <a class="btn btn-ghost" href="https://github.com/Star-Code-Prod/Star-Code" rel="noopener">
-          View on GitHub
-          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-            <path d="M5.8 14.2 14.2 5.8"/><path d="M7.2 5.8h7v7"/>
-          </svg>
-        </a>
+      <div class="hero-grid">
+      <div class="hero-copy">
+        <p class="kicker">A coding agent &amp; chat assistant for Windows</p>
+        <h1 class="wordmark">Star<span class="spark" aria-hidden="true"><svg viewBox="0 0 512 512" fill="currentColor" focusable="false"><path d="M366 154c5 33 20 48 53 53-33 5-48 20-53 53-5-33-20-48-53-53 33-5 48-20 53-53z"/></svg></span></h1>
+        <p class="pitch"><b>Your machine, your model, your keys</b> — a coding agent and a chat assistant in one app, plus a full-screen terminal for the agent.</p>
+        <div class="cta-row">
+          <a class="btn pri" href="https://github.com/Star-Code-Prod/Star-Code/releases/latest" rel="noopener">
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <path d="M10 3.5v8.3"/><path d="m6.4 8.4 3.6 3.6 3.6-3.6"/><path d="M4 15.5h12"/>
+            </svg>
+            Download for Windows
+          </a>
+          <a class="btn" href="https://github.com/Star-Code-Prod/Star-Code" rel="noopener">
+            View on GitHub
+            <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <path d="M5.8 14.2 14.2 5.8"/><path d="M7.2 5.8h7v7"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+
+      <!-- live HTML recreation of the app window (not a screenshot) -->
+      <div class="appwin" role="img" aria-label="A recreation of the Star app window. A user asked “Fix the failing watcher test”. The thinking pill shows “Thinking… 4s” with a live peek of the reasoning — two change events reach the debounce, track the last mtime per path, re-run that test file. A tool line reports “Run npm test — watcher · 3 failed”. Below sits the composer with the placeholder “Type / for commands”, an Ask permissions control, and the model readout — deepseek-chat · Medium.">
+        <div class="aw-bar">
+          <span class="aw-brand">
+            <img src="assets/icon.svg" alt="" width="20" height="20" />
+            <span class="nm">Star</span>
+          </span>
+          <span class="tb-btn">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M5.6 2.5v11"/></svg>
+          </span>
+          <span class="tb-btn">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+          </span>
+          <span class="spacer"></span>
+          <span class="tb-text">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.5" y="2.5" width="5.6" height="11" rx="1.8"/><rect x="8.9" y="2.5" width="5.6" height="11" rx="1.8"/></svg>
+          </span>
+        </div>
+        <div class="aw-body">
+          <aside class="aw-side" aria-hidden="true">
+            <span class="sb-link">
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>
+              New session
+            </span>
+            <span class="sb-link">
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M1.8 9.8V4.5A1.5 1.5 0 013.3 3h2.4l1.3 1.6h5.5a1.5 1.5 0 011.5 1.5v1.3"/><path d="M4.9 7.5h8.9l-2.6 5.4H2.3z"/></svg>
+              Open folder
+            </span>
+            <span class="sb-link">
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12.79 6.98L14.55 7.2A6.6 6.6 0 0 1 14.55 8.8L12.79 9.02A4.9 4.9 0 0 1 12.11 10.67L13.2 12.06A6.6 6.6 0 0 1 12.06 13.2L10.67 12.11A4.9 4.9 0 0 1 9.02 12.79L8.8 14.55A6.6 6.6 0 0 1 7.2 14.55L6.98 12.79A4.9 4.9 0 0 1 5.33 12.11L3.94 13.2A6.6 6.6 0 0 1 2.8 12.06L3.89 10.67A4.9 4.9 0 0 1 3.21 9.02L1.45 8.8A6.6 6.6 0 0 1 1.45 7.2L3.21 6.98A4.9 4.9 0 0 1 3.89 5.33L2.8 3.94A6.6 6.6 0 0 1 3.94 2.8L5.33 3.89A4.9 4.9 0 0 1 6.98 3.21L7.2 1.45A6.6 6.6 0 0 1 8.8 1.45L9.02 3.21A4.9 4.9 0 0 1 10.67 3.89L12.06 2.8A6.6 6.6 0 0 1 13.2 3.94L12.11 5.33A4.9 4.9 0 0 1 12.79 6.98Z"/><circle cx="8" cy="8" r="2"/></svg>
+              Settings
+            </span>
+            <span class="sb-link">
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="3.5" r="1.2"/><circle cx="8" cy="8" r="1.2"/><circle cx="8" cy="12.5" r="1.2"/></svg>
+              More
+            </span>
+            <span class="sb-sec">Sessions</span>
+            <span class="sb-search">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+              <span>Search sessions</span>
+            </span>
+          </aside>
+          <div class="aw-main">
+            <div class="aw-conv">
+              <div class="msg-u">
+                <div class="b">Fix the failing watcher test</div>
+              </div>
+              <div class="think" data-mode="peek" data-live>
+                <span class="think-h">
+                  <svg class="think-star" viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"><path d="M366 154c5 33 20 48 53 53-33 5-48 20-53 53-5-33-20-48-53-53 33-5 48-20 53-53z"/></svg>
+                  <span class="think-label">Thinking… 4s</span>
+                  <svg class="think-chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4.5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </span>
+                <div class="think-b">
+                  <div class="think-t">Two change events reach the debounce.
+Track the last mtime per path to fold them.
+Then re-run just that test file.</div>
+                </div>
+              </div>
+              <div class="tools">
+                <div class="tools-h err">
+                  <span class="dot"></span>
+                  <span class="txt">Run npm test — watcher</span>
+                  <span class="cnt">3 failed</span>
+                </div>
+              </div>
+            </div>
+            <div class="aw-comp">
+              <div class="cbox">
+                <span class="ph">Type / for commands</span>
+                <span class="kbdh">
+                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13.5V3M3.5 7.5L8 3l4.5 4.5"/></svg>
+                </span>
+              </div>
+              <div class="crow">
+                <span class="cbtn">Ask permissions</span>
+                <span class="cbtn ico">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M8 6.2v5.1M5.45 8.75h5.1"/></svg>
+                </span>
+                <span class="cbtn ico">
+                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.2 7.4l-4.9 4.9a3.3 3.3 0 01-4.67-4.67l5.2-5.2a2.2 2.2 0 013.11 3.11l-5.1 5.1a1.1 1.1 0 01-1.56-1.56l4.7-4.7"/></svg>
+                </span>
+                <span class="cbtn ico">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M3 5.5l3 3-3 3M8.5 12h4.5"/></svg>
+                </span>
+                <span class="cbtn ico">
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 6.5l4 4 4-4"/></svg>
+                </span>
+                <span class="cbtn model"><span class="mono">deepseek-chat</span><span class="sep">·</span><span>Medium</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       </div>
       <dl class="spec">
         <div>
@@ -610,7 +627,7 @@
     </div>
   </section>
 
-  <!-- features -->
+  <!-- ============================ features ============================ -->
   <section id="features" class="section">
     <div class="wrap">
       <p class="eyebrow">01 — Features</p>
@@ -680,7 +697,7 @@
     </div>
   </section>
 
-  <!-- CLI -->
+  <!-- ============================ CLI ============================ -->
   <section id="cli" class="section">
     <div class="wrap cli-grid">
       <div class="cli-copy">
@@ -700,7 +717,7 @@
         </div>
 
         <div class="cli-cta">
-          <a class="btn btn-primary" href="https://github.com/Star-Code-Prod/Star-Code/releases/latest" rel="noopener">
+          <a class="btn pri" href="https://github.com/Star-Code-Prod/Star-Code/releases/latest" rel="noopener">
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
               <path d="M10 3.5v8.3"/><path d="m6.4 8.4 3.6 3.6 3.6-3.6"/><path d="M4 15.5h12"/>
             </svg>
@@ -711,8 +728,8 @@
 
       <figure class="term">
         <div class="term-bar" aria-hidden="true">
-          <i></i><i></i><i></i>
           <span>star-code — PowerShell</span>
+          <span class="d">v1.4.0</span>
         </div>
         <pre><code><span class="t-dim">PS C:\dev&gt;</span> npm i -g star-code-cli-1.4.0.tgz
 <span class="t-dim">PS C:\dev&gt;</span> star-code
@@ -723,7 +740,7 @@
     </div>
   </section>
 
-  <!-- screenshots -->
+  <!-- ============================ screenshots ============================ -->
   <section id="screenshots" class="section">
     <div class="wrap">
       <p class="eyebrow">03 — Screenshots</p>
@@ -732,34 +749,62 @@
 
       <div class="gallery">
         <figure>
-          <img src="assets/chat-mode-dark.png" width="3000" height="1900" alt="Star in Chat mode: a sidebar with the Chat/Code switch, a prompt box reading “Ask Star anything”, and the choice between running locally or planning first." />
-          <figcaption><b>01 · Chat mode</b>Questions, drafts and ideas with no folder open — the Chat/Code switch sits in the sidebar.</figcaption>
+          <div class="shot">
+            <div class="shot-bar" aria-hidden="true">
+              <img src="assets/icon.svg" alt="" width="16" height="16" />
+              <span class="t">Star · chat mode</span>
+              <span class="d">3000×1900</span>
+            </div>
+            <img src="assets/chat-mode-dark.png" width="3000" height="1900" loading="lazy" decoding="async" alt="Star in Chat mode: a sidebar with the Chat/Code switch, a prompt box reading “Ask Star anything”, and the choice between running locally or planning first." />
+          </div>
+          <figcaption>Questions, drafts and ideas with no folder open — the Chat/Code switch sits in the sidebar.</figcaption>
         </figure>
         <figure>
-          <img src="assets/thinking-pill-live.png" width="2400" height="1400" alt="A Star session mid-run: the thinking pill expanded to show a live peek of the model's reasoning, above the composer." />
-          <figcaption><b>02 · Thinking, live</b>Mid-run — the pill holds a live peek of the reasoning, then collapses back to a single line.</figcaption>
+          <div class="shot">
+            <div class="shot-bar" aria-hidden="true">
+              <img src="assets/icon.svg" alt="" width="16" height="16" />
+              <span class="t">Star · thinking live</span>
+              <span class="d">2400×1400</span>
+            </div>
+            <img src="assets/thinking-pill-live.png" width="2400" height="1400" loading="lazy" decoding="async" alt="A Star session mid-run: the thinking pill expanded to show a live peek of the model's reasoning, above the composer." />
+          </div>
+          <figcaption>Mid-run — the pill holds a live peek of the reasoning, then collapses back to a single line.</figcaption>
         </figure>
         <figure>
-          <img src="assets/motion-player.png" width="3000" height="1900" alt="The artifact player in Star showing a Motion scene called Bouncing Dot, with Play, a timeline, and a 720p 30 fps Record control." />
-          <figcaption><b>03 · Motion artifact</b>The artifact player rendering a Motion scene at 1280×720, 30 fps — one click from MP4.</figcaption>
+          <div class="shot">
+            <div class="shot-bar" aria-hidden="true">
+              <img src="assets/icon.svg" alt="" width="16" height="16" />
+              <span class="t">Star · Motion player</span>
+              <span class="d">3000×1900</span>
+            </div>
+            <img src="assets/motion-player.png" width="3000" height="1900" loading="lazy" decoding="async" alt="The artifact player in Star showing a Motion scene called Bouncing Dot, with Play, a timeline, and a 720p 30 fps Record control." />
+          </div>
+          <figcaption>The artifact player rendering a Motion scene at 1280×720, 30 fps — one click from MP4.</figcaption>
         </figure>
         <figure>
-          <img src="assets/cli-tui.png" width="1250" height="760" alt="The Star Code CLI in a full-screen terminal session, with session tabs, the thinking pill, and the slash-command menu open." />
-          <figcaption><b>04 · Star Code CLI</b>A full-screen TUI session — session tabs up top, the thinking pill below, the / command menu on demand.</figcaption>
+          <div class="shot">
+            <div class="shot-bar" aria-hidden="true">
+              <img src="assets/icon.svg" alt="" width="16" height="16" />
+              <span class="t">star-code · CLI</span>
+              <span class="d">1250×760</span>
+            </div>
+            <img src="assets/cli-tui.png" width="1250" height="760" loading="lazy" decoding="async" alt="The Star Code CLI in a full-screen terminal session, with session tabs, the thinking pill, and the slash-command menu open." />
+          </div>
+          <figcaption>A full-screen TUI session — session tabs up top, the thinking pill below, the / command menu on demand.</figcaption>
         </figure>
       </div>
     </div>
   </section>
 
-  <!-- star history -->
+  <!-- ============================ star history ============================ -->
   <section id="history" class="section">
-    <div class="wrap history-grid">
-      <div class="history-copy">
+    <div class="wrap">
+      <div class="history-head">
         <p class="eyebrow">04 — Grown in the open</p>
         <h2>Written in public</h2>
-        <p class="lede">Star is developed in the open: every commit, issue and release lives on GitHub. The chart tracks the repository's stars over time.</p>
+        <p class="lede">Star is developed in the open: every commit, issue and release lives on GitHub.</p>
         <div class="history-cta">
-          <a class="btn btn-ghost" href="https://github.com/Star-Code-Prod/Star-Code" rel="noopener">
+          <a class="btn" href="https://github.com/Star-Code-Prod/Star-Code" rel="noopener">
             Open the repository
             <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
               <path d="M5.8 14.2 14.2 5.8"/><path d="M7.2 5.8h7v7"/>
@@ -768,8 +813,8 @@
         </div>
       </div>
       <figure class="chart">
-        <img src="https://api.star-history.com/svg?repos=Star-Code-Prod/Star-Code&amp;type=Date" width="800" height="533" alt="Star history chart for the Star-Code-Prod/Star-Code repository, plotted by date." />
-        <figcaption>Star history for Star-Code-Prod/Star-Code, live from star-history.com.</figcaption>
+        <img src="assets/star-chart.svg" alt="Star history" width="900" height="260" loading="lazy" decoding="async" />
+        <figcaption>Star count over time for Star-Code-Prod/Star-Code.</figcaption>
       </figure>
     </div>
   </section>
@@ -780,12 +825,10 @@
   <div class="wrap">
     <div class="foot-row">
       <span class="foot-brand">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false">
-          <path d="M12 2C12.9 6.8 17.2 11.1 22 12C17.2 12.9 12.9 17.2 12 22C11.1 17.2 6.8 12.9 2 12C6.8 11.1 11.1 6.8 12 2Z"/>
-        </svg>
+        <img src="assets/icon.svg" alt="" width="18" height="18" />
         Star
       </span>
-      <span class="foot-ver">v1.4.0</span>
+      <span class="ver">v1.4.0</span>
       <nav class="foot-links" aria-label="Footer">
         <a href="https://github.com/Star-Code-Prod/Star-Code" rel="noopener">GitHub</a>
         <a href="https://github.com/Star-Code-Prod/Star-Code/releases" rel="noopener">Releases</a>

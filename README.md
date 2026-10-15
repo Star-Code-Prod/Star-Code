@@ -56,7 +56,11 @@ shortcuts, architecture, security, builds and releases — lives in
 
 ## Star history
 
-[![Star history chart](https://api.star-history.com/svg?repos=Star-Code-Prod/Star-Code&type=Date)](https://github.com/Star-Code-Prod/Star-Code)
+[![Star history](website/assets/star-chart.svg)](https://github.com/Star-Code-Prod/Star-Code)
+
+Our own chart, drawn from the GitHub stargazers API by
+[`desktop/tools/make-star-chart.mjs`](desktop/tools/make-star-chart.mjs) and
+refreshed daily by CI — no third-party chart service involved.
 
 ## License
 

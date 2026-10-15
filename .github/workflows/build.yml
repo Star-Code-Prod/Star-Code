@@ -80,6 +80,12 @@ jobs:
       - name: Download tool (sources, hashes, virus scan)
         run: node tools/verify-download.mjs
 
+      - name: CLI TUI render layer
+        run: node tools/verify-tui.mjs
+
+      - name: Star chart generator
+        run: node tools/verify-star-chart.mjs
+
   # ---------------------------------------------------------------------------
   # Pack the standalone CLI and prove the tarball installs and runs before
   # anything ships. The CLI lives at CLI/, not desktop/, so this job overrides

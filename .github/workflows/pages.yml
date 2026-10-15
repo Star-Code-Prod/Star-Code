@@ -19,6 +19,16 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Regenerate the star chart at deploy time: the daily stars workflow
+      # commits it for the README, but a GITHUB_TOKEN push cannot trigger this
+      # workflow, so the site refreshes it itself on every deploy.
+      - name: Refresh the star chart
+        run: node desktop/tools/make-star-chart.mjs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
