@@ -1,5 +1,9 @@
 # Star Code
 
+[![Release](https://img.shields.io/github/v/release/Star-Code-Prod/Star-Code?label=release&color=A35F00)](https://github.com/Star-Code-Prod/Star-Code/releases) [![License: MIT](https://img.shields.io/github/license/Star-Code-Prod/Star-Code?color=A35F00)](https://github.com/Star-Code-Prod/Star-Code/blob/main/desktop/LICENSE) [![Platform](https://img.shields.io/badge/platform-Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-151A2E)](https://github.com/Star-Code-Prod/Star-Code)
+
+**Website:** https://star-code-prod.github.io/Star-Code/
+
 **A local, provider-agnostic agentic coding tool — a desktop app called Star and a terminal CLI, Star Code.**
 
 Star Code is the harness, not the model: bring your own (DeepSeek, OpenAI,
@@ -49,6 +53,10 @@ star-code "fix the failing test"
 Full feature documentation — tools, permission modes, providers, keyboard
 shortcuts, architecture, security, builds and releases — lives in
 [`desktop/README.md`](desktop/README.md).
+
+## Star history
+
+[![Star history chart](https://api.star-history.com/svg?repos=Star-Code-Prod/Star-Code&type=Date)](https://github.com/Star-Code-Prod/Star-Code)
 
 ## License
 
