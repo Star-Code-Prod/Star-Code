@@ -1,5 +1,8 @@
 # What's new in Star
 
+## 1.9.2 — 2026-10-15
+- Fixed the floating white bar while an answer streams: a stripped artifact fence no longer leaves a blank paragraph behind, so the typing caret stays on the last line of text where it belongs.
+
 ## 1.9.1 — 2026-10-15
 - Thinking shows as a card per phase while it happens - the reasoning is visible as it streams, then folds to a "Thought for a moment" pill.
 - The transcript reads think, answer, tools, think, answer - one card per phase, never one reused block.

@@ -81,6 +81,15 @@ const s1 = fns.stripBlocks("a\n```artifact html\n<b>x</b>\n```\nb");
 ok("stripBlocks removes complete artifacts", !s1.includes("artifact") && s1.includes("a") && s1.includes("b"));
 const s2 = fns.stripBlocks("a\n```artifact html\n<b>streaming…");
 ok("stripBlocks removes an unclosed streaming artifact", !s2.includes("streaming"));
+// The caret (and its 7x15px accent bar) hangs on the message's last
+// paragraph: blank lines left behind by a stripped fence must not create an
+// empty paragraph, or the bar floats on a line of its own.
+const st4 = fns.stripBlocks("Here it is:\n\n```artifact html\n<div>");
+ok("stripBlocks never ends on blank lines", st4 === "Here it is:", JSON.stringify(st4));
+const st5 = fns.stripBlocks("done\n\n");
+ok("trailing newlines are trimmed too", st5 === "done", JSON.stringify(st5));
+const st6 = fns.stripBlocks("a\n\n\n\nb\n\n```tool\n{\"name\":\"read_file\"}\n```\n");
+ok("inner paragraph gaps collapse and the tail stays clean", st6 === "a\n\nb", JSON.stringify(st6));
 
 // ---- 8. fence-aware artifacts (review fixes) ----
 const p3 = fns.parseArtifacts("text\n```artifact html\n<pre>```</pre>\n```\ndone");

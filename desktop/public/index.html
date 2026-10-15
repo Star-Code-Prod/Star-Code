@@ -3070,8 +3070,10 @@ function stripBlocks(s) {
   out = out.replace(/^`{3,}(?:tool|todo)\b[\s\S]*?^`{3,}[ \t]*$/gm, "");
   out = out.replace(/^(`{3,})artifact\b[\s\S]*$/m, "");
   out = out.replace(/^`{3,}(?:tool|todo)\b[\s\S]*$/m, "");
-  // collapse the blank gap the removal leaves behind
-  return out.replace(/\n{3,}/g, "\n\n");
+  // Collapse the blank gap the removal leaves behind, and never end on blank
+  // lines: a trailing "\n\n" renders as an empty paragraph, which parks the
+  // streaming caret (and its blinking bar) on a line of its own.
+  return out.replace(/\n{3,}/g, "\n\n").replace(/\s+$/, "");
 }
 
 /** The artifact's human name: its <title>, at most four words. */
