@@ -35,6 +35,9 @@ jobs:
   check:
     name: Checks
     runs-on: ubuntu-latest
+    # A hung runner must never wedge the concurrency queue (a macOS npm ci
+    # once held every later run for half an hour).
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -104,6 +107,7 @@ jobs:
     name: CLI package
     needs: check
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: CLI
@@ -144,6 +148,7 @@ jobs:
     name: Build (${{ matrix.os }})
     needs: check
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -228,6 +233,7 @@ jobs:
     needs: [check, build, cli]
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       created: ${{ steps.mk.outputs.created }}
       version: ${{ steps.ver.outputs.version }}
@@ -277,6 +283,7 @@ jobs:
            || (github.event_name == 'workflow_dispatch' && inputs.publish)
          )
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/download-artifact@v4
         with:

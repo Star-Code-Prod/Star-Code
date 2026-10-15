@@ -144,7 +144,7 @@ body.is-mac.is-electron .brand{margin-left:2px}
   position:relative;
   display:flex;flex-direction:column;overflow:hidden;min-height:0;
 }
-.seg{display:flex;gap:2px;margin:var(--sp-3) var(--sp-3) var(--sp-2);padding:3px;background:var(--chip);border-radius:var(--r-sm)}
+.seg{display:flex;gap:4px;margin:var(--sp-3) var(--sp-3) var(--sp-2);padding:4px;background:var(--chip);border-radius:var(--r-sm)}
 .seg button{
   flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
   min-height:28px;border-radius:var(--r-xs);font-size:var(--fs-125);color:var(--muted);
@@ -169,7 +169,7 @@ body.is-mac.is-electron .brand{margin-left:2px}
 /* New session + the Chat|Code icon switch share one row */
 .sb-newrow{display:flex;align-items:center;gap:var(--sp-2)}
 .sb-newrow .sb-link{flex:1;min-width:0}
-.sb-newrow .seg{margin:0;padding:2px;flex:none}
+.sb-newrow .seg{margin:0;padding:3px;flex:none}
 .sb-newrow .seg button{padding:6px 8px;min-height:26px}
 .seg-icons button{flex:none}
 .sb-sec{
@@ -442,6 +442,9 @@ body.is-mac.is-electron .brand{margin-left:2px}
 .artifactcard{
   display:flex;align-items:center;gap:9px;padding:8px 12px;border-radius:var(--r-sm);
   background:var(--panel);border:1px solid var(--border);font-size:var(--fs-125);color:var(--muted);
+  /* Same breathing room as the tools group and diff cards: without it the
+     card sat flush against the message above and whatever followed it. */
+  margin:13px auto;
 }
 .artifactcard .nm{color:var(--text2);font-family:var(--font-mono);font-size:var(--fs-12)}
 .artifactcard button{margin-left:auto}

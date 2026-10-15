@@ -239,6 +239,10 @@ ok("per-pane heights persist and reset on double-click",
   js.includes("setPaneHeight(g.dataset.panegrip, null)"));
 ok("the sidebar resizes by dragging its right-edge grip",
   html.includes('id="sbGrip"') && js.includes("function applySbW(") && /\.sb-grip\{/.test(html.replace(/\s+/g, "")));
+ok("artifact cards keep their distance from neighbouring blocks",
+  /\.artifactcard\{[^}]*margin:13px auto/.test(html.replace(/\s+/g, " ")));
+ok("the segmented control keeps its buttons apart",
+  /\.seg\{[^}]*gap:4px/.test(html.replace(/\s+/g, " ")));
 ok("motion autoplays once per player",
   js.includes("let autoPlayed = false") && js.includes("autoPlayed = true") && js.includes('playBtn.textContent = "Pause"'));
 ok("motion pacing keeps the scene's cadence", js.includes("nextAt = Math.max(now, (nextAt || now) + iv)"));
