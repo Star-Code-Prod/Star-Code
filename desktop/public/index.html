@@ -634,6 +634,45 @@ body.is-mac.is-electron .brand{margin-left:2px}
 .msep{height:1px;background:var(--border);margin:5px 4px}
 .mh{padding:8px 10px 5px;font-size:10.5px;letter-spacing:.05em;color:var(--dim);text-transform:uppercase}
 
+/* ================= FILES PANEL + RENAME DIALOG ================= */
+.actpanel{
+  position:fixed;top:54px;right:12px;width:330px;max-height:calc(100vh - 74px);
+  display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--border2);
+  border-radius:var(--r-md);box-shadow:var(--shadow);z-index:85;overflow:hidden;
+  animation:menuIn var(--t-fast) var(--ease);
+}
+.act-hd{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border);font-size:var(--fs-12);color:var(--text2)}
+.act-hd .spacer{flex:1}
+.act-b{overflow-y:auto;flex:1;min-height:0}
+.act-sec{border-top:1px solid var(--border)}
+.act-sec:first-child{border-top:0}
+.act-h{padding:11px 14px 4px;font-size:var(--fs-11);letter-spacing:.05em;text-transform:uppercase;color:var(--dim)}
+.act-empty{padding:5px 14px 12px;font-size:var(--fs-12);color:var(--dim)}
+.act-todo{display:flex;align-items:flex-start;gap:8px;padding:5px 14px;font-size:var(--fs-125);color:var(--text2)}
+.act-todo .bx{width:14px;flex:none;display:flex;justify-content:center;padding-top:2px;color:var(--dim)}
+.act-todo.done{color:var(--dim);text-decoration:line-through}
+.act-todo.done .bx{color:var(--add-fg);text-decoration:none}
+.act-art,.act-file{display:flex;align-items:center;gap:8px;width:100%;padding:7px 14px;font-size:var(--fs-125);color:var(--text2);text-align:left;transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease)}
+.act-art:hover,.act-file:hover{background:var(--hover);color:var(--text)}
+.act-art .lang{flex:none;font-family:var(--font-mono);font-size:10px;padding:1px 7px;border-radius:var(--r-xs);background:var(--chip);color:var(--muted);text-transform:uppercase}
+.act-art .nm,.act-file .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.act-file .nm{font-family:var(--font-mono);font-size:11.5px}
+.act-file .d{flex:none;font-family:var(--font-mono);font-size:10.5px}
+.act-file .d i{color:var(--add-fg);font-style:normal}
+.act-file .d b{color:var(--del-fg)}
+.rdlg{
+  position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:95;
+  display:flex;align-items:flex-start;justify-content:center;padding-top:18vh;
+  animation:fadeIn var(--t-fast) var(--ease);
+}
+.rdlg-c{
+  width:min(420px,90vw);background:var(--panel);border:1px solid var(--border2);
+  border-radius:var(--r-md);box-shadow:var(--shadow);padding:16px;
+  display:flex;flex-direction:column;gap:12px;animation:menuIn var(--t-fast) var(--ease);
+}
+.rdlg-t{font-size:var(--fs-13);color:var(--text)}
+.rdlg-b{display:flex;justify-content:flex-end;gap:8px}
+
 /* ================= MODEL PICKER ================= */
 .mp{padding:0;display:flex;flex-direction:column;max-height:min(70vh,520px);min-width:380px;animation:menuIn var(--t-fast) var(--ease)}
 .mp-s{padding:var(--sp-2);border-bottom:1px solid var(--border);flex:none}
@@ -654,20 +693,20 @@ body.is-mac.is-electron .brand{margin-left:2px}
 .si .d{font-size:var(--fs-125);color:var(--muted)}
 
 /* ================= RIGHT PANES (tabbed) ================= */
-.panes{width:420px;flex:none;display:flex;flex-direction:column;border-left:1px solid var(--border);overflow:hidden;background:var(--bg)}
+.panes{width:var(--pane-w,420px);flex:none;display:flex;flex-direction:column;border-left:1px solid var(--border);overflow:hidden;background:var(--bg);position:relative}
 .panes.hide{display:none}
 .pane-tabs{
-  display:flex;align-items:center;gap:2px;padding:6px 8px;background:var(--sidebar);
+  display:flex;align-items:center;gap:3px;padding:8px;background:var(--bg);
   border-bottom:1px solid var(--border);flex:none;overflow-x:auto;scrollbar-width:none;
 }
 .pane-tabs::-webkit-scrollbar{height:0}
 .ptab{
-  display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:var(--r-sm);
-  font-size:var(--fs-125);color:var(--muted);white-space:nowrap;flex:none;
-  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
+  display:flex;align-items:center;gap:6px;padding:5px 11px;border-radius:var(--r-full);
+  font-size:var(--fs-12);color:var(--muted);white-space:nowrap;flex:none;
+  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease),box-shadow var(--t-fast) var(--ease);
 }
 .ptab:hover{background:var(--hover);color:var(--text2)}
-.ptab.on{background:var(--panel);color:var(--text);font-weight:500;box-shadow:var(--shadow-sm)}
+.ptab.on{background:var(--elev);color:var(--text);box-shadow:var(--shadow-sm)}
 .ptab .badge{
   font-family:var(--font-mono);font-size:10px;padding:0 5px;border-radius:var(--r-full);
   background:var(--chip-on);color:var(--text2);min-width:16px;text-align:center;
@@ -675,8 +714,19 @@ body.is-mac.is-electron .brand{margin-left:2px}
 .ptab .x{opacity:0;color:var(--dim);padding:0 2px;border-radius:4px;font-size:13px;line-height:1;transition:opacity var(--t-fast)}
 .ptab:hover .x{opacity:1}
 .ptab .x:hover{background:var(--chip-on);color:var(--text)}
-.ptab-add{color:var(--muted);padding:5px 8px;border-radius:var(--r-sm);font-size:14px;line-height:1}
+.ptab-add{
+  width:26px;height:26px;flex:none;display:flex;align-items:center;justify-content:center;
+  border-radius:var(--r-full);color:var(--muted);font-size:15px;line-height:1;
+  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
+}
 .ptab-add:hover{background:var(--hover);color:var(--text)}
+.pane-grip{
+  position:absolute;left:0;top:0;bottom:0;width:6px;cursor:col-resize;z-index:10;
+  transition:background var(--t-fast) var(--ease);
+}
+.pane-grip:hover{background:color-mix(in srgb,var(--accent) 45%,transparent)}
+body.pane-drag{cursor:col-resize;user-select:none}
+body.pane-drag .pane-grip{background:color-mix(in srgb,var(--accent) 45%,transparent)}
 .pane-body{flex:1;min-height:0;display:flex;flex-direction:column}
 .pane-row{flex:1;min-height:0;display:none;flex-direction:column}
 .pane-row.active{display:flex;animation:fadeIn var(--t-mid) var(--ease)}
@@ -1065,10 +1115,13 @@ body.mode-chat #bigProj{display:none}
       <span class="ico">
         <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M2 6h12M5 4.2h.01M7 4.2h.01"/></svg>
       </span>
-      <span class="ttl" id="sTitle">New session</span>
+      <span class="ttl" id="sTitle" title="Double-click to rename">New session</span>
       <span class="proj" id="sProj">—</span>
       <span class="spacer"></span>
       <span class="acts">
+        <button class="hbtn" id="hbFiles" title="Files, artifacts and progress" aria-label="Files, artifacts and progress">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M1.8 4.5A1.5 1.5 0 013.3 3h2.4l1.3 1.6h5.7a1.5 1.5 0 011.5 1.5v5.4a1.5 1.5 0 01-1.5 1.5H3.3a1.5 1.5 0 01-1.5-1.5z"/><path d="M5.6 9.4h4.8"/></svg>
+        </button>
         <button class="hbtn" id="hbTerm" title="Terminal pane">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M4.4 6l2 2-2 2M8.4 10.2h3.2"/></svg>
         </button>
@@ -1232,6 +1285,7 @@ body.mode-chat #bigProj{display:none}
 
   <!-- ==================== PANES (tabbed) ==================== -->
   <div class="panes" id="panes">
+    <div class="pane-grip" id="paneGrip" title="Drag to resize" aria-hidden="true"></div>
     <div class="pane-tabs" id="paneTabs"></div>
     <div class="pane-body" id="paneBody">
 
@@ -1265,6 +1319,27 @@ body.mode-chat #bigProj{display:none}
         <div class="pane-b"><div class="pempty" id="diffEmpty">No changes to show</div><div id="diffList"></div></div>
       </section>
 
+    </div>
+  </div>
+</div>
+
+<!-- ==================== FILES / ACTIVITY PANEL ==================== -->
+<div class="actpanel" id="actPanel" style="display:none" role="dialog" aria-label="Files, artifacts and progress">
+  <div class="act-hd">
+    <span>Session</span><span class="spacer"></span>
+    <button class="hbtn" id="actClose" title="Close" aria-label="Close panel"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+  </div>
+  <div class="act-b" id="actBody"></div>
+</div>
+
+<!-- ==================== RENAME DIALOG ==================== -->
+<div class="rdlg" id="renameDlg" style="display:none">
+  <div class="rdlg-c" role="dialog" aria-label="Rename session">
+    <div class="rdlg-t">Rename session</div>
+    <input class="inp" id="renameInput" aria-label="Session title" autocomplete="off" spellcheck="false">
+    <div class="rdlg-b">
+      <button class="btn sm" id="renameCancel">Cancel</button>
+      <button class="btn pri sm" id="renameSave">Save</button>
     </div>
   </div>
 </div>
@@ -1356,6 +1431,7 @@ const DEFAULT_STATE = {
   // Transcript detail: minimal hides reasoning/args/previews, verbose keeps
   // reasoning expanded and shows tool outputs inline.
   verbosity: "normal",
+  paneW: 0,
   root: "",
   sessions: [],
 };
@@ -1484,6 +1560,7 @@ const bridge = (typeof window !== "undefined" && window.desktop && window.deskto
   renderRing();
   renderSettings();
   focusComposer();
+  applyPaneW();
   // Quiet update check a few seconds after launch. Deliberately delayed so it
   // never competes with first paint, and it only surfaces a banner when there
   // is genuinely something newer than the running build.
@@ -2007,6 +2084,129 @@ function wirePanes() {
 $("hbPanes").addEventListener("click", e => { e.stopPropagation(); paneMenu($("hbPanes")); });
 $("cPanels").addEventListener("click", e => { e.stopPropagation(); paneMenu($("cPanels")); });
 $("hbTerm").addEventListener("click", () => showPane("terminal"));
+
+/* ---- session rename dialog ---- */
+let renamingId = null;
+let renameDlgBack = null;
+function renameDialog(id, title) {
+  closeMenus();
+  renamingId = id;
+  renameDlgBack = document.activeElement;
+  $("renameInput").value = String(title || "");
+  $("renameDlg").style.display = "flex";
+  $("renameInput").focus();
+  $("renameInput").select();
+}
+function closeRenameDialog() {
+  $("renameDlg").style.display = "none";
+  renamingId = null;
+  if (renameDlgBack && renameDlgBack.focus) { try { renameDlgBack.focus(); } catch {} }
+  renameDlgBack = null;
+}
+async function saveRename() {
+  const id = renamingId;
+  const next = $("renameInput").value.trim();
+  if (!next) { toast("Title can't be empty"); return; }
+  try {
+    const r = await (await fetch("/api/sessions/rename", { method: "POST",
+      headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, title: next }) })).json();
+    if (r.ok) {
+      if (id === sessionId) $("sTitle").textContent = r.title;
+      await loadSessions();
+      toast("Renamed");
+    } else toast(r.error || "Could not rename");
+  } catch { toast("Could not rename"); }
+  closeRenameDialog();
+}
+$("renameSave").addEventListener("click", saveRename);
+$("renameCancel").addEventListener("click", closeRenameDialog);
+$("renameDlg").addEventListener("click", (e) => { if (e.target === $("renameDlg")) closeRenameDialog(); });
+$("renameInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); saveRename(); }
+  else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeRenameDialog(); }
+});
+$("sTitle").addEventListener("dblclick", () => {
+  const s = sessionList.find((x) => x.id === sessionId);
+  if (s) renameDialog(s.id, s.title);
+});
+
+/* ---- files / activity panel ---- */
+const ACT_ART_LANGS = { html: "HTML", doc: "Doc", slides: "Slides", design: "Design", svg: "SVG", md: "MD", motion: "Motion" };
+function renderActPanel() {
+  const done = todos.filter((t) => t.status === "completed").length;
+  const todoHtml = todos.length
+    ? todos.map((t) => {
+        const bx = t.status === "completed"
+          ? '<svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 8.5l3.2 3.2L13 5"/></svg>'
+          : t.status === "in_progress"
+          ? '<svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="5.5"/><path d="M8 8V2.5" stroke-width="2"/></svg>'
+          : '<svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="5.5"/></svg>';
+        return `<div class="act-todo ${esc(t.status)}"><span class="bx">${bx}</span><span>${esc(t.text)}</span></div>`;
+      }).join("")
+    : '<div class="act-empty">No plan yet.</div>';
+  const artHtml = artifacts.length
+    ? artifacts.map((a, i) => {
+        const label = ACT_ART_LANGS[a.lang] || a.lang;
+        return `<button class="act-art" data-art="${i}"><span class="lang">${esc(label)}</span><span class="nm">${esc(a.title || label)}</span></button>`;
+      }).join("")
+    : '<div class="act-empty">No artifacts yet.</div>';
+  const chgHtml = diffs.length
+    ? diffs.map((d, i) => {
+        const fields = diffRows(d.before, d.after);
+        const adds = fields.filter((r) => r.t === "add").length;
+        const dels = fields.filter((r) => r.t === "del").length;
+        return `<button class="act-file" data-chg="${i}"><span class="nm">${esc(d.path)}</span><span class="d"><i>+${adds}</i> <b>−${dels}</b></span></button>`;
+      }).join("")
+    : '<div class="act-empty">No changes yet.</div>';
+  $("actBody").innerHTML =
+    `<div class="act-sec"><div class="act-h">Progress${todos.length ? " · " + done + "/" + todos.length : ""}</div>${todoHtml}</div>` +
+    `<div class="act-sec"><div class="act-h">Artifacts</div>${artHtml}</div>` +
+    `<div class="act-sec"><div class="act-h">Changes</div>${chgHtml}</div>`;
+  $("actBody").querySelectorAll("[data-art]").forEach((b) => b.addEventListener("click", () => {
+    toggleActPanel(false);
+    artifactView = { i: Number(b.dataset.art), mode: "render" };
+    renderArtifact();
+  }));
+  $("actBody").querySelectorAll("[data-chg]").forEach((b) => b.addEventListener("click", () => {
+    toggleActPanel(false);
+    showPane("diff");
+    setActivePane("diff");
+  }));
+}
+function toggleActPanel(show) {
+  const el = $("actPanel");
+  const on = show === undefined ? el.style.display === "none" : show;
+  el.style.display = on ? "flex" : "none";
+  $("hbFiles").classList.toggle("on", on);
+  if (on) renderActPanel();
+}
+$("hbFiles").addEventListener("click", (e) => { e.stopPropagation(); toggleActPanel(); });
+$("actClose").addEventListener("click", () => toggleActPanel(false));
+
+/* ---- right rail resize ---- */
+function applyPaneW() {
+  if (state.paneW) document.documentElement.style.setProperty("--pane-w", state.paneW + "px");
+}
+(function wirePaneGrip() {
+  const grip = $("paneGrip");
+  let drag = null;
+  grip.addEventListener("pointerdown", (e) => {
+    drag = { x: e.clientX, w: $("panes").getBoundingClientRect().width };
+    try { grip.setPointerCapture(e.pointerId); } catch {}
+    document.body.classList.add("pane-drag");
+    e.preventDefault();
+  });
+  grip.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    const max = Math.max(320, Math.min(760, innerWidth - 460));
+    const w = Math.max(300, Math.min(max, drag.w + (drag.x - e.clientX)));
+    state.paneW = Math.round(w);
+    applyPaneW();
+  });
+  const stop = () => { if (!drag) return; drag = null; document.body.classList.remove("pane-drag"); save(); };
+  grip.addEventListener("pointerup", stop);
+  grip.addEventListener("pointercancel", stop);
+})();
 $("hbDiff").addEventListener("click", () => showPane("diff"));
 $("hbBrowser").addEventListener("click", () => showPane("preview"));
 $("btnPanes").addEventListener("click", () => {
@@ -2239,17 +2439,7 @@ function sessionMenu(anchor, id) {
 
   const items = [
     { label: "Open", k: "↵", run: () => switchSession(id) },
-    { label: "Rename…", k: "R", run: async () => {
-        const next = prompt("Rename session", s.title);
-        if (next == null) return;
-        const r2 = await (await fetch("/api/sessions/rename", { method: "POST",
-          headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, title: next }) })).json();
-        if (r2.ok) {
-          if (id === sessionId) $("sTitle").textContent = r2.title;
-          await loadSessions();
-          toast("Renamed");
-        }
-      } },
+    { label: "Rename…", k: "R", run: () => renameDialog(id, s.title) },
     { label: pinned ? "Unpin" : "Pin to top", k: "P", run: () => {
         pinnedIds = pinned ? pinnedIds.filter((x) => x !== id) : [...pinnedIds, id];
         saveLocalSessionFlags(); renderSessions();
@@ -2368,7 +2558,7 @@ function renderFilePreview() {
 
   if (f.kind === "source" || f.content == null) {
     host.innerHTML = (f.content != null)
-      ? `<pre class="fpre">${hl(f.content)}</pre>`
+      ? `<pre class="fpre">${f.content.length > 1_000_000 ? esc(f.content) : hl(f.content)}</pre>`
       : `<div class="pempty">${esc(f.error || "Could not read that file.")}</div>`;
     return;
   }
@@ -4242,7 +4432,9 @@ document.addEventListener("keydown", e => {
   if (mod && !e.shiftKey && (e.key === "o" || e.key === "O")) { e.preventDefault(); $("panes").classList.toggle("hide"); return; }
   if (e.key === "Escape") {
     closeMenus(); hideSlash();
-    if ($("artDlg").classList.contains("on")) closeArtifactDialog();
+    if ($("renameDlg").style.display !== "none") closeRenameDialog();
+    else if ($("actPanel").style.display !== "none") toggleActPanel(false);
+    else if ($("artDlg").classList.contains("on")) closeArtifactDialog();
     else if ($("settings").classList.contains("on")) closeSettings();
     else if (document.body.classList.contains("sb-over")) toggleSidebar(false);
     else if (document.body.classList.contains("pane-open")) document.body.classList.remove("pane-open");

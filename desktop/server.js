@@ -769,8 +769,8 @@ async function route(req, res) {
     const abs = safeResolve(rel);
     if (!abs) return sendJSON(res, 403, { error: "path outside working directory" });
     try {
-      const stat = await fsp.stat(abs);
-      if (stat.size > 500_000) return sendJSON(res, 200, { content: "[file too large to display]", truncated: true });
+      // No size limit: any file in the workspace is displayable. Big files
+      // arrive as plain text (the UI skips highlighting over its threshold).
       const content = await fsp.readFile(abs, "utf8");
       return sendJSON(res, 200, { content, lines: content.split("\n").length });
     } catch (e) {
@@ -778,14 +778,12 @@ async function route(req, res) {
     }
   }
 
-  // Raw bytes for the file preview (images); same traversal guard.
+  // Raw bytes for the file preview (images); same traversal guard, no cap.
   if (req.method === "GET" && url.pathname === "/api/file/raw") {
     const rel = url.searchParams.get("path") || "";
     const abs = safeResolve(rel);
     if (!abs) return sendJSON(res, 403, { error: "path outside working directory" });
     try {
-      const stat = await fsp.stat(abs);
-      if (stat.size > 8_000_000) return sendJSON(res, 413, { error: "file too large to preview" });
       const buf = await fsp.readFile(abs);
       res.writeHead(200, { "Content-Type": MIME[path.extname(abs).toLowerCase()] || "application/octet-stream", "Cache-Control": "no-cache" });
       return res.end(buf);
