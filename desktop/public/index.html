@@ -1520,8 +1520,12 @@ function openMenu(anchor, items, opts = {}) {
   m.style.left = left + "px";
   m.style.top = top + "px";
   m.style.visibility = "";
+  // A menu survives scrolling - including scrolling its own list, which the
+  // agent picker (25+ rows) needs. A window-capture scroll listener used to
+  // dismiss on ANY wheel motion, so the menu vanished the moment you tried
+  // to reach a row lower down (or while the transcript auto-scrolled). The
+  // anchors here are all static UI, so nothing drifts. Resize still closes.
   const dismiss = () => closeMenus();
-  window.addEventListener("scroll", dismiss, { capture: true, once: true });
   window.addEventListener("resize", dismiss, { once: true });
 }
 
