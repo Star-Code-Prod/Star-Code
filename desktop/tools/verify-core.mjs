@@ -332,6 +332,28 @@ ok("chat prompt carries the artifact doctrine", /## Artifacts/.test(chat) && cha
 ok("chat prompt carries the delivery rules", chat.includes("reply with one short sentence") && /new version of the same artifact/.test(chat));
 ok("both prompts share the same artifact doctrine", /## Artifacts/.test(p1) && p1.indexOf("## Artifacts") >= 0 && chat.indexOf("## Artifacts") >= 0);
 ok("doctrine says when to make one and when not to", p1.includes("Answer inline, with no artifact") && /Make one when they will keep, edit, share or operate/.test(p1));
+/* --------- the doctrine got smarter: playbooks, craft bar, revision --------- */
+ok("per-format playbooks are documented",
+  p1.includes("Playbooks - the parts worth copying") &&
+  ["html tool or dashboard","svg:","md and doc:","slides:","design:","motion: the contract below"].every((s) => p1.includes(s)));
+ok("the craft bar teaches hierarchy, scale and contrast",
+  p1.includes("Craft bar") && p1.includes("One focal point per view") &&
+  p1.includes("spacing scale") && p1.includes("4.5:1"));
+ok("the html playbook warns about the classic breakages",
+  p1.includes("bind every handler after the elements exist") && p1.includes("keep ids unique"));
+ok("a silent pre-emit checklist exists",
+  p1.includes("Before you emit") && p1.includes("dead id") && p1.includes("sideways scroll"));
+ok("revision means exactly what the feedback names",
+  p1.includes("Revising an artifact") && p1.includes("means exactly what it names") &&
+  p1.includes("same title") && p1.includes("Never rebuild from scratch for a small note"));
+ok("motion words stay plain literals so Tweaks can edit them",
+  p1.includes("Tweaks panel lists those literals") && p1.includes("Keep each label whole"));
+ok("motion composition is choreographed, not linear",
+  p1.includes("hook in the first second") && p1.includes("staggered secondary motion") &&
+  p1.includes("linear is only for loops"));
+ok("size guidance sets the expected scale",
+  p1.includes("200-600 lines") && p1.includes("8-14 slides") && p1.includes("2-6 frames"));
+ok("the prompt stays within a sane budget", p1.length < 60000, String(p1.length));
 ok("doctrine names the four formats", ["html", "svg", "md", "motion"].every((f) => new RegExp("^- " + f + " - ", "m").test(p1)) && p1.includes("```artifact html") && p1.includes("```artifact motion"));
 
 resetSystemPromptCache();
