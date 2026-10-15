@@ -449,6 +449,51 @@ To call a tool, emit exactly one block, then stop and wait for the result:
 Never place a tool block inside an explanatory code fence.`;
 }
 
+/** DeepSeek-style native tool markup some models emit instead of the fenced
+ *  protocol:
+ *    <|DSML|tool_calls>
+ *    <|DSML|invoke name="write_file">
+ *    <|DSML|parameter name="path" string="true">a.txt</|DSML|parameter>
+ *    </|DSML|invoke>
+ *    </|DSML|tool_calls>
+ *  Parsed here as ordinary calls, so the loop keeps working whatever dialect
+ *  the model speaks; the markup itself never reaches the visible transcript
+ *  (stripBlocks hides it in the UI, and parseAssistantContent drops it from
+ *  the cleaned text). */
+export function parseDsmlCalls(content) {
+  const src = String(content || "");
+  const calls = [];
+  const invRe = /<\|DSML\|invoke\s+name="([^"]+)"\s*>([\s\S]*?)<\/\|DSML\|invoke>/g;
+  let m;
+  while ((m = invRe.exec(src)) !== null) {
+    const name = m[1].trim();
+    if (!name) continue;
+    const args = {};
+    const parRe = /<\|DSML\|parameter\s+name="([^"]+)"(?:\s+string="(true|false)")?\s*>([\s\S]*?)<\/\|DSML\|parameter>/g;
+    let p;
+    while ((p = parRe.exec(m[2])) !== null) {
+      const key = p[1].trim();
+      if (!key) continue;
+      const raw = p[3];
+      if (p[2] === "false") {
+        try { args[key] = JSON.parse(raw.trim()); } catch { args[key] = raw.trim(); }
+      } else {
+        args[key] = raw;
+      }
+    }
+    calls.push({ name, args });
+  }
+  return calls;
+}
+
+/** The DSML markup, wrapper first (a still-streaming opener swallows the
+ *  tail), then any standalone invoke, then stray tags the model left behind.
+ *  Each pass matches its OWN closer - a generic closer would stop at the
+ *  first inner </|DSML|invoke> and leave the rest behind. */
+const DSML_BLOCK_RE = /<\|DSML\|tool_calls\b[\s\S]*?(?:<\/\|DSML\|tool_calls>|$)/g;
+const DSML_INVOKE_RE = /<\|DSML\|invoke\b[\s\S]*?(?:<\/\|DSML\|invoke>|$)/g;
+const DSML_TAG_RE = /<\/?\|DSML\|[^>]*>/g;
+
 export function parseAssistantContent(content) {
   const calls = [];
   const toolRe = /```tool\s*([\s\S]*?)```/g;
@@ -459,6 +504,7 @@ export function parseAssistantContent(content) {
       if (obj && obj.name) calls.push({ name: obj.name, args: obj.args || {} });
     } catch {}
   }
+  calls.push(...parseDsmlCalls(content));
 
   let todos = null;
   const todoRe = /```todo\s*([\s\S]*?)```/g;
@@ -469,7 +515,8 @@ export function parseAssistantContent(content) {
     } catch {}
   }
 
-  const text = content.replace(toolRe, "").replace(todoRe, "").trim();
+  const text = content.replace(toolRe, "").replace(todoRe, "")
+    .replace(DSML_BLOCK_RE, "").replace(DSML_INVOKE_RE, "").replace(DSML_TAG_RE, "").trim();
   return { text, calls, todos };
 }
 

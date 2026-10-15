@@ -96,6 +96,14 @@ const st5 = fns.stripBlocks("done\n\n");
 ok("trailing newlines are trimmed too", st5 === "done", JSON.stringify(st5));
 const st6 = fns.stripBlocks("a\n\n\n\nb\n\n```tool\n{\"name\":\"read_file\"}\n```\n");
 ok("inner paragraph gaps collapse and the tail stays clean", st6 === "a\n\nb", JSON.stringify(st6));
+// DeepSeek models sometimes emit their native DSML tool markup instead of the
+// fenced protocol: it must never reach the screen, streaming or complete.
+const dsmlFull = "Before.\n<|DSML|tool_calls>\n<|DSML|invoke name=\"write_file\">\n<|DSML|parameter name=\"path\" string=\"true\">a.txt</|DSML|parameter>\n</|DSML|invoke>\n</|DSML|tool_calls>\nAfter.";
+ok("a complete DSML block is stripped", fns.stripBlocks(dsmlFull) === "Before.\n\nAfter.", JSON.stringify(fns.stripBlocks(dsmlFull)));
+const dsmlMid = "Before.\n<|DSML|tool_calls>\n<|DSML|invoke name=\"noop_tool\">\n<|DSML|parameter name=\"x\" string=\"true\">par";
+ok("a still-streaming DSML block is stripped", fns.stripBlocks(dsmlMid) === "Before.", JSON.stringify(fns.stripBlocks(dsmlMid)));
+ok("stray DSML tags vanish",
+  !fns.stripBlocks('a </|DSML|invoke> <|DSML|parameter name="p"> b').includes("DSML"));
 
 // ---- 8. fence-aware artifacts (review fixes) ----
 const p3 = fns.parseArtifacts("text\n```artifact html\n<pre>```</pre>\n```\ndone");

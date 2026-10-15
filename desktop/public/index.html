@@ -3600,6 +3600,12 @@ function stripBlocks(s) {
   out = out.replace(/^`{3,}(?:tool|todo)\b[\s\S]*?^`{3,}[ \t]*$/gm, "");
   out = out.replace(/^(`{3,})artifact\b[\s\S]*$/m, "");
   out = out.replace(/^`{3,}(?:tool|todo)\b[\s\S]*$/m, "");
+  // DeepSeek's native tool markup (<|DSML|…>) never belongs on screen: drop
+  // the tool_calls wrapper, a still-streaming opener's tail, standalone
+  // invokes, and any stray tags. Each pass matches its own closer.
+  out = out.replace(/<\|DSML\|tool_calls\b[\s\S]*?(?:<\/\|DSML\|tool_calls>|$)/g, "");
+  out = out.replace(/<\|DSML\|invoke\b[\s\S]*?(?:<\/\|DSML\|invoke>|$)/g, "");
+  out = out.replace(/<\/?\|DSML\|[^>]*>/g, "");
   // Collapse the blank gap the removal leaves behind, and never end on blank
   // lines: a trailing "\n\n" renders as an empty paragraph, which parks the
   // streaming caret (and its blinking bar) on a line of its own.

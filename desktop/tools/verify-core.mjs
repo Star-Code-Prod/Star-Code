@@ -18,7 +18,8 @@ const { PROVIDERS, normalizeModels, filterChatModels, isReasoning, discoverModel
   attributionHeaders, isOpenRouterHost, cheapModelFor, buildRequest, streamCompletion } =
   await import(pathToFileURL(path.resolve("lib/providers.js")).href);
 const { decisionFor, systemPrompt, resetSystemPromptCache, chatSystemPrompt, pruneOldToolResults, manageHistory,
-  estimateTokens, hasIdenticalToolResult, identicalReuseStub, TOOL_RESULT_PREFIX } =
+  estimateTokens, hasIdenticalToolResult, identicalReuseStub, TOOL_RESULT_PREFIX,
+  parseAssistantContent, parseDsmlCalls } =
   await import(pathToFileURL(path.resolve("lib/agent.js")).href);
 
 const results = [];
@@ -131,6 +132,36 @@ ok("acceptEdits commands ask", decisionFor("acceptEdits", "run_command", empty) 
 ok("acceptEdits commands honour the allowlist", decisionFor("acceptEdits", "run_command", new Set(["run_command"])) === "allow");
 ok("plan allows knowledge search", decisionFor("plan", "search_knowledge", empty) === "allow");
 ok("manual allows knowledge search without asking", decisionFor("manual", "search_knowledge", empty) === "allow");
+
+/* ------------------- DeepSeek DSML tool markup ------------------- */
+// DeepSeek models sometimes answer in their native <|DSML|…> dialect instead
+// of the fenced protocol. The parser must read it as ordinary calls and keep
+// the markup out of the visible text.
+{
+  const dsml = `<|DSML|tool_calls>
+<|DSML|invoke name="write_file">
+<|DSML|parameter name="path" string="true">notes/a.txt</|DSML|parameter>
+<|DSML|parameter name="content" string="true">line one
+line "two"</|DSML|parameter>
+</|DSML|invoke>
+<|DSML|invoke name="run_command">
+<|DSML|parameter name="command" string="false">echo hi</|DSML|parameter>
+<|DSML|parameter name="timeout" string="false">120</|DSML|parameter>
+</|DSML|invoke>
+</|DSML|tool_calls>`;
+  const parsed = parseDsmlCalls(dsml);
+  ok("DSML invokes parse as calls", parsed.length === 2 && parsed[0].name === "write_file" && parsed[1].name === "run_command");
+  ok("string parameters pass through verbatim", parsed[0].args.path === "notes/a.txt" && parsed[0].args.content === 'line one\nline "two"');
+  ok("non-string parameters parse as JSON", parsed[1].args.timeout === 120 && parsed[1].args.command === "echo hi");
+  ok("a parameterless invoke is still a call", parseDsmlCalls('<|DSML|invoke name="noop_tool">\n</|DSML|invoke>').length === 1);
+
+  const mixed = parseAssistantContent("Here goes.\n" + dsml + "\nDone.");
+  ok("parseAssistantContent merges both dialects", mixed.calls.length === 2 && mixed.calls[0].name === "write_file");
+  ok("the visible text keeps no markup", mixed.text === "Here goes.\n\nDone." && !mixed.text.includes("DSML"), JSON.stringify(mixed.text));
+
+  const fenced = parseAssistantContent('```tool\n{"name":"read_file","args":{"path":"x"}}\n```');
+  ok("the fenced dialect still works", fenced.calls.length === 1 && fenced.calls[0].name === "read_file");
+}
 ok("mcp tools are not read-only", decisionFor("manual", "mcp__stub__echo", empty) === "ask");
 ok("plan denies mcp tools", decisionFor("plan", "mcp__stub__echo", empty) === "deny");
 ok("bypass allows mcp tools", decisionFor("bypass", "mcp__stub__echo", empty) === "allow");
