@@ -250,7 +250,9 @@ ok("the sidebar resizes by dragging its right-edge grip",
 ok("artifact cards keep their distance from neighbouring blocks",
   /\.artifactcard\{[^}]*margin:13px auto/.test(html.replace(/\s+/g, " ")));
 ok("the segmented control keeps its buttons apart",
-  /\.seg\{[^}]*gap:4px/.test(html.replace(/\s+/g, " ")));
+  /\.seg\{[^}]*gap:6px/.test(html.replace(/\s+/g, " ")));
+ok("a card under its own message tucks above the hover bar",
+  /#stream > \.msg-a \+ \.artifactcard\{margin-top:2px\}/.test(html.replace(/\s+/g, " ")));
 
 /* --- session drag: reorder, and drop-to-the-side for a second chat --- */
 ok("the rail drag uses a marker, never moving the captured row",

@@ -1,5 +1,9 @@
 # What's new in Star
 
+## 1.11.2 — 2026-10-15
+- An artifact card that follows its own message sits snugly under it now: the copy bar was stranded in a dead pocket (10px above, 13px below) - the card tucks up so the bar reads as its caption.
+- The chat/code switch in the sidebar gets more air between its two buttons.
+
 ## 1.11.1 — 2026-10-15
 - The motion scrub has a real look now: a slim rail with an accent-filled head and a small thumb that grows under the pointer - no more platform-gray slider.
 - Dragging it is smooth: the fill and the clock follow your finger exactly, playback keeps running underneath, and letting go hands the bar back to the player.
