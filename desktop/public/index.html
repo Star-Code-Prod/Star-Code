@@ -1460,6 +1460,7 @@ const bridge = (typeof window !== "undefined" && window.desktop && window.deskto
   lastUsage = { contextTokens: 0, contextLimit: 200000, contextPct: 0 };
   renderRing();
   renderSettings();
+  focusComposer();
   // Quiet update check a few seconds after launch. Deliberately delayed so it
   // never competes with first paint, and it only surfaces a banner when there
   // is genuinely something newer than the running build.
@@ -1532,7 +1533,7 @@ function openMenu(anchor, items, opts = {}) {
 function modeMenu(anchor) {
   openMenu(anchor, MODES.map(m => ({
     label: m.label, sub: m.d, on: m.id === state.defaultMode,
-    run: () => { applyMode(m.id); save(); toast("Mode: " + m.label); },
+    run: () => { applyMode(m.id); save(); toast("Mode: " + m.label); focusComposer(); },
   })));
 }
 
@@ -1641,6 +1642,7 @@ function chooseModel(pid, mid) {
   } catch { /* never break the picker over a background write */ }
   if ($("settings").classList.contains("on")) renderSettings();
   toast(pid + " · " + mid);
+  if (!$("settings").classList.contains("on")) focusComposer();
 }
 
 function moveMp(d) {
@@ -1744,7 +1746,7 @@ function modelPicker(anchor) {
     if (e.key === "ArrowDown") { e.preventDefault(); moveMp(1); }
     else if (e.key === "ArrowUp") { e.preventDefault(); moveMp(-1); }
     else if (e.key === "Enter") { e.preventDefault(); const it = mpItems[mpSel]; if (it) { closeMenus(); chooseModel(it.pid, it.mid); } }
-    else if (e.key === "Escape") { e.preventDefault(); closeMenus(); }
+    else if (e.key === "Escape") { e.preventDefault(); closeMenus(); focusComposer(); }
   });
   refreshPickableModels().then(() => { if (document.body.contains(menu)) draw(); });
 }
@@ -1753,8 +1755,23 @@ function modelPicker(anchor) {
 /* The desktop half of lib/agents.js: the builtin explorer plus the custom
    agents for the session's own root. The pick names a persona for main turns
    (the server prefixes its prompt, narrows tools and can switch the model);
-   the selection is client-side state, so a deleted file just falls back. */
+   the selection is client-side state, so a deleted file just falls back.
+   Searchable like the model picker, and every exit path hands keyboard focus
+   back to the message box - typing should never land on a dead page. */
 let agentMenuBusy = false;
+let apAll = null;      // { agents, problems } as listed for this session
+let apQuery = "";
+let apItems = [];      // flat rows in keyboard order
+let apSel = 0;
+
+/** Keyboard focus belongs to the message box: at boot, on surface switches
+ *  and after any picker selection. The landing shows bigInput, a session
+ *  shows the composer's input. */
+function focusComposer() {
+  const el = ($("composer").style.display === "none") ? $("bigInput") : $("input");
+  try { el.focus(); } catch { /* no window focus (e.g. headless): fine */ }
+}
+
 async function agentPicker(anchor) {
   if (agentMenuBusy) return;
   agentMenuBusy = true;
@@ -1767,31 +1784,96 @@ async function agentPicker(anchor) {
   try { listed = await (await fetch("/api/agents?" + params)).json(); } catch { /* offline: say so below */ }
   agentMenuBusy = false;
   if (!listed || listed.ok !== true) { toast("Could not list agents"); return; }
-  const items = [
-    { label: "No agent", sub: "(session default)", on: !state.agent, run: () => selectAgent("") },
-  ];
-  const agents = Array.isArray(listed.agents) ? listed.agents : [];
-  if (agents.length) {
-    items.push({ sep: true });
-    for (const a of agents) {
-      const desc = String(a.description || "").replace(/\s+/g, " ").trim();
-      const bits = [];
-      if (a.source === "builtin") bits.push("built-in");
-      if (a.model) bits.push(a.model);
-      if (desc) bits.push(desc.length > 56 ? desc.slice(0, 53) + "..." : desc);
-      items.push({
-        label: a.name, sub: bits.join(" · ") || undefined,
-        on: state.agent === a.name,
-        run: () => selectAgent(a.name),
-      });
+  apAll = {
+    agents: Array.isArray(listed.agents) ? listed.agents : [],
+    problems: Array.isArray(listed.problems) ? listed.problems : [],
+  };
+  closeMenus();
+  apQuery = ""; apSel = 0;
+  const menu = document.createElement("div");
+  menu.className = "menu mp";
+  menu.dataset.menu = "1";
+  const r = anchor.getBoundingClientRect();
+  menu.style.position = "fixed";
+  menu.style.left = Math.max(8, Math.min(r.left, innerWidth - 400)) + "px";
+  menu.style.bottom = (innerHeight - r.top + 6) + "px";
+  menu.style.top = "auto";
+  menu.style.right = "auto";
+  document.body.appendChild(menu);
+
+  const draw = () => renderAgentPicker(menu);
+  draw();
+  const focusSearch = () => {
+    const s = menu.querySelector("#apSearch");
+    if (s) { s.focus(); s.setSelectionRange(s.value.length, s.value.length); }
+  };
+  focusSearch();
+  menu.addEventListener("input", (e) => {
+    if (e.target && e.target.id === "apSearch") { apQuery = e.target.value; apSel = 0; draw(); focusSearch(); }
+  });
+  menu.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown") { e.preventDefault(); moveAp(1); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); moveAp(-1); }
+    else if (e.key === "Enter") {
+      e.preventDefault();
+      const it = apItems[apSel];
+      if (!it) return;
+      closeMenus();
+      selectAgent(it.agent ? it.agent.name : "");
     }
+    else if (e.key === "Escape") { e.preventDefault(); closeMenus(); focusComposer(); }
+  });
+}
+
+/** One row caption: source, model and a trimmed description. */
+function agentRowBits(a) {
+  const desc = String(a.description || "").replace(/\s+/g, " ").trim();
+  const bits = [];
+  if (a.source === "builtin") bits.push("built-in");
+  if (a.model) bits.push(a.model);
+  if (desc) bits.push(desc.length > 56 ? desc.slice(0, 53) + "..." : desc);
+  return bits.join(" · ");
+}
+
+function renderAgentPicker(menu) {
+  const q = apQuery.trim().toLowerCase();
+  apItems = [];
+  const all = [{ none: true, label: "No agent", sub: "(session default)" }]
+    .concat(apAll.agents.map((a) => ({ agent: a, label: a.name, sub: agentRowBits(a) })));
+  for (const it of all) {
+    const hay = (it.agent
+      ? [it.label, it.agent.description || "", it.agent.model || "", it.agent.source || ""].join(" ")
+      : it.label + " default session").toLowerCase();
+    if (q && !hay.includes(q)) continue;
+    apItems.push(it);
   }
-  const problems = Array.isArray(listed.problems) ? listed.problems : [];
-  if (problems.length) {
-    items.push({ sep: true });
-    items.push({ head: problems.length + " agent file" + (problems.length === 1 ? "" : "s") + " with problems - fix to list here" });
-  }
-  openMenu(anchor, items, { right: !!anchor.closest(".bigbox") });
+  const rows = apItems.map((it, i) => {
+    const chosen = it.agent ? state.agent === it.agent.name : !state.agent;
+    return `<button class="mi ${i === apSel ? "on" : ""}" data-i="${i}">` +
+      `<span>${esc(it.label)}${it.sub ? ` <span class="sub">${esc(it.sub)}</span>` : ""}</span>` +
+      (chosen ? '<span class="tick">✓</span>' : "") + "</button>";
+  }).join("");
+  const problems = apAll.problems.length
+    ? `<div class="mp-f"><div class="mh">${apAll.problems.length} agent file${apAll.problems.length === 1 ? "" : "s"} with problems - fix to list here</div></div>`
+    : "";
+  menu.innerHTML = `
+    <div class="mp-s"><input class="inp" id="apSearch" value="${esc(apQuery)}" placeholder="Search agents…" autocomplete="off"></div>
+    <div class="mp-list">${rows || '<div class="pempty">No matches.</div>'}</div>
+    ${problems}`;
+  menu.querySelectorAll(".mi[data-i]").forEach((el) => el.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    const it = apItems[Number(el.dataset.i)];
+    closeMenus();
+    if (it) selectAgent(it.agent ? it.agent.name : "");
+  }));
+}
+
+function moveAp(d) {
+  if (!apItems.length) return;
+  apSel = (apSel + d + apItems.length) % apItems.length;
+  const rows = document.querySelectorAll(".mp .mi[data-i]");
+  rows.forEach((el, i) => el.classList.toggle("on", i === apSel));
+  if (rows[apSel]) rows[apSel].scrollIntoView({ block: "nearest" });
 }
 
 function selectAgent(name, opts = {}) {
@@ -1799,6 +1881,7 @@ function selectAgent(name, opts = {}) {
   save();
   updateChrome();
   if (!opts.quiet) toast(state.agent ? "Agent: " + state.agent : "Agent cleared");
+  if (opts.refocus !== false) focusComposer();
 }
 
 $("cMode").addEventListener("click", e => { e.stopPropagation(); modeMenu($("cMode")); });
@@ -2467,12 +2550,14 @@ function showChat() {
   $("stream").style.display = "block";
   $("composer").style.display = "block";
   updateJump();
+  focusComposer();
 }
 function showLanding() {
   $("landing").style.display = "flex";
   $("stream").style.display = "none";
   $("composer").style.display = "none";
   $("jumpBtn").classList.remove("on");
+  focusComposer();
 }
 function atBottom() { const s = $("stream"); return s.scrollHeight - s.scrollTop - s.clientHeight < 120; }
 function scrollDown(force) { const s = $("stream"); if (force || atBottom()) s.scrollTop = s.scrollHeight; }
