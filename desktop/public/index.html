@@ -4174,24 +4174,79 @@ function motionStamp() {
    rewrite exactly those spans, so the panel never guesses at anything the
    source does not say. */
 
-/** Every drawable text literal in order: { value, start, end, raw }. */
+/** Every drawable text literal in order: { value, start, end, raw }.
+ *  Models rarely write ctx.fillText("…", x, y) directly - labels usually
+ *  live in a variable (`const TITLE = "…"`), an array (`LINES[0]`), or get
+ *  styled (`name.toUpperCase()`) - so the scan follows the first argument to
+ *  its source literal wherever it sits, and always reports that literal's
+ *  exact span for rewriting. */
 function motionTextSlots(code) {
   const src = String(code || "");
   const slots = [];
-  const re = /(fillText|strokeText)\s*\(\s*("(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`)/g;
+  const used = new Set();
+  const Q = `("(?:\\\\.|[^"\\\\])*"|'(?:\\\\.|[^'\\\\])*'|\`(?:\\\\.|[^\`\\\\])*\`)`;
+  const decode = (raw) => raw.slice(1, -1)
+    .replace(/\\(['"\`\\])/g, "$1")
+    .replace(/\\n/g, "\n")
+    .replace(/\\t/g, "\t");
+  const push = (raw, start) => {
+    if (start < 0 || !raw || used.has(start)) return;
+    used.add(start);
+    slots.push({ raw, start, end: start + raw.length, value: decode(raw) });
+  };
+  const rxEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // The first argument: a full quoted literal when it is one, else a plain
+  // token expression - an identifier with optional .property()/.method()
+  // calls or [index] steps - never crossing a comma.
+  const TOKEN = "[A-Za-z_$][\\w$]*(?:\\s*(?:\\.\\s*[A-Za-z_$][\\w$]*(?:\\(\\s*\\))?|\\[\\s*\\d+\\s*\\]))*";
+  const callRe = new RegExp("(?:fillText|strokeText)\\s*\\(\\s*(" + Q + "|" + TOKEN + ")\\s*(?=[,)])", "g");
   let m;
-  while ((m = re.exec(src)) !== null) {
-    const raw = m[2];
-    slots.push({
-      raw,
-      start: m.index + m[0].length - raw.length,
-      end: m.index + m[0].length,
-      value: raw.slice(1, -1)
-        .replace(/\\(['"`\\])/g, "$1")
-        .replace(/\\n/g, "\n")
-        .replace(/\\t/g, "\t"),
-    });
+  while ((m = callRe.exec(src)) !== null) {
+    const arg = m[1];
+    const start = m.index + m[0].length - arg.length;
+    // 1) the literal IS the argument.
+    const direct = new RegExp("^" + Q + "$").exec(m[1]);
+    if (direct) { push(direct[1], start); continue; }
+    const token = arg.trim();
+    // 2) an identifier (optionally .toUpperCase()/…): follow it to its
+    //    const/let/var string initializer.
+    const ident = /^([A-Za-z_$][\w$]*)(?:\.(?:toUpperCase|toLowerCase)\(\))?$/.exec(token);
+    if (ident) {
+      const a = new RegExp("(?:const|let|var)\\s+" + rxEsc(ident[1]) + "\\s*=\\s*(" + Q + ")").exec(src);
+      if (a) push(a[1], a.index + a[0].length - a[1].length);
+      continue;
+    }
+    // 3) an array index into a literal array. The items are walked one by
+    //    one - a lazy [\s\S]*?\] would stop at a "]" inside the text itself.
+    const idx = /^([A-Za-z_$][\w$]*)\s*\[\s*(\d+)\s*\]$/.exec(token);
+    if (idx) {
+      const arrM = new RegExp("(?:const|let|var)\\s+" + rxEsc(idx[1]) + "\\s*=\\s*\\[").exec(src);
+      if (arrM) {
+        const items = [];
+        let i2 = arrM.index + arrM[0].length;   // just past the "["
+        for (;;) {
+          while (i2 < src.length && /\s/.test(src[i2])) i2++;
+          if (i2 < src.length && src[i2] === ",") { i2++; continue; }
+          if (i2 >= src.length || src[i2] === "]") break;
+          const lit = new RegExp("^" + Q).exec(src.slice(i2));
+          if (lit) { items.push({ raw: lit[1], offset: i2 }); i2 += lit[1].length; continue; }
+          items.push(null);   // a non-literal item still occupies an index
+          while (i2 < src.length) {
+            const ch = src[i2];
+            if (ch === "'" || ch === '"' || ch === "`") {
+              const q2 = new RegExp("^" + Q).exec(src.slice(i2));
+              if (q2) { i2 += q2[1].length; continue; }
+            }
+            if (ch === "," || ch === "]") break;
+            i2++;
+          }
+        }
+        const chosen = items[Number(idx[2])];
+        if (chosen) push(chosen.raw, chosen.offset);
+      }
+    }
   }
+  slots.sort((a, b) => a.start - b.start);
   return slots;
 }
 

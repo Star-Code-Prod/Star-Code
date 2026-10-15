@@ -312,6 +312,26 @@ ok("the fill and the clock follow the drag",
 const tw1 = fns.motionTextSlots("MOTION.scene({ duration: 6, fps: 30 }, (ctx,t,w,h)=>{ ctx.fillText('Hello', 10, 10); ctx.strokeText(\"Two\", 20, 20); });");
 ok("motion tweaks find the drawn words", tw1.length === 2 && tw1[0].value === "Hello" && tw1[1].value === "Two");
 ok("escapes in the literals are decoded", fns.motionTextSlots("ctx.fillText('a\\'b\\nc', 0, 0)")[0].value === "a'b\nc");
+// Real scenes keep labels in variables/arrays or style them - all of it must
+// still be found (this is what made Tweaks say "no text" on real artifacts).
+const twVar = fns.motionTextSlots('const TITLE = "GET OUT AND RIDE.";\nctx.fillText(TITLE, 40, 120);');
+ok("a label kept in a variable is found", twVar.length === 1 && twVar[0].value === "GET OUT AND RIDE.");
+const twArr = fns.motionTextSlots('const LINES = ["GOAL", "ASSIST x2"];\nctx.fillText(LINES[1], 10, 20);');
+ok("labels in an array are found by index", twArr.length === 1 && twArr[0].value === "ASSIST x2");
+const twArrBracket = fns.motionTextSlots('const WORDS = ["[BIKE NAME]", "NIGHT RIDE"];\nctx.fillText(WORDS[0], 10, 20);');
+ok("brackets inside an array label survive the scan", twArrBracket.length === 1 && twArrBracket[0].value === "[BIKE NAME]");
+const twArrHole = fns.motionTextSlots('const MIX = [42, "SECOND"];\nctx.fillText(MIX[1], 10, 20);');
+ok("non-literal array items keep their index", twArrHole.length === 1 && twArrHole[0].value === "SECOND");
+const twUp = fns.motionTextSlots('const who = "night moon";\nctx.fillText(who.toUpperCase(), 0, 0);');
+ok("a styled variable still resolves", twUp.length === 1 && twUp[0].value === "night moon");
+const twComma = fns.motionTextSlots('ctx.fillText("GOAL, 3-2 (OT)", 0, 0);');
+ok("commas and parens inside the text do not confuse the scan", twComma.length === 1 && twComma[0].value === "GOAL, 3-2 (OT)");
+const twEditVar = fns.motionApplyTexts('const T = "Old";\nctx.fillText(T, 0, 0);', ["New"]);
+ok("editing a variable's literal rewrites it in place", twEditVar.includes('const T = "New"') && !twEditVar.includes("Old"));
+const twDupes = fns.motionTextSlots('const T = "Same";\nctx.fillText(T, 0, 0);\nctx.fillText(T, 0, 40);');
+ok("the same variable drawn twice is one editable slot", twDupes.length === 1);
+const twTmpl = fns.motionTextSlots('ctx.fillText(`TOTAL ${70+14}`, 0, 0);');
+ok("a template literal is found whole", twTmpl.length === 1 && twTmpl[0].value === "TOTAL ${70+14}");
 const twCode = "ctx.fillText('Hello', 10, 10); ctx.fillText(\"Two\", 20, 20);";
 const tw3 = fns.motionApplyTexts(twCode, ["Hi there", 'Say "cheese"']);
 ok("editing a word rewrites exactly that literal",
