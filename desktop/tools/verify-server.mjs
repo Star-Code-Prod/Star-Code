@@ -621,6 +621,14 @@ try {
   ok("DELETE /api/mcp removes", (await (await fetch(s.url + "/api/mcp?name=second", { method: "DELETE" })).json()).ok === true);
   ok("DELETE of an unknown name is a 400", (await fetch(s.url + "/api/mcp?name=ghost", { method: "DELETE" })).status === 400);
 
+  /* ------------------------------ changelog ------------------------------ */
+  const cl = await (await fetch(s.url + "/api/changelog")).json();
+  ok("GET /api/changelog parses the shipped notes",
+    cl.ok === true && Array.isArray(cl.entries) && cl.entries.length >= 6, String(cl.entries && cl.entries.length));
+  ok("every entry has a version and notes",
+    cl.entries.every((e) => /^\d+\.\d+\.\d+$/.test(e.version) && Array.isArray(e.notes) && e.notes.length > 0));
+  ok("the newest entry is the running version", cl.entries[0].version === cl.version, cl.entries[0].version + " vs " + cl.version);
+
   const bad = await fetch(s.url + "/api/nope");
   ok("unknown route 404s", bad.status === 404);
 } finally {

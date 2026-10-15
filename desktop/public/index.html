@@ -206,6 +206,8 @@ body.is-mac.is-electron .brand{margin-left:2px}
   content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;border-radius:var(--r-full);background:var(--accent);
 }
 .sess .ico{grid-row:1 / span 2;flex:none;width:16px;display:flex;justify-content:center;color:var(--muted)}
+.sess.run .ico{color:var(--accent)}
+.sess.run .ico .runarc{animation:spin 1.1s linear infinite;transform-origin:50% 50%}
 .sess.on .ico{color:var(--accent)}
 .sess .lbl{grid-column:2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.35}
 .sess .meta{
@@ -466,6 +468,13 @@ body.is-mac.is-electron .brand{margin-left:2px}
 }
 .art-top .t{font-family:var(--title-font);font-size:var(--fs-15);font-weight:500;margin-left:2px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .art-host{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+/* the update log inside the same card shell */
+.newbody{overflow:auto;padding:var(--sp-4);display:flex;flex-direction:column;gap:14px}
+.cventry .cvh{font-family:var(--title-font);font-size:var(--fs-14);font-weight:600;color:var(--text);margin-bottom:5px}
+.cventry .cvh .cvd{font-size:var(--fs-11);color:var(--dim);font-weight:400;margin-left:7px}
+.cventry ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px}
+.cventry li{font-size:var(--fs-125);color:var(--text2);line-height:1.6}
+.cvempty{color:var(--dim);font-size:var(--fs-125)}
 /* The preview host fills the pane; everything inside flexes from here. */
 #filePreview{min-height:100%;display:flex;flex-direction:column}
 .aptools{display:flex;align-items:center;gap:7px;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--panel2);flex:none}
@@ -630,6 +639,21 @@ body.is-mac.is-electron .brand{margin-left:2px}
 .workbar.on{display:flex}
 .wdot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none;animation:pulse 1.2s ease-in-out infinite}
 .wlbl{font-family:var(--font-mono);font-size:var(--fs-11);color:var(--text2);font-variant-numeric:tabular-nums}
+.workbar .wact,.workline .wact{font-size:var(--fs-11);color:var(--dim)}
+.workbar .wact:empty,.workline .wact:empty{display:none}
+
+/* the live working line in the transcript: spinner + "Star is working" + the
+   small activity word, always trailing the newest content */
+.workline{
+  display:flex;align-items:center;gap:8px;margin:14px auto 4px;
+  font-size:var(--fs-12);color:var(--muted);animation:fadeIn var(--t-fast) var(--ease);
+}
+.workline .wlbl2{color:var(--text2)}
+.wspin{
+  width:11px;height:11px;border-radius:50%;flex:none;
+  border:1.6px solid var(--chip-on);border-top-color:var(--accent);
+  animation:spin .9s linear infinite;
+}
 .jump{
   position:absolute;left:50%;transform:translateX(-50%) translateY(4px);bottom:calc(100% + 10px);
   width:30px;height:30px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center;
@@ -767,9 +791,17 @@ body.is-mac.is-electron .brand{margin-left:2px}
 .pane-grip:hover{background:color-mix(in srgb,var(--accent) 45%,transparent)}
 body.pane-drag{cursor:col-resize;user-select:none}
 body.pane-drag .pane-grip{background:color-mix(in srgb,var(--accent) 45%,transparent)}
-.pane-body{flex:1;min-height:0;display:flex;flex-direction:column}
-.pane-row{flex:1;min-height:0;display:none;flex-direction:column}
-.pane-row.active{display:flex;animation:fadeIn var(--t-mid) var(--ease)}
+.pane-body{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;overflow-y:auto;padding:10px}
+/* Every open pane stacks in the rail as its own card; the active one (which
+   the title chip and menu show) gets the brighter frame. A single open pane
+   fills the rail like before. */
+.pane-row{
+  flex:0 0 auto;display:none;flex-direction:column;min-height:264px;
+  border:1px solid var(--border);border-radius:var(--r-md);background:var(--panel);overflow:hidden;
+}
+.pane-row.open{display:flex;animation:fadeIn var(--t-mid) var(--ease)}
+.pane-row.active{border-color:var(--border2)}
+#paneBody.solo .pane-row.open{flex:1;min-height:0}
 .pane-sub{
   display:flex;align-items:center;gap:7px;height:38px;padding:0 12px;background:var(--panel2);
   border-bottom:1px solid var(--border);flex:none;font-size:var(--fs-13);color:var(--text2);
@@ -1305,6 +1337,7 @@ body.mode-chat #bigProj{display:none}
       <div class="workbar" id="workBar" role="status" aria-live="polite">
         <span class="wdot" aria-hidden="true"></span>
         <span class="wlbl" id="workLabel">Working…</span>
+        <span class="wact" id="workAct"></span>
         <span class="spacer"></span>
         <button class="btn sm" id="workStop">Stop</button>
       </div>
@@ -1441,6 +1474,19 @@ body.mode-chat #bigProj{display:none}
   </div>
 </div>
 
+<!-- ============ WHAT'S NEW / UPDATE LOG ============ -->
+<div class="artdlg" id="newDlg">
+  <div class="art-card" role="dialog" aria-modal="true" aria-label="What's new">
+    <div class="art-top">
+      <span class="t" id="newTitle">What's new</span>
+      <button class="hbtn" id="newClose" title="Close" aria-label="Close">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+      </button>
+    </div>
+    <div class="art-host"><div class="newbody" id="newBody"></div></div>
+  </div>
+</div>
+
 <!-- ==================== MENUS / MODALS ==================== -->
 <div class="slash" id="ctxHost" style="display:none"></div>
 <div class="toast" id="toast"></div>
@@ -1533,7 +1579,24 @@ matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => { i
 /* ============================ RUNTIME ============================ */
 let meta = null;
 let appVersion = "";
-let sessionId = null, streaming = false, todos = [], diffs = [], termLines = [];
+let sessionId = null, todos = [], diffs = [], termLines = [];
+/** Live turns, one per session: id -> { events, running, wasNew }. The SSE
+ *  reader keeps consuming after you switch away; buffered events replay into
+ *  the transcript when you come back - so sessions keep working in the
+ *  background and you can switch while one is streaming. */
+let liveTurns = new Map();
+const isStreaming = (id) => !!(id && liveTurns.get(id) && liveTurns.get(id).running);
+/** A turn finished: stop its spinner; a background one is news - flag unread. */
+function finishLive(sid) {
+  const live = liveTurns.get(sid);
+  if (!live) return;
+  live.running = false;
+  if (sid !== sessionId) {
+    unreadIds = [...new Set([...unreadIds, sid])];
+    saveLocalSessionFlags();
+  }
+  renderSessions();
+}
 let currentMsg = null, currentThink = null, toolGroup = null, thinkStart = 0, thinkTimer = null, thinkFlush = 0, answerFlush = 0, answerDirty = false, answerLast = 0;
 let slashIdx = 0, slashMatches = [], planText = "", lastUsage = null;
 
@@ -1606,6 +1669,17 @@ const bridge = (typeof window !== "undefined" && window.desktop && window.deskto
   // never competes with first paint, and it only surfaces a banner when there
   // is genuinely something newer than the running build.
   if (bridge && bridge.checkUpdates) setTimeout(() => checkUpdates({ quiet: true }), 3500);
+  // What's new: once per version, a little after first paint. A fresh install
+  // records the version silently; an update shows the notes.
+  setTimeout(async () => {
+    await loadChangelog();
+    const running = String((meta && meta.version) || "");
+    if (!running || !changelog || !(changelog.entries || []).length) return;
+    let seen = "";
+    try { seen = localStorage.getItem("ccd.seenVersion") || ""; } catch { /* private mode */ }
+    try { localStorage.setItem("ccd.seenVersion", running); } catch { /* fine */ }
+    if (seen && seen !== running) openWhatsNew(false);
+  }, 1500);
 })();
 
 function updateChrome() {
@@ -1755,7 +1829,8 @@ function applyUiMode(m) {
 function switchMode(m) {
   m = m === "chat" ? "chat" : "code";
   if (m === state.mode) return;
-  if (streaming) { toast("Wait for the current reply to finish."); return; }
+  // A turn on the old surface keeps streaming in the background; its session
+  // shows its running circle in the sidebar until it finishes.
   // The open session was created for the other surface, so start one for the
   // new mode; its kind is sent with the create call below (newSession).
   const open = sessionList.find((s) => s.id === sessionId);
@@ -2122,8 +2197,11 @@ function paneTitleMenu(anchor) {
 
 function applyActivePane() {
   document.querySelectorAll(".pane-row").forEach(p => {
+    p.classList.toggle("open", paneOpen.has(p.dataset.pane));
     p.classList.toggle("active", p.dataset.pane === activePane);
   });
+  const body = $("paneBody");
+  if (body) body.classList.toggle("solo", paneOpen.size === 1);
 }
 
 function setActivePane(id) {
@@ -2180,6 +2258,14 @@ function wirePanes() {
     const act = b.dataset.act;
     if (act === "review") { showChat(); sendToAgent("Review the uncommitted changes: run `git diff`, then report correctness issues, risks, and suggested fixes grouped by file."); }
   }));
+  // Clicking a stacked pane's header makes it the active one (title chip,
+  // menu ticks) - unless the click hit a button in that header.
+  document.querySelectorAll(".pane-row").forEach(p => {
+    const sub = p.querySelector(".pane-sub");
+    if (sub) sub.addEventListener("click", (e) => {
+      if (!e.target.closest("button")) setActivePane(p.dataset.pane);
+    });
+  });
   applyActivePane();
   renderPaneTabs();
 }
@@ -2407,14 +2493,15 @@ function sessionRow(s) {
   const on = s.id === sessionId;
   const pinned = pinnedIds.includes(s.id);
   const unread = unreadIds.includes(s.id);
+  const running = isStreaming(s.id);
   return `
-    <button class="sess ${on ? "on" : ""}" data-id="${esc(s.id)}" title="${esc(s.title)}"${on ? ' aria-current="true"' : ""}>
+    <button class="sess ${on ? "on" : ""}${running ? " run" : ""}" data-id="${esc(s.id)}" title="${esc(s.title)}"${on ? ' aria-current="true"' : ""}>
       <span class="ico">${
         pinned
           ? '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M9.6 1.8l4.6 4.6-1.4 1.4-.7-.7-2.6 2.6.3 2.4-1.3 1.3-3.3-3.3-3 3-.9-.9 3-3L1.3 6.4l1.3-1.3 2.4.3L7.6 2.8l-.7-.7z"/></svg>'
-          : (s.kind || "code") === "chat"
-          ? '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 3.3c3.2 0 5.7 2 5.7 4.5S11.2 12.3 8 12.3c-.5 0-1.1-.1-1.6-.2l-2.9.9.8-2.2c-1.3-.8-2.1-1.9-2.1-3C2.2 5.3 4.8 3.3 8 3.3z"/></svg>'
-          : '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M5.5 4L2 8l3.5 4M10.5 4L14 8l-3.5 4"/></svg>'
+          : running
+          ? '<svg class="runarc" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="5" opacity=".28"/><path d="M8 3a5 5 0 0 1 5 5"/></svg>'
+          : '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="5"/></svg>'
       }</span>
       <span class="lbl">${esc(s.title)}</span>
       ${unread ? '<span class="dotnew" title="Unread"></span>' : ""}
@@ -2480,7 +2567,6 @@ function renderSessions() {
 
 async function switchSession(id) {
   if (!id || id === sessionId) return;
-  if (streaming) { toast("Wait for the current reply to finish."); return; }
   try {
     const res = await fetch("/api/sessions/messages?id=" + encodeURIComponent(id));
     const j = await res.json();
@@ -2493,6 +2579,19 @@ async function switchSession(id) {
     // Stats survive reloads: hydrate from the store, then keep folding events.
     hydrateSessStats(j.stats);
     if (j.stats && j.stats.lastContext) { lastUsage = { ...j.stats.lastContext }; renderRing(); }
+    // A turn was running while we were away: replay what streamed, and keep
+    // following it live from here on. A finished turn is already in the
+    // stored messages above, so its buffer is dropped instead.
+    const live = liveTurns.get(id);
+    if (live && live.running) {
+      if (!(j.messages || []).length) showChat();   // brand-new session mid-first-turn
+      for (const e of live.events) handle(e);       // counts fold onto the hydrated base
+    } else if (live) {
+      liveTurns.delete(id);
+    }
+    setWorking(isStreaming(id));
+    if (isStreaming(id)) { showWorkLine(true); setActivity("thinking"); }
+    else { showWorkLine(false); setActivity(""); }
     unreadIds = unreadIds.filter((x) => x !== id);
     saveLocalSessionFlags();
     renderSessions();
@@ -3199,6 +3298,7 @@ function syncArtifacts(raw, streaming) {
     if (pf) {
       if (!pendingArt || pendingArt.lang !== pf.lang) {
         pendingArt = { lang: pf.lang, t0: performance.now() };
+        setActivity("writing your " + ((ACT_ART_LANGS[pf.lang] || "artifact").toLowerCase()));
         autoOpenArtifactView();
       }
     } else pendingArt = null;
@@ -3212,6 +3312,7 @@ function syncArtifacts(raw, streaming) {
     artifactView.i = artifacts.length - 1;
     const now = Date.now();
     const justFinished = wasPending && !pendingArt;
+    if (justFinished) setActivity("thinking");
     if (justFinished || !streaming || now - lastArtRender > 450) {
       lastArtRender = now;
       renderArtifact();
@@ -3983,6 +4084,61 @@ document.addEventListener("keydown", e => {
   e.preventDefault(); e.stopPropagation();
   items[next].focus();
 }, true);
+
+/* ---- what's new: the update log, shown once per version ---- */
+let changelog = null;
+let newDlgBack = null;
+async function loadChangelog() {
+  try { changelog = await (await fetch("/api/changelog")).json(); } catch { changelog = null; }
+  return changelog;
+}
+function changelogHtml(entries, onlyNewest) {
+  const list = (entries || []).slice(0, onlyNewest ? 1 : (entries || []).length);
+  return list.map((e) => `<div class="cventry">
+      <div class="cvh">v${esc(e.version)}${e.date ? `<span class="cvd">${esc(e.date)}</span>` : ""}</div>
+      <ul>${(e.notes || []).map((n) => `<li>${esc(n)}</li>`).join("")}</ul>
+    </div>`).join("");
+}
+function openWhatsNew(all) {
+  const el = $("newDlg");
+  if (!el) return;
+  const entries = (changelog && changelog.entries) || [];
+  const newest = entries[0];
+  $("newTitle").textContent = all ? "Update log" : newest ? "What's new in v" + newest.version : "What's new";
+  $("newBody").innerHTML = entries.length
+    ? changelogHtml(entries, !all)
+    : '<p class="cvempty">No update notes found.</p>';
+  newDlgBack = document.activeElement;
+  el.classList.add("on");
+  $("newClose").focus();
+}
+function closeWhatsNew() {
+  const el = $("newDlg");
+  if (!el || !el.classList.contains("on")) return;
+  el.classList.remove("on");
+  const back = newDlgBack;
+  newDlgBack = null;
+  if (back && back !== document.body && document.contains(back) && back.focus) back.focus();
+  else focusComposer();
+}
+$("newClose").addEventListener("click", closeWhatsNew);
+let newDownOnBackdrop = false;
+$("newDlg").addEventListener("pointerdown", e => { newDownOnBackdrop = e.target === $("newDlg"); });
+$("newDlg").addEventListener("click", e => {
+  if (newDownOnBackdrop && e.target === $("newDlg")) closeWhatsNew();
+  newDownOnBackdrop = false;
+});
+document.addEventListener("keydown", e => {
+  if (e.key !== "Tab" || !$("newDlg").classList.contains("on")) return;
+  const items = [...$("newDlg").querySelectorAll("button,[href]")].filter(el => el.getClientRects().length);
+  if (!items.length) return;
+  const i = items.indexOf(document.activeElement);
+  const next = e.shiftKey
+    ? (i <= 0 ? items.length - 1 : i - 1)
+    : (i < 0 || i === items.length - 1 ? 0 : i + 1);
+  e.preventDefault(); e.stopPropagation();
+  items[next].focus();
+}, true);
 /* ---- thinking pill (the reference "Star Thinking Block" component) ----
    One component, three modes on `data-mode`: `peek` while streaming (68px,
    newest lines), `closed` after the wait (pill only) and `open` once the
@@ -4427,7 +4583,7 @@ function renderUsageCard() {
 /* ============================ SEND ============================ */
 async function send() {
   const text = $("input").value.trim();
-  if (!text || streaming) return;
+  if (!text || isStreaming(sessionId)) return;
   $("input").value = ""; autoGrow($("input")); hideSlash();
   showChat();
   if (text.startsWith("!")) { pushTerm(text.slice(1).trim(), "pr"); return sendToAgent("Run this shell command and report the exact output: `" + text.slice(1).trim() + "`"); }
@@ -4477,14 +4633,17 @@ function say(t) { startAssistant(); toolGroup = null; currentMsg._t = t; setMsgH
 
 async function sendToAgent(message) {
   addUser(message); showChat();
-  streaming = true; setWorking(true);
+  let sid = sessionId;
+  setWorking(true); showWorkLine(true); setActivity("thinking");
   const p = prov();
   const payload = {
-    sessionId, message, mode: state.defaultMode, kind: state.mode,
+    sessionId: sid, message, mode: state.defaultMode, kind: state.mode,
     provider: state.current, model: p.model, apiKey: p.apiKey, baseUrl: payloadBaseUrl(),
     agent: state.agent || undefined,
   };
-  const wasNew = !sessionId;
+  const wasNew = !sid;
+  const live = { events: [], running: true, wasNew };
+  if (sid) { liveTurns.set(sid, live); renderSessions(); }   // its circle starts spinning now
   try {
     const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     if (!res.ok || !res.body) throw new Error("HTTP " + res.status);
@@ -4496,26 +4655,37 @@ async function sendToAgent(message) {
       for (const part of parts) {
         const line = part.trim(); if (!line.startsWith("data:")) continue;
         let evt; try { evt = JSON.parse(line.slice(5).trim()); } catch { continue; }
-        handle(evt);
+        // A brand-new session learns its id from the first event - and since
+        // the person is looking at it, it IS the current session.
+        if (!sid && evt.sessionId) { sid = evt.sessionId; sessionId = sid; liveTurns.set(sid, live); renderSessions(); }
+        live.events.push(evt);
+        if (sid === sessionId) handle(evt);          // visible: paint live
+        if (evt.type === "done") { finishLive(sid); break; }
       }
+      if (liveTurns.get(sid) !== live) break;        // aborted or superseded
     }
   } catch (e) {
-    addTool({ name: "error", args: {}, status: "denied", detail: e.message });
+    if (sid === sessionId) addTool({ name: "error", args: {}, status: "denied", detail: e.message });
   } finally {
-    endAssistant(); endThinking(); streaming = false;
-    endTurnThink();
-    setWorking(false);
+    if (sid && liveTurns.get(sid) === live) live.running = false;
+    if (sid === sessionId) {
+      // Only the visible turn owns the DOM: close it out and clear the line.
+      endAssistant(); endThinking(); endTurnThink();
+      setWorking(false); showWorkLine(false); setActivity("");
+      $("input").focus();
+    } else if (sid) {
+      finishLive(sid);   // background turn ended: spinner off, row flagged unread
+    }
     // the server titles a session from its first message; pull the new title in
-    if (wasNew && sessionId) {
+    if (wasNew && sid) {
       fetch("/api/sessions/rename", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: sessionId, title: message.replace(/\s+/g, " ").slice(0, 60) }),
+        body: JSON.stringify({ id: sid, title: message.replace(/\s+/g, " ").slice(0, 60) }),
       }).then((r) => r.json()).then((j) => {
-        if (j && j.title) $("sTitle").textContent = j.title;
+        if (j && j.title && sid === sessionId) $("sTitle").textContent = j.title;
       }).catch(() => {});
     }
-    loadSessions().then(() => renderRing());
-    $("input").focus();
+    loadSessions().then(() => { renderSessions(); renderRing(); });
   }
 }
 
@@ -4534,15 +4704,15 @@ function handle(evt) {
       }
       break;
     case "assistant_start": sessStats.calls += 1; startAssistant(); break;
-    case "delta": addDelta(evt.text); break;
+    case "delta": setActivity("writing"); addDelta(evt.text); break;
     case "assistant_end": endAssistant(); break;
-    case "thinking_start": if (state.showThinking && state.verbosity !== "minimal") startThinking(); break;
+    case "thinking_start": setActivity("thinking"); if (state.showThinking && state.verbosity !== "minimal") startThinking(); break;
     case "thinking_delta": if (state.showThinking && state.verbosity !== "minimal") addThinking(evt.text); break;
     case "thinking_end": if (state.showThinking && state.verbosity !== "minimal") endThinking(evt.ms); break;
     case "todos": renderTodos(evt.todos); break;
     case "permission_request": askPermission(evt); break;
-    case "tool": sessStats.tools[evt.name] = (sessStats.tools[evt.name] || 0) + 1; addTool({ name: evt.name, args: evt.args, status: evt.allowed === false ? "denied" : "running", detail: "" }); break;
-    case "tool_result": finishTool(evt.status, evt.preview); break;
+    case "tool": sessStats.tools[evt.name] = (sessStats.tools[evt.name] || 0) + 1; setActivity(activityForTool(evt.name)); addTool({ name: evt.name, args: evt.args, status: evt.allowed === false ? "denied" : "running", detail: "" }); break;
+    case "tool_result": setActivity("thinking"); finishTool(evt.status, evt.preview); break;
     case "context_pruned": sessStats.compact.passes += 1; sessStats.compact.charsSaved += Number(evt.chars) || 0; break;
     case "diff": renderDiff(evt); updatePrBar(evt); break;
     case "usage": lastUsage = evt; sessStats.lastContext = { contextTokens: evt.contextTokens, contextLimit: evt.contextLimit, contextPct: evt.contextPct }; renderRing(); break;
@@ -4668,7 +4838,7 @@ $("input").addEventListener("keydown", e => {
   }
   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
 });
-$("kbdHint").addEventListener("click", () => { if (streaming) abort(); else send(); });
+$("kbdHint").addEventListener("click", () => { if (isStreaming(sessionId)) abort(); else send(); });
 $("cPlus").addEventListener("click", () => { $("input").value += "@"; $("input").focus(); autoGrow($("input")); });
 $("cShell").addEventListener("click", () => { $("input").value = "! "; $("input").focus(); });
 $("cMore").addEventListener("click", e => {
@@ -4704,6 +4874,52 @@ function abort() { fetch("/api/abort", { method: "POST", headers: { "Content-Typ
 
 /* ---- composer state: send/stop button + the working indicator ---- */
 let workTimer = null, workStart = 0;
+
+/* ---- the live activity word ("thinking", "reading a file") ----
+   Shown small beside "Star is working" in the transcript, and in the
+   composer's work bar. One string, updated by the event stream. */
+const ACTIVITY_VERBS = {
+  read_file: "reading a file", list_dir: "listing files", search_files: "searching",
+  glob_files: "finding files", write_file: "writing a file", edit_file: "editing a file",
+  multi_edit: "editing files", run_command: "running a command", download: "downloading",
+  fetch_url: "fetching a page", websearch: "searching the web", search_knowledge: "checking the notes",
+  self_knowledge: "checking the Star docs", task: "exploring", error: "recovering",
+};
+function activityForTool(name) {
+  const n = String(name || "");
+  if (n.startsWith("mcp__")) return "using " + n.split("__")[1].replace(/_/g, " ");
+  return ACTIVITY_VERBS[n] || n.replace(/_/g, " ");
+}
+let activity = "";
+function setActivity(word) {
+  const next = String(word || "");
+  if (next === activity) return;
+  activity = next;
+  const act = $("workAct");
+  if (act) act.textContent = activity ? "· " + activity : "";
+  const line = document.querySelector("#stream .workline");
+  if (line) {
+    const wa = line.querySelector(".wact");
+    if (wa) wa.textContent = activity;
+    $("stream").appendChild(line);   // the line always trails the newest content
+    scrollDownSoon();
+  }
+}
+function showWorkLine(on) {
+  let line = document.querySelector("#stream .workline");
+  if (!on) { if (line) line.remove(); return; }
+  if (!line) {
+    line = document.createElement("div");
+    line.className = "workline";
+    line.setAttribute("role", "status");
+    line.innerHTML = '<span class="wspin" aria-hidden="true"></span><span class="wlbl2">Star is working</span><span class="wact"></span>';
+  }
+  const wa = line.querySelector(".wact");
+  if (wa) wa.textContent = activity;
+  $("stream").appendChild(line);
+  scrollDownSoon();
+}
+
 function setWorking(on) {
   const btn = $("kbdHint");
   clearInterval(workTimer); workTimer = null;
@@ -4765,11 +4981,12 @@ document.addEventListener("keydown", e => {
     closeMenus(); hideSlash();
     if ($("renameDlg").style.display !== "none") closeRenameDialog();
     else if ($("actPanel").style.display !== "none") toggleActPanel(false);
+    else if ($("newDlg").classList.contains("on")) closeWhatsNew();
     else if ($("artDlg").classList.contains("on")) closeArtifactDialog();
     else if ($("settings").classList.contains("on")) closeSettings();
     else if (document.body.classList.contains("sb-over")) toggleSidebar(false);
     else if (document.body.classList.contains("pane-open")) document.body.classList.remove("pane-open");
-    else if (streaming) abort();
+    else if (isStreaming(sessionId)) abort();
   }
 });
 
@@ -5410,6 +5627,7 @@ function settingsAbout() {
         <div class="rc">
           <button class="btn sm" id="upCheck">Check for updates</button>
           <button class="btn sm" id="upOpen">Releases</button>
+          <button class="btn sm" id="aboutNew">What's new</button>
         </div>
       </div>
     </div>
@@ -5723,6 +5941,10 @@ function wireSettings() {
     const url = (updateInfo && updateInfo.url) || "https://github.com/Star-Code-Prod/Star-Code/releases";
     if (bridge) bridge.openExternal(url);
     else window.open(url, "_blank");
+  });
+  on("aboutNew", "click", async () => {
+    if (!changelog) await loadChangelog();
+    openWhatsNew(true);
   });
 }
 

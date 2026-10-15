@@ -64,6 +64,9 @@ const CHAT_TOOLS = ["websearch", "fetch_url", "self_knowledge", "task"];
 // tool list in the system prompt can never go stale.
 const mcpManager = createMcpManager({ root: ROOT, onChange: () => resetSystemPromptCache() });
 
+// What's new: CHANGELOG.md parsed once per boot (endpoint below).
+let changelogCache = null;
+
 /** Cheap model for subagent runs when a provider catalog offers one, else null. */
 function subagentModel(providerId) {
   try {
@@ -776,6 +779,27 @@ async function route(req, res) {
     if (!name) return sendJSON(res, 400, { ok: false, error: "a name is required" });
     if (!readMcpConfig(ROOT).servers[name]) return sendJSON(res, 400, { ok: false, error: "unknown server" });
     return sendJSON(res, 200, await mcpManager.test(name));
+  }
+
+  /* --------------------------------- changelog --------------------------------- */
+  // What's new: CHANGELOG.md parsed once per boot. Newest entry first.
+  if (req.method === "GET" && url.pathname === "/api/changelog") {
+    if (!changelogCache) {
+      const entries = [];
+      try {
+        const md = fs.readFileSync(path.join(__dirname, "CHANGELOG.md"), "utf8");
+        let cur = null;
+        for (const raw of md.split(/\r?\n/)) {
+          const line = raw.trim();
+          const m = /^##\s+v?(\d+\.\d+\.\d+)(?:\s*[-\u2014]\s*(.+))?$/.exec(line);
+          if (m) { cur = { version: m[1], date: (m[2] || "").trim(), notes: [] }; entries.push(cur); continue; }
+          const note = /^[-*]\s+(.+)$/.exec(line);
+          if (note && cur) cur.notes.push(note[1]);
+        }
+      } catch { /* no changelog shipped */ }
+      changelogCache = entries;
+    }
+    return sendJSON(res, 200, { ok: true, version: VERSION, entries: changelogCache });
   }
 
   /* ----------------------------- knowledge ----------------------------- */

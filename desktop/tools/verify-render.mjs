@@ -180,6 +180,35 @@ ok("menu items hand focus back to the composer",
 ok("the focus hand-back never steals from a dialog",
   fnBody("function refocusComposerIfIdle(").includes("settings") &&
   fnBody("function refocusComposerIfIdle(").includes("artDlg"));
+
+/* -------- working in the chat, running circles, stacked panes, updates -------- */
+ok("the transcript carries the working line with an activity word",
+  js.includes("function showWorkLine(") && js.includes("function activityForTool(") &&
+  /\.workline\{/.test(html) && js.includes('"reading a file"'));
+ok("the composer work bar shows the same word",
+  html.includes('id="workAct"') && fnBody("function setActivity(").includes("workAct"));
+ok("the sidebar shows circles, spinning while a session works",
+  js.includes("runarc") && html.includes("animation:spin 1.1s linear infinite") &&
+  fnBody("function sessionRow(").includes("isStreaming(s.id)"));
+ok("a finished background session is flagged unread",
+  fnBody("function finishLive(").includes("unreadIds"));
+ok("every open pane stacks in the rail",
+  /\.pane-row\.open\{display:flex/.test(html.replace(/\s+/g, "")) &&
+  html.includes("#paneBody.solo") && fnBody("function applyActivePane(").includes("paneOpen.has("));
+ok("a single open pane still fills the rail",
+  /#paneBody\.solo \.pane-row\.open\{flex:1/.test(html.replace(/\s+/g, " ")));
+ok("clicking a pane header activates it",
+  fnBody("function wirePanes(").includes("setActivePane(p.dataset.pane)"));
+ok("sessions stream in the background while you switch",
+  js.includes("let liveTurns = new Map()") && js.includes("const isStreaming = (id)") &&
+  !fnBody("async function switchSession(").includes("Wait for the current reply"));
+ok("a live turn replays into the transcript on switch",
+  fnBody("async function switchSession(").includes("for (const e of live.events) handle(e)"));
+ok("superseded readers stop cleanly", fnBody("async function sendToAgent(").includes("liveTurns.get(sid) !== live"));
+ok("the update log is parsed and shown once per version",
+  js.includes("function openWhatsNew(") && js.includes("ccd.seenVersion") &&
+  js.includes("function changelogHtml(") && html.includes('id="newDlg"'));
+ok("the About panel links the full log", html.includes('id="aboutNew"'));
 ok("motion autoplays once per player",
   js.includes("let autoPlayed = false") && js.includes("autoPlayed = true") && js.includes('playBtn.textContent = "Pause"'));
 ok("motion pacing keeps the scene's cadence", js.includes("nextAt = Math.max(now, (nextAt || now) + iv)"));
