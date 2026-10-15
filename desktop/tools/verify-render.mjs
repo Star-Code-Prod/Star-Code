@@ -282,6 +282,12 @@ ok("the activity word tells the truth about reasoning models",
   js.includes("writing the reply") && fnBody("async function sendToAgent(").includes("reasoner"));
 ok("effort lives in the model dropdown",
   js.includes('id="mpEffort"') && js.includes("Reasoning effort: ") && /\.mp-eff\{/.test(html.replace(/\s+/g, "")));
+ok("the motion scrub is styled, not the platform gray rail",
+  /\.mo-scrub::-webkit-slider-thumb\{/.test(html.replace(/\s+/g, "")) &&
+  js.includes('--p') && html.includes("linear-gradient(90deg,var(--accent) var(--p"));
+ok("the fill and the clock follow the drag",
+  js.includes("const setFill = (v)") && js.includes("setFill(st.t)") &&
+  js.includes('time.innerHTML = (st.recording ? "record " : "")'));
 ok("motion autoplays once per player",
   js.includes("let autoPlayed = false") && js.includes("autoPlayed = true") && js.includes('playBtn.textContent = "Pause"'));
 ok("motion pacing keeps the scene's cadence", js.includes("nextAt = Math.max(now, (nextAt || now) + iv)"));

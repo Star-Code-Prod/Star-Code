@@ -523,7 +523,28 @@ body.is-mac.is-electron .brand{margin-left:2px}
 .mo-bar{display:flex;align-items:center;gap:7px;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--panel2);flex:none;flex-wrap:wrap}
 .mo-bar select{width:auto;padding:4px 8px}
 .mo-bar .mo-scrub{flex:1;min-width:60px;accent-color:var(--accent)}
+/* The scrub gets a real look instead of the platform's gray rail: a slim
+   track with an accent-filled head (--p, kept in sync by JS) and a small
+   thumb that grows under the pointer and while dragging. */
+.mo-scrub{
+  -webkit-appearance:none;appearance:none;height:22px;background:transparent;cursor:pointer;
+}
+.mo-scrub::-webkit-slider-runnable-track{
+  height:6px;border-radius:var(--r-full);
+  background:linear-gradient(90deg,var(--accent) var(--p,0%),var(--chip-on) var(--p,0%));
+}
+.mo-scrub::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;width:14px;height:14px;margin-top:-4px;
+  border-radius:var(--r-full);background:var(--text);border:2px solid var(--panel);
+  box-shadow:var(--shadow-sm);
+  transition:transform var(--t-fast) var(--ease),background var(--t-fast) var(--ease);
+}
+.mo-scrub:hover::-webkit-slider-thumb{transform:scale(1.15)}
+.mo-scrub:active::-webkit-slider-thumb{transform:scale(1.3);background:var(--accent)}
+.mo-scrub:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:var(--r-sm)}
+.mo-scrub:disabled{opacity:.45;cursor:default}
 .mo-time{font-family:var(--font-mono);font-size:var(--fs-11);color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.mo-time .cur{color:var(--text2)}
 .mo-stage{flex:1;min-height:0;display:flex;background:var(--panel2)}
 .mo-stage .apframe{min-height:0;background:transparent}
 .mo-status{flex:none;padding:8px 12px;font-size:var(--fs-12);color:var(--muted);border-top:1px solid var(--border);line-height:1.5}
@@ -4267,7 +4288,14 @@ function renderMotionArtifact(body, a) {
   let autoPlayed = false;
   const fmt = (t) => (Number(t) || 0).toFixed(2) + "s";
   const setStatus = (text, err) => { status.textContent = text; status.classList.toggle("err", !!err); };
-  const showTime = () => { time.textContent = (st.recording ? "record " : "") + fmt(st.t) + " / " + fmt(st.duration); };
+  /* The track's accent head: a percentage the CSS gradient reads (--p). */
+  const setFill = (v) => {
+    scrub.style.setProperty("--p", (st.duration > 0 ? Math.max(0, Math.min(100, (Number(v) || 0) / st.duration * 100)) : 0).toFixed(2) + "%");
+  };
+  const showTime = () => {
+    time.innerHTML = (st.recording ? "record " : "") +
+      '<span class="cur">' + fmt(st.t) + "</span> / " + fmt(st.duration);
+  };
   const send = (msg) => { if (frame.contentWindow) frame.contentWindow.postMessage(msg, "*"); };
   const setIdle = () => {
     st.recording = false;
@@ -4296,7 +4324,12 @@ function renderMotionArtifact(body, a) {
   window.addEventListener("pointercancel", () => { scrubbing = false; });
   scrub.addEventListener("input", () => {
     if (st.recording || !st.ready) return;
-    send({ type: "motion-seek", t: Number(scrub.value) });
+    // Paint the bar under the finger immediately (progress posts are held
+    // back during a drag), and let the clock follow the thumb.
+    st.t = Number(scrub.value) || 0;
+    setFill(st.t);
+    showTime();
+    send({ type: "motion-seek", t: st.t });
   });
   recBtn.addEventListener("click", () => {
     if (!st.ready) return;
@@ -4369,6 +4402,7 @@ function renderMotionArtifact(body, a) {
       st.t = 0;
       scrub.max = String(st.duration || 1);
       scrub.value = "0";
+      setFill(0);
       playBtn.disabled = false;
       recBtn.disabled = false;
       // Hug the scene's aspect: full rail width, no empty letterbox bands.
@@ -4392,7 +4426,7 @@ function renderMotionArtifact(body, a) {
     }
     if (m.type === "motion-progress") {
       st.t = Math.max(0, Number(m.t) || 0);
-      if (!st.recording && !scrubbing) scrub.value = String(st.t);
+      if (!st.recording && !scrubbing) { scrub.value = String(st.t); setFill(st.t); }
       showTime();
       return;
     }
