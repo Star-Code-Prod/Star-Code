@@ -2158,6 +2158,9 @@ async function switchSession(id) {
     $("sProj").textContent = (j.cwd || state.root || "").split(/[\\/]/).filter(Boolean).pop() || "";
     applyMode(j.mode || "manual");
     renderTranscript(j.messages || []);
+    // Stats survive reloads: hydrate from the store, then keep folding events.
+    hydrateSessStats(j.stats);
+    if (j.stats && j.stats.lastContext) { lastUsage = { ...j.stats.lastContext }; renderRing(); }
     unreadIds = unreadIds.filter((x) => x !== id);
     saveLocalSessionFlags();
     renderSessions();
@@ -3628,7 +3631,88 @@ function renderRing() {
   const C = 2 * Math.PI * 7.5;
   $("ringFg").setAttribute("stroke-dashoffset", String(C - (C * Math.min(100, contextPct)) / 100));
   const k = v => v >= 1000 ? (v / 1000).toFixed(1) + "k" : String(v);
-  $("ringTip").textContent = `Context ${k(contextTokens)} / ${k(contextLimit)} (${contextPct}%)`;
+  $("ringTip").textContent = `Context ${k(contextTokens)} / ${k(contextLimit)} (${contextPct}%)` + ringStatBits();
+}
+
+/* ---- session stats: usage, free compaction, tool groupings ---- */
+/* Raw counts live on the server (persisted with the session); the page
+   hydrates them when a session opens and folds every streamed event in.
+   Groupings are curated, not derived from the danger flag, so a command
+   stays "run" and edits stay "write". */
+function toolGroupOf(name) {
+  if (name === "write_file" || name === "edit_file" || name === "multi_edit") return "write";
+  if (name === "run_command") return "run";
+  if (name === "websearch" || name === "fetch_url" || name === "download") return "web";
+  if (name === "task") return "agent";
+  if (name === "read_file" || name === "list_dir" || name === "search_files" || name === "glob_files" ||
+      name === "search_knowledge" || name === "self_knowledge") return "read";
+  return "other";
+}
+/** {name: count} -> [{ group, count, top: [{ name, count }] }], busiest first. */
+function groupToolCounts(tools) {
+  const by = new Map();
+  for (const [name, n] of Object.entries(tools || {})) {
+    const g = toolGroupOf(name);
+    if (!by.has(g)) by.set(g, { group: g, count: 0, top: [] });
+    const e = by.get(g);
+    e.count += n;
+    e.top.push({ name, count: n });
+  }
+  const order = ["read", "write", "run", "web", "agent", "other"];
+  return [...by.values()]
+    .sort((a, b) => b.count - a.count || order.indexOf(a.group) - order.indexOf(b.group))
+    .map((g) => ({ ...g, top: g.top.slice().sort((x, y) => y.count - x.count || x.name.localeCompare(y.name)) }));
+}
+function fmtCount(n) {
+  return n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : String(n);
+}
+function emptySessStats() {
+  return { calls: 0, tools: {}, compact: { passes: 0, charsSaved: 0 }, lastContext: null };
+}
+let sessStats = emptySessStats();
+function hydrateSessStats(raw) {
+  sessStats = emptySessStats();
+  if (!raw || typeof raw !== "object") return;
+  sessStats.calls = Number(raw.calls) || 0;
+  if (raw.tools && typeof raw.tools === "object") sessStats.tools = { ...raw.tools };
+  if (raw.compact && typeof raw.compact === "object") {
+    sessStats.compact.passes = Number(raw.compact.passes) || 0;
+    sessStats.compact.charsSaved = Number(raw.compact.charsSaved) || 0;
+  }
+  sessStats.lastContext = raw.lastContext || null;
+}
+/** The ring tooltip's second half: calls, grouped tools, compaction saved. */
+function ringStatBits() {
+  const bits = [];
+  if (sessStats.calls) bits.push(sessStats.calls + " call" + (sessStats.calls === 1 ? "" : "s"));
+  const groups = groupToolCounts(sessStats.tools);
+  const total = groups.reduce((n, g) => n + g.count, 0);
+  if (total) bits.push(groups.slice(0, 3).map((g) => g.group + " " + g.count).join(" · "));
+  if (sessStats.compact.charsSaved) bits.push("saved " + fmtCount(sessStats.compact.charsSaved));
+  return bits.length ? " · " + bits.join(" · ") : "";
+}
+function renderUsageCard() {
+  const st = sessStats;
+  const lc = st.lastContext || lastUsage;
+  const ctx = lc && lc.contextTokens
+    ? fmtCount(lc.contextTokens) + " / " + fmtCount(lc.contextLimit) + " (" + lc.contextPct + "%)"
+    : "—";
+  const groups = groupToolCounts(st.tools);
+  const total = groups.reduce((n, g) => n + g.count, 0);
+  const caps = (s) => s[0].toUpperCase() + s.slice(1);
+  const toolLine = total
+    ? groups.map((g) => "**" + caps(g.group) + " ×" + g.count + "**" +
+        (g.top.length ? " (" + g.top.slice(0, 3).map((t) => t.name + " " + t.count).join(" · ") + (g.top.length > 3 ? " …" : "") + ")" : "")).join(" · ")
+    : "none yet";
+  const comp = st.compact.passes
+    ? st.compact.passes + " pass" + (st.compact.passes === 1 ? "" : "es") + " · ~" + fmtCount(st.compact.charsSaved) + " chars saved"
+    : "nothing pruned yet";
+  say([
+    "**Session usage**",
+    "- **Model calls:** " + st.calls + " · **Context now:** " + ctx,
+    total ? "- **Tools (" + total + " calls):** " + toolLine : "- **Tools:** none yet",
+    "- **Free compaction:** " + comp,
+  ].join("\n"));
 }
 
 /* ============================ SEND ============================ */
@@ -3665,6 +3749,7 @@ async function handleCommand(text) {
     } catch { say("Could not read the knowledge index."); }
     return;
   }
+  if (name === "usage") { renderUsageCard(); return; }
   if (name === "agents") { agentPicker($("cAgent")); return; }
   if (name === "plan") { applyMode("plan"); save(); say("Switched to **plan mode**. I'll explore read-only and propose a plan."); return; }
   if (name === "export") { exportConv(); return; }
@@ -3738,7 +3823,7 @@ function handle(evt) {
         toast("Picked agent file is gone - running without a persona");
       }
       break;
-    case "assistant_start": startAssistant(); break;
+    case "assistant_start": sessStats.calls += 1; startAssistant(); break;
     case "delta": addDelta(evt.text); break;
     case "assistant_end": endAssistant(); break;
     case "thinking_start": if (state.showThinking) startThinking(); break;
@@ -3746,10 +3831,11 @@ function handle(evt) {
     case "thinking_end": if (state.showThinking) endThinking(evt.ms); break;
     case "todos": renderTodos(evt.todos); break;
     case "permission_request": askPermission(evt); break;
-    case "tool": addTool({ name: evt.name, args: evt.args, status: evt.allowed === false ? "denied" : "running", detail: "" }); break;
+    case "tool": sessStats.tools[evt.name] = (sessStats.tools[evt.name] || 0) + 1; addTool({ name: evt.name, args: evt.args, status: evt.allowed === false ? "denied" : "running", detail: "" }); break;
     case "tool_result": finishTool(evt.status, evt.preview); break;
+    case "context_pruned": sessStats.compact.passes += 1; sessStats.compact.charsSaved += Number(evt.chars) || 0; break;
     case "diff": renderDiff(evt); updatePrBar(evt); break;
-    case "usage": lastUsage = evt; renderRing(); break;
+    case "usage": lastUsage = evt; sessStats.lastContext = { contextTokens: evt.contextTokens, contextLimit: evt.contextLimit, contextPct: evt.contextPct }; renderRing(); break;
     case "error": addTool({ name: "error", args: {}, status: "denied", detail: evt.message }); break;
     case "done":
       endAssistant(); endThinking();
@@ -3780,6 +3866,7 @@ async function newSession(opts = {}) {
 
   todos = []; diffs = []; lastDiff = []; termLines = [];
   paneBadges.tasks = 0; paneBadges.diff = 0; paneBadges.terminal = 0;
+  sessStats = emptySessStats();
   artifacts = []; msgArtifacts = []; msgCards = 0; artifactView = { i: 0, mode: "render" };
   artifactCards = new Map();
   currentMsg = null; currentThink = null; toolGroup = null;
@@ -3816,6 +3903,7 @@ const COMMANDS = [
   { n: "/connect", d: "Connect a provider (key, models)" },
   { n: "/agents", d: "Pick an agent persona for this chat" },
   { n: "/knowledge", d: "List the project knowledge files" },
+  { n: "/usage", d: "Session usage, compaction and tool stats" },
   { n: "/theme", d: "Cycle dark, light, and system" },
   { n: "/settings", d: "Open settings" },
   { n: "/export", d: "Download the conversation" },

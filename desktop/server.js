@@ -200,6 +200,38 @@ function isEmptyUntitled(s) {
   return UNTITLED.has(String(s.title || "").trim()) && !hasUser;
 }
 
+/** Zeroed session stats - also the shape old stored sessions get on load. */
+function emptyStats() {
+  return { calls: 0, tools: {}, compact: { passes: 0, charsSaved: 0 }, lastContext: null };
+}
+/** Merge whatever was persisted into the zero shape (never throws). */
+function normalizeStats(raw) {
+  const base = emptyStats();
+  if (!raw || typeof raw !== "object") return base;
+  base.calls = Number(raw.calls) || 0;
+  if (raw.tools && typeof raw.tools === "object") base.tools = { ...raw.tools };
+  if (raw.compact && typeof raw.compact === "object") {
+    base.compact.passes = Number(raw.compact.passes) || 0;
+    base.compact.charsSaved = Number(raw.compact.charsSaved) || 0;
+  }
+  base.lastContext = raw.lastContext || null;
+  return base;
+}
+/** Fold one streamed event into a session's stats: model calls, per-tool
+ *  counts, the last context reading and what free compaction saved. */
+function bumpSessionStats(session, evt) {
+  if (!session || !evt) return;
+  const stats = session.stats || (session.stats = emptyStats());
+  if (evt.type === "assistant_start") stats.calls += 1;
+  else if (evt.type === "tool" && evt.name) stats.tools[evt.name] = (stats.tools[evt.name] || 0) + 1;
+  else if (evt.type === "usage") {
+    stats.lastContext = { contextTokens: evt.contextTokens, contextLimit: evt.contextLimit, contextPct: evt.contextPct };
+  } else if (evt.type === "context_pruned") {
+    stats.compact.passes += 1;
+    stats.compact.charsSaved += Number(evt.chars) || 0;
+  }
+}
+
 function loadStore() {
   try {
     const raw = JSON.parse(fs.readFileSync(STORE_FILE, "utf8"));
@@ -218,6 +250,7 @@ function loadStore() {
             created: s.created || Date.now(),
             updated: s.updated || Date.now(),
             messages: Array.isArray(s.messages) ? s.messages : [],
+            stats: normalizeStats(s.stats),
             pending: new Map(),
             aborts: new Set(),
             autoAllow: new Set(),
@@ -246,6 +279,7 @@ function writeStoreNow() {
         created: s.created,
         updated: s.updated,
         messages: s.messages.slice(-MAX_STORED_MESSAGES),
+        stats: s.stats || emptyStats(),
       }));
     // Atomic: write a temp file, then rename, so a crash or a second
     // instance can never leave a half-written store behind.
@@ -319,6 +353,7 @@ function newSession(title, kind) {
     created: Date.now(),
     updated: Date.now(),
     messages: [{ role: "system", content: system }],
+    stats: emptyStats(),
     pending: new Map(),
     aborts: new Set(),
     autoAllow: new Set(),
@@ -499,6 +534,7 @@ const HELP_TEXT = `**Star Code — commands**
 | \`/context\` | Show context and project stats |
 | \`/diff\` | Show uncommitted git changes |
 | \`/status\` | Session and repo status |
+| \`/usage\` | Session usage, compaction and tool stats |
 | \`/memory\` | Show the project memory file |
 | \`/settings\` | Open settings |
 | \`/theme\` | Cycle dark, light, and system |
@@ -795,7 +831,7 @@ async function route(req, res) {
       .filter((m) => m.role !== "system")
       .filter((m) => !String(m.content).startsWith("Tool result for "))
       .map((m) => ({ role: m.role, content: m.content }));
-    return sendJSON(res, 200, { id: s.id, title: s.title, kind: s.kind, mode: s.mode, cwd: s.cwd, messages: visible });
+    return sendJSON(res, 200, { id: s.id, title: s.title, kind: s.kind, mode: s.mode, cwd: s.cwd, messages: visible, stats: s.stats });
   }
 
   if (req.method === "POST" && url.pathname === "/api/sessions/new") {
@@ -873,7 +909,10 @@ async function route(req, res) {
     };
 
     res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
-    const emit = (evt) => res.write(`data: ${JSON.stringify(evt)}\n\n`);
+    const emit = (evt) => {
+      bumpSessionStats(session, evt);
+      res.write(`data: ${JSON.stringify(evt)}\n\n`);
+    };
     emit({ type: "session", sessionId: session.id, kind: session.kind, root: sessionRoot(session), title: session.title, mode: session.mode, agent: selectedAgent ? selectedAgent.name : null });
 
     const requestPermission = (info) =>
@@ -1007,7 +1046,7 @@ export function getRoot() {
   return ROOT;
 }
 
-export { handler, makeRunner, sessionSystemContent };
+export { handler, makeRunner, sessionSystemContent, bumpSessionStats };
 
 // Run standalone when executed directly (node server.js).
 const invokedDirectly =

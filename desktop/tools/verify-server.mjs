@@ -13,6 +13,16 @@ const ok = (label, pass, extra = "") =>
 // Throwaway data dir so credential checks never touch real state.
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-server-"));
 process.env.STAR_CODE_DATA = dataDir;
+// A legacy store record written before the server boots: it has no stats
+// field, so loading it proves old sessions come back with the zero shape.
+fs.writeFileSync(path.join(dataDir, "sessions.json"), JSON.stringify({
+  version: 1,
+  sessions: [{
+    id: "legacy-stats", title: "Legacy stats", kind: "code", mode: "manual",
+    created: Date.now(), updated: Date.now(),
+    messages: [{ role: "system", content: "s" }, { role: "user", content: "old question" }],
+  }],
+}));
 // Throwaway agent dir too: /api/agents and agent-persona turns must see our
 // fixtures, never the user's real ~/.star-code/agents.
 const agentsDir = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-server-agents-"));
@@ -79,7 +89,7 @@ fs.writeFileSync(path.join(projectAgentsDir, "shadow.md"), [
   "You are the shadow persona (project level).",
 ].join("\n"));
 
-const { startServer, getRoot } = await import(pathToFileURL(path.resolve("server.js")).href);
+const { startServer, getRoot, bumpSessionStats, flushStore } = await import(pathToFileURL(path.resolve("server.js")).href);
 // The read-only default tool set, for comparing the explorer's listing.
 const { AGENT_DEFAULT_TOOLS } = await import(pathToFileURL(path.resolve("lib/agents.js")).href);
 
@@ -430,6 +440,44 @@ try {
   ok("every scripted persona turn made exactly one model call per step", turnBodies.length === 14, String(turnBodies.length));
   turnStub.close();
   if (turnStub.closeAllConnections) turnStub.closeAllConnections();
+
+  // Session stats: usage, tool counts (the raw layer under the UI groupings)
+  // and free compaction. The persona turns above exercise the live path; the
+  // seeded legacy record proves old sessions load with the zero shape, and
+  // bumpSessionStats pins the accumulator itself.
+  const legacyLoad = await (await fetch(s.url + "/api/sessions/messages?id=legacy-stats")).json();
+  ok("stored sessions without stats get the zero shape",
+    legacyLoad.stats && legacyLoad.stats.calls === 0 && JSON.stringify(legacyLoad.stats.tools) === "{}" &&
+    legacyLoad.stats.compact.passes === 0 && legacyLoad.stats.compact.charsSaved === 0 && legacyLoad.stats.lastContext === null,
+    JSON.stringify(legacyLoad.stats));
+
+  const statsLoad = await (await fetch(s.url + "/api/sessions/messages?id=" + codeNew.id)).json();
+  ok("a live session's stats ride with its messages", !!statsLoad.stats && typeof statsLoad.stats.calls === "number");
+  ok("model calls are counted", statsLoad.stats.calls === 10, String(statsLoad.stats.calls));
+  ok("tool calls are counted per name",
+    statsLoad.stats.tools.read_file === 1 && statsLoad.stats.tools.list_dir === 1 && statsLoad.stats.tools.write_file === 2,
+    JSON.stringify(statsLoad.stats.tools));
+  ok("free compaction is counted when old turns get summarised",
+    statsLoad.stats.compact.passes >= 1 && statsLoad.stats.compact.charsSaved > 0,
+    JSON.stringify(statsLoad.stats.compact));
+
+  const statsObj = {};
+  bumpSessionStats(statsObj, { type: "tool", name: "read_file" });
+  bumpSessionStats(statsObj, { type: "tool", name: "read_file" });
+  bumpSessionStats(statsObj, { type: "tool", name: "run_command" });
+  bumpSessionStats(statsObj, { type: "assistant_start" });
+  bumpSessionStats(statsObj, { type: "usage", contextTokens: 5, contextLimit: 10, contextPct: 50 });
+  bumpSessionStats(statsObj, { type: "context_pruned", chars: 4200 });
+  bumpSessionStats(statsObj, { type: "context_pruned", chars: 800 });
+  bumpSessionStats(statsObj, { type: "delta", text: "not a stat" });
+  ok("the accumulator folds tool events", statsObj.stats.tools.read_file === 2 && statsObj.stats.tools.run_command === 1);
+  ok("the accumulator counts model calls and keeps the last context",
+    statsObj.stats.calls === 1 && statsObj.stats.lastContext.contextPct === 50);
+  ok("the accumulator sums compaction", statsObj.stats.compact.passes === 2 && statsObj.stats.compact.charsSaved === 5000);
+
+  flushStore();
+  const storeRaw = fs.readFileSync(path.join(dataDir, "sessions.json"), "utf8");
+  ok("stats persist with the session", /"read_file"/.test(storeRaw) && /"tools"/.test(storeRaw));
 
   // knowledge round-trip (writes into the repo root, cleaned up after)
   const kPost = await (await fetch(s.url + "/api/knowledge", {

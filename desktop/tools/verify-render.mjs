@@ -21,9 +21,15 @@ if (sbFrom < 0 || sbTo < 0) {
   console.error("FAIL  could not locate stripBlocks/parseArtifacts in the UI script");
   process.exit(1);
 }
+const stFrom = js.indexOf("function toolGroupOf(");
+const stTo = js.indexOf("function renderUsageCard(");
+if (stFrom < 0 || stTo < 0) {
+  console.error("FAIL  could not locate toolGroupOf/groupToolCounts in the UI script");
+  process.exit(1);
+}
 const fns = new Function(
-  js.slice(from, to) + js.slice(sbFrom, sbTo) +
-  "; return { esc, hl, md, stripBlocks, parseArtifacts };"
+  js.slice(from, to) + js.slice(sbFrom, sbTo) + js.slice(stFrom, stTo) +
+  "; return { esc, hl, md, stripBlocks, parseArtifacts, toolGroupOf, groupToolCounts, fmtCount };"
 )();
 
 const results = [];
@@ -85,6 +91,22 @@ const p4 = fns.parseArtifacts("````artifact md\n# Title\n```js\nlet a=1;\n```\nm
 ok("four-backtick artifact holds inner fences", p4.length === 1 && p4[0].code.includes("```js") && p4[0].code.includes("more prose"));
 const s4 = fns.stripBlocks("x\n````artifact md\n```js\nlet a=1;\n```\n````\ny");
 ok("stripBlocks handles four-backtick artifacts", !s4.includes("let a") && s4.includes("x") && s4.includes("y"));
+
+/* ---------------------- session stats groupings ---------------------- */
+ok("tool groups: reads", ["read_file", "list_dir", "search_files", "glob_files", "search_knowledge", "self_knowledge"].every((n) => fns.toolGroupOf(n) === "read"));
+ok("tool groups: writes", ["write_file", "edit_file", "multi_edit"].every((n) => fns.toolGroupOf(n) === "write"));
+ok("tool groups: run, web and agent",
+  fns.toolGroupOf("run_command") === "run" && fns.toolGroupOf("websearch") === "web" &&
+  fns.toolGroupOf("download") === "web" && fns.toolGroupOf("task") === "agent");
+ok("tool groups: the unknown falls to other", fns.toolGroupOf("mystery_tool") === "other");
+const gc = fns.groupToolCounts({ read_file: 9, search_files: 3, edit_file: 4, run_command: 3, websearch: 1 });
+ok("grouped counts: busiest group first",
+  gc.length === 4 && gc[0].group === "read" && gc[0].count === 12 && gc[1].group === "write" && gc[1].count === 4,
+  JSON.stringify(gc.map((g) => [g.group, g.count])));
+ok("grouped counts: the top tools inside a group are sorted",
+  JSON.stringify(gc[0].top) === JSON.stringify([{ name: "read_file", count: 9 }, { name: "search_files", count: 3 }]));
+ok("grouped counts: empty is calm", fns.groupToolCounts({}).length === 0 && fns.groupToolCounts(null).length === 0);
+ok("fmtCount compacts thousands", fns.fmtCount(999) === "999" && fns.fmtCount(2000) === "2k" && fns.fmtCount(14237) === "14.2k");
 
 console.log(results.join("\n"));
 const failed = results.filter((r) => r.startsWith("FAIL")).length;
