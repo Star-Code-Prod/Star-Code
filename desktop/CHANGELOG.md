@@ -1,5 +1,10 @@
 # What's new in Star
 
+## 1.10.0 — 2026-10-15
+- Drag sessions in the sidebar to arrange them: the list switches to your order, with one "Sessions" group.
+- Drag a session to the side (onto the chat area) to open it as a second chat - two conversations side by side with the right rail between them. Each one streams on its own; close the second with its X.
+- The rail's drag-to-reorder works reliably now: it used to go deaf mid-drag (the dragged card moved in the DOM, which drops the browser's pointer capture) - a marker shows where it will land, and the drop lands exactly there.
+
 ## 1.9.5 — 2026-10-15
 - Artifact cards keep a proper gap from the message above and whatever follows - they used to sit flush against both.
 - The chat/code switch in the sidebar separates its two buttons instead of leaving them touching.

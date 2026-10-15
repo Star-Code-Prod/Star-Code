@@ -243,6 +243,21 @@ ok("artifact cards keep their distance from neighbouring blocks",
   /\.artifactcard\{[^}]*margin:13px auto/.test(html.replace(/\s+/g, " ")));
 ok("the segmented control keeps its buttons apart",
   /\.seg\{[^}]*gap:4px/.test(html.replace(/\s+/g, " ")));
+
+/* --- session drag: reorder, and drop-to-the-side for a second chat --- */
+ok("the rail drag uses a marker, never moving the captured row",
+  js.includes('drag.marker.className = "pane-marker"') &&
+  js.includes("body.insertBefore(d.row, d.marker)") &&
+  /\.pane-marker\{/.test(html.replace(/\s+/g, "")));
+ok("sessions reorder by dragging in the sidebar",
+  js.includes("function wireSessionDrag(") && js.includes("state.sessionOrder = [...new Set(order)]") &&
+  fnBody("function renderSessions(").includes("state.sessionOrder") && js.includes("suppressRowClick"));
+ok("dragging a session to the side opens the split, rail between the chats",
+  js.includes("function openSplit(") && js.includes('"/?embed=" + encodeURIComponent(id)') &&
+  html.indexOf('id="panes"') < html.indexOf('id="splitBox"') && js.includes('classList.add("split-on")'));
+ok("the split's second chat runs the app in embed mode",
+  js.includes('get("embed")') && /html\[data-embed\] \.sidebar/.test(html) && js.includes("if (EMBED_SID)"));
+ok("the embedded chat never pops the update log", js.includes("if (EMBED_SID) return;   // the split"));
 ok("motion autoplays once per player",
   js.includes("let autoPlayed = false") && js.includes("autoPlayed = true") && js.includes('playBtn.textContent = "Pause"'));
 ok("motion pacing keeps the scene's cadence", js.includes("nextAt = Math.max(now, (nextAt || now) + iv)"));

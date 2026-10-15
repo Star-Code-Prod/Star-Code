@@ -837,6 +837,7 @@ body.pane-drag .pane-grip{background:color-mix(in srgb,var(--accent) 45%,transpa
 body.pane-hdrag{cursor:row-resize;user-select:none}
 body.pane-hdrag .pane-grip-b::after{opacity:1;background:var(--accent)}
 .pane-row.dragging{opacity:.75;outline:1px dashed var(--border2);outline-offset:-2px}
+.pane-marker{height:8px;margin:0 2px;border-radius:4px;background:color-mix(in srgb,var(--accent) 45%,transparent)}
 
 /* Sidebar width drag: the right-edge grip. */
 .sb-grip{
@@ -845,6 +846,44 @@ body.pane-hdrag .pane-grip-b::after{opacity:1;background:var(--accent)}
 }
 .sb-grip:hover,body.sb-drag .sb-grip{background:color-mix(in srgb,var(--accent) 45%,transparent)}
 body.sb-drag{cursor:col-resize;user-select:none}
+
+/* ---- sessions: drag to reorder, or drag to the side for a second chat ---- */
+.sess-ghost{
+  position:fixed;z-index:200;pointer-events:none;padding:6px 11px;border-radius:var(--r-sm);
+  background:var(--panel);border:1px solid var(--border2);box-shadow:var(--shadow-md);color:var(--text);
+  font-size:var(--fs-125);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.sess-marker{height:2px;margin:4px 10px;border-radius:2px;background:var(--accent)}
+body.sess-drag{cursor:grabbing;user-select:none}
+body.sess-forsplit .session{outline:1px dashed var(--border2);outline-offset:-10px}
+body.sess-forsplit .session::after{
+  content:"Drop to open side by side — the rail stays between the chats";
+  position:absolute;left:50%;top:18px;transform:translateX(-50%);z-index:30;pointer-events:none;
+  padding:6px 12px;border-radius:var(--r-full);border:1px solid var(--border);
+  background:var(--panel);color:var(--text2);font-size:var(--fs-12);box-shadow:var(--shadow-sm);white-space:nowrap;
+}
+.session{position:relative}
+
+/* ---- the second chat: the rail sits between the two conversations ---- */
+.splitbox{display:none;flex:1;min-width:280px;flex-direction:column;margin:8px 8px 8px 0;
+  border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden;
+  background:var(--panel);box-shadow:var(--shadow-sm);}
+body.split-on .splitbox{display:flex}
+.split-head{
+  height:38px;flex:none;display:flex;align-items:center;gap:7px;padding:0 8px 0 12px;
+  background:var(--panel2);border-bottom:1px solid var(--border);font-size:var(--fs-13);color:var(--text2);
+}
+.split-head .t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.split-head .spacer{flex:1}
+.split-frame{flex:1;width:100%;border:0;background:var(--bg)}
+
+/* ---- embedded surface (?embed=<session>): a bare, second chat instance ---- */
+html[data-embed] .titlebar,
+html[data-embed] .updatebar,
+html[data-embed] .sidebar,
+html[data-embed] .panes,
+html[data-embed] .sb-scrim,
+html[data-embed] #splitBox{display:none !important}
 .pane-b{overflow:auto;font-size:var(--fs-125);flex:1;min-height:0}
 .pane-b.pad{padding:var(--sp-4)}
 .pempty{padding:34px 18px;text-align:center;color:var(--dim);font-size:var(--fs-125);line-height:1.7}
@@ -1434,6 +1473,16 @@ body.mode-chat #bigProj{display:none}
 
     </div>
   </div>
+
+  <!-- ==================== SPLIT: the second chat ==================== -->
+  <section class="splitbox" id="splitBox">
+    <div class="split-head">
+      <span class="t" id="splitTitle">Chat</span>
+      <span class="spacer"></span>
+      <button class="pane-x" id="splitClose" title="Close the second chat" aria-label="Close the second chat"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+    </div>
+    <iframe class="split-frame" id="splitFrame" title="Second chat"></iframe>
+  </section>
 </div>
 
 <!-- ==================== FILES / ACTIVITY PANEL ==================== -->
@@ -1539,6 +1588,12 @@ body.mode-chat #bigProj{display:none}
 const $ = id => document.getElementById(id);
 const LS = "ccd.state.v4";
 
+/* An embedded surface (?embed=<session>): a bare chat instance used as the
+   split's second conversation. The chrome hides itself at first paint and
+   boot binds straight to that session. */
+const EMBED_SID = (() => { try { return new URLSearchParams(location.search).get("embed") || ""; } catch { return ""; } })();
+if (EMBED_SID) document.documentElement.dataset.embed = "1";
+
 /* ============================ STATE ============================ */
 const DEFAULT_STATE = {
   theme: "dark",
@@ -1565,6 +1620,8 @@ const DEFAULT_STATE = {
   sbW: 0,               // sidebar width, dragged by its right-edge grip
   paneOrder: [],        // rail pane order after dragging the cards
   paneHeights: {},      // per-pane card heights, set by the bottom grips
+  sessionOrder: [],     // sidebar order after dragging sessions ([] = newest first)
+  split: "",            // session id shown in the side-by-side second chat
   root: "",
   sessions: [],
 };
@@ -1701,9 +1758,9 @@ const bridge = (typeof window !== "undefined" && window.desktop && window.deskto
   loadLocalSessionFlags();
   await loadSessions();
   applyUiMode(state.mode);
-  loadTree();
   buildSlash();
   wirePanes();
+  wireSessionDrag();
   applyMode(state.defaultMode);
   autoGrow($("input"));
   lastUsage = { contextTokens: 0, contextLimit: 200000, contextPct: 0 };
@@ -1714,13 +1771,24 @@ const bridge = (typeof window !== "undefined" && window.desktop && window.deskto
   applySbW();
   applyPaneOrder();
   applyPaneHeights();
+  // An embedded surface (?embed=<session>) is the split's second chat: no
+  // tree, no update checks, and it binds straight to its session.
+  if (EMBED_SID) {
+    showChat();
+    switchSession(EMBED_SID);
+  } else {
+    loadTree();
+    // A persisted split reopens on the side, exactly as it was left.
+    if (state.split) openSplit(state.split);
+  }
   // Quiet update check a few seconds after launch. Deliberately delayed so it
   // never competes with first paint, and it only surfaces a banner when there
   // is genuinely something newer than the running build.
-  if (bridge && bridge.checkUpdates) setTimeout(() => checkUpdates({ quiet: true }), 3500);
+  if (!EMBED_SID && bridge && bridge.checkUpdates) setTimeout(() => checkUpdates({ quiet: true }), 3500);
   // What's new: once per version, a little after first paint. A fresh install
   // records the version silently; an update shows the notes.
   setTimeout(async () => {
+    if (EMBED_SID) return;   // the split's second chat never pops the log
     await loadChangelog();
     const running = String((meta && meta.version) || "");
     if (!running || !changelog || !(changelog.entries || []).length) return;
@@ -2511,6 +2579,9 @@ function applySbW() {
   });
 
   // Dragging a card's header reorders the stack; the visible order persists.
+  // The dragged row itself NEVER moves mid-drag: moving a DOM node releases
+  // its pointer capture, so the drag went deaf after the first reorder and
+  // the drop never landed. A marker shows the destination instead.
   body.querySelectorAll(".pane-sub").forEach((sub) => {
     let drag = null;
     sub.addEventListener("pointerdown", (e) => {
@@ -2518,24 +2589,38 @@ function applySbW() {
       const row = sub.closest(".pane-row");
       if (!row || !row.classList.contains("open")) return;
       if (body.querySelectorAll(".pane-row.open").length < 2) return;
-      drag = { row };
+      drag = { row, marker: null };
       try { sub.setPointerCapture(e.pointerId); } catch {}
       e.preventDefault();
     });
     sub.addEventListener("pointermove", (e) => {
       if (!drag) return;
-      if (!drag.row.classList.contains("dragging")) drag.row.classList.add("dragging");
+      if (!drag.marker) {
+        drag.row.classList.add("dragging");
+        drag.marker = document.createElement("div");
+        drag.marker.className = "pane-marker";
+        body.appendChild(drag.marker);
+      }
       const others = [...body.querySelectorAll(".pane-row.open")].filter((r) => r !== drag.row);
-      const next = others.find((r) => { const b = r.getBoundingClientRect(); return e.clientY < b.top + b.height / 2; });
-      if (next) body.insertBefore(drag.row, next);
-      else body.appendChild(drag.row);
+      let before = null;
+      for (const r of others) {
+        const b = r.getBoundingClientRect();
+        if (e.clientY < b.top + b.height / 2) { before = r; break; }
+      }
+      if (before) body.insertBefore(drag.marker, before);
+      else body.appendChild(drag.marker);
     });
     const stop = () => {
       if (!drag) return;
-      drag.row.classList.remove("dragging");
+      const d = drag;
       drag = null;
-      state.paneOrder = [...body.querySelectorAll(".pane-row")].map((r) => r.dataset.pane);
-      save();
+      d.row.classList.remove("dragging");
+      if (d.marker && d.marker.parentNode) {
+        body.insertBefore(d.row, d.marker);
+        d.marker.remove();
+        state.paneOrder = [...body.querySelectorAll(".pane-row")].map((r) => r.dataset.pane);
+        save();
+      } else if (d.marker) d.marker.remove();
     };
     sub.addEventListener("pointerup", stop);
     sub.addEventListener("pointercancel", stop);
@@ -2689,10 +2774,16 @@ function renderSessions() {
   }
 
   const dir = state.sortAsc ? 1 : -1;
+  const manual = state.sessionOrder.length > 0 && state.sessionOrder.some((id) => list.some((s) => s.id === id));
+  const idxOf = (s) => { const i = state.sessionOrder.indexOf(s.id); return i === -1 ? Number.MAX_SAFE_INTEGER : i; };
   list.sort((a, b) => {
     const pa = pinnedIds.includes(a.id) ? 1 : 0;
     const pb = pinnedIds.includes(b.id) ? 1 : 0;
     if (pa !== pb) return pb - pa;              // pinned first
+    if (manual) {
+      const ia = idxOf(a), ib = idxOf(b);
+      if (ia !== ib) return ia - ib;            // the user's dragged order wins
+    }
     return (a.updated - b.updated) * dir;
   });
 
@@ -2715,9 +2806,14 @@ function renderSessions() {
     const pinned = matches.filter((s) => pinnedIds.includes(s.id));
     const rest = matches.filter((s) => !pinnedIds.includes(s.id));
     if (pinned.length) html += '<div class="sess-group">Pinned</div>' + pinned.map(sessionRow).join("");
-    for (const bucket of ["Today", "Yesterday", "Earlier"]) {
-      const group = rest.filter((s) => dayBucket(s.updated) === bucket);
-      if (group.length) html += `<div class="sess-group">${bucket}</div>` + group.map(sessionRow).join("");
+    if (manual) {
+      // The user arranged the list by hand: one "Sessions" group in their order.
+      html += '<div class="sess-group">Sessions</div>' + rest.map(sessionRow).join("");
+    } else {
+      for (const bucket of ["Today", "Yesterday", "Earlier"]) {
+        const group = rest.filter((s) => dayBucket(s.updated) === bucket);
+        if (group.length) html += `<div class="sess-group">${bucket}</div>` + group.map(sessionRow).join("");
+      }
     }
   }
   box.innerHTML = html;
@@ -2726,10 +2822,122 @@ function renderSessions() {
     m.addEventListener("click", (e) => { e.stopPropagation(); sessionMenu(e.currentTarget, m.dataset.more); }));
   box.querySelectorAll(".sess").forEach((el) =>
     el.addEventListener("click", () => {
+      if (Date.now() - suppressRowClick < 60) return;   // a drag just ended on this row
       switchSession(el.dataset.id);
       if (innerWidth <= 820) toggleSidebar(false);
     }));
 }
+
+/* ---- session dragging: reorder, or drop to the side for a second chat ---- */
+let suppressRowClick = 0;
+function wireSessionDrag() {
+  const box = $("sessions");
+  const HOLD = 4;
+  let drag = null;
+
+  box.addEventListener("pointerdown", (e) => {
+    const row = e.target.closest(".sess");
+    if (!row || e.target.closest(".more")) return;
+    drag = { id: row.dataset.id, row, x0: e.clientX, y0: e.clientY, armed: false, ghost: null, marker: null, overSplit: false };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", end);
+    window.addEventListener("pointercancel", end);
+  });
+
+  function begin() {
+    drag.armed = true;
+    document.body.classList.add("sess-drag");
+    drag.ghost = document.createElement("div");
+    drag.ghost.className = "sess-ghost";
+    drag.ghost.textContent = (drag.row.querySelector(".lbl") || {}).textContent || "";
+    document.body.appendChild(drag.ghost);
+    drag.marker = document.createElement("div");
+    drag.marker.className = "sess-marker";
+    drag.row.style.opacity = "0.45";
+  }
+
+  function move(e) {
+    if (!drag) return;
+    if (!drag.armed) {
+      if (Math.abs(e.clientY - drag.y0) < HOLD && Math.abs(e.clientX - drag.x0) < HOLD) return;
+      begin();
+    }
+    drag.ghost.style.left = (e.clientX + 12) + "px";
+    drag.ghost.style.top = (e.clientY + 8) + "px";
+    const sbRight = $("sidebar").getBoundingClientRect().right;
+    drag.overSplit = e.clientX > sbRight + 60;
+    document.body.classList.toggle("sess-forsplit", drag.overSplit);
+    if (drag.overSplit) {
+      if (drag.marker.parentNode) drag.marker.remove();
+      return;
+    }
+    // The insertion line follows the cursor between the rows.
+    const rows = [...box.querySelectorAll(".sess")].filter((r) => r !== drag.row);
+    let before = null;
+    for (const r of rows) {
+      const b = r.getBoundingClientRect();
+      if (e.clientY < b.top + b.height / 2) { before = r; break; }
+    }
+    if (before) box.insertBefore(drag.marker, before);
+    else box.appendChild(drag.marker);
+  }
+
+  function end() {
+    window.removeEventListener("pointermove", move);
+    window.removeEventListener("pointerup", end);
+    window.removeEventListener("pointercancel", end);
+    const d = drag;
+    drag = null;
+    if (!d || !d.armed) return;
+    suppressRowClick = Date.now();
+    document.body.classList.remove("sess-drag", "sess-forsplit");
+    if (d.ghost) d.ghost.remove();
+    d.row.style.opacity = "";
+    if (d.overSplit) {
+      if (d.marker && d.marker.parentNode) d.marker.remove();
+      openSplit(d.id);
+      return;
+    }
+    if (!d.marker || !d.marker.parentNode) return;
+    // The dropped line becomes the new order. The dragged row keeps its old
+    // DOM slot during the drag (only the marker moves), so skip it and take
+    // its position from the marker; dedupe as a belt.
+    const order = [];
+    for (const el of [...box.children]) {
+      if (el === d.row) continue;
+      if (el.classList.contains("sess")) order.push(el.dataset.id);
+      else if (el === d.marker) order.push(d.id);
+    }
+    for (const s of sessionList) if ((s.kind || "code") === state.mode && !order.includes(s.id)) order.push(s.id);
+    state.sessionOrder = [...new Set(order)];
+    save();
+    renderSessions();
+    toast("Reordered");
+  }
+}
+
+/* ---- the second chat: open, close, restore ---- */
+function openSplit(id) {
+  if (!id) return;
+  if (id === sessionId) return toast("That chat is already open here");
+  const s = sessionList.find((x) => x.id === id);
+  state.split = id;
+  save();
+  $("splitTitle").textContent = (s && s.title) || "Chat";
+  const frame = $("splitFrame");
+  const want = "/?embed=" + encodeURIComponent(id);
+  if (frame.getAttribute("src") !== want) frame.setAttribute("src", want);
+  document.body.classList.add("split-on");
+}
+function closeSplit() {
+  state.split = "";
+  save();
+  document.body.classList.remove("split-on");
+  const frame = $("splitFrame");
+  frame.removeAttribute("src");
+  frame.setAttribute("src", "about:blank");
+}
+$("splitClose").addEventListener("click", () => { closeSplit(); setTimeout(refocusComposerIfIdle, 0); });
 
 async function switchSession(id) {
   if (!id || id === sessionId) return;
