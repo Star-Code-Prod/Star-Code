@@ -1222,9 +1222,9 @@ export function createToolRunner(root, opts = {}) {
   };
 }
 
-/** Read a CLAUDE.md (or similar) memory file if present. */
+/** Read a STAR.md (or the cross-tool AGENTS.md) project guide, if present. */
 export function readProjectMemory(root) {
-  const candidates = ["CLAUDE.md", ".claude/CLAUDE.md", "AGENTS.md"];
+  const candidates = ["STAR.md", "AGENTS.md"];
   for (const c of candidates) {
     const full = path.join(root, c);
     try {

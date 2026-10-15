@@ -18,6 +18,10 @@ import { readAuth, writeAuthEntry, removeAuthEntry, resolveKey, mask } from "./l
 import { readConfig, writeLastModel } from "./lib/config.js";
 import { listKnowledge, readKnowledgeFile, saveKnowledgeFile, deleteKnowledgeFile, knowledgeDir } from "./lib/knowledge.js";
 import { createToolRunner, readProjectMemory } from "./lib/tools.js";
+// Custom agents ("personas"): the same files the task tool resolves. The
+// desktop lists them for the agent picker, and a chat request may name one as
+// the turn's agent - never wider than the session itself.
+import { listAgentsWithProblems, getAgent, AGENT_DEFAULT_TOOLS, BUILTIN_EXPLORER } from "./lib/agents.js";
 // Settings import from a local opencode install (Settings > Import). The
 // module owns the whole scan/apply contract; the endpoint below is its only
 // caller, and the report it returns never carries credentials.
@@ -94,7 +98,8 @@ function restrictRunner(toolRunner, allowed) {
   const wrapped = {
     async run(name, args) {
       if (!names.has(name)) {
-        throw new Error("Tool \"" + name + "\" is not available to this agent. Allowed tools: " + allowed.join(", ") + ".");
+        const list = allowed.length ? allowed.join(", ") : "(none)";
+        throw new Error("Tool \"" + name + "\" is not available to this agent. Allowed tools: " + list + ".");
       }
       return toolRunner.run(name, args);
     },
@@ -328,12 +333,81 @@ function getSession(id, kind) {
   return newSession(undefined, kind);
 }
 
+/* ---------------------------- agent personas ---------------------------- */
+// A selected agent is a persona for one main turn: its promptText goes in
+// front of the session's base system prompt, its tools narrow the session's
+// own allowlist, and its `model: provider/model` line can switch the turn to
+// that provider. The selection is client-side only; nothing is persisted.
+
+/** One /api/agents listing entry. promptText (and the file path) stay in. */
+const agentListingEntry = (agent, source) => ({
+  name: agent.name,
+  description: agent.description,
+  source,
+  model: agent.model,
+  tools: agent.tools == null ? null : [...agent.tools],
+});
+
+/**
+ * The persona in front of the session's base system prompt. Same 8000-char
+ * cap the task path applies to subagent personas.
+ */
+function agentPersonaPrefix(agent) {
+  const text = agent && typeof agent.promptText === "string" ? agent.promptText.trim().slice(0, 8000) : "";
+  return text ? text + "\n\n" : "";
+}
+
+/**
+ * The allow-list a selected agent gives the main turn: its tools line when it
+ * lists one, the read-only agent default otherwise (agents.js already
+ * defaults a missing line, so that branch is belt-and-braces). `tools: *`
+ * parses as null and adds no restriction of its own. The session kind's own
+ * allowlist (CHAT_TOOLS for chat, none for code) still applies on top: the
+ * effective list is the intersection, never wider than the session.
+ */
+function agentAllowedTools(agent, sessionTools) {
+  const agentTools = agent.tools === null
+    ? null
+    : Array.isArray(agent.tools) ? agent.tools : [...AGENT_DEFAULT_TOOLS];
+  if (agentTools && sessionTools) return sessionTools.filter((t) => agentTools.includes(t));
+  if (agentTools) return agentTools.slice();
+  return sessionTools ? sessionTools.slice() : null;
+}
+
+/**
+ * Where the main turn runs when the selected agent names a model in
+ * `provider/model` form: that provider + model, with that provider's own
+ * key/baseUrl resolved exactly like the task path resolves a subagent's
+ * (the session's credentials only apply while it is the same provider).
+ * A bare model id or an unknown provider keeps the session's model.
+ */
+function agentTurnTarget(agent, session) {
+  const wanted = agent && typeof agent.model === "string" ? agent.model.trim() : "";
+  const slash = wanted.indexOf("/");
+  const pid = slash > 0 ? wanted.slice(0, slash) : "";
+  if (!pid || !PROVIDERS[pid]) {
+    return { provider: session.provider, model: session.model, apiKey: session.apiKey, baseUrl: session.baseUrl };
+  }
+  return {
+    provider: pid,
+    model: wanted.slice(slash + 1).trim() || PROVIDERS[pid].defaultModel,
+    apiKey: pid === session.provider ? session.apiKey : resolveKey(pid, "", PROVIDERS[pid].envKeys || []),
+    baseUrl: pid === session.provider ? session.baseUrl : ((readAuth().providers[pid] || {}).baseUrl || undefined),
+  };
+}
+
 /**
  * Tool runner for one turn. Chat sessions always build their own runner,
  * rooted at the home directory and limited to CHAT_TOOLS; code sessions
- * share the server's default runner unless they carry their own cwd.
+ * share the server's default runner unless they carry their own cwd. A
+ * selected agent narrows the allowlist (never widens it) and gets its own
+ * runner, so the shared default is never rebuilt with the agent's limits.
  */
-function sessionRunner(s) {
+function sessionRunner(s, agent = null) {
+  if (agent) {
+    const allowed = agentAllowedTools(agent, s.kind === "chat" ? CHAT_TOOLS : null);
+    return allowed ? makeRunner(sessionRoot(s), allowed) : makeRunner(sessionRoot(s));
+  }
   if (s.kind === "chat") return makeRunner(sessionRoot(s), CHAT_TOOLS);
   return (s.cwd && path.resolve(s.cwd) !== ROOT) ? makeRunner(s.cwd) : runner;
 }
@@ -402,7 +476,7 @@ async function runLocalCommand(name, args, sessionId) {
     }
     case "memory": {
       const mem = readProjectMemory(ROOT);
-      return { text: mem ? `**${mem.file}**\n\n\`\`\`md\n${mem.text}\n\`\`\`` : "No memory file found. Use `/init` to create `CLAUDE.md`." };
+      return { text: mem ? `**${mem.file}**\n\n\`\`\`md\n${mem.text}\n\`\`\`` : "No memory file found. Use `/init` to create `STAR.md`." };
     }
     default:
       return null;
@@ -416,14 +490,18 @@ const HELP_TEXT = `**Star Code — commands**
 | \`/help\` | Show this help |
 | \`/clear\` | Start a fresh conversation |
 | \`/compact\` | Summarize the conversation to free context |
-| \`/init\` | Create a \`CLAUDE.md\` project guide |
+| \`/init\` | Create a \`STAR.md\` project guide |
 | \`/model\` | Switch provider or model (use the sidebar) |
 | \`/models\` | Pick a model (searchable) |
 | \`/connect\` | Connect a provider (key, models) |
+| \`/agents\` | Pick an agent persona for this chat |
+| \`/knowledge\` | List the project knowledge files |
 | \`/context\` | Show context and project stats |
 | \`/diff\` | Show uncommitted git changes |
 | \`/status\` | Session and repo status |
 | \`/memory\` | Show the project memory file |
+| \`/settings\` | Open settings |
+| \`/theme\` | Cycle dark, light, and system |
 | \`/export\` | Download the conversation as text |
 | \`/btw <q>\` | Ask a side question without adding to history |
 | \`/plan\` | Switch to plan mode |
@@ -582,6 +660,33 @@ async function route(req, res) {
     }
   }
 
+  /* ------------------------------- agents ------------------------------- */
+  // The agent picker's source of truth: the builtin explorer first, then the
+  // custom agents the SESSION will resolve against - chat sessions live at the
+  // home dir, code sessions in their own cwd. Listing from the server root
+  // alone would advertise files a session cannot reach (or, when a name exists
+  // on several levels, a file other than the one that runs). Without a session
+  // id the caller's `kind` picks the default root; with neither, the server
+  // root stays the answer. promptText never leaves this endpoint.
+  if (req.method === "GET" && url.pathname === "/api/agents") {
+    const sid = url.searchParams.get("sessionId") || "";
+    const session = sid && sessions.has(sid) ? sessions.get(sid) : null;
+    const wantedKind = url.searchParams.get("kind");
+    const listingRoot = session
+      ? sessionRoot(session)
+      : (wantedKind === "chat" ? os.homedir() : ROOT);
+    const { agents, problems } = listAgentsWithProblems(listingRoot);
+    const out = {
+      ok: true,
+      agents: [
+        agentListingEntry(BUILTIN_EXPLORER, BUILTIN_EXPLORER.source),
+        ...agents.map((a) => agentListingEntry(a, a.source)),
+      ],
+    };
+    if (problems.length) out.problems = problems;
+    return sendJSON(res, 200, out);
+  }
+
   /* ----------------------------- knowledge ----------------------------- */
   if (req.method === "GET" && url.pathname === "/api/knowledge") {
     return sendJSON(res, 200, { files: listKnowledge(ROOT), dir: knowledgeDir(ROOT) });
@@ -611,7 +716,9 @@ async function route(req, res) {
       try { entries = await fsp.readdir(dir, { withFileTypes: true }); } catch { return; }
       entries.sort((a, b) => (b.isDirectory() - a.isDirectory()) || a.name.localeCompare(b.name));
       for (const e of entries) {
-        if (e.name.startsWith(".") && !["CLAUDE.md", ".claude"].includes(e.name)) continue;
+        // Dotfiles stay hidden except .star-code - the project's own Star
+        // files (knowledge, agents) belong in the tree.
+        if (e.name.startsWith(".") && e.name !== ".star-code") continue;
         if (["node_modules", "dist", "build", ".git"].includes(e.name)) continue;
         out.push({ name: e.name, path: path.relative(ROOT, path.join(dir, e.name)).replace(/\\/g, "/"), dir: e.isDirectory(), depth });
         if (e.isDirectory() && out.length < 300) await walk(path.join(dir, e.name), prefix, depth + 1);
@@ -723,7 +830,7 @@ async function route(req, res) {
   if (req.method === "POST" && url.pathname === "/api/chat") {
     const body = await readBody(req);
     const session = getSession(body.sessionId, body.kind);
-    const { provider, model, apiKey, baseUrl, message, mode } = body;
+    const { provider, model, apiKey, baseUrl, message, mode, agent } = body;
     session.mode = PERMISSION_MODES.includes(mode) ? mode : session.mode;
     if (message && session.messages.length <= 1) {
       session.title = message.replace(/\s+/g, " ").slice(0, 60);
@@ -733,20 +840,41 @@ async function route(req, res) {
     if (!provider || !PROVIDERS[provider]) return sendJSON(res, 400, { error: "unknown provider" });
     if (message) session.messages.push({ role: "user", content: message });
 
+    // The selected agent resolves against the session's own root. A name that
+    // no longer resolves (deleted since it was picked) runs the turn without
+    // it instead of failing: the selection is client-side only.
+    const wantedAgent = typeof agent === "string" ? agent.trim() : "";
+    const selectedAgent = wantedAgent ? getAgent(sessionRoot(session), wantedAgent) : null;
+
     // Credentials resolve server-side now: request body, then the store,
     // then the provider's environment variables.
     const storedEntry = readAuth().providers[provider] || {};
     const effectiveKey = resolveKey(provider, typeof apiKey === "string" ? apiKey : "", PROVIDERS[provider].envKeys || []);
     const effectiveBaseUrl = (typeof baseUrl === "string" && baseUrl) || storedEntry.baseUrl || undefined;
-    subagentCtx = { root: sessionRoot(session), provider, model, apiKey: effectiveKey, baseUrl: effectiveBaseUrl };
+
+    // The agent's `model: provider/model` line can switch this turn to that
+    // provider (resolved like the task path); everything else keeps the
+    // session's model. The subagent context follows the turn that runs.
+    const turnTarget = selectedAgent
+      ? agentTurnTarget(selectedAgent, { provider, model, apiKey: effectiveKey, baseUrl: effectiveBaseUrl })
+      : { provider, model, apiKey: effectiveKey, baseUrl: effectiveBaseUrl };
+    subagentCtx = {
+      root: sessionRoot(session),
+      provider: turnTarget.provider, model: turnTarget.model,
+      apiKey: turnTarget.apiKey, baseUrl: turnTarget.baseUrl,
+    };
 
     // Refresh the system prompt so mode/memory changes take effect. Chat
     // sessions use chatSystemPrompt(); code sessions keep the coding prompt.
-    session.messages[0] = { role: "system", content: sessionSystemContent(session) };
+    // A selected agent's persona sits in front of that base for this turn.
+    session.messages[0] = {
+      role: "system",
+      content: agentPersonaPrefix(selectedAgent) + sessionSystemContent(session),
+    };
 
     res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
     const emit = (evt) => res.write(`data: ${JSON.stringify(evt)}\n\n`);
-    emit({ type: "session", sessionId: session.id, kind: session.kind, root: sessionRoot(session), title: session.title, mode: session.mode });
+    emit({ type: "session", sessionId: session.id, kind: session.kind, root: sessionRoot(session), title: session.title, mode: session.mode, agent: selectedAgent ? selectedAgent.name : null });
 
     const requestPermission = (info) =>
       new Promise((resolve) => {
@@ -760,17 +888,23 @@ async function route(req, res) {
 
     // Each session runs against its own working directory; the server's
     // current root is only the default for brand-new sessions. Chat sessions
-    // get a fresh runner limited to CHAT_TOOLS, always rooted at home.
-    const chatRunner = sessionRunner(session);
+    // get a fresh runner limited to CHAT_TOOLS, always rooted at home; a
+    // selected agent narrows that list (never widens it).
+    const chatRunner = sessionRunner(session, selectedAgent);
 
     try {
       await runAgentTurn({
-        provider, model, apiKey: effectiveKey, baseUrl: effectiveBaseUrl, messages: session.messages, runner: chatRunner, emit, requestPermission,
+        provider: turnTarget.provider, model: turnTarget.model,
+        apiKey: turnTarget.apiKey, baseUrl: turnTarget.baseUrl,
+        messages: session.messages, runner: chatRunner, emit, requestPermission,
         mode: session.mode, controller, autoAllow: session.autoAllow,
       });
     } catch (e) {
       emit({ type: "error", message: e.message });
     }
+    // The persona lived for this turn only: the stored session keeps the
+    // plain base prompt, so the agent selection is never persisted.
+    session.messages[0] = { role: "system", content: sessionSystemContent(session) };
     session.updated = Date.now();
     persist();
     session.aborts.delete(controller);

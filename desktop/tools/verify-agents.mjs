@@ -117,6 +117,15 @@ ok("project wins a name clash", byName.clash && byName.clash.source === "project
 ok("getAgent sanitises the lookup too", (getAgent(projectRoot, "My Agent!!") || {}).name === "my-agent");
 ok("getAgent returns null for a ghost", getAgent(projectRoot, "ghost") === null);
 ok("getAgent returns null for an empty name", getAgent(projectRoot, "!!!") === null);
+// The builtin explorer is addressable by name wherever agents are named
+// (task, desktop personas) - as long as no file claims the name first.
+ok("getAgent resolves the builtin explorer by name", getAgent(projectRoot, "explorer") === BUILTIN_EXPLORER);
+const shadowRoot = path.join(tmp, "shadow");
+fs.mkdirSync(path.join(shadowRoot, ".star-code", "agents"), { recursive: true });
+fs.writeFileSync(path.join(shadowRoot, ".star-code", "agents", "explorer.md"),
+  "---\nname: explorer\ndescription: My own explorer\n---\nCustom explorer.\n");
+const shadowed = getAgent(shadowRoot, "explorer");
+ok("a file-backed explorer shadows the builtin", !!shadowed && shadowed !== BUILTIN_EXPLORER && shadowed.source === "project");
 
 /* ------------------------------- problems ------------------------------- */
 const { agents: listed, problems } = listAgentsWithProblems(projectRoot);

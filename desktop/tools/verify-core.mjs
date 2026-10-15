@@ -309,7 +309,7 @@ fs.rmSync(kdir, { recursive: true, force: true });
 /* ------------------------------- new tools ------------------------------- */
 const http = await import("node:http");
 const {
-  createToolRunner, htmlToText, parseDuckDuckGo,
+  createToolRunner, htmlToText, parseDuckDuckGo, readProjectMemory,
 } = await import(pathToFileURL(path.resolve("lib/tools.js")).href);
 const { SELF_DOC, selfKnowledge } = await import(pathToFileURL(path.resolve("lib/selfdoc.js")).href);
 
@@ -364,6 +364,24 @@ const mr2 = createToolRunner(med, { runSubagent: async ({ instructions }) => ({ 
 const t1 = await mr2.run("task", { instructions: "look around" });
 ok("task returns the subagent text", t1 === "found: look aroun", t1);
 fs.rmSync(med, { recursive: true, force: true });
+
+/* --------------------------- project memory --------------------------- */
+// The project guide is STAR.md (AGENTS.md stays as the neutral cross-tool
+// fallback). Claude's CLAUDE.md is not this product's convention and must
+// never reach the prompt.
+const memRoot = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-mem-"));
+fs.writeFileSync(path.join(memRoot, "CLAUDE.md"), "# Claude convention\nclaude-memory-text\n");
+ok("a lone CLAUDE.md is not project memory", readProjectMemory(memRoot) === null);
+fs.writeFileSync(path.join(memRoot, "AGENTS.md"), "# Agents convention\nagents-memory-text\n");
+ok("AGENTS.md is the cross-tool fallback", (readProjectMemory(memRoot) || {}).file === "AGENTS.md");
+fs.writeFileSync(path.join(memRoot, "STAR.md"), "# Star project guide\nstar-memory-text\n");
+ok("STAR.md is the project memory file", (readProjectMemory(memRoot) || {}).file === "STAR.md");
+const memPrompt = systemPrompt(memRoot, "manual");
+ok("the system prompt carries STAR.md as Project instructions",
+  memPrompt.includes("Project instructions (STAR.md)") &&
+  memPrompt.includes("star-memory-text") &&
+  !memPrompt.includes("claude-memory-text") && !memPrompt.includes("agents-memory-text"));
+fs.rmSync(memRoot, { recursive: true, force: true });
 
 /* ------------------------------- report ------------------------------ */
 fs.rmSync(dir, { recursive: true, force: true });

@@ -65,6 +65,9 @@ jobs:
       - name: Core unit checks (credentials, catalog, decisions)
         run: node tools/verify-core.mjs
 
+      - name: Custom agents (frontmatter, precedence, task resolution)
+        run: node tools/verify-agents.mjs
+
       - name: Server boots and serves the UI
         run: node tools/verify-server.mjs
 

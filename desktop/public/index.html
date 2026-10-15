@@ -1096,6 +1096,7 @@ body.mode-chat #bigProj{display:none}
             <span id="bigProjName" class="mono">—</span>
           </button>
           <button class="cbtn" id="bigMode">Ask permissions</button>
+          <button class="cbtn" id="bigAgent" title="Agent persona for this turn">No agent</button>
           <span class="spacer"></span>
           <button class="cbtn" id="bigModel"><span class="mono" id="bigModelName">—</span></button>
           <button class="cbtn send" id="bigSend" title="Send" aria-label="Send message">
@@ -1166,6 +1167,7 @@ body.mode-chat #bigProj{display:none}
       </div>
       <div class="crow">
         <button class="cbtn" id="cMode">Ask permissions</button>
+        <button class="cbtn" id="cAgent" title="Agent persona for this turn">No agent</button>
         <button class="cbtn ico" id="cPanels" title="Add pane" aria-label="Add a pane">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M8 6.2v5.1M5.45 8.75h5.1"/></svg>
         </button>
@@ -1326,6 +1328,7 @@ const DEFAULT_STATE = {
   },
   defaultMode: "manual",
   effort: "medium",
+  agent: "",
   showThinking: true,
   dismissedUpdate: "",
   sortAsc: false,
@@ -1472,6 +1475,10 @@ function updateChrome() {
   $("cModelName").textContent = prov().model || "—";
   $("bigModelName").textContent = prov().model || "—";
   $("cEffort").textContent = state.effort[0].toUpperCase() + state.effort.slice(1);
+  const agentLabel = state.agent || "No agent";
+  $("cAgent").textContent = agentLabel;
+  $("cAgent").title = state.agent ? "Agent persona: " + state.agent : "Agent persona for this turn";
+  $("bigAgent").textContent = agentLabel;
 }
 
 /* ============================ MODE / MENUS ============================ */
@@ -1738,10 +1745,64 @@ function modelPicker(anchor) {
   refreshPickableModels().then(() => { if (document.body.contains(menu)) draw(); });
 }
 
+/* ============================ AGENT PICKER ============================ */
+/* The desktop half of lib/agents.js: the builtin explorer plus the custom
+   agents for the session's own root. The pick names a persona for main turns
+   (the server prefixes its prompt, narrows tools and can switch the model);
+   the selection is client-side state, so a deleted file just falls back. */
+let agentMenuBusy = false;
+async function agentPicker(anchor) {
+  if (agentMenuBusy) return;
+  agentMenuBusy = true;
+  let listed = null;
+  // The list follows the session's own folder (user agents always, project
+  // agents from the session's project); `kind` covers the pre-session landing.
+  const params = new URLSearchParams();
+  if (sessionId) params.set("sessionId", sessionId);
+  params.set("kind", state.mode);
+  try { listed = await (await fetch("/api/agents?" + params)).json(); } catch { /* offline: say so below */ }
+  agentMenuBusy = false;
+  if (!listed || listed.ok !== true) { toast("Could not list agents"); return; }
+  const items = [
+    { label: "No agent", sub: "(session default)", on: !state.agent, run: () => selectAgent("") },
+  ];
+  const agents = Array.isArray(listed.agents) ? listed.agents : [];
+  if (agents.length) {
+    items.push({ sep: true });
+    for (const a of agents) {
+      const desc = String(a.description || "").replace(/\s+/g, " ").trim();
+      const bits = [];
+      if (a.source === "builtin") bits.push("built-in");
+      if (a.model) bits.push(a.model);
+      if (desc) bits.push(desc.length > 56 ? desc.slice(0, 53) + "..." : desc);
+      items.push({
+        label: a.name, sub: bits.join(" · ") || undefined,
+        on: state.agent === a.name,
+        run: () => selectAgent(a.name),
+      });
+    }
+  }
+  const problems = Array.isArray(listed.problems) ? listed.problems : [];
+  if (problems.length) {
+    items.push({ sep: true });
+    items.push({ head: problems.length + " agent file" + (problems.length === 1 ? "" : "s") + " with problems - fix to list here" });
+  }
+  openMenu(anchor, items, { right: !!anchor.closest(".bigbox") });
+}
+
+function selectAgent(name, opts = {}) {
+  state.agent = String(name || "");
+  save();
+  updateChrome();
+  if (!opts.quiet) toast(state.agent ? "Agent: " + state.agent : "Agent cleared");
+}
+
 $("cMode").addEventListener("click", e => { e.stopPropagation(); modeMenu($("cMode")); });
 $("bigMode").addEventListener("click", e => { e.stopPropagation(); modeMenu($("bigMode")); });
 $("cModel").addEventListener("click", e => { e.stopPropagation(); modelPicker($("cModel")); });
 $("bigModel").addEventListener("click", e => { e.stopPropagation(); modelPicker($("bigModel")); });
+$("cAgent").addEventListener("click", e => { e.stopPropagation(); agentPicker($("cAgent")); });
+$("bigAgent").addEventListener("click", e => { e.stopPropagation(); agentPicker($("bigAgent")); });
 
 /* ============================ PANES (tabbed) ============================ */
 const PANE_DEFS = [
@@ -3515,13 +3576,14 @@ async function handleCommand(text) {
     } catch { say("Could not read the knowledge index."); }
     return;
   }
+  if (name === "agents") { agentPicker($("cAgent")); return; }
   if (name === "plan") { applyMode("plan"); save(); say("Switched to **plan mode**. I'll explore read-only and propose a plan."); return; }
   if (name === "export") { exportConv(); return; }
   if (name === "settings") { openSettings(); return; }
   if (name === "theme") { cycleTheme(); return; }
   if (name === "btw") { return sendToAgent("(side question, do not modify files) " + arg); }
   if (name === "compact") return sendToAgent("Summarize our conversation into a compact brief preserving decisions, file paths, and open tasks.");
-  if (name === "init") return sendToAgent("Create a CLAUDE.md file documenting this project: purpose, structure, how to build/test, and conventions. Write the file.");
+  if (name === "init") return sendToAgent("Create a STAR.md file documenting this project: purpose, structure, how to build/test, and conventions. Write the file.");
   if (name === "review") return sendToAgent("Review the uncommitted changes: run `git diff`, then report correctness issues, risks, and suggested fixes grouped by file.");
   const r = await fetch("/api/command", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId, name, args: arg }) });
   const j = await r.json();
@@ -3537,6 +3599,7 @@ async function sendToAgent(message) {
   const payload = {
     sessionId, message, mode: state.defaultMode, kind: state.mode,
     provider: state.current, model: p.model, apiKey: p.apiKey, baseUrl: payloadBaseUrl(),
+    agent: state.agent || undefined,
   };
   const wasNew = !sessionId;
   try {
@@ -3578,6 +3641,13 @@ function handle(evt) {
       sessionId = evt.sessionId;
       if (evt.title && evt.title !== "New session") $("sTitle").textContent = evt.title;
       if (evt.root) { state.root = evt.root; updateChrome(); }
+      // The server resolves the picked agent by name. When the file went away
+      // between picking and sending, the turn ran without a persona - drop
+      // the dead selection instead of letting the chip lie about it.
+      if (state.agent && evt.agent !== state.agent) {
+        selectAgent("", { quiet: true });
+        toast("Picked agent file is gone - running without a persona");
+      }
       break;
     case "assistant_start": startAssistant(); break;
     case "delta": addDelta(evt.text); break;
@@ -3644,7 +3714,7 @@ function exportConv() {
 const COMMANDS = [
   { n: "/clear", d: "Start a new conversation" },
   { n: "/compact", d: "Summarize the conversation to free context" },
-  { n: "/init", d: "Create a CLAUDE.md project guide" },
+  { n: "/init", d: "Create a STAR.md project guide" },
   { n: "/diff", d: "Show uncommitted git changes" },
   { n: "/context", d: "Show context and project stats" },
   { n: "/status", d: "Session and repo status" },
@@ -3655,6 +3725,7 @@ const COMMANDS = [
   { n: "/model", d: "Choose provider and model" },
   { n: "/models", d: "Pick a model (searchable)" },
   { n: "/connect", d: "Connect a provider (key, models)" },
+  { n: "/agents", d: "Pick an agent persona for this chat" },
   { n: "/knowledge", d: "List the project knowledge files" },
   { n: "/theme", d: "Cycle dark, light, and system" },
   { n: "/settings", d: "Open settings" },

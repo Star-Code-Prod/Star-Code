@@ -17,6 +17,25 @@ const ok = (label, pass, extra = "") =>
 const BIN = "bin/star-code.mjs";
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-"));
 
+// 0. the packaged CLI mirrors desktop's bin/ and lib/ byte-for-byte (desktop
+// is the source of truth). A drift here ships silently in the tarball - a
+// stale lib copy is how the CLI would miss a fix the desktop already has.
+{
+  const files = new Set();
+  for (const dir of ["bin", "lib"]) {
+    for (const side of ["", "../CLI/"]) {
+      try { for (const n of fs.readdirSync(side + dir)) files.add(dir + "/" + n); } catch { /* reported below */ }
+    }
+  }
+  const drift = [];
+  for (const rel of files) {
+    try {
+      if (fs.readFileSync(rel, "utf8") !== fs.readFileSync("../CLI/" + rel, "utf8")) drift.push(rel);
+    } catch { drift.push(rel + " (missing on one side)"); }
+  }
+  ok("the CLI mirrors desktop's bin/ and lib/ byte-for-byte", drift.length === 0, drift.join(", "));
+}
+
 // 1. usage
 const help = spawnSync(process.execPath, [BIN, "--help"], { encoding: "utf8" });
 ok("help exits 0", help.status === 0, String(help.status));

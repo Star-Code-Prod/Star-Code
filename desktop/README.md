@@ -34,9 +34,10 @@ setting you change — including a model running on your own machine.
 
 | | |
 |---|---|
-| **13 real tools** | `read_file` `list_dir` `search_files` `glob_files` `write_file` `edit_file` `multi_edit` `run_command` `search_knowledge` `task` `fetch_url` `websearch` `self_knowledge` |
+| **14 real tools** | `read_file` `list_dir` `search_files` `glob_files` `write_file` `edit_file` `multi_edit` `run_command` `download` `search_knowledge` `task` `fetch_url` `websearch` `self_knowledge` |
 | **Artifacts** | ` ```artifact ` html/svg/md blocks render in a sandboxed preview pane with version history |
 | **Knowledge** | Markdown notes in `.star-code/knowledge` — indexed in the prompt, searchable by the agent |
+| **Custom agents** | Markdown personas in `.star-code/agents/` — the `task` tool runs them as read-only subagents, and the composer's agent chip (or `/agents`) runs one as the turn's persona: its prompt, its tools and its model |
 | **Permission modes** | Ask permissions · Accept edits · Plan (read-only) · Bypass |
 | **Diff review** | Syntax-highlighted inline diffs, plus a Changes pane |
 | **Reasoning view** | Live thinking block with a timer, auto-collapses when the answer starts |
@@ -45,7 +46,7 @@ setting you change — including a model running on your own machine.
 | **Connect-first setup** | 13 providers out of the box — paste a key, then pick from the model list that key can actually use |
 | **Local runtimes** | Ollama, LM Studio and vLLM are detected automatically; no key, no URL typing |
 | **Project files** | Sidebar tree; click a file to preview it, syntax-highlighted |
-| **Slash commands** | `/clear` `/compact` `/init` `/diff` `/context` `/status` `/memory` `/plan` `/review` `/btw` `/model` `/models` `/connect` `/theme` `/settings` `/export` `/help` |
+| **Slash commands** | `/clear` `/compact` `/init` `/diff` `/context` `/status` `/memory` `/plan` `/review` `/btw` `/model` `/models` `/connect` `/agents` `/knowledge` `/theme` `/settings` `/export` `/help` |
 | **Input modes** | `@` mention a file · `!` run a shell command · `/` commands |
 | **Themes** | Dark · Light · System |
 | **In-app updates** | When a newer release exists, the banner installs it in place — download, sha512 check, silent install, relaunch |
@@ -121,6 +122,26 @@ fallback. Keys only ever go to the provider they belong to.
 
 The **base URL is per provider and fully honored** — point it at a proxy or a
 local model server under *Advanced* and it uses that.
+
+## Custom agents
+
+A custom agent ("persona") is one markdown file: frontmatter (`name`,
+`description`, optional `tools:` and `model:`) plus the prompt body. Drop files
+in `.star-code/agents/` inside a project, or in `~/.star-code/agents/` to have
+them everywhere. The desktop lists them in the composer's agent chip and
+`/agents`; the CLI lists them with `/agents`. The desktop's list follows the
+session's own folder — user-level agents always, project agents from the
+session's project — so the row you click is the file the turn will run.
+
+Picking one applies it to the next turns: its prompt goes in front of the
+system prompt, `tools:` narrows (never widens) what the session may call, and a
+`model: provider/model` line switches the turn to that provider. The builtin
+`explorer` (read-only, no model) is always listed; **No agent** is the default.
+The choice is client-side only — if the file disappears between picking and
+sending, the turn just runs without a persona. The `task` tool takes the same
+names (`agent: "reviewer"`), so one file can be both a subagent and a persona.
+Broken files are skipped — the picker counts them, and the CLI's `/agents`
+names the reason for each.
 
 ## Star Code CLI
 
@@ -253,7 +274,7 @@ server that owns the tools.
 │  browser)          │  HTTP    │  ├─ lib/agent.js         │
 └────────────────────┘          │  │   agent loop, modes   │
                                 │  ├─ lib/tools.js         │
-                                │  │   7 tools, real I/O   │
+                                │  │  14 tools, real I/O   │
                                 │  └─ lib/providers.js     │
                                 │      5 provider adapters │
                                 └──────────────────────────┘
@@ -268,7 +289,7 @@ star-code/
 ├── lib/
 │   ├── auth.js            credential store (auth.json), masking, resolution
 │   ├── providers.js       provider catalog, model discovery, streaming
-│   ├── tools.js           the 7 tools
+│   ├── tools.js           the 14 tools
 │   └── agent.js           agent loop, permission modes, reasoning, usage
 ├── public/index.html      the entire UI (no build step, no framework)
 ├── electron/

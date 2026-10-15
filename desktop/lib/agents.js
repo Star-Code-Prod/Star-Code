@@ -203,9 +203,13 @@ export function listAgents(root) {
   return listAgentsWithProblems(root).agents;
 }
 
-/** One agent by name (the lookup name is sanitised the same way), or null. */
+/** One agent by name (the lookup name is sanitised the same way), or null.
+ *  The builtin explorer answers to its own name unless a file claims it first,
+ *  so "explorer" means the same agent in the task tool, the desktop personas
+ *  and the /agents listings. */
 export function getAgent(root, name) {
   const wanted = sanitizeAgentName(name);
   if (!wanted) return null;
-  return listAgents(root).find((a) => a.name === wanted) || null;
+  return listAgents(root).find((a) => a.name === wanted)
+    || (wanted === BUILTIN_EXPLORER.name ? BUILTIN_EXPLORER : null);
 }
