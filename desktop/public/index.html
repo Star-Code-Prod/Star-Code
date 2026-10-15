@@ -141,6 +141,7 @@ body.is-mac.is-electron .brand{margin-left:2px}
 /* ---------------- sidebar ---------------- */
 .sidebar{
   width:var(--sb-w);flex:none;background:var(--sidebar);border-right:1px solid var(--border);
+  position:relative;
   display:flex;flex-direction:column;overflow:hidden;min-height:0;
 }
 .seg{display:flex;gap:2px;margin:var(--sp-3) var(--sp-3) var(--sp-2);padding:3px;background:var(--chip);border-radius:var(--r-sm)}
@@ -808,6 +809,39 @@ body.pane-drag .pane-grip{background:color-mix(in srgb,var(--accent) 45%,transpa
 }
 .pane-sub>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pane-sub .spacer{flex:1}
+/* Per-pane controls: a close X in each header, a drag-to-resize grip along
+   each card's bottom edge (double-click the grip to reset). The header
+   itself is the drag handle for reordering the stack. */
+.pane-sub{cursor:grab}
+.pane-sub:active{cursor:grabbing}
+.pane-x{
+  width:22px;height:22px;flex:none;display:flex;align-items:center;justify-content:center;
+  border-radius:var(--r-full);color:var(--dim);cursor:pointer;
+  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
+}
+.pane-x:hover{background:var(--chip-on);color:var(--text)}
+.pane-grip-b{
+  height:8px;flex:none;cursor:row-resize;position:relative;
+  transition:background var(--t-fast) var(--ease);
+}
+.pane-grip-b::after{
+  content:"";position:absolute;left:50%;top:2px;width:36px;height:3px;transform:translateX(-50%);
+  border-radius:2px;background:var(--border2);opacity:.55;
+  transition:opacity var(--t-fast) var(--ease),background var(--t-fast) var(--ease);
+}
+.pane-grip-b:hover{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.pane-grip-b:hover::after{opacity:1;background:var(--accent)}
+body.pane-hdrag{cursor:row-resize;user-select:none}
+body.pane-hdrag .pane-grip-b::after{opacity:1;background:var(--accent)}
+.pane-row.dragging{opacity:.75;outline:1px dashed var(--border2);outline-offset:-2px}
+
+/* Sidebar width drag: the right-edge grip. */
+.sb-grip{
+  position:absolute;right:0;top:0;bottom:0;width:6px;cursor:col-resize;z-index:12;
+  transition:background var(--t-fast) var(--ease);
+}
+.sb-grip:hover,body.sb-drag .sb-grip{background:color-mix(in srgb,var(--accent) 45%,transparent)}
+body.sb-drag{cursor:col-resize;user-select:none}
 .pane-b{overflow:auto;font-size:var(--fs-125);flex:1;min-height:0}
 .pane-b.pad{padding:var(--sp-4)}
 .pempty{padding:34px 18px;text-align:center;color:var(--dim);font-size:var(--fs-125);line-height:1.7}
@@ -1175,6 +1209,7 @@ body.mode-chat #bigProj{display:none}
       </button>
     </div>
     <div class="sb-tree" id="fileTree"></div>
+    <div class="sb-grip" id="sbGrip" title="Drag to resize" aria-hidden="true"></div>
   </aside>
   <div class="sb-scrim" id="sbScrim" aria-hidden="true"></div>
 
@@ -1360,33 +1395,38 @@ body.mode-chat #bigProj{display:none}
     <div class="pane-body" id="paneBody">
 
       <section class="pane-row" data-pane="preview">
-        <div class="pane-sub"><span id="previewTitle">Preview</span></div>
+        <div class="pane-sub"><span id="previewTitle">Preview</span><span class="spacer"></span><button class="pane-x" data-panex="preview" title="Close Preview" aria-label="Close Preview"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
         <div class="pane-b"><div class="pempty" id="previewEmpty">Not running<br><span style="font-size:11.5px">Start a dev server, open an artifact, or click a file — previews appear here.</span></div><div id="filePreview" style="display:none"></div></div>
+        <div class="pane-grip-b" data-panegrip="preview" title="Drag to resize · double-click to reset" aria-hidden="true"></div>
       </section>
 
       <section class="pane-row" data-pane="tasks">
-        <div class="pane-sub"><span>Tasks</span></div>
+        <div class="pane-sub"><span>Tasks</span><span class="spacer"></span><button class="pane-x" data-panex="tasks" title="Close Tasks" aria-label="Close Tasks"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
         <div class="pane-b"><div class="pempty" id="tasksEmpty">No tasks yet.</div><div id="tasksList"></div></div>
+        <div class="pane-grip-b" data-panegrip="tasks" title="Drag to resize · double-click to reset" aria-hidden="true"></div>
       </section>
 
       <section class="pane-row" data-pane="plan">
-        <div class="pane-sub"><span>Plan</span></div>
+        <div class="pane-sub"><span>Plan</span><span class="spacer"></span><button class="pane-x" data-panex="plan" title="Close Plan" aria-label="Close Plan"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
         <div class="pane-b">
           <div class="plan-body" id="planBody">
             <div style="font-weight:600;color:var(--text);margin-bottom:6px">No plan yet.</div>
             <div style="color:var(--dim)">Star writes the plan here as it explores. Keep chatting.</div>
           </div>
         </div>
+        <div class="pane-grip-b" data-panegrip="plan" title="Drag to resize · double-click to reset" aria-hidden="true"></div>
       </section>
 
       <section class="pane-row" data-pane="terminal">
-        <div class="pane-sub"><span>Terminal</span></div>
+        <div class="pane-sub"><span>Terminal</span><span class="spacer"></span><button class="pane-x" data-panex="terminal" title="Close Terminal" aria-label="Close Terminal"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
         <div class="term" id="term">[shell] ready — commands Star runs appear here</div>
+        <div class="pane-grip-b" data-panegrip="terminal" title="Drag to resize · double-click to reset" aria-hidden="true"></div>
       </section>
 
       <section class="pane-row" data-pane="diff">
-        <div class="pane-sub">Changes<span class="spacer"></span><button class="btn sm" data-act="review" style="font-size:11.5px;padding:3px 9px">Review code</button></div>
+        <div class="pane-sub">Changes<span class="spacer"></span><button class="btn sm" data-act="review" style="font-size:11.5px;padding:3px 9px">Review code</button><button class="pane-x" data-panex="diff" title="Close Changes" aria-label="Close Changes"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
         <div class="pane-b"><div class="pempty" id="diffEmpty">No changes to show</div><div id="diffList"></div></div>
+        <div class="pane-grip-b" data-panegrip="diff" title="Drag to resize · double-click to reset" aria-hidden="true"></div>
       </section>
 
     </div>
@@ -1519,6 +1559,9 @@ const DEFAULT_STATE = {
   // reasoning expanded and shows tool outputs inline.
   verbosity: "normal",
   paneW: 0,
+  sbW: 0,               // sidebar width, dragged by its right-edge grip
+  paneOrder: [],        // rail pane order after dragging the cards
+  paneHeights: {},      // per-pane card heights, set by the bottom grips
   root: "",
   sessions: [],
 };
@@ -1665,6 +1708,9 @@ const bridge = (typeof window !== "undefined" && window.desktop && window.deskto
   renderSettings();
   focusComposer();
   applyPaneW();
+  applySbW();
+  applyPaneOrder();
+  applyPaneHeights();
   // Quiet update check a few seconds after launch. Deliberately delayed so it
   // never competes with first paint, and it only surfaces a banner when there
   // is genuinely something newer than the running build.
@@ -2258,6 +2304,16 @@ function wirePanes() {
     const act = b.dataset.act;
     if (act === "review") { showChat(); sendToAgent("Review the uncommitted changes: run `git diff`, then report correctness issues, risks, and suggested fixes grouped by file."); }
   }));
+  // Each pane's own close X (the header's title chip keeps the equivalent for
+  // the active pane; these are per card, so closing one is a single click).
+  document.querySelectorAll("[data-panex]").forEach(b => b.addEventListener("click", (e) => {
+    e.stopPropagation();
+    // The X leaves the DOM with its pane, and the browser's blur-to-<body>
+    // lands a frame later: blur it NOW so the hand-back below is deterministic.
+    try { if (document.activeElement === b) b.blur(); } catch { /* fine */ }
+    closePaneTab(b.dataset.panex);
+    setTimeout(refocusComposerIfIdle, 0);
+  }));
   // Clicking a stacked pane's header makes it the active one (title chip,
   // menu ticks) - unless the click hit a button in that header.
   document.querySelectorAll(".pane-row").forEach(p => {
@@ -2375,6 +2431,113 @@ $("actClose").addEventListener("click", () => toggleActPanel(false));
 function applyPaneW() {
   if (state.paneW) document.documentElement.style.setProperty("--pane-w", state.paneW + "px");
 }
+/** The rail's pane order: the user's dragged order first (only ids that still
+ *  exist), then every remaining pane in its built-in position. */
+function applyPaneOrder() {
+  const body = $("paneBody");
+  if (!body) return;
+  const rows = [...body.querySelectorAll(".pane-row")];
+  const known = rows.map((r) => r.dataset.pane);
+  const saved = Array.isArray(state.paneOrder) ? state.paneOrder.filter((id) => known.includes(id)) : [];
+  const order = saved.concat(known.filter((id) => !saved.includes(id)));
+  for (const id of order) body.appendChild(body.querySelector(`.pane-row[data-pane="${id}"]`));
+}
+/** Per-pane heights: a sized card keeps its inline height, everything else
+ *  stays on the CSS defaults (auto, or rail-filling when it is the only one). */
+function applyPaneHeights() {
+  document.querySelectorAll(".pane-row").forEach((p) => {
+    const h = state.paneHeights ? Number(state.paneHeights[p.dataset.pane]) : 0;
+    if (h > 0) { p.style.flex = "0 0 auto"; p.style.height = h + "px"; }
+    else { p.style.flex = ""; p.style.height = ""; }
+  });
+}
+function setPaneHeight(id, h) {
+  state.paneHeights = state.paneHeights || {};
+  if (h == null) delete state.paneHeights[id];
+  else state.paneHeights[id] = Math.round(h);
+  applyPaneHeights();
+}
+/* ---- sidebar resize: the right-edge grip ---- */
+function applySbW() {
+  if (state.sbW) document.documentElement.style.setProperty("--sb-w", state.sbW + "px");
+}
+(function wireSbGrip() {
+  const grip = $("sbGrip");
+  if (!grip) return;
+  let drag = null;
+  grip.addEventListener("pointerdown", (e) => {
+    drag = { x: e.clientX, w: $("sidebar").getBoundingClientRect().width };
+    try { grip.setPointerCapture(e.pointerId); } catch {}
+    document.body.classList.add("sb-drag");
+    e.preventDefault();
+  });
+  grip.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    const max = Math.min(420, Math.max(240, innerWidth - 620));
+    const w = Math.max(200, Math.min(max, drag.w + (e.clientX - drag.x)));
+    state.sbW = Math.round(w);
+    applySbW();
+  });
+  const stop = () => { if (!drag) return; drag = null; document.body.classList.remove("sb-drag"); save(); };
+  grip.addEventListener("pointerup", stop);
+  grip.addEventListener("pointercancel", stop);
+})();
+/* ---- per-pane height grips + drag-to-reorder the stack ---- */
+(function wirePaneDynamics() {
+  const body = $("paneBody");
+  if (!body) return;
+
+  body.querySelectorAll(".pane-grip-b").forEach((g) => {
+    let drag = null;
+    g.addEventListener("pointerdown", (e) => {
+      const row = g.closest(".pane-row");
+      drag = { id: row.dataset.pane, y: e.clientY, h: row.getBoundingClientRect().height };
+      try { g.setPointerCapture(e.pointerId); } catch {}
+      document.body.classList.add("pane-hdrag");
+      e.preventDefault(); e.stopPropagation();
+    });
+    g.addEventListener("pointermove", (e) => {
+      if (!drag) return;
+      const max = Math.max(200, body.clientHeight - 40);
+      setPaneHeight(drag.id, Math.max(160, Math.min(max, drag.h + (e.clientY - drag.y))));
+    });
+    const stop = () => { if (!drag) return; drag = null; document.body.classList.remove("pane-hdrag"); save(); };
+    g.addEventListener("pointerup", stop);
+    g.addEventListener("pointercancel", stop);
+    g.addEventListener("dblclick", () => { setPaneHeight(g.dataset.panegrip, null); save(); });
+  });
+
+  // Dragging a card's header reorders the stack; the visible order persists.
+  body.querySelectorAll(".pane-sub").forEach((sub) => {
+    let drag = null;
+    sub.addEventListener("pointerdown", (e) => {
+      if (e.target.closest("button")) return;
+      const row = sub.closest(".pane-row");
+      if (!row || !row.classList.contains("open")) return;
+      if (body.querySelectorAll(".pane-row.open").length < 2) return;
+      drag = { row };
+      try { sub.setPointerCapture(e.pointerId); } catch {}
+      e.preventDefault();
+    });
+    sub.addEventListener("pointermove", (e) => {
+      if (!drag) return;
+      if (!drag.row.classList.contains("dragging")) drag.row.classList.add("dragging");
+      const others = [...body.querySelectorAll(".pane-row.open")].filter((r) => r !== drag.row);
+      const next = others.find((r) => { const b = r.getBoundingClientRect(); return e.clientY < b.top + b.height / 2; });
+      if (next) body.insertBefore(drag.row, next);
+      else body.appendChild(drag.row);
+    });
+    const stop = () => {
+      if (!drag) return;
+      drag.row.classList.remove("dragging");
+      drag = null;
+      state.paneOrder = [...body.querySelectorAll(".pane-row")].map((r) => r.dataset.pane);
+      save();
+    };
+    sub.addEventListener("pointerup", stop);
+    sub.addEventListener("pointercancel", stop);
+  });
+})();
 (function wirePaneGrip() {
   const grip = $("paneGrip");
   let drag = null;

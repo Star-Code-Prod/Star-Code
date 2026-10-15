@@ -224,6 +224,21 @@ ok("the update log is parsed and shown once per version",
   js.includes("function openWhatsNew(") && js.includes("ccd.seenVersion") &&
   js.includes("function changelogHtml(") && html.includes('id="newDlg"'));
 ok("the About panel links the full log", html.includes('id="aboutNew"'));
+
+/* ------------------- rail controls: X, reorder, sizes ------------------- */
+ok("every pane header carries its own close X",
+  (html.match(/data-panex="/g) || []).length === 5 && js.includes("closePaneTab(b.dataset.panex)"));
+ok("a closed pane hands focus back", js.includes("setTimeout(refocusComposerIfIdle, 0)"));
+ok("every pane card has a bottom resize grip",
+  (html.match(/data-panegrip="/g) || []).length === 5 && js.includes("setPaneHeight(") && /\.pane-grip-b\{/.test(html.replace(/\s+/g, "")));
+ok("pane cards reorder by dragging their header",
+  js.includes("function applyPaneOrder(") && js.includes('state.paneOrder = [...body.querySelectorAll(".pane-row")]') &&
+  /\.pane-row\.dragging\{/.test(html.replace(/\s+/g, "")));
+ok("per-pane heights persist and reset on double-click",
+  js.includes("function applyPaneHeights(") && fnBody("function applyPaneHeights(").includes("state.paneHeights") &&
+  js.includes("setPaneHeight(g.dataset.panegrip, null)"));
+ok("the sidebar resizes by dragging its right-edge grip",
+  html.includes('id="sbGrip"') && js.includes("function applySbW(") && /\.sb-grip\{/.test(html.replace(/\s+/g, "")));
 ok("motion autoplays once per player",
   js.includes("let autoPlayed = false") && js.includes("autoPlayed = true") && js.includes('playBtn.textContent = "Pause"'));
 ok("motion pacing keeps the scene's cadence", js.includes("nextAt = Math.max(now, (nextAt || now) + iv)"));

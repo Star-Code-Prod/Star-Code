@@ -1,5 +1,11 @@
 # What's new in Star
 
+## 1.9.3 — 2026-10-15
+- Every pane in the right rail has its own X, so closing one card is a single click.
+- Drag a card's header to reorder the rail - the order sticks between restarts.
+- Each card has a bottom grip to resize its height; double-click the grip to reset it.
+- The sidebar is resizable by dragging its right edge.
+
 ## 1.9.2 — 2026-10-15
 - Fixed the floating white bar while an answer streams: a stripped artifact fence no longer leaves a blank paragraph behind, so the typing caret stays on the last line of text where it belongs.
 
