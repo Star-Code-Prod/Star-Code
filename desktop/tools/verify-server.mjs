@@ -520,7 +520,59 @@ try {
     evAsk.some((e) => e.type === "tool_result" && String(e.preview || "").includes("echo:from-ask")) &&
     said(evAsk, "mcp-ask-ok"));
 
-  ok("every scripted persona turn made exactly one model call per step", turnBodies.length === 18, String(turnBodies.length));
+  /* --------- in-flight turns are marked so a restart can continue them -------- */
+  // Deterministic window: a turn waiting on a permission decision stays
+  // "pending"; answering it clears the mark. The stub's echo-ask script runs
+  // the tool, asks, then finishes with mcp-ask-ok.
+  {
+    let sawPending = false;
+    let gotAsk = false;
+    const seen = new Set();
+    const res = await fetch(s.url + "/api/chat", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: "custom", model: "base-model", apiKey: "k", baseUrl: turnBase, mode: "manual", sessionId: codeNew.id, kind: "code", message: "echo ask" }),
+    });
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, i).trim();
+        buf = buf.slice(i + 1);
+        if (!line.startsWith("data:")) continue;
+        const payload = line.slice(5).trim();
+        if (!payload || payload === "[DONE]") continue;
+        let ev2 = null;
+        try { ev2 = JSON.parse(payload); } catch { continue; }
+        seen.add(ev2.type);
+        if (ev2.type === "permission_request" && !gotAsk) {
+          gotAsk = true;
+          const list = (await (await fetch(s.url + "/api/sessions")).json()).sessions || [];
+          const row = list.find((x) => x.id === codeNew.id);
+          sawPending = !!(row && row.pending);
+          ok("a session waiting mid-turn is marked pending", gotAsk && sawPending,
+            "pending=" + sawPending + " events=" + [...seen].join(","));
+          await fetch(s.url + "/api/permission", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId: codeNew.id, id: ev2.id, allowed: true, scope: "once" }),
+          });
+        }
+      }
+    }
+    ok("the mid-turn turn really asked", gotAsk, "events=" + [...seen].join(","));
+    await new Promise((r) => setTimeout(r, 300));
+    const list2 = (await (await fetch(s.url + "/api/sessions")).json()).sessions || [];
+    const row2 = list2.find((x) => x.id === codeNew.id);
+    ok("the mark clears when the turn ends", !!row2 && row2.pending === false);
+    const msgs = await (await fetch(s.url + "/api/sessions/messages?id=" + codeNew.id)).json();
+    ok("the messages endpoint carries the flag too", msgs.pending === false);
+  }
+
+  ok("every scripted persona turn made exactly one model call per step", turnBodies.length === 20, String(turnBodies.length));
   turnStub.close();
   if (turnStub.closeAllConnections) turnStub.closeAllConnections();
 
@@ -536,12 +588,12 @@ try {
 
   const statsLoad = await (await fetch(s.url + "/api/sessions/messages?id=" + codeNew.id)).json();
   ok("a live session's stats ride with its messages", !!statsLoad.stats && typeof statsLoad.stats.calls === "number");
-  ok("model calls are counted", statsLoad.stats.calls === 14, String(statsLoad.stats.calls));
+  ok("model calls are counted", statsLoad.stats.calls === 16, String(statsLoad.stats.calls));
   ok("tool calls are counted per name",
     statsLoad.stats.tools.read_file === 1 && statsLoad.stats.tools.list_dir === 1 && statsLoad.stats.tools.write_file === 2,
     JSON.stringify(statsLoad.stats.tools));
   ok("mcp tool calls join the same counts",
-    statsLoad.stats.tools.mcp__verify_stub__echo === 2,
+    statsLoad.stats.tools.mcp__verify_stub__echo === 3,
     JSON.stringify(statsLoad.stats.tools));
   ok("free compaction is counted when old turns get summarised",
     statsLoad.stats.compact.passes >= 1 && statsLoad.stats.compact.charsSaved > 0,
@@ -622,8 +674,7 @@ try {
   ok("DELETE of an unknown name is a 400", (await fetch(s.url + "/api/mcp?name=ghost", { method: "DELETE" })).status === 400);
 
   /* ------------------------------ changelog ------------------------------ */
-  const cl = await (await fetch(s.url + "/api/changelog")).json();
-  ok("GET /api/changelog parses the shipped notes",
+  const cl = await (await fetch(s.url + "/api/changelog")).json();  ok("GET /api/changelog parses the shipped notes",
     cl.ok === true && Array.isArray(cl.entries) && cl.entries.length >= 6, String(cl.entries && cl.entries.length));
   ok("every entry has a version and notes",
     cl.entries.every((e) => /^\d+\.\d+\.\d+$/.test(e.version) && Array.isArray(e.notes) && e.notes.length > 0));

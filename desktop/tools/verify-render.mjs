@@ -160,12 +160,20 @@ ok("no fence at all is null", fns.pendingFence("plain text") === null && fns.pen
 function fnBody(name) {
   const at = js.indexOf(name);
   if (at < 0) return "";
-  const open = js.indexOf("{", at);
-  if (open < 0) return "";
+  // Skip the parameter list first (default values like `opts = {}` contain
+  // braces that would otherwise end the body scan immediately).
   let depth = 0;
-  for (let k = open; k < js.length; k++) {
-    if (js[k] === "{") depth++;
-    else if (js[k] === "}") { depth--; if (!depth) return js.slice(open, k + 1); }
+  let k = js.indexOf("(", at);
+  for (; k < js.length; k++) {
+    if (js[k] === "(") depth++;
+    else if (js[k] === ")") { depth--; if (!depth) break; }
+  }
+  const open = js.indexOf("{", k);
+  if (open < 0) return "";
+  depth = 0;
+  for (let i = open; i < js.length; i++) {
+    if (js[i] === "{") depth++;
+    else if (js[i] === "}") { depth--; if (!depth) return js.slice(open, i + 1); }
   }
   return "";
 }
@@ -258,6 +266,22 @@ ok("dragging a session to the side opens the split, rail between the chats",
 ok("the split's second chat runs the app in embed mode",
   js.includes('get("embed")') && /html\[data-embed\] \.sidebar/.test(html) && js.includes("if (EMBED_SID)"));
 ok("the embedded chat never pops the update log", js.includes("if (EMBED_SID) return;   // the split"));
+
+/* -------- rail memory, session restore, resume, effort in the dropdown -------- */
+ok("the rail remembers its open panes and the active one",
+  js.includes("function persistPanes(") && fnBody("function persistPanes(").includes("state.paneOpen") &&
+  js.includes("state.paneActive") && fnBody("function closePaneTab(").includes("persistPanes()") &&
+  fnBody("function showPane(").includes("persistPanes()"));
+ok("the rail restores at boot", js.includes("state.paneOpen) && state.paneOpen.length"));
+ok("the last session reopens on start, quietly",
+  js.includes("state.lastSession") && js.includes("let booting = true") && js.includes("if (!booting) toast"));
+ok("a cut-off turn continues when its session opens",
+  js.includes('sendToAgent("", { resume: true })') && fnBody("async function sendToAgent(").includes("opts.resume") &&
+  js.includes("message: resume ? undefined : message"));
+ok("the activity word tells the truth about reasoning models",
+  js.includes("writing the reply") && fnBody("async function sendToAgent(").includes("reasoner"));
+ok("effort lives in the model dropdown",
+  js.includes('id="mpEffort"') && js.includes("Reasoning effort: ") && /\.mp-eff\{/.test(html.replace(/\s+/g, "")));
 ok("motion autoplays once per player",
   js.includes("let autoPlayed = false") && js.includes("autoPlayed = true") && js.includes('playBtn.textContent = "Pause"'));
 ok("motion pacing keeps the scene's cadence", js.includes("nextAt = Math.max(now, (nextAt || now) + iv)"));

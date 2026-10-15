@@ -407,7 +407,7 @@ export async function detectLocals(fetchImpl = fetch) {
   return detectCache.result;
 }
 
-export function buildRequest({ provider, apiKey, baseUrl, model, messages, stream }) {
+export function buildRequest({ provider, apiKey, baseUrl, model, messages, stream, effort }) {
   const cfg = PROVIDERS[provider];
   if (!cfg) throw new Error("Unknown provider: " + provider);
   const base = (baseUrl || cfg.baseUrl || "").replace(/\/+$/, "");
@@ -459,16 +459,26 @@ export function buildRequest({ provider, apiKey, baseUrl, model, messages, strea
   }
   const headers = { "Content-Type": "application/json", ...attributionHeaders(base) };
   if (key) headers["Authorization"] = "Bearer " + key;
+  const body = {
+    model: model || cfg.defaultModel,
+    messages,
+    temperature: 0.3,
+    stream: !!stream,
+  };
+  // Effort is a REAL request parameter where the API takes one: OpenAI's
+  // reasoning_effort (OpenAI proper and OpenRouter both accept it). Only sent
+  // for reasoning models - the others reject the field - and the UI control
+  // is a silent no-op for providers without an equivalent.
+  if (["low", "medium", "high"].includes(effort) &&
+      (provider === "openai" || provider === "openrouter") &&
+      isReasoning(provider, model || cfg.defaultModel)) {
+    body.reasoning_effort = effort;
+  }
   return {
     provider,
     url: base + "/chat/completions",
     headers,
-    body: {
-      model: model || cfg.defaultModel,
-      messages,
-      temperature: 0.3,
-      stream: !!stream,
-    },
+    body,
     kind: "openai",
   };
 }

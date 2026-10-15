@@ -513,6 +513,7 @@ export function permissionAskFor(name, args, dangerous) {
 export async function runAgentTurn({
   provider, model, apiKey, baseUrl, messages, runner, emit,
   requestPermission, mode = "manual", controller = { abort: false }, autoAllow = new Set(),
+  effort = "",
 }) {
   let interrupted = false;
 
@@ -525,7 +526,7 @@ export async function runAgentTurn({
     const freed = manageHistory(messages, budget);
     if (freed > 0) emit({ type: "context_pruned", chars: freed });
 
-    const req = buildRequest({ provider, apiKey, baseUrl, model, messages, stream: true });
+    const req = buildRequest({ provider, apiKey, baseUrl, model, messages, stream: true, effort });
 
     emit({ type: "assistant_start" });
     let full = "";

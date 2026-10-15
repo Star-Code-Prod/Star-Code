@@ -1,5 +1,12 @@
 # What's new in Star
 
+## 1.11.0 — 2026-10-15
+- Close Star mid-reply and the next start simply continues: the in-flight turn is remembered and picks up where it stopped, in whichever chat you open. The sidebar's session menu offers "Continue where it stopped" for any that were cut off.
+- Reasoning effort moved into the model dropdown: pick the model and Low/Medium/High in one place. It is a real request parameter now for OpenAI and OpenRouter reasoning models, and a no-op elsewhere.
+- The right rail is memory: which panes are open and which one is active survives restarts (order and heights already did).
+- The working line tells the truth: a model that does not stream reasoning no longer says "thinking" - it says "writing the reply" (the missing think card is expected on those models).
+- The last conversation reopens on start.
+
 ## 1.10.0 — 2026-10-15
 - Drag sessions in the sidebar to arrange them: the list switches to your order, with one "Sessions" group.
 - Drag a session to the side (onto the chat area) to open it as a second chat - two conversations side by side with the right rail between them. Each one streams on its own; close the second with its X.

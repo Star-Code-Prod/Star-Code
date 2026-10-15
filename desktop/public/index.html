@@ -735,6 +735,11 @@ body.is-mac.is-electron .brand{margin-left:2px}
 /* ================= MODEL PICKER ================= */
 .mp{padding:0;display:flex;flex-direction:column;max-height:min(70vh,520px);min-width:380px;animation:menuIn var(--t-fast) var(--ease)}
 .mp-s{padding:var(--sp-2);border-bottom:1px solid var(--border);flex:none}
+/* Effort rides in the same dropdown as the model: pick both in one place. */
+.mp-eff{display:flex;align-items:center;gap:9px;padding:8px 10px;border-bottom:1px solid var(--border);flex:none}
+.mp-eff-l{font-size:var(--fs-11);color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.mp-eff .segbtn{flex:none}
+.mp-eff-n{margin-left:auto;font-size:10.5px;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mp-s .inp{width:100%}
 .mp-list{overflow-y:auto;flex:1;padding:5px}
 .mp-list .mh{position:sticky;top:0;background:var(--panel);z-index:1}
@@ -1622,6 +1627,9 @@ const DEFAULT_STATE = {
   paneHeights: {},      // per-pane card heights, set by the bottom grips
   sessionOrder: [],     // sidebar order after dragging sessions ([] = newest first)
   split: "",            // session id shown in the side-by-side second chat
+  lastSession: "",      // reopened on the next start; a cut-off turn continues
+  paneOpen: [],         // the rail's open panes (order/heights/active persist too)
+  paneActive: "",
   root: "",
   sessions: [],
 };
@@ -1683,6 +1691,7 @@ matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => { i
 let meta = null;
 let appVersion = "";
 let sessionId = null, todos = [], diffs = [], termLines = [];
+let booting = true;   // silences navigation toasts while the shell restores itself
 /** Live turns, one per session: id -> { events, running, wasNew }. The SSE
  *  reader keeps consuming after you switch away; buffered events replay into
  *  the transcript when you come back - so sessions keep working in the
@@ -1777,10 +1786,24 @@ const bridge = (typeof window !== "undefined" && window.desktop && window.deskto
     showChat();
     switchSession(EMBED_SID);
   } else {
+    // The rail reopens exactly as it was left: the open panes and the active
+    // one are part of the saved state now.
+    if (Array.isArray(state.paneOpen) && state.paneOpen.length) {
+      const known = new Set(["preview", "tasks", "plan", "terminal", "diff"]);
+      paneOpen.clear();
+      for (const id of state.paneOpen) if (known.has(id)) paneOpen.add(id);
+      if (!paneOpen.size) ["preview", "tasks", "plan", "terminal", "diff"].forEach((id) => paneOpen.add(id));
+      activePane = state.paneActive && paneOpen.has(state.paneActive) ? state.paneActive : [...paneOpen][0];
+      applyActivePane();
+    }
     loadTree();
     // A persisted split reopens on the side, exactly as it was left.
     if (state.split) openSplit(state.split);
+    // Reopen the last conversation. If its turn was cut off by a close, it
+    // continues by itself - switchSession sees the pending flag.
+    if (state.lastSession && sessionList.some((s) => s.id === state.lastSession)) switchSession(state.lastSession);
   }
+  setTimeout(() => { booting = false; }, 900);
   // Quiet update check a few seconds after launch. Deliberately delayed so it
   // never competes with first paint, and it only surfaces a banner when there
   // is genuinely something newer than the running build.
@@ -2065,12 +2088,29 @@ function renderModelPicker(menu) {
       </button>`;
     }).join("")).join("");
   menu.innerHTML = `
+    <div class="mp-eff">
+      <span class="mp-eff-l">Effort</span>
+      <div class="segbtn" id="mpEffort">
+        ${EFFORTS.map((e2) => `<button type="button" data-e="${esc(e2)}" title="Reasoning effort: ${esc(e2)}" aria-label="Reasoning effort: ${esc(e2)}" class="${e2 === state.effort ? "on" : ""}">${e2[0].toUpperCase() + e2.slice(1)}</button>`).join("")}
+      </div>
+      <span class="mp-eff-n">${["openai", "openrouter"].includes(state.current) ? "" : "used where the provider supports it"}</span>
+    </div>
     <div class="mp-s"><input class="inp" id="mpSearch" value="${esc(mpQuery)}" placeholder="Search models…" autocomplete="off"></div>
     <div class="mp-list">${listHtml || '<div class="pempty">No matches.</div>'}</div>
     <div class="mp-f">
       <button class="mi" id="mpConnect">Connect a provider…</button>
       <button class="mi" id="mpCustom">Custom model…</button>
     </div>`;
+  // Effort lives right here in the model dropdown: pick the model and how
+  // hard it should think in one place. The menu stays open; the composer
+  // chip updates underneath.
+  menu.querySelectorAll("#mpEffort button").forEach((b) => b.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    state.effort = b.dataset.e;
+    save();
+    updateChrome();
+    menu.querySelectorAll("#mpEffort button").forEach((x) => x.classList.toggle("on", x === b));
+  }));
   menu.querySelectorAll(".mi[data-i]").forEach(el => el.addEventListener("click", () => {
     const it = mpItems[+el.dataset.i];
     if (it) { closeMenus(); chooseModel(it.pid, it.mid); }
@@ -2326,8 +2366,17 @@ function setActivePane(id) {
   activePane = id;
   applyActivePane();
   renderPaneTabs();
+  persistPanes();
   if (id === "plan" && $("planBody")) $("planBody").scrollIntoView({ block: "nearest" });
   syncMotionVisibility();
+}
+/** The rail's furniture is remembered: which panes are open, which one is
+ *  active (order and heights have their own drags). Without this the rail
+ *  reset to its defaults on every start. */
+function persistPanes() {
+  state.paneOpen = [...paneOpen];
+  state.paneActive = activePane || "";
+  save();
 }
 /** Tell a live motion player whether its pane is actually visible. */
 function syncMotionVisibility() {
@@ -2342,13 +2391,15 @@ function closePaneTab(id) {
   if (activePane === id) activePane = [...paneOpen][0] || null;
   applyActivePane();
   renderPaneTabs();
+  persistPanes();
   if (!paneOpen.size) document.body.classList.remove("pane-open");
 }
 
+/** Add (or focus) a pane; the change is remembered with the session's rail. */
 function showPane(id) {
   $("panes").classList.remove("hide");
   if (innerWidth <= 1000) document.body.classList.add("pane-open");
-  if (!paneOpen.has(id)) paneOpen.add(id);
+  if (!paneOpen.has(id)) { paneOpen.add(id); persistPanes(); }
   setActivePane(id);
 }
 
@@ -2695,6 +2746,7 @@ function pushTerm(cmd, kind) {
 let sessionList = [];
 let pinnedIds = [];
 let unreadIds = [];
+let pendingSessionIds = new Set();   // turns cut off by a restart, continued on open
 let sessQuery = "";       // sidebar search filter
 
 function loadLocalSessionFlags() {
@@ -2715,6 +2767,7 @@ async function loadSessions() {
     const j = await (await fetch("/api/sessions")).json();
     sessionList = j.sessions || [];
   } catch { sessionList = []; }
+  pendingSessionIds = new Set(sessionList.filter((s) => s.pending).map((s) => s.id));
   // Entries saved before the two-mode desktop have no kind and count as code
   // sessions. Keep `state.sessions` (persisted) in step with the loaded list.
   for (const s of sessionList) s.kind = s.kind === "chat" ? "chat" : "code";
@@ -2946,6 +2999,8 @@ async function switchSession(id) {
     const j = await res.json();
     if (!res.ok) return toast(j.error || "Could not open that session");
     sessionId = id;
+    state.lastSession = id;
+    save();
     $("sTitle").textContent = j.title || "Untitled";
     $("sProj").textContent = (j.cwd || state.root || "").split(/[\\/]/).filter(Boolean).pop() || "";
     applyMode(j.mode || "manual");
@@ -2969,7 +3024,13 @@ async function switchSession(id) {
     unreadIds = unreadIds.filter((x) => x !== id);
     saveLocalSessionFlags();
     renderSessions();
-    toast("Opened “" + (j.title || "session") + "”");
+    if (!booting) toast("Opened “" + (j.title || "session") + "”");
+    // A turn was cut off when the app closed: continue it right here, as if
+    // the reply had simply waited for you (no new message is sent).
+    if (j.pending && !isStreaming(id)) {
+      toast("Continuing where it stopped…");
+      sendToAgent("", { resume: true });
+    }
   } catch (e) {
     toast("Could not open that session");
   }
@@ -3017,6 +3078,9 @@ function sessionMenu(anchor, id) {
 
   const items = [
     { label: "Open", k: "↵", run: () => switchSession(id) },
+    ...(pendingSessionIds.has(id)
+      ? [{ label: "Continue where it stopped", k: "▶", run: () => switchSession(id) }]
+      : []),
     { label: "Rename…", k: "R", run: () => renameDialog(id, s.title) },
     { label: pinned ? "Unpin" : "Pin to top", k: "P", run: () => {
         pinnedIds = pinned ? pinnedIds.filter((x) => x !== id) : [...pinnedIds, id];
@@ -5006,17 +5070,25 @@ async function handleCommand(text) {
 }
 function say(t) { startAssistant(); toolGroup = null; currentMsg._t = t; setMsgHtml(currentMsg, md(t)); wireCopy(currentMsg); endAssistant(); }
 
-async function sendToAgent(message) {
-  addUser(message); showChat();
+async function sendToAgent(message, opts = {}) {
+  const resume = !!opts.resume;
+  if (!resume) addUser(message);
+  showChat();
   let sid = sessionId;
-  setWorking(true); showWorkLine(true); setActivity("thinking");
+  setWorking(true); showWorkLine(true);
   const p = prov();
+  // The activity word tells the truth about what is happening: a model that
+  // never streams reasoning should not claim to be "thinking" (that word is
+  // what made the missing think card look like a bug).
+  const mdlMeta = ((meta && meta.providers) || []).find((x) => x.id === state.current) || {};
+  const reasoner = (mdlMeta.reasoning || []).includes(p.model) || /reason|thinking/i.test(p.model || "");
+  setActivity(resume ? "continuing" : reasoner ? "thinking" : "writing the reply");
   const payload = {
-    sessionId: sid, message, mode: state.defaultMode, kind: state.mode,
+    sessionId: sid, message: resume ? undefined : message, mode: state.defaultMode, kind: state.mode,
     provider: state.current, model: p.model, apiKey: p.apiKey, baseUrl: payloadBaseUrl(),
-    agent: state.agent || undefined,
+    agent: state.agent || undefined, effort: state.effort,
   };
-  const wasNew = !sid;
+  const wasNew = !sid && !resume;
   const live = { events: [], running: true, wasNew };
   if (sid) { liveTurns.set(sid, live); renderSessions(); }   // its circle starts spinning now
   try {
@@ -5032,7 +5104,7 @@ async function sendToAgent(message) {
         let evt; try { evt = JSON.parse(line.slice(5).trim()); } catch { continue; }
         // A brand-new session learns its id from the first event - and since
         // the person is looking at it, it IS the current session.
-        if (!sid && evt.sessionId) { sid = evt.sessionId; sessionId = sid; liveTurns.set(sid, live); renderSessions(); }
+        if (!sid && evt.sessionId) { sid = evt.sessionId; sessionId = sid; liveTurns.set(sid, live); renderSessions(); state.lastSession = sid; save(); }
         live.events.push(evt);
         if (sid === sessionId) handle(evt);          // visible: paint live
         if (evt.type === "done") { finishLive(sid); break; }

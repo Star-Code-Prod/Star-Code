@@ -325,6 +325,8 @@ function summarise(s) {
     created: s.created,
     updated: s.updated,
     turns,
+    // A turn was in flight when the app last died: the next start continues it.
+    pending: !!s.activeTurn,
   };
 }
 
@@ -909,7 +911,7 @@ async function route(req, res) {
       .filter((m) => m.role !== "system")
       .filter((m) => !String(m.content).startsWith("Tool result for "))
       .map((m) => ({ role: m.role, content: m.content }));
-    return sendJSON(res, 200, { id: s.id, title: s.title, kind: s.kind, mode: s.mode, cwd: s.cwd, messages: visible, stats: s.stats });
+    return sendJSON(res, 200, { id: s.id, title: s.title, kind: s.kind, mode: s.mode, cwd: s.cwd, messages: visible, stats: s.stats, pending: !!s.activeTurn });
   }
 
   if (req.method === "POST" && url.pathname === "/api/sessions/new") {
@@ -987,6 +989,12 @@ async function route(req, res) {
     };
 
     res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
+    // In-flight marker: persisted with the session, cleared when the turn
+    // ends. If the app (or the machine) dies mid-turn, the next boot sees it
+    // and continues the conversation where it stopped. (session.pending is
+    // the permission-resolver Map - deliberately a different field.)
+    session.activeTurn = Date.now();
+    persist();
     const emit = (evt) => {
       bumpSessionStats(session, evt);
       res.write(`data: ${JSON.stringify(evt)}\n\n`);
@@ -1015,6 +1023,7 @@ async function route(req, res) {
         apiKey: turnTarget.apiKey, baseUrl: turnTarget.baseUrl,
         messages: session.messages, runner: chatRunner, emit, requestPermission,
         mode: session.mode, controller, autoAllow: session.autoAllow,
+        effort: typeof body.effort === "string" ? body.effort : "",
       });
     } catch (e) {
       emit({ type: "error", message: e.message });
@@ -1023,6 +1032,7 @@ async function route(req, res) {
     // plain base prompt, so the agent selection is never persisted.
     session.messages[0] = { role: "system", content: sessionSystemContent(session) };
     session.updated = Date.now();
+    session.activeTurn = 0;
     persist();
     session.aborts.delete(controller);
     return res.end();

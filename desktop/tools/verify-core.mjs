@@ -151,6 +151,23 @@ ok("openai chat request does not", oaReq.headers["X-Title"] === undefined && oaR
 const anReq = buildRequest({ provider: "anthropic", apiKey: "sk-ant-attr1", messages: [{ role: "user", content: "hi" }], stream: true });
 ok("anthropic requests do not either", anReq.headers["X-Title"] === undefined);
 
+/* ------------------------- reasoning effort ------------------------- */
+// Effort is a real parameter for openai-style reasoning models (OpenAI and
+// OpenRouter accept reasoning_effort); everything else ignores it rather
+// than sending a field the API would reject.
+const effHigh = buildRequest({ provider: "openai", apiKey: "k", model: "o4-mini", messages: [{ role: "user", content: "hi" }], stream: true, effort: "high" });
+ok("effort rides openai reasoning requests", effHigh.body.reasoning_effort === "high");
+const effPlain = buildRequest({ provider: "openai", apiKey: "k", model: "gpt-4o", messages: [{ role: "user", content: "hi" }], stream: true, effort: "high" });
+ok("a non-reasoning model never gets the field", effPlain.body.reasoning_effort === undefined);
+const effOr = buildRequest({ provider: "openrouter", apiKey: "k", model: "deepseek/deepseek-reasoner", messages: [{ role: "user", content: "hi" }], stream: true, effort: "low" });
+ok("openrouter reasoning models take it too", effOr.body.reasoning_effort === "low");
+const effAn = buildRequest({ provider: "anthropic", apiKey: "sk-ant-x", messages: [{ role: "user", content: "hi" }], stream: true, effort: "high" });
+ok("anthropic has no effort field to send", effAn.body.reasoning_effort === undefined && effAn.body.thinking === undefined);
+const effNone = buildRequest({ provider: "openai", apiKey: "k", model: "o4-mini", messages: [{ role: "user", content: "hi" }], stream: true });
+ok("no effort set means no field", effNone.body.reasoning_effort === undefined);
+const effBad = buildRequest({ provider: "openai", apiKey: "k", model: "o4-mini", messages: [{ role: "user", content: "hi" }], stream: true, effort: "turbo" });
+ok("an unknown effort value is ignored", effBad.body.reasoning_effort === undefined);
+
 // intercepted streaming request: the exact headers the fetch implementation sees
 let sentTo = null;
 const spyStream = async (url, init) => {
