@@ -709,26 +709,29 @@ body.is-mac.is-electron .brand{margin-left:2px}
   border-bottom:1px solid var(--border);flex:none;overflow-x:auto;scrollbar-width:none;
 }
 .pane-tabs::-webkit-scrollbar{height:0}
-.ptab{
+.paneTitle{
   display:flex;align-items:center;gap:6px;padding:5px 11px;border-radius:var(--r-full);
-  font-size:var(--fs-12);color:var(--muted);white-space:nowrap;flex:none;
-  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease),box-shadow var(--t-fast) var(--ease);
+  font-size:var(--fs-12);color:var(--text);background:var(--elev);box-shadow:var(--shadow-sm);flex:none;
+  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
 }
-.ptab:hover{background:var(--hover);color:var(--text2)}
-.ptab.on{background:var(--elev);color:var(--text);box-shadow:var(--shadow-sm)}
-.ptab .badge{
+.paneTitle:hover{background:var(--panel2)}
+.paneTitle .chev{opacity:.55;flex:none}
+.paneTitle .badge{
   font-family:var(--font-mono);font-size:10px;padding:0 5px;border-radius:var(--r-full);
   background:var(--chip-on);color:var(--text2);min-width:16px;text-align:center;
 }
-.ptab .x{opacity:0;color:var(--dim);padding:0 2px;border-radius:4px;font-size:13px;line-height:1;transition:opacity var(--t-fast)}
-.ptab:hover .x{opacity:1}
-.ptab .x:hover{background:var(--chip-on);color:var(--text)}
-.ptab-add{
+.paneX{
+  width:24px;height:24px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center;
+  color:var(--dim);flex:none;transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
+}
+.paneX:hover{background:var(--hover);color:var(--text)}
+.pane-tabs .spacer{flex:1}
+.paneAdd{
   width:26px;height:26px;flex:none;display:flex;align-items:center;justify-content:center;
-  border-radius:var(--r-full);color:var(--muted);font-size:15px;line-height:1;
+  border-radius:var(--r-full);color:var(--muted);
   transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
 }
-.ptab-add:hover{background:var(--hover);color:var(--text)}
+.paneAdd:hover{background:var(--hover);color:var(--text)}
 .pane-grip{
   position:absolute;left:0;top:0;bottom:0;width:6px;cursor:col-resize;z-index:10;
   transition:background var(--t-fast) var(--ease);
@@ -2018,18 +2021,36 @@ let activePane = "preview";
 function renderPaneTabs() {
   const host = $("paneTabs");
   if (!host) return;
-  host.innerHTML = PANE_DEFS.filter(d => paneOpen.has(d.id)).map(d => {
-    const b = paneBadges[d.id];
-    return `<button class="ptab ${d.id === activePane ? "on" : ""}" data-tab="${d.id}" role="tab" aria-selected="${d.id === activePane}">
-      ${esc(d.label)}${b ? `<span class="badge">${b > 9 ? "9+" : b}</span>` : ""}<span class="x" data-x="${d.id}" title="Close pane">×</span>
-    </button>`;
-  }).join("") + '<button class="ptab-add" id="paneAdd" title="Add a pane">+</button>';
-  host.querySelectorAll("[data-tab]").forEach(el => el.addEventListener("click", (e) => {
-    if (e.target && e.target.dataset && e.target.dataset.x) { closePaneTab(e.target.dataset.x); return; }
-    setActivePane(el.dataset.tab);
-  }));
-  const add = host.querySelector("#paneAdd");
+  const active = PANE_DEFS.find(d => d.id === activePane);
+  const ab = activePane ? paneBadges[activePane] : 0;
+  // Claude-style rail header: active pane as a title chip with a menu, a
+  // close for the active pane, and a single add button on the right.
+  host.innerHTML =
+    `<button class="paneTitle" id="paneTitle" aria-haspopup="menu" title="Switch or open a pane">
+      <span class="lb">${esc(active ? active.label : "Panes")}</span>${ab ? `<span class="badge">${ab > 9 ? "9+" : ab}</span>` : ""}
+      <svg class="chev" width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4.5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>` +
+    (activePane && paneOpen.size > 1
+      ? `<button class="paneX" id="paneX" title="Close this pane" aria-label="Close this pane"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>`
+      : "") +
+    `<span class="spacer"></span>` +
+    `<button class="paneAdd" id="paneAdd" title="Open a pane" aria-label="Open a pane"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button>`;
+  $("paneTitle").addEventListener("click", (e) => { e.stopPropagation(); paneTitleMenu($("paneTitle")); });
+  const x = $("paneX");
+  if (x) x.addEventListener("click", () => closePaneTab(activePane));
+  const add = $("paneAdd");
   if (add) add.addEventListener("click", (e) => { e.stopPropagation(); paneMenu(add); });
+}
+
+/** The rail header's title menu: every pane, open or not; the active one
+ *  ticks and pending counts ride as subs. */
+function paneTitleMenu(anchor) {
+  openMenu(anchor, PANE_DEFS.map(d => ({
+    label: d.label,
+    sub: paneOpen.has(d.id) ? (paneBadges[d.id] ? String(paneBadges[d.id]) : undefined) : "closed",
+    on: d.id === activePane,
+    run: () => (paneOpen.has(d.id) ? setActivePane(d.id) : showPane(d.id)),
+  })));
 }
 
 function applyActivePane() {
