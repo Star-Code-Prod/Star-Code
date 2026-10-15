@@ -369,6 +369,84 @@ function wire() {
     }
   });
 
+  // "Record" for motion artifacts: the Preview pane captures the canvas and
+  // hands us the bytes. The recording belongs to the project, so it goes in
+  // the session root's artifacts/ folder - never a caller-chosen path.
+  ipcMain.handle("desktop:save-motion", async (_e, args = {}) => {
+    try {
+      // destructured inside the guard so even a null payload returns {ok:false}
+      const { name, ext, bytes } = args || {};
+      const kind = String(ext || "").toLowerCase();
+      if (kind !== "mp4" && kind !== "webm") {
+        return { ok: false, error: "extension must be mp4 or webm" };
+      }
+      // separators are never part of a file name: reject rather than rewrite
+      if (typeof name !== "string" || !name.trim() || /[\\/]/.test(name)) {
+        return { ok: false, error: "name must be 1-60 chars of a-z 0-9 . _ -" };
+      }
+      const safe = name.trim().replace(/[^a-z0-9._-]/gi, "_").replace(/^\.+/, "").slice(0, 60);
+      if (!safe) return { ok: false, error: "name must be 1-60 chars of a-z 0-9 . _ -" };
+
+      let buf = null;
+      if (bytes instanceof ArrayBuffer) buf = Buffer.from(bytes);
+      else if (ArrayBuffer.isView(bytes)) buf = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      if (!buf || buf.length < 1 || buf.length >= 2 * 1024 * 1024 * 1024) {
+        return { ok: false, error: "bytes must be a non-empty buffer under 2 GiB" };
+      }
+
+      const root = (serverModule && serverModule.getRoot()) || defaultRoot();
+      const dir = path.join(root, "artifacts");
+      fs.mkdirSync(dir, { recursive: true });
+      let file = path.join(dir, safe + "." + kind);
+      if (fs.existsSync(file)) {
+        const stamp = Date.now();
+        file = path.join(dir, safe + "-" + stamp + "." + kind);
+        for (let i = 1; fs.existsSync(file); i++) file = path.join(dir, safe + "-" + stamp + "-" + i + "." + kind);
+      }
+      fs.writeFileSync(file, buf);
+      return { ok: true, path: file };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  });
+
+  // "Save" for artifacts: the card writes the self-contained page into the
+  // project's artifacts/ folder, where recordings already land — again never
+  // a caller-chosen path. Same sanitisation and collision rules as save-motion.
+  ipcMain.handle("desktop:save-artifact", async (_e, args = {}) => {
+    try {
+      const { name, ext, text } = args || {};
+      const kind = String(ext || "").toLowerCase();
+      if (kind !== "html") {
+        return { ok: false, error: "extension must be html" };
+      }
+      // separators are never part of a file name: reject rather than rewrite
+      if (typeof name !== "string" || !name.trim() || /[\\/]/.test(name)) {
+        return { ok: false, error: "name must be 1-60 chars of a-z 0-9 . _ -" };
+      }
+      const safe = name.trim().replace(/[^a-z0-9._-]/gi, "_").replace(/^\.+/, "").slice(0, 60);
+      if (!safe) return { ok: false, error: "name must be 1-60 chars of a-z 0-9 . _ -" };
+
+      if (typeof text !== "string" || text.length < 1 || text.length > 8 * 1024 * 1024) {
+        return { ok: false, error: "text must be a non-empty string under 8 MiB" };
+      }
+
+      const root = (serverModule && serverModule.getRoot()) || defaultRoot();
+      const dir = path.join(root, "artifacts");
+      fs.mkdirSync(dir, { recursive: true });
+      let file = path.join(dir, safe + "." + kind);
+      if (fs.existsSync(file)) {
+        const stamp = Date.now();
+        file = path.join(dir, safe + "-" + stamp + "." + kind);
+        for (let i = 1; fs.existsSync(file); i++) file = path.join(dir, safe + "-" + stamp + "-" + i + "." + kind);
+      }
+      fs.writeFileSync(file, text, "utf8");
+      return { ok: true, path: file };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  });
+
   ipcMain.handle("desktop:set-theme", (_e, theme) => {
     nativeTheme.themeSource = theme === "light" ? "light" : theme === "dark" ? "dark" : "system";
     return true;

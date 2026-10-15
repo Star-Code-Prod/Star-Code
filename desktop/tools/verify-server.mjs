@@ -30,6 +30,51 @@ try {
   ok("permission modes exposed",
     Array.isArray(prov.modes) && prov.modes.includes("plan"), (prov.modes || []).join(", "));
 
+  // last used model: one shared record (config.json) the CLI resumes at boot.
+  ok("/api/providers starts with lastModel null", prov.lastModel === null, JSON.stringify(prov.lastModel));
+  const lmCfg = path.join(dataDir, "config.json");
+  ok("no config.json before the first write", !fs.existsSync(lmCfg));
+  const lmBad = await fetch(s.url + "/api/last-model", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ provider: "nope", model: "x" }),
+  });
+  ok("POST /api/last-model rejects an unknown provider", lmBad.status === 400, "HTTP " + lmBad.status);
+  const lmEmpty = await fetch(s.url + "/api/last-model", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ provider: "deepseek", model: "" }),
+  });
+  ok("POST /api/last-model rejects an empty model", lmEmpty.status === 400, "HTTP " + lmEmpty.status);
+  const lmOver = await fetch(s.url + "/api/last-model", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ provider: "deepseek", model: "x".repeat(201) }),
+  });
+  ok("POST /api/last-model rejects a model over 200 chars", lmOver.status === 400, "HTTP " + lmOver.status);
+  ok("rejected calls wrote no config.json", !fs.existsSync(lmCfg));
+  const lmOk = await fetch(s.url + "/api/last-model", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ provider: "deepseek", model: "deepseek-reasoner" }),
+  });
+  ok("POST /api/last-model stores", lmOk.status === 200 && (await lmOk.json()).ok === true);
+  const lmFile = JSON.parse(fs.readFileSync(lmCfg, "utf8"));
+  ok("config.json holds the shared record",
+    lmFile.lastModel?.provider === "deepseek" && lmFile.lastModel?.model === "deepseek-reasoner", JSON.stringify(lmFile));
+  ok("the atomic write leaves no temp file", !fs.existsSync(lmCfg + ".tmp"));
+  const provAfter = await (await fetch(s.url + "/api/providers")).json();
+  ok("/api/providers exposes the stored lastModel",
+    provAfter.lastModel?.provider === "deepseek" && provAfter.lastModel?.model === "deepseek-reasoner");
+
+  // a corrupt config.json reads as empty and never breaks the endpoints
+  fs.writeFileSync(lmCfg, "{ not json");
+  const provCorrupt = await (await fetch(s.url + "/api/providers")).json();
+  ok("corrupt config.json still serves /api/providers", provCorrupt.lastModel === null, JSON.stringify(provCorrupt.lastModel));
+  const lmHeal = await fetch(s.url + "/api/last-model", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ provider: "openai", model: "gpt-4o" }),
+  });
+  ok("corrupt config.json still accepts POST /api/last-model", (await lmHeal.json()).ok === true);
+  ok("the corrupt file is replaced by a clean record",
+    JSON.parse(fs.readFileSync(lmCfg, "utf8")).lastModel?.model === "gpt-4o");
+
   const home = await fetch(s.url + "/");
   const html = await home.text();
   ok("GET / serves the UI", home.ok && html.length > 50000, Math.round(html.length / 1024) + " KB");

@@ -112,19 +112,15 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
 .brand{display:flex;align-items:center;gap:var(--sp-2);flex:none;margin-right:var(--sp-1)}
 .brand svg{display:block;border-radius:var(--r-xs)}
 .brand .nm{font-size:var(--fs-125);color:var(--muted);letter-spacing:-.01em;white-space:nowrap}
-/* Electron: the OS draws the frame, so our chrome must drag and drop the fake dots */
+/* Electron: the OS draws the frame, so our chrome must drag and drop */
 body.is-electron{-webkit-app-region:no-drag}
 body.is-electron .titlebar{-webkit-app-region:drag;padding-right:150px}
 body.is-electron .titlebar button,
 body.is-electron .titlebar .tb-text,
 body.is-electron .titlebar .brand,
 body.is-electron .titlebar .seg{ -webkit-app-region:no-drag}
-body.is-electron .lights{display:none}
 body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
 body.is-mac.is-electron .brand{margin-left:2px}
-.lights{display:flex;gap:8px;align-items:center;margin-right:6px}
-.lights i{width:12px;height:12px;border-radius:6px;display:block}
-.lights i:nth-child(1){background:var(--del-fg)}.lights i:nth-child(2){background:var(--accent)}.lights i:nth-child(3){background:var(--add-fg)}
 .tb-btn{
   width:30px;height:30px;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;
   color:var(--muted);transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
@@ -169,6 +165,12 @@ body.is-mac.is-electron .brand{margin-left:2px}
 }
 .sb-link .chev{margin-left:auto;opacity:.5;transition:transform var(--t-mid) var(--ease)}
 .sb-link.open .chev{transform:rotate(90deg)}
+/* New session + the Chat|Code icon switch share one row */
+.sb-newrow{display:flex;align-items:center;gap:var(--sp-2)}
+.sb-newrow .sb-link{flex:1;min-width:0}
+.sb-newrow .seg{margin:0;padding:2px;flex:none}
+.sb-newrow .seg button{padding:6px 8px;min-height:26px}
+.seg-icons button{flex:none}
 .sb-sec{
   display:flex;align-items:center;gap:6px;padding:var(--sp-3) 14px 6px;
   font-size:var(--fs-11);letter-spacing:.05em;color:var(--dim);text-transform:uppercase;
@@ -326,73 +328,45 @@ body.is-mac.is-electron .brand{margin-left:2px}
 .cp{font-family:var(--font-mono);font-size:var(--fs-11);color:#8c8c88;padding:2px 6px;border-radius:var(--r-xs);transition:color var(--t-fast),background var(--t-fast)}
 .cp:hover{color:#dcdcd8;background:rgba(255,255,255,.06)}
 
-/* ================= THINKING ================= */
-.think{
-  border-radius:var(--r-md);overflow:hidden;position:relative;
-  background:color-mix(in srgb,var(--accent) 5%,var(--panel));
-  border:1px solid color-mix(in srgb,var(--accent) 16%,var(--border));
-  transition:border-color var(--t-slow) var(--ease),box-shadow var(--t-slow) var(--ease);
-}
-.think.streaming{border-color:color-mix(in srgb,var(--accent) 34%,var(--border));box-shadow:var(--shadow-sm)}
-/* accent rail on the left edge */
-.think::before{
-  content:"";position:absolute;left:0;top:9px;bottom:9px;width:2px;border-radius:var(--r-full);
-  background:var(--accent);opacity:.45;transition:bottom var(--t-slow) var(--ease),top var(--t-slow) var(--ease);
-}
-.think.streaming::before{top:0;bottom:0;opacity:.7}
-
+/* ================= THINKING (reasoning pill) ================= */
+/* The reference "Star Thinking Block" component: a 30px pill, a live peek
+   (68px, top fade) while the model works, folded to one line after, and a
+   click-open panel capped at 240px. `data-mode` is the single switch:
+   peek | closed | open; `data-live` marks the streaming state. The .think
+   root and .think-h pill stay as the hooks the transcript and export use.
+   Motion: 300ms height, 200ms chevron, 2.4s star spin, 1.8s label shimmer —
+   all disabled under prefers-reduced-motion. */
+.think{display:flex;flex-direction:column;gap:6px;align-items:flex-start;max-width:100%;margin:13px auto}
 .think-h{
-  display:flex;align-items:center;gap:9px;padding:9px 12px 9px 13px;width:100%;
-  font-size:var(--fs-125);color:var(--muted);text-align:left;cursor:pointer;position:relative;z-index:1;
-  background:none;border:0;
+  display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 12px 0 10px;
+  border:0;border-radius:var(--r-full);background:var(--chip);color:var(--muted);
+  font-size:var(--fs-13);font-weight:500;cursor:pointer;
+  transition:color var(--t-fast) var(--ease),background var(--t-fast) var(--ease);
 }
-.think-h:hover{color:var(--text2)}
-.think-h:hover .think-c{color:var(--text2)}
-.spark{color:var(--accent);display:flex;flex:none}
-.think.streaming .spark{animation:spin 2.4s linear infinite}
-.think-t{font-weight:500;flex:none}
-.think.streaming .think-t{color:var(--text)}
-.think-m{display:flex;align-items:center;gap:7px;flex:none;font-family:var(--font-mono);font-size:var(--fs-11)}
-.think-m b{font-weight:400;color:var(--accent);font-variant-numeric:tabular-nums}
-.think-m i{font-style:normal;color:var(--dim)}
-.think-prev{
-  flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-  font-size:var(--fs-12);color:var(--dim);font-style:italic;
+.think-h:hover{color:var(--text)}
+.think-star{width:14px;height:14px;color:var(--accent);flex:none}
+.think-label{font-variant-numeric:tabular-nums}
+.think-chev{width:12px;height:12px;flex:none;transition:transform 200ms var(--ease)}
+.think:not([data-mode="closed"]) .think-chev{transform:rotate(180deg)}
+.think-b{width:100%;max-height:0;overflow:hidden;transition:max-height 300ms ease}
+.think[data-mode="peek"] .think-b{
+  max-height:68px;
+  -webkit-mask-image:linear-gradient(transparent,var(--text) 45%);
+  mask-image:linear-gradient(transparent,var(--text) 45%);
 }
-.think-act{display:flex;align-items:center;gap:4px;flex:none}
-.think-copy{
-  font-family:var(--font-mono);font-size:10.5px;color:var(--dim);
-  padding:2px 7px;border-radius:var(--r-xs);border:1px solid transparent;
-  transition:color var(--t-fast),border-color var(--t-fast),background var(--t-fast);
+.think[data-mode="open"] .think-b{max-height:240px;overflow-y:auto}
+.think-t{
+  margin-left:12px;padding:2px 0 2px 14px;border-left:2px solid var(--border);
+  color:var(--muted);font-size:var(--fs-13);line-height:1.6;white-space:pre-wrap;word-break:break-word;
 }
-.think-copy:hover{color:var(--text2);border-color:var(--border2);background:var(--elev)}
-.think-c{color:var(--dim);display:flex;flex:none;transition:transform var(--t-slow) var(--ease)}
-.think.open .think-c{transform:rotate(90deg)}
-
-.think-b{display:grid;grid-template-rows:0fr;transition:grid-template-rows var(--t-slow) var(--ease);position:relative;z-index:1}
-.think.open .think-b{grid-template-rows:1fr}
-.think-bi{overflow:hidden;min-height:0}
-.think-x{
-  padding:2px 14px 12px 15px;color:var(--text2);
-  font-family:var(--font-mono);font-size:var(--fs-125);line-height:1.72;letter-spacing:-.01em;
-  white-space:pre-wrap;word-break:break-word;
-  max-height:min(260px,40vh);overflow-y:auto;overscroll-behavior:contain;
+.think[data-live] .think-star{animation:spin 2.4s linear infinite}
+.think[data-live] .think-label{
+  background:linear-gradient(90deg,var(--muted) 30%,var(--text) 50%,var(--muted) 70%);
+  background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:shimmer 1.8s linear infinite;
 }
-.think-x::-webkit-scrollbar{width:8px}
-.think.streaming .think-x{color:color-mix(in srgb,var(--text2) 82%,transparent)}
-.think-x .cur{
-  display:inline-block;width:6px;height:13px;background:var(--accent);
-  vertical-align:-2px;margin-left:2px;animation:blink 1.1s steps(2) infinite;border-radius:4px;
-}
-.think-f{
-  display:flex;align-items:center;gap:8px;padding:0 14px 11px 15px;
-  font-size:var(--fs-11);color:var(--dim);font-family:var(--font-mono);
-}
-.think-dots{display:flex;gap:3px;align-items:center}
-.think-dots i{width:3px;height:3px;border-radius:50%;background:var(--accent);display:block;opacity:.35}
-.think.streaming .think-dots i{animation:tdot 1.2s ease-in-out infinite}
-.think-dots i:nth-child(2){animation-delay:.15s}
-.think-dots i:nth-child(3){animation-delay:.3s}
+@keyframes shimmer{from{background-position:100% 0}to{background-position:-100% 0}}
+@media (prefers-reduced-motion:reduce){.think *{animation:none!important;transition:none!important}}
 
 /* ================= TOOL SUMMARY (collapsed group) ================= */
 .tools{margin:13px auto}
@@ -467,6 +441,30 @@ body.is-mac.is-electron .brand{margin-left:2px}
 }
 .artifactcard .nm{color:var(--text2);font-family:var(--font-mono);font-size:var(--fs-12)}
 .artifactcard button{margin-left:auto}
+.artifactcard .ac-main{flex:1;min-width:0}
+.artifactcard .ac-t{color:var(--text);font-size:var(--fs-13);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.artifactcard .ac-d{font-size:var(--fs-12);color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.artifactcard .ac-v{width:auto;padding:4px 8px;flex:none}
+
+/* ---- artifact dialog (chat mode) ---- */
+.artdlg{
+  position:fixed;inset:0;z-index:105;display:none;align-items:center;justify-content:center;
+  background:color-mix(in srgb,var(--bg) 34%,rgba(0,0,0,.5));
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+}
+.artdlg.on{display:flex;animation:fadeIn var(--t-mid) var(--ease)}
+.art-card{
+  display:flex;flex-direction:column;flex:none;overflow:hidden;
+  width:min(1000px,calc(100vw - 96px));height:min(700px,calc(100vh - 96px));
+  background:var(--bg);border:1px solid var(--border);border-radius:var(--r-xl);box-shadow:var(--shadow);
+  animation:cardIn var(--t-mid) var(--ease);
+}
+.art-top{
+  height:52px;flex:none;display:flex;align-items:center;gap:var(--sp-2);padding:0 var(--sp-2) 0 var(--sp-4);
+  border-bottom:1px solid var(--border);background:var(--bg);
+}
+.art-top .t{font-family:var(--title-font);font-size:var(--fs-15);font-weight:500;margin-left:2px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.art-host{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
 .aptools{display:flex;align-items:center;gap:7px;padding:8px 10px;border-bottom:1px solid var(--border);background:var(--panel);flex:none}
 .aptools select{width:auto;padding:4px 8px}
 .apbody{flex:1;min-height:0;display:flex;flex-direction:column;overflow:auto}
@@ -475,6 +473,17 @@ body.is-mac.is-electron .brand{margin-left:2px}
 .apmd{padding:var(--sp-4)}
 .apmd p{margin:10px 0}
 .apmd h1,.apmd h2,.apmd h3{font-size:var(--fs-15);font-weight:600;margin:18px 0 8px}
+
+/* ---- motion artifacts: canvas scene → recorded video ---- */
+.mo{display:flex;flex-direction:column;flex:1;min-height:0}
+.mo-bar{display:flex;align-items:center;gap:7px;padding:8px 10px;border-bottom:1px solid var(--border);background:var(--panel2);flex:none;flex-wrap:wrap}
+.mo-bar select{width:auto;padding:4px 8px}
+.mo-bar .mo-scrub{flex:1;min-width:60px;accent-color:var(--accent)}
+.mo-time{font-family:var(--font-mono);font-size:var(--fs-11);color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.mo-stage{flex:1;min-height:0;display:flex;background:var(--panel2)}
+.mo-stage .apframe{min-height:0;background:transparent}
+.mo-status{flex:none;padding:8px 12px;font-size:var(--fs-12);color:var(--muted);border-top:1px solid var(--border);line-height:1.5}
+.mo-status.err{color:var(--del-fg)}
 
 /* ================= TASK LIST ================= */
 .tasklist{margin:13px auto;border:1px solid var(--border);border-radius:var(--r-md);background:var(--panel);overflow:hidden}
@@ -937,7 +946,6 @@ body.mode-chat #bigProj{display:none}
 
 <!-- ==================== TITLE BAR ==================== -->
 <div class="titlebar">
-  <div class="lights" aria-hidden="true"><i></i><i></i><i></i></div>
   <span class="brand">
     <svg width="20" height="20" viewBox="0 0 512 512" aria-hidden="true">
       <defs>
@@ -962,11 +970,6 @@ body.mode-chat #bigProj{display:none}
   <button class="tb-text" id="btnPanes" title="Toggle panes">
     <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><rect x="1.5" y="2.5" width="5.6" height="11" rx="1.8"/><rect x="8.9" y="2.5" width="5.6" height="11" rx="1.8"/></svg>
   </button>
-  <button class="tb-text" id="btnTheme" title="Toggle theme">
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" style="vertical-align:-2px"><circle cx="8" cy="8" r="2.7"/><path d="M8 1.5v1.7M8 12.8v1.7M1.5 8h1.7M12.8 8h1.7M3.4 3.4l1.2 1.2M11.4 11.4l1.2 1.2M12.6 3.4l-1.2 1.2M4.6 11.4l-1.2 1.2"/></svg>
-  </button>
-  <span class="tb-sep" aria-hidden="true"></span>
-  <button class="tb-text" id="btnSettings">Settings</button>
 </div>
 
 <div class="updatebar" id="updateBar">
@@ -984,38 +987,32 @@ body.mode-chat #bigProj{display:none}
 <div class="shell">
   <!-- ==================== SIDEBAR ==================== -->
   <aside class="sidebar" id="sidebar">
-    <div class="seg">
-      <button class="on" title="Star">
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M5.5 4L2 8l3.5 4M10.5 4L14 8l-3.5 4"/></svg>
-        Star
-      </button>
-    </div>
     <div class="sb-links">
-      <button class="sb-link" id="btnNew">
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>
-        New session
-      </button>
+      <div class="sb-newrow">
+        <button class="sb-link" id="btnNew">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>
+          New session
+        </button>
+        <div class="seg seg-icons" id="modeSeg" role="group" aria-label="Mode">
+          <button type="button" data-mode="chat" aria-pressed="false" aria-label="Chat mode" title="Chat mode">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3.3c3.2 0 5.7 2 5.7 4.5S11.2 12.3 8 12.3c-.5 0-1.1-.1-1.6-.2l-2.9.9.8-2.2c-1.3-.8-2.1-1.9-2.1-3C2.2 5.3 4.8 3.3 8 3.3z"/></svg>
+          </button>
+          <button type="button" data-mode="code" class="on" aria-pressed="true" aria-label="Code mode" title="Code mode">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M5.5 4L2 8l3.5 4M10.5 4L14 8l-3.5 4"/></svg>
+          </button>
+        </div>
+      </div>
       <button class="sb-link" id="btnOpenFolder">
         <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M1.8 9.8V4.5A1.5 1.5 0 013.3 3h2.4l1.3 1.6h5.5a1.5 1.5 0 011.5 1.5v1.3"/><path d="M4.9 7.5h8.9l-2.6 5.4H2.3z"/></svg>
         Open folder
       </button>
       <button class="sb-link" id="btnSettings2">
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="4.4"/><circle cx="8" cy="8" r="1.9"/><path d="M8 1.7v1.9M8 12.4v1.9M1.7 8h1.9M12.4 8h1.9M4.89 4.89l1.34 1.34M11.11 11.11l1.34 1.34M11.11 4.89l-1.34 1.34M4.89 11.11l-1.34 1.34"/></svg>
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12.79 6.98L14.55 7.2A6.6 6.6 0 0 1 14.55 8.8L12.79 9.02A4.9 4.9 0 0 1 12.11 10.67L13.2 12.06A6.6 6.6 0 0 1 12.06 13.2L10.67 12.11A4.9 4.9 0 0 1 9.02 12.79L8.8 14.55A6.6 6.6 0 0 1 7.2 14.55L6.98 12.79A4.9 4.9 0 0 1 5.33 12.11L3.94 13.2A6.6 6.6 0 0 1 2.8 12.06L3.89 10.67A4.9 4.9 0 0 1 3.21 9.02L1.45 8.8A6.6 6.6 0 0 1 1.45 7.2L3.21 6.98A4.9 4.9 0 0 1 3.89 5.33L2.8 3.94A6.6 6.6 0 0 1 3.94 2.8L5.33 3.89A4.9 4.9 0 0 1 6.98 3.21L7.2 1.45A6.6 6.6 0 0 1 8.8 1.45L9.02 3.21A4.9 4.9 0 0 1 10.67 3.89L12.06 2.8A6.6 6.6 0 0 1 13.2 3.94L12.11 5.33A4.9 4.9 0 0 1 12.79 6.98Z"/><circle cx="8" cy="8" r="2"/></svg>
         Settings
       </button>
       <button class="sb-link" id="btnMore">
         <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="3.5" r="1.2"/><circle cx="8" cy="8" r="1.2"/><circle cx="8" cy="12.5" r="1.2"/></svg>
         More
-      </button>
-    </div>
-    <div class="seg" id="modeSeg" role="group" aria-label="Mode">
-      <button type="button" data-mode="chat" aria-pressed="false" title="Chat with Star">
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3.3c3.2 0 5.7 2 5.7 4.5S11.2 12.3 8 12.3c-.5 0-1.1-.1-1.6-.2l-2.9.9.8-2.2c-1.3-.8-2.1-1.9-2.1-3C2.2 5.3 4.8 3.3 8 3.3z"/></svg>
-        Chat
-      </button>
-      <button type="button" data-mode="code" class="on" aria-pressed="true" title="Code in your project folder">
-        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M5.5 4L2 8l3.5 4M10.5 4L14 8l-3.5 4"/></svg>
-        Code
       </button>
     </div>
     <div class="sb-sec">Sessions<span class="spacer"></span>
@@ -1285,6 +1282,19 @@ body.mode-chat #bigProj{display:none}
   </div>
 </div>
 
+<!-- ============ ARTIFACT DIALOG (chat mode: no pane dock there) ============ -->
+<div class="artdlg" id="artDlg">
+  <div class="art-card" role="dialog" aria-modal="true" aria-label="Artifact">
+    <div class="art-top">
+      <span class="t" id="artTitle">Artifact</span>
+      <button class="hbtn" id="artClose" title="Close" aria-label="Close artifact">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+      </button>
+    </div>
+    <div class="art-host" id="artBody"></div>
+  </div>
+</div>
+
 <!-- ==================== MENUS / MODALS ==================== -->
 <div class="slash" id="ctxHost" style="display:none"></div>
 <div class="toast" id="toast"></div>
@@ -1360,6 +1370,13 @@ function applyTheme() {
 function theThemeIsLight() {
   return document.documentElement.getAttribute("data-theme") === "light";
 }
+/** Cycle the theme dark → light → system. Lives here rather than on a top-bar
+ *  button: Settings → Appearance, ⌘/Ctrl+Shift+T and the /theme command all
+ *  funnel through this one place. */
+function cycleTheme() {
+  state.theme = state.theme === "dark" ? "light" : state.theme === "light" ? "system" : "dark";
+  applyTheme(); save(); renderSettings(); toast("Theme: " + state.theme);
+}
 matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => { if (state.theme === "system") applyTheme(); });
 
 /* ============================ RUNTIME ============================ */
@@ -1391,6 +1408,9 @@ const ICONS = {
 const bridge = (typeof window !== "undefined" && window.desktop && window.desktop.isElectron) ? window.desktop : null;
 
 (async function boot() {
+  // First run? Captured before anything (importLocalKeys, save) can write the
+  // key, so we can adopt the CLI's last-used model on a virgin profile only.
+  const firstRun = localStorage.getItem(LS) === null;
   applyTheme();
   if (bridge) {
     document.body.classList.add("is-electron");
@@ -1405,6 +1425,14 @@ const bridge = (typeof window !== "undefined" && window.desktop && window.deskto
     } catch {}
   }
   meta = await (await fetch("/api/providers")).json();
+  // A fresh profile follows the model the user last picked anywhere (the CLI
+  // reports it as meta.lastModel); once a profile exists its own pick wins.
+  const lm = meta && meta.lastModel;
+  if (firstRun && lm && lm.provider && lm.model && (meta.providers || []).some(p => p.id === lm.provider)) {
+    state.current = lm.provider;
+    state.providers[lm.provider] = state.providers[lm.provider] || {};
+    state.providers[lm.provider].model = lm.model;
+  }
   state.root = state.root || meta.root;
   if (!localStorage.getItem(LS)) save();
   $("setSaved").textContent = "saved"; $("setSaved").className = "pill ok";
@@ -1583,6 +1611,15 @@ function chooseModel(pid, mid) {
   state.providers[pid] = state.providers[pid] || {};
   state.providers[pid].model = mid;
   save(); updateChrome(); renderSessions();
+  // Tell the server about the pick so the CLI (which keeps the same record)
+  // agrees next time; best-effort — an older server without /api/last-model
+  // must never surface as an error.
+  try {
+    fetch("/api/last-model", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: pid, model: mid }),
+    }).catch(() => {});
+  } catch { /* never break the picker over a background write */ }
   if ($("settings").classList.contains("on")) renderSettings();
   toast(pid + " · " + mid);
 }
@@ -1814,10 +1851,6 @@ $("sessClear").addEventListener("click", () => {
   renderSessions();
   $("sessSearch").focus();
 });
-$("btnTheme").addEventListener("click", () => {
-  state.theme = state.theme === "dark" ? "light" : state.theme === "light" ? "system" : "dark";
-  applyTheme(); save(); renderSettings(); toast("Theme: " + state.theme);
-});
 $("prClose").addEventListener("click", () => $("prbar").style.display = "none");
 
 /* ============================ TERMINAL ============================ */
@@ -1983,6 +2016,7 @@ function renderTranscript(msgs) {
   $("stream").innerHTML = "";
   currentMsg = null; currentThink = null; toolGroup = null; lastDiff = []; diffs = [];
   artifacts = []; msgArtifacts = []; msgCards = 0; artifactView = { i: 0, mode: "render" };
+  artifactCards = new Map();
   if (!msgs.length) { showLanding(); renderSessions(); return; }
   showChat();
   for (const m of msgs) {
@@ -1996,7 +2030,7 @@ function renderTranscript(msgs) {
       endAssistant();
     }
     for (const a of parseArtifacts(m.content)) {
-      artifacts.push({ lang: a.lang, code: a.code });
+      artifacts.push({ lang: a.lang, code: a.code, title: a.title, desc: a.desc });
       addArtifactCard(artifacts.length - 1);
     }
   }
@@ -2180,6 +2214,7 @@ function renderFilePreview() {
 
 function resetPreview() {
   currentFile = null;
+  motionCtx = null;
   $("previewTitle").textContent = "Preview";
   $("previewEmpty").style.display = "block";
   const host = $("filePreview");
@@ -2204,7 +2239,7 @@ async function checkUpdates({ quiet = true } = {}) {
   }
   checking = false;
   applyUpdateInfo(quiet);
-  if ($("settings").classList.contains("on")) renderSettings();
+  if ($("settings").classList.contains("on")) settingsAutoRender();
   return updateInfo;
 }
 
@@ -2448,17 +2483,46 @@ function stripBlocks(s) {
   return out.replace(/\n{3,}/g, "\n\n");
 }
 
-/** Complete ```artifact <lang> fences, in order. lang: html | svg | md.
+/** The artifact's human name: its <title>, at most four words. */
+function artifactTitle(code) {
+  const m = String(code || "").match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  if (!m) return "";
+  const text = m[1].replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  if (!text) return "";
+  return text.split(" ").slice(0, 4).join(" ").replace(/[|:·—-]+$/, "").trim();
+}
+
+/** One-line description: the first sentence of the prose that immediately
+ *  follows the artifact in the message. Empty when nothing follows. */
+function artifactDesc(after) {
+  let text = stripBlocks(after || "").replace(/^\s+/, "");
+  if (!text || text.startsWith("`")) return "";
+  text = text.replace(/\s+/g, " ").replace(/\*\*|__|`/g, "").replace(/^#+\s*/, "").trim();
+  if (!text) return "";
+  const m = text.match(/^(.{6,160}?[.!?])(?:\s|$)/);
+  const line = (m ? m[1] : text.slice(0, 120)).trim();
+  return line.length > 160 ? line.slice(0, 157) + "…" : line;
+}
+
+/** Complete ```artifact <lang> fences, in order. lang: html | svg | md | motion.
  *  The closer must repeat the opener's backtick count on its own line, so
  *  inner fences stay inside the artifact. */
 function parseArtifacts(s) {
+  const src = String(s || "");
   const out = [];
   const re = /^(`{3,})artifact[ \t]*(\w*)[ \t]*\r?\n([\s\S]*?)^\1[ \t]*$/gm;
   let m;
-  while ((m = re.exec(String(s || ""))) !== null) {
+  while ((m = re.exec(src)) !== null) {
     let lang = (m[2] || "html").toLowerCase();
     if (lang === "markdown") lang = "md";
-    if (["html", "svg", "md"].includes(lang)) out.push({ lang, code: m[3].replace(/\n$/, "") });
+    if (!["html", "svg", "md", "motion"].includes(lang)) continue;
+    const code = m[3].replace(/\n$/, "");
+    out.push({
+      lang,
+      code,
+      title: artifactTitle(code),
+      desc: artifactDesc(src.slice(m.index + m[0].length)),
+    });
   }
   return out;
 }
@@ -2469,16 +2533,19 @@ let msgArtifacts = [];     // parsed from the message currently streaming
 let msgCards = 0;          // cards committed for that message
 let artifactView = { i: 0, mode: "render" };
 let lastArtRender = 0;
+let artifactCards = new Map();   // group key -> { node, indices, select, saveBtn }
 
 function syncArtifacts(raw, streaming) {
   const arts = parseArtifacts(raw || "");
   for (let k = msgArtifacts.length; k < arts.length; k++) {
-    artifacts.push({ lang: arts[k].lang, code: arts[k].code });
+    artifacts.push({ lang: arts[k].lang, code: arts[k].code, title: arts[k].title, desc: arts[k].desc });
   }
   if (arts.length) {
     const last = artifacts[artifacts.length - 1];
     last.lang = arts[arts.length - 1].lang;
     last.code = arts[arts.length - 1].code;
+    last.title = arts[arts.length - 1].title;
+    last.desc = arts[arts.length - 1].desc;
   }
   msgArtifacts = arts;
   if (artifacts.length) {
@@ -2491,34 +2558,136 @@ function syncArtifacts(raw, streaming) {
   }
 }
 
+/** One artifact's display name — its <title>, else "Artifact · <lang>". */
+function artifactName(a) {
+  return (a && a.title) || ("Artifact · " + (a && a.lang));
+}
+
+/** Group key: a titled artifact republished later is a NEW VERSION of the
+ *  same artifact (same card); untitled ones stay separate. */
+function artifactKey(i) {
+  const a = artifacts[i];
+  return a && a.title ? "t:" + a.title.toLowerCase() : "i:" + i;
+}
+
+/** Every artifact index that belongs to artifact i's version group. */
+function artifactGroup(i) {
+  const key = artifactKey(i);
+  return artifacts.map((_, k) => k).filter((k) => artifactKey(k) === key);
+}
+
+/** Fill a card's version dropdown: v1..vN for the group, value = index. */
+function renderCardVersions(card, selected) {
+  if (!card.select) return;
+  card.select.innerHTML = card.indices
+    .map((k, g) => `<option value="${k}" ${k === selected ? "selected" : ""}>v${g + 1}</option>`)
+    .join("");
+}
+
+function updateCardFace(card, i) {
+  const a = artifacts[i];
+  const name = card.node.querySelector("[data-name]");
+  const desc = card.node.querySelector("[data-desc]");
+  if (name) name.textContent = artifactName(a);
+  if (desc) {
+    desc.textContent = a.desc || "";
+    desc.hidden = !a.desc;
+  }
+}
+
 function addArtifactCard(i) {
   const a = artifacts[i];
+  const key = artifactKey(i);
+  const prev = artifactCards.get(key);
+  if (prev && prev.node.isConnected) {
+    // republish of the same artifact: same card, one more version
+    prev.indices.push(i);
+    renderCardVersions(prev, i);
+    updateCardFace(prev, i);
+    toolGroup = null;
+    return;
+  }
   const n = node("artifactcard");
-  n.innerHTML = `<span class="nm">Artifact · ${esc(a.lang)} · v${i + 1}</span>
-    <button class="btn sm" data-v="${i}">View</button>`;
-  n.querySelector("button").addEventListener("click", () => {
-    artifactView.i = i;
-    showPane("preview");
+  n.innerHTML = `
+    <div class="ac-main">
+      <div class="ac-t" data-name></div>
+      <div class="ac-d" data-desc hidden></div>
+    </div>
+    <select class="inp ac-v" data-vsel aria-label="Artifact version"></select>
+    <button class="btn sm" data-open>Open</button>
+    ${a.lang === "motion" ? "" : '<button class="btn sm" data-save>Save</button>'}`;
+  const card = { node: n, indices: [i], select: n.querySelector("[data-vsel]") };
+  artifactCards.set(key, card);
+  updateCardFace(card, i);
+  renderCardVersions(card, i);
+
+  n.querySelector("[data-open]").addEventListener("click", () => {
+    artifactView.i = Number(card.select && card.select.value != null ? card.select.value : i);
     renderArtifact();
   });
+  if (card.select) card.select.addEventListener("change", (e) => {
+    artifactView.i = Number(e.target.value);
+    updateCardFace(card, artifactView.i);
+    renderArtifact();
+  });
+  const saveBtn = n.querySelector("[data-save]");
+  if (saveBtn) saveBtn.addEventListener("click", () => saveArtifactFile(artifacts[i], saveBtn));
   toolGroup = null;
 }
 
-function renderArtifact() {
-  const a = artifacts[artifactView.i];
+/* ---- Save: the self-contained page goes to <root>/artifacts/<name>.html.
+   Bridge first (same contract as saveMotion), browser download otherwise. ---- */
+function artifactSlug(a) {
+  const base = String((a && a.title) || "artifact-" + ((a && a.lang) || "html"))
+    .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60).replace(/-+$/, "");
+  return base || "artifact-html";
+}
+
+async function saveArtifactFile(a, btn) {
   if (!a) return;
-  showPane("preview");
-  $("previewTitle").textContent = `Artifact · ${a.lang} · v${artifactView.i + 1}`;
-  $("previewEmpty").style.display = "none";
-  const host = $("filePreview");
-  host.style.display = "block";
-  const versionOpts = artifacts
-    .map((_, k) => `<option value="${k}" ${k === artifactView.i ? "selected" : ""}>v${k + 1}</option>`)
+  const text = artifactPageHtml(a);
+  const name = artifactSlug(a);
+  if (bridge && bridge.saveArtifact) {
+    let r = null;
+    try { r = await bridge.saveArtifact({ name: name, ext: "html", text: text }); }
+    catch (e) { r = { ok: false, error: (e && e.message) || String(e) }; }
+    if (r && r.ok) {
+      toast("Saved to " + r.path);
+      if (btn) { btn.textContent = "Saved"; setTimeout(() => { btn.textContent = "Save"; }, 1400); }
+      return;
+    }
+    toast("Could not save" + (r && r.error ? ": " + r.error : "") + " — downloading instead");
+  }
+  const url = URL.createObjectURL(new Blob([text], { type: "text/html" }));
+  const dl = document.createElement("a");
+  dl.href = url;
+  dl.download = name + ".html";
+  document.body.appendChild(dl); dl.click(); dl.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+  toast("Downloading " + name + ".html");
+}
+
+/** The self-contained page for an artifact — what "Open in browser" opens
+ *  and what Save writes next to the recordings. */
+function artifactPageHtml(a) {
+  return a.lang === "html" ? a.code
+    : a.lang === "svg" ? `<!doctype html><body style="margin:0;display:grid;place-items:center;height:100vh">${a.code}</body>`
+    : a.lang === "motion" ? motionDoc(a.code)
+    : `<pre style="font:13px ui-monospace,monospace;padding:24px;white-space:pre-wrap">${esc(a.code)}</pre>`;
+}
+
+/** Build the tools row + viewer for artifact `a` into `host`. Shared by the
+ *  Preview pane (code mode) and the centered artifact dialog (chat mode). */
+function renderArtifactInto(host, a) {
+  motionCtx = null;   // any rebuild drops the previous motion player
+  const group = artifactGroup(artifactView.i);
+  const versionOpts = group
+    .map((k, g) => `<option value="${k}" ${k === artifactView.i ? "selected" : ""}>v${g + 1}</option>`)
     .join("");
   host.innerHTML = `
     <div class="aptools">
       <button class="btn sm" id="apMode">${artifactView.mode === "render" ? "Code" : "Render"}</button>
-      <select class="inp" id="apVersion">${versionOpts}</select>
+      <select class="inp" id="apVersion" aria-label="Artifact version">${versionOpts}</select>
       <span class="spacer"></span>
       <button class="btn sm" id="apOpen">Open in browser</button>
     </div>
@@ -2529,6 +2698,8 @@ function renderArtifact() {
   } else if (a.lang === "md") {
     body.innerHTML = `<div class="apmd">${md(a.code)}</div>`;
     wireCopy(body);
+  } else if (a.lang === "motion") {
+    renderMotionArtifact(body, a);
   } else {
     const frame = document.createElement("iframe");
     frame.className = "apframe";
@@ -2547,20 +2718,35 @@ function renderArtifact() {
     renderArtifact();
   });
   host.querySelector("#apOpen").addEventListener("click", () => {
-    const html = a.lang === "html" ? a.code
-      : a.lang === "svg" ? `<!doctype html><body style="margin:0;display:grid;place-items:center;height:100vh">${a.code}</body>`
-      : `<pre style="font:13px ui-monospace,monospace;padding:24px;white-space:pre-wrap">${esc(a.code)}</pre>`;
+    const html = artifactPageHtml(a);
     if (bridge && bridge.openHtml) {
       // Desktop: blob URLs are denied by the window-open handler, so the
       // main process writes a temp .html and hands it to the real browser.
-      bridge.openHtml("artifact", html);
+      bridge.openHtml(a.lang === "motion" ? "motion" : "artifact", html);
     } else {
       const type = a.lang === "svg" ? "image/svg+xml" : a.lang === "md" ? "text/markdown" : "text/html";
-      const url = URL.createObjectURL(new Blob([a.code], { type }));
+      const url = URL.createObjectURL(new Blob([a.lang === "motion" ? html : a.code], { type }));
       window.open(url, "_blank");
     }
   });
 }
+
+/** Show the selected artifact: the Preview pane in code mode, a centered
+ *  dialog in chat mode (the pane dock is hidden there). */
+function renderArtifact() {
+  const a = artifacts[artifactView.i];
+  if (!a) return;
+  if (state.mode === "chat") { openArtifactDialog(); return; }
+  showPane("preview");
+  const group = artifactGroup(artifactView.i);
+  $("previewTitle").textContent = artifactName(a) +
+    (group.length > 1 ? " · v" + (group.indexOf(artifactView.i) + 1) : "");
+  $("previewEmpty").style.display = "none";
+  const host = $("filePreview");
+  host.style.display = "block";
+  renderArtifactInto(host, a);
+}
+
 function addDelta(t) {
   if (!currentMsg) startAssistant();
   currentMsg._raw = (currentMsg._raw || "") + t;
@@ -2585,68 +2771,494 @@ function endAssistant() {
   currentMsg = null;
 }
 
-/* ---- modern thinking block ---- */
-const SPARK_SVG = '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 .9l1.5 5.6L15.1 8l-5.6 1.5L8 15.1 6.5 9.5.9 8l5.6-1.5z"/></svg>';
+/* ---- motion: a canvas scene rendered live, recorded to a video file ---- */
+// The preview iframe runs the MOTION runtime: deterministic frames at t
+// seconds, rAF playback, and recording inside the frame with
+// canvas.captureStream + MediaRecorder (mp4 when the browser can, else webm).
+// Host ↔ iframe messages carry the whole protocol; the recorded ArrayBuffer is
+// transferred in the "motion-recorded" message.
+let motionCtx = null;   // the one live player ({ frame, recv }) or null
+
+window.addEventListener("message", (ev) => {
+  const m = motionCtx;
+  if (!m || !m.frame || !m.frame.contentWindow || ev.source !== m.frame.contentWindow) return;
+  m.recv(ev.data || {});
+});
+
+/** Stable file name: motion-<vN>-<yyyymmdd-hhmm>, no spaces. */
+function motionStamp() {
+  const d = new Date(), p = (n) => String(n).padStart(2, "0");
+  return d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + "-" + p(d.getHours()) + p(d.getMinutes());
+}
+
+/** The full runtime document: what the preview iframe loads and what
+ *  "Open in browser" opens. `code` is a script body, so sequences that would
+ *  close the script element early get neutralised first. */
+function motionDoc(code) {
+  const safe = String(code || "").replace(/<\/script/gi, "<\\/script").replace(/<!--/g, "<\\!--");
+  return `<!doctype html>
+<html>
+<head><meta charset="utf-8">
+<style>
+html,body{margin:0;height:100%}
+body{display:grid;place-items:center}
+canvas{max-width:100%;max-height:100%;display:block}
+</style></head>
+<body>
+<canvas id="mo"></canvas>
+` + "<" + `script>
+(function () {
+  "use strict";
+  var canvas = document.getElementById("mo");
+  var ctx = canvas ? canvas.getContext("2d") : null;
+  var cfg = { width: 1280, height: 720, duration: 6, fps: 30 };
+  var draw = null, cur = 0, playing = false, raf = 0, base = 0, started = 0;
+  var rec = null, chunks = [], stream = null, recTimer = 0, recActive = false;
+
+  function post(msg, transfer) { try { parent.postMessage(msg, "*", transfer || []); } catch (e) {} }
+  function sizeCanvas(scale) {
+    canvas.width = Math.max(1, Math.round(cfg.width * scale));
+    canvas.height = Math.max(1, Math.round(cfg.height * scale));
+  }
+  function render(t) {
+    if (!ctx || !draw) return;
+    var w = canvas.width, h = canvas.height;
+    cur = Math.max(0, Math.min(cfg.duration, Number(t) || 0));
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    try { draw(ctx, cur, w, h); }
+    catch (e) { pause(); post({ type: "motion-error", message: "Draw failed at t=" + cur.toFixed(2) + ": " + ((e && e.message) || e) }); }
+  }
+  function stopRaf() { if (raf) cancelAnimationFrame(raf); raf = 0; }
+  function tick() {
+    raf = requestAnimationFrame(tick);
+    var t = base + (performance.now() - started) / 1000;
+    if (t >= cfg.duration) { t = t % cfg.duration; base = t; started = performance.now(); }
+    render(t);
+    post({ type: "motion-progress", t: cur });
+  }
+  function play() {
+    if (!draw || playing || recActive) return;
+    playing = true;
+    base = cur >= cfg.duration ? 0 : cur;
+    started = performance.now();
+    stopRaf(); tick();
+  }
+  function pause() { playing = false; stopRaf(); }
+  function seek(t) {
+    if (recActive) return;
+    render(t);
+    if (playing) { base = cur; started = performance.now(); }
+    post({ type: "motion-progress", t: cur });
+  }
+  function pickMime() {
+    var cands = ["video/mp4;codecs=avc1", "video/webm;codecs=vp9", "video/webm;codecs=vp8"];
+    for (var i = 0; i < cands.length; i++) {
+      try { if (window.MediaRecorder && MediaRecorder.isTypeSupported(cands[i])) return cands[i]; } catch (e) {}
+    }
+    return "";
+  }
+  function stopRecorder() {
+    if (!recActive) return;
+    recActive = false;
+    if (recTimer) { clearInterval(recTimer); recTimer = 0; }
+    try { if (rec && rec.state !== "inactive") { rec.requestData(); rec.stop(); } } catch (e) {}
+  }
+  function startRecorder(opts) {
+    opts = opts || {};
+    if (!draw || recActive) return;
+    if (!window.MediaRecorder || !canvas.captureStream) {
+      post({ type: "motion-error", message: "This browser cannot record canvas video (MediaRecorder is missing)." });
+      return;
+    }
+    var fps = Math.max(1, Math.min(120, Math.round(Number(opts.fps) || cfg.fps)));
+    var scale = Number(opts.scale) || 1;
+    var mime = pickMime();
+    pause();
+    sizeCanvas(scale);
+    chunks = [];
+    try {
+      stream = canvas.captureStream(fps);
+      rec = mime ? new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8000000 }) : new MediaRecorder(stream);
+    } catch (e) {
+      sizeCanvas(1);
+      post({ type: "motion-error", message: "Could not start recording: " + ((e && e.message) || e) });
+      return;
+    }
+    recActive = true;
+    rec.ondataavailable = function (ev) { if (ev.data && ev.data.size) chunks.push(ev.data); };
+    rec.onstop = function () {
+      var type = (rec && rec.mimeType) || mime || "video/webm";
+      var ext = type.indexOf("mp4") >= 0 ? "mp4" : "webm";
+      var blob = new Blob(chunks, { type: type });
+      rec = null; stream = null; chunks = [];
+      sizeCanvas(1);
+      render(0);
+      post({ type: "motion-progress", t: 0 });
+      blob.arrayBuffer().then(function (buf) {
+        post({ type: "motion-recorded", mime: type, ext: ext, bytes: buf }, [buf]);
+      });
+    };
+    rec.onerror = function (ev) {
+      stopRecorder();
+      post({ type: "motion-error", message: "Recording failed: " + ((ev && ev.error && ev.error.message) || "unknown error") });
+    };
+    rec.start();
+    // Deterministic pass: one canvas frame every 1000/fps ms, t = frame/fps,
+    // from 0 through duration — the file's clock matches the scene's.
+    var total = Math.max(1, Math.round(cfg.duration * fps));
+    var frame = 0;
+    render(0);
+    recTimer = setInterval(function () {
+      if (!recActive) return;
+      frame++;
+      if (frame > total) { stopRecorder(); return; }
+      render(frame / fps);
+      post({ type: "motion-progress", t: cur });
+    }, 1000 / fps);
+  }
+  window.addEventListener("error", function (e) {
+    post({ type: "motion-error", message: String((e && e.message) || "script error") });
+  });
+  window.addEventListener("message", function (ev) {
+    var m = ev.data || {};
+    if (m.type === "motion-seek") seek(m.t);
+    else if (m.type === "motion-play") play();
+    else if (m.type === "motion-pause") pause();
+    else if (m.type === "motion-record") startRecorder(m);
+    else if (m.type === "motion-stop") stopRecorder();
+  });
+  window.MOTION = {
+    scene: function (o, fn) {
+      o = o || {};
+      recActive = false;
+      if (recTimer) { clearInterval(recTimer); recTimer = 0; }
+      try { if (rec && rec.state !== "inactive") rec.stop(); } catch (e) {}
+      cfg.width = Math.max(16, Math.round(Number(o.width) || 1280));
+      cfg.height = Math.max(16, Math.round(Number(o.height) || 720));
+      cfg.duration = Math.max(0.05, Number(o.duration) || 6);
+      cfg.fps = Math.max(1, Math.round(Number(o.fps) || 30));
+      draw = typeof fn === "function" ? fn : null;
+      sizeCanvas(1);
+      render(0);
+      post({ type: "motion-ready", duration: cfg.duration, fps: cfg.fps, width: cfg.width, height: cfg.height });
+    }
+  };
+})();
+
+/* ---- the artifact scene ---- */
+` + safe + `
+<\/script>
+</body>
+</html>`;
+}
+
+function renderMotionArtifact(body, a) {
+  const idx = artifactView.i;
+  body.innerHTML = `
+    <div class="mo">
+      <div class="mo-bar">
+        <button class="btn sm" id="moPlay" disabled>Play</button>
+        <input type="range" class="mo-scrub" id="moScrub" min="0" max="1" step="0.001" value="0" aria-label="Scrub the animation" disabled>
+        <span class="mo-time" id="moTime">0.00s / 0.00s</span>
+        <span class="spacer"></span>
+        <select class="inp" id="moRes" aria-label="Recording size and frame rate">
+          <option value="1280x720x24">720p · 24fps</option>
+          <option value="1280x720x30" selected>720p · 30fps</option>
+          <option value="1280x720x60">720p · 60fps</option>
+          <option value="1920x1080x24">1080p · 24fps</option>
+          <option value="1920x1080x30">1080p · 30fps</option>
+          <option value="1920x1080x60">1080p · 60fps</option>
+        </select>
+        <button class="btn pri sm" id="moRecord" disabled>Record</button>
+        <button class="btn sm" id="moReveal" hidden>Reveal</button>
+        <button class="btn sm" id="moOpen" hidden>Open</button>
+      </div>
+      <div class="mo-stage"></div>
+      <div class="mo-status" id="moStatus">Waiting for the scene…</div>
+    </div>`;
+  const frame = document.createElement("iframe");
+  frame.className = "apframe";
+  frame.setAttribute("sandbox", "allow-scripts");
+  frame.srcdoc = motionDoc(a.code);
+  body.querySelector(".mo-stage").appendChild(frame);
+
+  const playBtn = body.querySelector("#moPlay");
+  const scrub = body.querySelector("#moScrub");
+  const time = body.querySelector("#moTime");
+  const res = body.querySelector("#moRes");
+  const recBtn = body.querySelector("#moRecord");
+  const relBtn = body.querySelector("#moReveal");
+  const openBtn = body.querySelector("#moOpen");
+  const status = body.querySelector("#moStatus");
+
+  const st = { ready: false, duration: 0, sceneW: 1280, sceneH: 720, t: 0, playing: false, recording: false, savedPath: "" };
+  const fmt = (t) => (Number(t) || 0).toFixed(2) + "s";
+  const setStatus = (text, err) => { status.textContent = text; status.classList.toggle("err", !!err); };
+  const showTime = () => { time.textContent = (st.recording ? "record " : "") + fmt(st.t) + " / " + fmt(st.duration); };
+  const send = (msg) => { if (frame.contentWindow) frame.contentWindow.postMessage(msg, "*"); };
+  const setIdle = () => {
+    st.recording = false;
+    st.playing = false;
+    playBtn.textContent = "Play";
+    playBtn.disabled = !st.ready;
+    scrub.disabled = !st.ready;
+    res.disabled = false;
+    recBtn.textContent = "Record";
+    showTime();
+  };
+
+  playBtn.addEventListener("click", () => {
+    st.playing = !st.playing;
+    playBtn.textContent = st.playing ? "Pause" : "Play";
+    send({ type: st.playing ? "motion-play" : "motion-pause" });
+  });
+  scrub.addEventListener("input", () => {
+    if (st.recording || !st.ready) return;
+    send({ type: "motion-seek", t: Number(scrub.value) });
+  });
+  recBtn.addEventListener("click", () => {
+    if (!st.ready) return;
+    if (st.recording) { send({ type: "motion-stop" }); return; }   // stop early
+    const parts = res.value.split("x");   // WxH:targetW … fps
+    const targetW = Number(parts[0]);
+    const fps = Number(parts[2]);
+    st.recording = true;
+    st.t = 0;
+    st.playing = false;
+    playBtn.textContent = "Play"; playBtn.disabled = true;
+    scrub.disabled = true; res.disabled = true;
+    recBtn.textContent = "Stop";
+    setStatus("Recording " + parts[0] + "×" + parts[1] + " at " + fps + "fps — every frame is rendered, not screen-captured.", false);
+    showTime();
+    send({ type: "motion-record", fps: fps, scale: st.sceneW ? targetW / st.sceneW : 1 });
+  });
+  relBtn.addEventListener("click", () => { if (st.savedPath && bridge && bridge.reveal) bridge.reveal(st.savedPath); });
+  openBtn.addEventListener("click", () => {
+    const doc = motionDoc(a.code);
+    if (bridge && bridge.openHtml) { bridge.openHtml("motion", doc); return; }
+    const url = URL.createObjectURL(new Blob([doc], { type: "text/html" }));
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 20000);
+  });
+
+  async function saveRecording(m) {
+    let bytes = m.bytes, size = 0;
+    try { size = bytes && bytes.byteLength ? bytes.byteLength : 0; } catch {}
+    if (!size) {
+      setStatus("The recorder returned an empty file — video capture is unavailable here. The player still renders the scene.", true);
+      toast("Recording produced an empty file");
+      return;
+    }
+    const ext = m.ext === "mp4" ? "mp4" : "webm";
+    const mime = m.mime || (ext === "mp4" ? "video/mp4" : "video/webm");
+    const name = "motion-v" + (idx + 1) + "-" + motionStamp();
+    const fname = name + "." + ext;
+    if (bridge && bridge.saveMotion) {
+      let r = null;
+      try { r = await bridge.saveMotion({ name: name, ext: ext, bytes: bytes }); }
+      catch (e) { r = { ok: false, error: (e && e.message) || String(e) }; }
+      if (r && r.ok) {
+        st.savedPath = r.path || fname;
+        setStatus("Saved " + st.savedPath + " (" + (size / 1048576).toFixed(1) + " MB).", false);
+        toast("Saved to " + st.savedPath);
+        relBtn.hidden = false;
+        openBtn.hidden = false;
+        return;
+      }
+      setStatus("Could not save the recording" + (r && r.error ? " (" + r.error + ")" : "") + " — downloading it instead.", true);
+    }
+    const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+    const dl = document.createElement("a");
+    dl.href = url;
+    dl.download = fname;
+    document.body.appendChild(dl); dl.click(); dl.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    setStatus("Downloading " + fname + " (" + (size / 1048576).toFixed(1) + " MB).", false);
+    toast("Downloading " + fname);
+    openBtn.hidden = false;
+  }
+
+  const recv = (m) => {
+    if (m.type === "motion-ready") {
+      st.ready = true;
+      st.duration = Number(m.duration) || 0;
+      st.sceneW = Number(m.width) || 1280;
+      st.sceneH = Number(m.height) || 720;
+      st.t = 0;
+      scrub.max = String(st.duration || 1);
+      scrub.value = "0";
+      playBtn.disabled = false;
+      recBtn.disabled = false;
+      setStatus("Scene " + st.sceneW + "×" + st.sceneH + " · " + fmt(st.duration) + " · " + (Number(m.fps) || 30) + "fps. Play to preview, Record to render a video file.", false);
+      showTime();
+      return;
+    }
+    if (m.type === "motion-progress") {
+      st.t = Math.max(0, Number(m.t) || 0);
+      if (!st.recording) scrub.value = String(st.t);
+      showTime();
+      return;
+    }
+    if (m.type === "motion-recorded") {
+      setIdle();
+      saveRecording(m);
+      return;
+    }
+    if (m.type === "motion-error") {
+      setIdle();
+      setStatus(String(m.message || "The scene failed."), true);
+    }
+  };
+
+  motionCtx = { frame: frame, recv: recv };
+
+  // A slow or broken scene should say so instead of sitting on "Waiting…".
+  setTimeout(() => {
+    if (!st.ready && motionCtx && motionCtx.frame === frame) {
+      setStatus("No scene yet — the artifact should call MOTION.scene({ … }, (ctx, t, w, h) => { … }).", true);
+    }
+  }, 2500);
+}
+
+/* ---- artifact dialog (chat mode) ----------------------------------------
+   The pane dock is hidden in chat mode, so the artifact preview opens as a
+   centered dialog instead. Same pattern as the settings dialog: backdrop +
+   card, Esc/backdrop close, Tab stays inside, focus returns to where it was. */
+let artDlgReturnFocus = null;
+
+function artDlgFocusables() {
+  const card = document.querySelector("#artDlg .art-card");
+  if (!card) return [];
+  const sel = 'button,[href],input,select,textarea,summary,[tabindex]:not([tabindex="-1"])';
+  return [...card.querySelectorAll(sel)].filter(el => !el.disabled && el.getClientRects().length);
+}
+function openArtifactDialog() {
+  const a = artifacts[artifactView.i];
+  if (!a) return;
+  const el = $("artDlg");
+  const wasOpen = el.classList.contains("on");
+  if (!wasOpen) artDlgReturnFocus = document.activeElement;
+  el.classList.add("on");
+  $("artTitle").textContent = artifactName(a);
+  renderArtifactInto($("artBody"), a);
+  if (!wasOpen) { const b = $("artClose"); if (b) b.focus(); }
+}
+function closeArtifactDialog() {
+  const el = $("artDlg");
+  if (!el.classList.contains("on")) return;
+  el.classList.remove("on");
+  motionCtx = null;
+  const back = artDlgReturnFocus;
+  artDlgReturnFocus = null;
+  if (back && back !== document.body && document.contains(back) && back.focus) back.focus();
+}
+$("artClose").addEventListener("click", closeArtifactDialog);
+/* Clicking the dimmed backdrop (never the card) closes the dialog. */
+let artDownOnBackdrop = false;
+$("artDlg").addEventListener("pointerdown", e => { artDownOnBackdrop = e.target === $("artDlg"); });
+$("artDlg").addEventListener("click", e => {
+  if (artDownOnBackdrop && e.target === $("artDlg")) closeArtifactDialog();
+  artDownOnBackdrop = false;
+});
+/* Keep Tab / Shift+Tab inside the dialog while it is open (capture, so the
+   global Shift+Tab mode-cycle can never fire behind it). */
+document.addEventListener("keydown", e => {
+  if (e.key !== "Tab" || !$("artDlg").classList.contains("on")) return;
+  const items = artDlgFocusables();
+  if (!items.length) return;
+  const i = items.indexOf(document.activeElement);
+  const next = e.shiftKey
+    ? (i <= 0 ? items.length - 1 : i - 1)
+    : (i < 0 || i === items.length - 1 ? 0 : i + 1);
+  e.preventDefault(); e.stopPropagation();
+  items[next].focus();
+}, true);
+/* ---- thinking pill (the reference "Star Thinking Block" component) ----
+   One component, three modes on `data-mode`: `peek` while streaming (68px,
+   newest lines), `closed` after the wait (pill only) and `open` once the
+   person clicks it (capped at 240px, scrolls inside).
+   Settings mapping — the two switches in Settings → Appearance:
+   - showThinking off: the block is never created at all (handle() gates the
+     thinking_* events on state.showThinking).
+   - autoCollapseThinking off: when thinking ends we keep the current mode
+     (peek stays peek, open stays open) instead of folding to `closed`.
+     On (the default): the block folds 500ms after the end, unless the
+     person opened it while it was live.
+   No reasoning text at all → the (empty) block is removed again. */
+const SPARK_SVG = '<svg class="think-star" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1.5l2.9 6.6 7.1.7-5.4 4.7 1.6 7-6.2-3.7-6.2 3.7 1.6-7L2 8.8l7.1-.7z"/></svg>';
 const CHEV_SVG = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 3.5l4.5 4.5L6 12.5"/></svg>';
+const THINK_CHEV = '<svg class="think-chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4.5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+let thinkSeq = 0;
+
+/** Set the mode and keep the pill's aria state truthful. */
+function thinkMode(n, mode) {
+  n.dataset.mode = mode;
+  const pill = n.querySelector(".think-h");
+  if (pill) pill.setAttribute("aria-expanded", mode === "closed" ? "false" : "true");
+}
 
 function startThinking() {
   thinkStart = performance.now();
-  const n = node("think streaming");
+  const pid = "think-b-" + (++thinkSeq);
+  const n = node("think");
+  thinkMode(n, "peek");
+  n.setAttribute("data-live", "");
   n.innerHTML = `
-    <div class="think-h" role="button" tabindex="0">
-      <span class="spark">${SPARK_SVG}</span>
-      <span class="think-t">Thinking</span>
-      <span class="think-m"><b data-live>0.0s</b><i data-words></i></span>
-      <span class="think-prev" data-prev></span>
-      <span class="think-act">
-        <button class="think-copy" data-copy title="Copy reasoning">copy</button>
-        <span class="think-c">${CHEV_SVG}</span>
-      </span>
-    </div>
-    <div class="think-b"><div class="think-bi">
-      <div class="think-x" data-body></div>
-      <div class="think-f"><span class="think-dots"><i></i><i></i><i></i></span><span data-status>reasoning…</span></div>
-    </div></div>`;
+    <button class="think-h" type="button" aria-expanded="true" aria-controls="${pid}">
+      ${SPARK_SVG}
+      <span class="think-label">Thinking…</span>
+      ${THINK_CHEV}
+    </button>
+    <div class="think-b" id="${pid}" role="region" aria-label="Reasoning" aria-live="off">
+      <div class="think-t" data-body></div>
+    </div>`;
 
-  const head = n.querySelector(".think-h");
-  const toggle = () => n.classList.toggle("open");
-  head.addEventListener("click", (e) => { if (!e.target.closest(".think-copy")) toggle(); });
-  head.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
-
-  const copyBtn = n.querySelector("[data-copy]");
-  copyBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const text = currentThink ? currentThink.text : "";
-    if (!text) return;
-    navigator.clipboard.writeText(text);
-    copyBtn.textContent = "copied";
-    setTimeout(() => { copyBtn.textContent = "copy"; }, 1200);
-  });
+  const body = n.querySelector(".think-b");
+  const panel = n.querySelector(".think-t");
+  const pill = n.querySelector(".think-h");
 
   currentThink = {
     node: n,
     text: "",
-    body: n.querySelector("[data-body]"),
-    prev: n.querySelector("[data-prev]"),
-    live: n.querySelector("[data-live]"),
-    words: n.querySelector("[data-words]"),
+    body: body,
+    panel: panel,
+    label: n.querySelector(".think-label"),
+    userScrolled: false,
   };
+
+  pill.addEventListener("click", () => {
+    const live = n.hasAttribute("data-live");
+    const open = n.dataset.mode === "open";
+    thinkMode(n, open ? (live ? "peek" : "closed") : "open");
+    if (n.dataset.mode === "peek") setTimeout(() => { body.scrollTop = body.scrollHeight; }, 320);
+    if (n.dataset.mode === "open" && currentThink && currentThink.node === n && !currentThink.userScrolled) {
+      body.scrollTop = body.scrollHeight;
+    }
+  });
+
+  // "Do not auto-scroll if the person has scrolled up" — only in `open`,
+  // where the panel actually scrolls for the reader.
+  body.addEventListener("scroll", () => {
+    const cur = currentThink && currentThink.node === n ? currentThink : null;
+    const up = body.scrollTop + body.clientHeight < body.scrollHeight - 8;
+    if (cur) cur.userScrolled = up;
+  });
+
   thinkTimer = setInterval(() => {
-    if (!currentThink) return;
-    currentThink.live.textContent = ((performance.now() - thinkStart) / 1000).toFixed(1) + "s";
-  }, 100);
+    if (!currentThink || currentThink.node !== n) return;
+    const s = Math.floor((performance.now() - thinkStart) / 1000);
+    currentThink.label.textContent = s > 0 ? "Thinking… " + s + "s" : "Thinking…";
+  }, 250);
   toolGroup = null;
 }
 
 function addThinking(t) {
   if (!currentThink) startThinking();
-  currentThink.text += t;
-  currentThink.body.textContent = currentThink.text;
-  const words = (currentThink.text.trim().match(/\S+/g) || []).length;
-  currentThink.words.textContent = words > 30 ? words.toLocaleString() + " words" : "";
-  // while streaming, show where it is now
-  currentThink.prev.textContent = currentThink.text.trim().replace(/\s+/g, " ").slice(-96);
-  currentThink.body.scrollTop = currentThink.body.scrollHeight;
+  const cur = currentThink;
+  cur.text += t;
+  cur.panel.textContent = cur.text;
+  if (!cur.userScrolled) cur.body.scrollTop = cur.body.scrollHeight;
   scrollDown();
 }
 
@@ -2654,21 +3266,24 @@ function endThinking(ms) {
   if (!currentThink) return;   // idempotent: the server may close a block twice
   clearInterval(thinkTimer);
   thinkTimer = null;
-  const secs = ((ms || performance.now() - thinkStart) / 1000);
-  const n = currentThink.node;
-  const words = (currentThink.text.trim().match(/\S+/g) || []).length;
-
-  n.classList.remove("streaming");
-  n.querySelector("[data-live]").textContent = secs.toFixed(1) + "s";
-  n.querySelector("[data-words]").textContent = words.toLocaleString() + " words";
-  n.querySelector("[data-status]").textContent = "thought for " + secs.toFixed(1) + "s";
-
-  // once finished, the opening line says more than the trailing fragment
-  const firstLine = (currentThink.text.trim().split(/\n/)[0] || "").replace(/\s+/g, " ").trim();
-  currentThink.prev.textContent = firstLine.length > 110 ? firstLine.slice(0, 110) + "…" : firstLine;
-
+  const cur = currentThink;
   currentThink = null;
-  if (state.autoCollapseThinking) n.classList.remove("open");
+  const n = cur.node;
+  const secs = Math.max(0, (ms != null ? ms : performance.now() - thinkStart) / 1000);
+
+  // The model skipped reasoning: no text ever arrived, so no block either.
+  if (!cur.text.trim()) { n.remove(); return; }
+
+  n.removeAttribute("data-live");
+  cur.label.textContent = secs < 1 ? "Thought for a moment" : "Thought for " + Math.max(1, Math.round(secs)) + "s";
+  cur.body.scrollTop = cur.body.scrollHeight;
+
+  // autoCollapseThinking on → fold (unless the person opened it); off → the
+  // block simply stays in whatever mode it is in (peek or open).
+  if (state.autoCollapseThinking) {
+    const keepOpen = n.dataset.mode === "open";
+    setTimeout(() => { if (!keepOpen && n.isConnected) thinkMode(n, "closed"); }, 500);
+  }
   scrollDown();
 }
 
@@ -2895,7 +3510,7 @@ async function handleCommand(text) {
   if (name === "plan") { applyMode("plan"); save(); say("Switched to **plan mode**. I'll explore read-only and propose a plan."); return; }
   if (name === "export") { exportConv(); return; }
   if (name === "settings") { openSettings(); return; }
-  if (name === "theme") { $("btnTheme").click(); return; }
+  if (name === "theme") { cycleTheme(); return; }
   if (name === "btw") { return sendToAgent("(side question, do not modify files) " + arg); }
   if (name === "compact") return sendToAgent("Summarize our conversation into a compact brief preserving decisions, file paths, and open tasks.");
   if (name === "init") return sendToAgent("Create a CLAUDE.md file documenting this project: purpose, structure, how to build/test, and conventions. Write the file.");
@@ -2999,6 +3614,7 @@ async function newSession(opts = {}) {
   todos = []; diffs = []; lastDiff = []; termLines = [];
   paneBadges.tasks = 0; paneBadges.diff = 0; paneBadges.terminal = 0;
   artifacts = []; msgArtifacts = []; msgCards = 0; artifactView = { i: 0, mode: "render" };
+  artifactCards = new Map();
   currentMsg = null; currentThink = null; toolGroup = null;
   $("stream").innerHTML = "";
   $("term").innerHTML = '<span class="rt">[shell] ready — commands Star runs appear here</span>';
@@ -3168,11 +3784,12 @@ document.addEventListener("keydown", e => {
     return;
   }
   if (mod && (e.key === "l" || e.key === "L")) { e.preventDefault(); $("stream").innerHTML = ""; return; }
-  if (mod && e.shiftKey && (e.key === "t" || e.key === "T")) { e.preventDefault(); $("btnTheme").click(); return; }
+  if (mod && e.shiftKey && (e.key === "t" || e.key === "T")) { e.preventDefault(); cycleTheme(); return; }
   if (mod && !e.shiftKey && (e.key === "o" || e.key === "O")) { e.preventDefault(); $("panes").classList.toggle("hide"); return; }
   if (e.key === "Escape") {
     closeMenus(); hideSlash();
-    if ($("settings").classList.contains("on")) closeSettings();
+    if ($("artDlg").classList.contains("on")) closeArtifactDialog();
+    else if ($("settings").classList.contains("on")) closeSettings();
     else if (document.body.classList.contains("sb-over")) toggleSidebar(false);
     else if (document.body.classList.contains("pane-open")) document.body.classList.remove("pane-open");
     else if (streaming) abort();
@@ -3205,7 +3822,6 @@ function closeSettings() {
   settingsReturnFocus = null;
   if (back && back !== document.body && document.contains(back) && back.focus) back.focus();
 }
-$("btnSettings").addEventListener("click", openSettings);
 $("setBack").addEventListener("click", closeSettings);
 /* Clicking the dimmed backdrop (never the card) closes the dialog. */
 let setDownOnBackdrop = false;
@@ -3233,8 +3849,39 @@ document.querySelectorAll(".set-nav button").forEach(b => b.addEventListener("cl
   renderSettings();
 }));
 
-function renderSettings() {
+let settingsRenderPending = false;   // an automatic re-render parked until blur
+/** Automatic re-renders (model discovery, knowledge poll, update check) must
+ *  not rip the pane out from under a field the user is typing in: park one
+ *  re-render and run it when that field loses focus. Explicit re-renders
+ *  (nav click, save, completion of an action the user just triggered) stay
+ *  immediate — renderSettings() itself puts the focus and caret back. */
+function settingsAutoRender() {
   const host = $("setMain");
+  const el = document.activeElement;
+  if (host && el && host.contains(el) && (el.tagName === "INPUT" || el.tagName === "TEXTAREA")) {
+    if (!settingsRenderPending) {
+      settingsRenderPending = true;
+      el.addEventListener("blur", () => { settingsRenderPending = false; renderSettings(); }, { once: true });
+    }
+    return;
+  }
+  renderSettings();
+}
+
+function renderSettings() {
+  settingsRenderPending = false;
+  const host = $("setMain");
+  // The pane body is replaced wholesale; if something inside it holds focus,
+  // remember which element it was (by id) and where its caret sat, then put
+  // both back after the rebuild, so a background poll never drops the user
+  // out of a field.
+  const active = document.activeElement;
+  let keep = null;
+  if (active && active !== host && host.contains(active) && active.id) {
+    let start = null, end = null;
+    try { start = active.selectionStart; end = active.selectionEnd; } catch { /* inputs without selection */ }
+    keep = { id: active.id, start, end };
+  }
   if (settingsSection === "providers") host.innerHTML = settingsProviders();
   else if (settingsSection === "appearance") host.innerHTML = settingsAppearance();
   else if (settingsSection === "session") host.innerHTML = settingsSession();
@@ -3242,17 +3889,26 @@ function renderSettings() {
   else if (settingsSection === "keys") host.innerHTML = settingsKeys();
   else host.innerHTML = settingsAbout();
   wireSettings();
+  if (keep) {
+    const el = $(keep.id);
+    if (el) {
+      try { el.focus({ preventScroll: true }); } catch { el.focus(); }
+      if (keep.start != null && keep.end != null && el.setSelectionRange) {
+        try { el.setSelectionRange(keep.start, keep.end); } catch {}
+      }
+    }
+  }
   if (settingsSection === "providers") {
     // detection may change the list ("Detected" / "Not running"); refresh it
     // once, then re-render only if something actually changed and the page
     // is still open (refreshLocals caches, so this cannot loop).
     refreshLocals().then(changed => {
-      if (changed && settingsSection === "providers" && $("settings").classList.contains("on")) renderSettings();
+      if (changed && settingsSection === "providers" && $("settings").classList.contains("on")) settingsAutoRender();
     });
   }
   if (settingsSection === "knowledge") {
     loadKnowledge().then(changed => {
-      if (changed && settingsSection === "knowledge" && $("settings").classList.contains("on")) renderSettings();
+      if (changed && settingsSection === "knowledge" && $("settings").classList.contains("on")) settingsAutoRender();
     });
   }
 }
@@ -3868,7 +4524,7 @@ $("btnMore").addEventListener("click", e => {
     { label: "Reload project files", run: () => { loadTree(); toast("File list refreshed"); } },
     { sep: true },
     { label: "Toggle panes", k: "⌘O", run: () => $("panes").classList.toggle("hide") },
-    { label: "Cycle theme", k: "⌘⇧T", run: () => $("btnTheme").click() },
+    { label: "Cycle theme", k: "⌘⇧T", run: cycleTheme },
     { sep: true },
     { label: "Check for updates", run: async () => { await checkUpdates({ quiet: false }); toast(updateStatusText()); } },
     { label: "Open releases page", run: () => {

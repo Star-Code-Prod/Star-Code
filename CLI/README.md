@@ -76,6 +76,29 @@ write: `/` lists commands, `/model ` becomes a provider → model tree,
 taking an item just produces the same line you could have typed, so
 piping the CLI in never changes its behaviour.
 
+### Full-screen TUI
+
+On a real terminal, `star-code` opens a full-screen TUI: session tabs on
+top, the conversation in the middle, the prompt below, and a status line
+with mode, model, context use and project. Thinking shows as a small
+`✻ Thinking…` pill with a live three-line peek, folding to
+`✻ Thought for 9s` when it ends. Piping the CLI, or setting `NO_COLOR`,
+keeps the plain line output byte-for-byte — scripts never see the TUI.
+
+| Key | Does |
+|---|---|
+| `Ctrl+T` / `Ctrl+W` | New tab / close tab (asks while streaming) |
+| `Ctrl+Tab`, `Ctrl+PgUp/PgDn`, `Ctrl+1..9` | Switch tabs |
+| `Ctrl+O` | Open / fold the last thinking block |
+| `PgUp` / `PgDn`, `Ctrl+Home/End` | Scroll the conversation |
+| `↑` / `↓` | Popup selection, or input history |
+| `Enter` / `Shift+Enter` | Send (queues while a reply streams) / newline |
+| `Esc` | Close popup, stop the reply |
+| `Ctrl+C` | Stop the reply, clear the draft, then quit |
+
+Tabs survive quitting — sessions are stored in `~/.star-code/config.json`
+(the last 20, capped). `/tabs` lists them.
+
 ### Permissions
 
 Edits and commands prompt inline before they run:

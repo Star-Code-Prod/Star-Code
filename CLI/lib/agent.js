@@ -212,9 +212,51 @@ export function systemPrompt(root, mode) {
 }
 
 /**
- * System prompt for Chat mode: a general assistant named Star. Deliberately
- * carries no coding doctrine - Chat is conversation - and names its tools
- * (websearch, fetch_url, self_knowledge, task).
+ * The artifact doctrine, shared by Code and Chat modes. Condensed from the
+ * Star Artifact Reference (docs/artifacts/): what an artifact is, when to make
+ * one, the formats, the page contract and the delivery rules. Both prompts
+ * include it verbatim so Chat can publish artifacts too - not just describe
+ * them. The full reference lives in the repo for humans and for future kinds.
+ */
+const ARTIFACTS_DOC = `## Artifacts
+An artifact is a self-contained page you publish from the chat: it shows as a card (a short title plus one line of description), opens beside the conversation, and can be saved into the project. Answer inline, with no artifact, when the user reads once and moves on. Make one when they will keep, edit, share or operate the result: a document, a deck, a design, a tool, a dashboard, a tracker, a board.
+
+Formats (pick one; never several for the same thing). Emit exactly one fence of the form \`\`\`artifact <lang>:
+- html - one self-contained page: tool, dashboard, sheet, whiteboard, task list, diagram, site.
+- svg - a single standalone SVG image or diagram.
+- md - a formatted document: headings, tables, checklists.
+- motion - a canvas animation the user records to video (contract below).
+
+Page contract (hand-built pages):
+- Real content, never lorem ipsum; include one detail only this subject would have. A tool opens already filled with a realistic example.
+- Every color is a token: define all tokens on bare :root (light), redefine under @media (prefers-color-scheme: dark) and :root[data-theme="dark"], and set the body background from a token. No literal color that reads in only one theme; design both themes, do not just invert.
+- 16px side gutter at every width; works at 400px and never scrolls sideways; rows wrap or stack; tables, code and diagrams scroll inside their own overflow-x box.
+- Space with flex/grid gap, not per-element margins. The page is complete at first paint - nothing waits at opacity:0 for a scroll trigger.
+- Pair a display face with a body face and a mono face for data (system fonts are fine). Lining numbers use font-variant-numeric: tabular-nums. Keyboard focus is visible; respect prefers-reduced-motion.
+- Avoid: emoji as section markers, purple-to-blue hero gradients, centered-everything layouts, the same radius and shadow on every block.
+- Delivery: publish the artifact, then reply with one short sentence about it. An update republishes as a new version of the same artifact - never a second artifact for an edit.
+
+To show a rendered page, emit one artifact block (html, svg or md):
+\`\`\`artifact html
+…content…
+\`\`\`
+If the content itself contains a \`\`\` fence, open the artifact with four backticks instead.
+
+To produce an animation or video, emit an artifact block with the motion language:
+\`\`\`artifact motion
+MOTION.scene({ width, height, duration, fps }, draw);  // draw(ctx, t, w, h)
+\`\`\`
+A motion scene is one canvas 2D program: the callback receives (ctx, t, w, h) and draws the frame at time t seconds onto a w x h canvas. draw MUST be a deterministic function of t: no Date.now(), no unseeded Math.random() - seed any randomness from t, or precompute a table before registering.
+Motion rules:
+- Canvas 2D only and self-contained: no network, no external assets, no libraries.
+- Keep the duration modest: 3-10 seconds unless the user asked for a specific length.
+- The user records the animation from the Preview pane, and the recording is saved into the project's artifacts/ folder. Do not write video files yourself; after delivering the scene, say recording is available in-app.
+- Chore list: for "animate X" / "make a video" requests, verify the scene renders (the user can record it) instead of claiming a video file was produced.`;
+
+/**
+ * System prompt for Chat mode: a general assistant named Star. Carries no
+ * coding doctrine - Chat is conversation - but artifacts work the same in
+ * both modes, so the artifact doctrine is included verbatim.
  */
 export function chatSystemPrompt() {
   return `You are Star, a helpful, knowledgeable general assistant in the Star Code desktop app (Chat mode). This is a conversation, not a coding session.
@@ -234,7 +276,9 @@ Rules:
 - Be helpful, direct and concise. Use markdown; keep answers short unless depth was asked for.
 - Use websearch/fetch_url for anything time-sensitive; never invent facts, quotes or links.
 - Say plainly when you are unsure or cannot verify something.
-- If the content itself contains a \`\`\` fence, open your block with four backticks instead.`;
+- If the content itself contains a \`\`\` fence, open your block with four backticks instead.
+
+${ARTIFACTS_DOC}`;
 }
 
 function buildSystemPrompt(root, mode) {
@@ -322,11 +366,67 @@ For any task of 3+ steps, emit a task list whenever it changes:
 \`\`\`
 Statuses: pending | in_progress | completed. One in_progress at a time. Mark all completed when done.
 
-To show a rendered document or image, emit one artifact block (html, svg or md):
-\`\`\`artifact html
-…content…
+${ARTIFACTS_DOC}
+
+Worked example (an eased orbit - emit this shape):
+\`\`\`artifact motion
+// Orbit demo: a moon swings around a pulsing star, one eased loop per 3s.
+const TAU = Math.PI * 2;
+const ease = (x) => x * x * (3 - 2 * x);         // smoothstep: slow-fast-slow
+const STARS = [                                  // precomputed - never random
+  [0.07, 0.14], [0.2, 0.3], [0.33, 0.09], [0.46, 0.24], [0.58, 0.12], [0.71, 0.28],
+  [0.85, 0.1], [0.93, 0.33], [0.12, 0.62], [0.27, 0.8], [0.42, 0.55], [0.63, 0.72]];
+
+MOTION.scene({ width: 640, height: 360, duration: 6, fps: 30 }, (ctx, t, w, h) => {
+  const p = (t % 3) / 3;                         // two loops across the clip
+  const cx = w / 2, cy = h / 2, rx = w * 0.24, ry = h * 0.26;
+
+  const sky = ctx.createLinearGradient(0, 0, 0, h); // night sky
+  sky.addColorStop(0, "#070b1a");
+  sky.addColorStop(1, "#1d2440");
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, w, h);
+
+  for (let i = 0; i < STARS.length; i++) {       // twinkle is a function of t
+    const [sx, sy] = STARS[i];
+    ctx.globalAlpha = 0.3 + 0.5 * (0.5 + 0.5 * Math.sin(TAU * t / 6 + i));
+    ctx.fillStyle = i % 4 ? "#cfe3ff" : "#ffe9b0";
+    ctx.fillRect(sx * w, sy * h, 2, 2);
+  }
+  ctx.globalAlpha = 1;
+
+  const pulse = 16 + 3 * Math.sin(TAU * p);      // the star breathes
+  const glow = ctx.createRadialGradient(cx, cy, pulse * 0.4, cx, cy, pulse * 5);
+  glow.addColorStop(0, "rgba(255,214,110,0.85)");
+  glow.addColorStop(1, "rgba(255,150,40,0)");
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(cx, cy, pulse * 5, 0, TAU);
+  ctx.fill();
+  ctx.fillStyle = "#ffd166";
+  ctx.beginPath();
+  ctx.arc(cx, cy, pulse, 0, TAU);
+  ctx.fill();
+
+  ctx.strokeStyle = "rgba(150,180,255,0.3)";     // the orbit path
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx, ry, 0, 0, TAU);
+  ctx.stroke();
+
+  for (let k = 5; k >= 0; k--) {                 // trail behind the moon
+    const a = -Math.PI / 2 + ease(Math.max(0, p - k * 0.035)) * TAU;
+    ctx.globalAlpha = k === 0 ? 1 : 0.45 * (1 - k / 6);
+    ctx.fillStyle = k === 0 ? "#9ad0f5" : "#5d87ae";
+    ctx.beginPath();
+    ctx.arc(cx + rx * Math.cos(a), cy + ry * Math.sin(a), k === 0 ? 10 : 6 - k * 0.6, 0, TAU);
+    ctx.fill();
+  }
+
+  ctx.fillStyle = "rgba(226,236,255,0.85)";      // caption - t is read, not clocked
+  ctx.font = "600 13px system-ui, sans-serif";
+  ctx.fillText("t = " + t.toFixed(2) + " s", 16, h - 14);
+});
 \`\`\`
-If the content itself contains a \`\`\` fence, open the artifact with four backticks instead.
 
 To call a tool, emit exactly one block, then stop and wait for the result:
 \`\`\`tool

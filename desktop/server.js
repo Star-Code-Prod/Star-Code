@@ -15,6 +15,7 @@ import { exec } from "node:child_process";
 import * as providersLib from "./lib/providers.js";
 const { PROVIDERS, discoverModels, detectLocals } = providersLib;
 import { readAuth, writeAuthEntry, removeAuthEntry, resolveKey, mask } from "./lib/auth.js";
+import { readConfig, writeLastModel } from "./lib/config.js";
 import { listKnowledge, readKnowledgeFile, saveKnowledgeFile, deleteKnowledgeFile, knowledgeDir } from "./lib/knowledge.js";
 import { createToolRunner, readProjectMemory } from "./lib/tools.js";
 // Namespace import: chatSystemPrompt() / cheapModelFor() are being added to
@@ -462,6 +463,7 @@ async function route(req, res) {
       root: ROOT,
       version: VERSION,
       modes: PERMISSION_MODES,
+      lastModel: readConfig().lastModel,
       reputation: {
         id: "virustotal",
         connected: !!auth.providers.virustotal?.apiKey,
@@ -480,6 +482,21 @@ async function route(req, res) {
         };
       }),
     });
+  }
+
+  // The shared last-used model (config.json): the desktop records its pick
+  // here, the CLI resumes it at boot. Only a real catalog provider is
+  // accepted; the model is a plain non-empty id.
+  if (req.method === "POST" && url.pathname === "/api/last-model") {
+    const body = await readBody(req);
+    const provider = body.provider;
+    const model = typeof body.model === "string" ? body.model.trim() : "";
+    if (typeof provider !== "string" || !Object.prototype.hasOwnProperty.call(PROVIDERS, provider)) {
+      return sendJSON(res, 400, { ok: false, error: "unknown provider" });
+    }
+    if (!model || model.length > 200) return sendJSON(res, 400, { ok: false, error: "invalid model" });
+    writeLastModel(provider, model);
+    return sendJSON(res, 200, { ok: true });
   }
 
   // Store or clear a provider credential (or an auxiliary key such as the

@@ -7,6 +7,7 @@ import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { spawn, spawnSync } from "node:child_process";
 
 const results = [];
@@ -66,6 +67,10 @@ const run = await new Promise((resolve) => {
 ok("one-shot streams the answer", (run.stdout || "").includes("stub-ok"), (run.stdout || "").slice(0, 120));
 ok("one-shot exits 0", run.status === 0, String(run.status));
 ok("piped output carries no escape codes", !/\x1b\[/.test(run.stdout + run.stderr), JSON.stringify((run.stdout || "").slice(0, 60)));
+let oneShotRec = null;
+try { oneShotRec = JSON.parse(fs.readFileSync(path.join(tmp, "config.json"), "utf8")).lastModel; } catch { /* asserted below */ }
+ok("a one-shot --model becomes the shared last-used record",
+  oneShotRec && oneShotRec.provider === "custom" && oneShotRec.model === "model-name", JSON.stringify(oneShotRec));
 stub.close();
 
 // 4. REPL: /model listing and /connect storage (piped stdin, temp store)
@@ -85,7 +90,10 @@ async function runCliPipe(args, input, envExtra = {}) {
   });
 }
 
-const list = await runCliPipe([], "/model\n/exit\n");
+// Its own STAR_CODE_DATA: earlier runs stored their --model in the shared
+// record (tmp/config.json), and these checks are about the catalog default.
+const listData = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-list-"));
+const list = await runCliPipe([], "/model\n/exit\n", { STAR_CODE_DATA: listData });
 ok("repl /model lists providers", /deepseek/.test(list.stdout) && /openai/.test(list.stdout) && /openrouter/.test(list.stdout), (list.stdout || "").slice(0, 160));
 ok("banner names the tool, model and root",
   /✦ Star Code/.test(list.stdout || "") &&
@@ -98,6 +106,7 @@ ok("status line shows the mode, the model and the context bar",
   (list.stdout || "").includes("deepseek/deepseek-chat · medium") &&
   /▱▱▱▱▱ 0%/.test(list.stdout || ""));
 ok("the user's turn sits in a bordered box", /╭─+╮/.test(list.stdout || "") && /│ {2}> \/model/.test(list.stdout || ""));
+fs.rmSync(listData, { recursive: true, force: true });
 
 const slashRun = await runCliPipe([], "/m\n/exit\n");
 ok("a slash prefix lists commands instead of calling the model",
@@ -279,7 +288,10 @@ fs.writeFileSync(path.join(demoTmp, "README.md"), "# demo\n");
 fs.mkdirSync(path.join(demoTmp, "src"), { recursive: true });
 fs.writeFileSync(path.join(demoTmp, "src", "index.js"), "console.log(1)\n");
 const stripAnsi = (s) => String(s || "").replace(/\x1b\[[0-9;]*m/g, "");
-const demoRun = (scene) => spawnSync(process.execPath, [BIN, "--demo", scene, "--root", demoTmp], { encoding: "utf8", env: cleanEnv, timeout: 20000 });
+// Its own STAR_CODE_DATA: demo scenes resolve the current provider from the
+// shared record too, and a stale one would reorder the model popup.
+const demoData = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-demodata-"));
+const demoRun = (scene) => spawnSync(process.execPath, [BIN, "--demo", scene, "--root", demoTmp], { encoding: "utf8", env: { ...cleanEnv, STAR_CODE_DATA: demoData }, timeout: 20000 });
 
 const dSlash = demoRun("slash");
 ok("demo slash exits 0 without any key", dSlash.status === 0, String(dSlash.status));
@@ -295,6 +307,7 @@ ok("demo files renders project files", /README\.md/.test(stripAnsi(dFiles.stdout
 const dStart = demoRun("start");
 ok("demo start renders the banner and status", /Star Code/.test(stripAnsi(dStart.stdout)) && /⏵/.test(stripAnsi(dStart.stdout)));
 fs.rmSync(demoTmp, { recursive: true, force: true });
+fs.rmSync(demoData, { recursive: true, force: true });
 
 // 12. /agents lists the built-in explorer and the custom agents (temp dirs)
 const agentsHome = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-agents-"));
@@ -416,9 +429,414 @@ fs.rmSync(cheapRoot, { recursive: true, force: true });
 fs.rmSync(cheapHome, { recursive: true, force: true });
 fs.rmSync(cheapData, { recursive: true, force: true });
 
+// 15. the last used model is one shared record (config.json): the CLI resumes
+// it at boot, --model beats it and rewrites it, /model rewrites it, an
+// unusable record is never stomped by the catalog default, and a corrupt
+// file never crashes a boot.
+const lmData = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-lastmodel-"));
+const writeCfg = (dir, lastModel) =>
+  fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ version: 1, lastModel }, null, 2));
+const readCfg = (dir) => {
+  try { return JSON.parse(fs.readFileSync(path.join(dir, "config.json"), "utf8")); }
+  catch { return null; }
+};
+
+// (a) a stored record beats pickDefaultProvider() and the catalog default: a
+// keyless boot would otherwise pick deepseek/deepseek-chat.
+writeCfg(lmData, { provider: "openai", model: "gpt-4.1" });
+const resumed = await spawnCli([], "/exit\n", { STAR_CODE_DATA: lmData });
+ok("a stored lastModel is resumed at boot",
+  resumed.status === 0 &&
+  (resumed.stdout || "").includes("openai · gpt-4.1") &&
+  (resumed.stdout || "").includes("openai/gpt-4.1 · medium"),
+  (resumed.stdout || "").slice(0, 200));
+ok("resuming keeps the stored record",
+  (readCfg(lmData) || {}).lastModel?.provider === "openai" && (readCfg(lmData) || {}).lastModel?.model === "gpt-4.1",
+  JSON.stringify(readCfg(lmData)));
+
+// (b) --model wins over the stored record and updates it
+const flagged = await spawnCli(["--model", "deepseek/deepseek-reasoner"], "/exit\n", { STAR_CODE_DATA: lmData });
+ok("--model wins over the stored record",
+  flagged.status === 0 &&
+  (flagged.stdout || "").includes("deepseek · deepseek-reasoner") &&
+  !(flagged.stdout || "").includes("openai · gpt-4.1"),
+  (flagged.stdout || "").slice(0, 200));
+ok("--model updates the stored record",
+  (readCfg(lmData) || {}).lastModel?.provider === "deepseek" && (readCfg(lmData) || {}).lastModel?.model === "deepseek-reasoner",
+  JSON.stringify(readCfg(lmData)));
+
+// (c) the catalog default never stomps a stored pick: a record naming a
+// provider the catalog no longer has falls back for this run, and the file
+// keeps the user's choice for when that provider returns.
+const ghostData = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-ghost-"));
+writeCfg(ghostData, { provider: "ghost", model: "phantom-1" });
+const ghostBoot = await spawnCli([], "/exit\n", { STAR_CODE_DATA: ghostData });
+ok("an unusable stored record falls back to the catalog default",
+  ghostBoot.status === 0 && (ghostBoot.stdout || "").includes("deepseek · deepseek-chat"),
+  (ghostBoot.stdout || "").slice(0, 200));
+ok("the fallback does not stomp the stored record",
+  (readCfg(ghostData) || {}).lastModel?.provider === "ghost" && (readCfg(ghostData) || {}).lastModel?.model === "phantom-1",
+  JSON.stringify(readCfg(ghostData)));
+
+// (d) corrupt config.json reads as empty; the boot still works on the default
+const corruptData = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-corrupt-"));
+fs.writeFileSync(path.join(corruptData, "config.json"), "{ not json");
+const corruptBoot = await spawnCli([], "/exit\n", { STAR_CODE_DATA: corruptData });
+ok("corrupt config.json does not crash the boot", corruptBoot.status === 0, String(corruptBoot.status));
+ok("corrupt config.json falls back to the catalog default",
+  (corruptBoot.stdout || "").includes("deepseek · deepseek-chat"),
+  (corruptBoot.stdout || "").slice(0, 200));
+
+// (e) /model in the REPL persists the switch
+const switchData = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-switch-"));
+const switchRun = await spawnCli([], "/model openai/gpt-4o-mini\n/exit\n", { STAR_CODE_DATA: switchData });
+ok("repl /model persists the switch",
+  switchRun.status === 0 && /using openai\/gpt-4o-mini/.test(switchRun.stdout || "") &&
+  (readCfg(switchData) || {}).lastModel?.provider === "openai" && (readCfg(switchData) || {}).lastModel?.model === "gpt-4o-mini",
+  JSON.stringify(readCfg(switchData)));
+
+fs.rmSync(lmData, { recursive: true, force: true });
+fs.rmSync(ghostData, { recursive: true, force: true });
+fs.rmSync(corruptData, { recursive: true, force: true });
+fs.rmSync(switchData, { recursive: true, force: true });
+
+// 16. the full-screen TUI. There is no TTY here, so the interactive loop
+// itself cannot be driven end to end: what is asserted is (a) the plain path
+// is untouched and never enters the alternate screen, (b) the scripted frame
+// pipes like every other demo scene, (c) the config file contract for saved
+// tabs, (d) the tab state -> persist -> restore functions, (e) the whole key
+// table through the exported decoder.
+const skips = [];
+const skip = (label, why) => skips.push("SKIP  " + label + (why ? "  " + why : ""));
+const tuiOnDisk = fs.existsSync(path.resolve("lib", "tui.js"));
+
+// (a) plain path, byte-for-byte concerns: a pipe gets today's drawing and no
+// private terminal modes, and an interactive session over pipes never enters
+// the alternate screen (that gate needs a real TTY on both ends).
+const plainRoot = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-plainroot-"));
+fs.writeFileSync(path.join(plainRoot, "README.md"), "# demo\n");
+const plainData = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-plaindata-"));
+const plainStart = spawnSync(process.execPath, [BIN, "--demo", "start", "--root", plainRoot],
+  { encoding: "utf8", env: { ...cleanEnv, STAR_CODE_DATA: plainData }, timeout: 20000 });
+const plainText = String(plainStart.stdout || "");
+const plainBare = stripAnsi(plainText);
+ok("plain --demo start keeps today's shape and modes",
+  plainStart.status === 0 && /✦ Star Code/.test(plainBare) && /╭─+╮/.test(plainBare) &&
+  /╰─+╯/.test(plainBare) && /│ > /.test(plainBare) && /▱▱▱▱▱ 0%/.test(plainBare) &&
+  /\x1b\[38;2;240;185;90/.test(plainText),
+  JSON.stringify(plainBare.slice(0, 60)));
+ok("plain output carries no alternate-screen or paste modes",
+  !/\x1b\[\?/.test(plainText), JSON.stringify(plainText.match(/\x1b\[\?[^\x1b]*/g)));
+
+const tuiGateData = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-tuigate-"));
+const gateRun2 = await spawnCli([], "/exit\n", { STAR_CODE_DATA: tuiGateData });
+ok("a session without a TTY never enters the alternate screen",
+  gateRun2.status === 0 && !/\x1b\[\?1049/.test(gateRun2.stdout + gateRun2.stderr) &&
+  !/\x1b\[\?2004/.test(gateRun2.stdout + gateRun2.stderr) &&
+  !/\x1b\[\?25[hl]/.test(gateRun2.stdout + gateRun2.stderr),
+  JSON.stringify((gateRun2.stdout + gateRun2.stderr).slice(0, 60)));
+fs.rmSync(tuiGateData, { recursive: true, force: true });
+fs.rmSync(plainRoot, { recursive: true, force: true });
+fs.rmSync(plainData, { recursive: true, force: true });
+
+// (b) --demo tui pipes the whole scripted frame: three tabs, a live thinking
+// peek, a tool line, an answer in flight, the popup and the status line.
+const tuiData = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-demo-tui-"));
+const dTui = fs.existsSync(path.resolve("bin", "star-code.mjs")) && tuiOnDisk
+  ? spawnSync(process.execPath, [BIN, "--demo", "tui"], { encoding: "utf8", env: { ...cleanEnv, STAR_CODE_DATA: tuiData }, timeout: 20000 })
+  : null;
+if (!dTui) {
+  skip("--demo tui frame", "lib/tui.js is not on disk (the renderer is another agent's deliverable)");
+} else {
+  const ink = String(dTui.stdout || "");
+  const text = stripAnsi(ink);
+  const rows = ink.split("\n").filter((l) => l.length);
+  ok("demo tui exits 0 without a key", dTui.status === 0, String(dTui.status));
+  ok("demo tui shows the tab bar with all three tabs",
+    ["fix the failing test", "publish 1.3.9", "read the release notes"].every((t) => text.includes(t)),
+    text.split("\n")[0]);
+  ok("demo tui shows the streaming tab as streaming", text.includes("◐ fix the failing test"));
+  ok("demo tui shows the thinking peek with the newest lines only",
+    text.includes("Thinking… 4s") && text.includes("Track the last mtime per path to fold them.") &&
+    text.includes("Then re-run just that test file.") && !text.includes("The test writes a file and then renames it."),
+    text.split("\n").filter((l) => l.includes("│ ") || l.includes("Thinking")).join(" / ").slice(0, 160));
+  ok("demo tui shows the status line with the streaming hint",
+    /\u23f5 Ask permissions · deepseek\/deepseek-chat · 0% ctx · ~\/projects\/star\s+streaming 4s/.test(text),
+    text.split("\n").pop());
+  ok("demo tui shows a completed tool line and the answer in flight",
+    /● Run npm test -- watcher\s+3 failed/.test(text) &&
+    text.includes("Found it: the temp directory emits one change for the write") &&
+    text.includes("I'll debounce per path instead"),
+    text.split("\n").filter((l) => l.includes("Run ") || l.includes("debounce")).join(" / ").slice(0, 160));
+  ok("demo tui opens the slash popup inside the prompt box",
+    text.includes("Commands") && text.includes("/model") && text.includes("↑↓ move · enter choose · esc close"));
+  ok("demo tui carries real ink", /\x1b\[38;2;240;185;90/.test(ink) && /\x1b\[48;2;36;43;59/.test(ink));
+  const widths = rows.map((l) => stripAnsi(l).length);
+  ok("demo tui is one full frame: 28 lines of 100 columns",
+    rows.length === 28 && widths.every((w) => w <= 100) && Math.max(...widths) === 100,
+    rows.length + " lines, max " + Math.max(...widths));
+}
+fs.rmSync(tuiData, { recursive: true, force: true });
+
+// (c) lib/config.js grows cliSessions additively: round trip, corrupt file
+// tolerated, cap enforced, and the lastModel record survives both writes.
+const cfgTemp = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-sessions-"));
+process.env.STAR_CODE_DATA = cfgTemp;
+const cfg = await import(pathToFileURL(path.resolve("lib", "config.js")).href);
+cfg.writeLastModel("deepseek", "deepseek-chat");
+const session = (title, active, n) => ({
+  title,
+  active,
+  messages: [{ role: "system", content: "dropped" }, { role: "user", content: "msg " + n }, { role: "assistant", content: "reply " + n }],
+  items: [{ k: "user", t: "msg " + n }, { k: "tool", name: "run_command", arg: "npm test", meta: "1 passed", tone: "green" }, { k: "nonsense" }],
+});
+const wrote = cfg.writeCliSessions([session("first", false, 1), session("second", true, 2)]);
+const sessions = cfg.readCliSessions();
+ok("cliSessions round-trips through config.json",
+  wrote === true && sessions.length === 2 && sessions[0].title === "first" && sessions[1].title === "second" &&
+  sessions[1].active === true && sessions[0].active === false,
+  JSON.stringify(sessions.map((s) => [s.title, s.active, s.messages.length, s.items.length])));
+ok("stored sessions drop the system prompt and unknown items, and keep the tool card",
+  sessions[0].messages.length === 2 && sessions[0].messages.every((m) => m.role !== "system") &&
+  sessions[0].items.length === 2 && sessions[0].items[1].name === "run_command",
+  JSON.stringify(sessions[0].items));
+ok("cliSessions and lastModel coexist additively",
+  JSON.stringify(cfg.readConfig().lastModel) === JSON.stringify({ provider: "deepseek", model: "deepseek-chat" }) &&
+  cfg.writeLastModel("openai", "gpt-4.1") && cfg.readCliSessions().length === 2 &&
+  JSON.stringify(cfg.readConfig().lastModel) === JSON.stringify({ provider: "openai", model: "gpt-4.1" }));
+cfg.writeCliSessions(Array.from({ length: 25 }, (_, i) => session("t" + i, i === 24, i)));
+const capped = cfg.readCliSessions();
+ok("the session cap keeps the newest 20 records",
+  capped.length === 20 && capped[0].title === "t0" && capped[19].title === "t19",
+  capped.length + " kept, first " + (capped[0] && capped[0].title));
+fs.writeFileSync(path.join(cfgTemp, "config.json"), "{ this is not json");
+let corruptSessions = null;
+try { corruptSessions = cfg.readCliSessions(); } catch { corruptSessions = "threw"; }
+ok("a corrupt config.json reads as no sessions, with no throw",
+  Array.isArray(corruptSessions) && corruptSessions.length === 0, JSON.stringify(corruptSessions));
+fs.rmSync(cfgTemp, { recursive: true, force: true });
+delete process.env.STAR_CODE_DATA;
+
+// (d) the tab state -> persist -> restore functions the app uses (reached by
+// importing the CLI itself: the module only runs when it is the program).
+// The import parses argv once, so it is set up here as a `custom` session:
+// the app-loop test below points `custom` at its own stub.
+const sessTemp = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-restore-"));
+process.env.STAR_CODE_DATA = sessTemp;
+process.argv = [process.execPath, "star-code-imported-by-tests", "--model", "custom/model-name", "--mode", "bypass"];
+const cli = await import(pathToFileURL(path.resolve("bin", "star-code.mjs")).href);
+ok("the CLI exports the tab helpers without running",
+  ["titleForMessage", "newSession", "sessionsToStore", "tabsFromStore", "createKeyDecoder"].every((k) => typeof cli[k] === "function"));
+ok("titles come from the first user message, cut to 20 columns",
+  cli.titleForMessage("  fix the flaky watcher test on windows  ") === "fix the flaky watch…" &&
+  cli.titleForMessage("") === "new session" && cli.titleForMessage("a\nb") === "a",
+  cli.titleForMessage("  fix the flaky watcher test on windows  "));
+const tabA = cli.newSession();
+tabA.title = "fix the failing test";
+tabA.messages.push({ role: "user", content: "the watcher test fails" });
+tabA.messages.push({ role: "assistant", content: "looking into it" });
+tabA.items.push({ k: "user", t: "the watcher test fails" });
+tabA.items.push({ k: "think", label: "Thought for 4s", lines: ["one", "two"], mode: "open", scroll: 0, maxOpen: 12 });
+tabA.items.push({ k: "tool", name: "run_command", arg: "npm test", meta: "42 passed", tone: "green" });
+const tabB = cli.newSession();
+tabB.title = "second";
+tabB.items.push({ k: "text", t: "answer" });
+cfg.writeCliSessions(cli.sessionsToStore([tabA, tabB], 1));
+const restored = cli.tabsFromStore(cfg.readCliSessions());
+ok("state -> save -> restore keeps titles, transcripts and the active tab",
+  restored.length === 2 && restored[0].title === "fix the failing test" && restored[1].title === "second" &&
+  restored[0].items.length === 3 && restored[0].items[1].k === "think" && restored[0].items[1].mode === "open" &&
+  cfg.readCliSessions().findIndex((r) => r.active === true) === 1,
+  JSON.stringify(restored.map((t) => [t.title, t.items.length])));
+ok("a restored tab is conversation continuity without a live turn",
+  restored[0].messages[0].role === "system" && restored[0].messages[1].content === "the watcher test fails" &&
+  restored[0].stream === false && restored[0].think === null && restored[0].queue.length === 0,
+  JSON.stringify(restored[0].messages.map((m) => m.role)));
+fs.rmSync(sessTemp, { recursive: true, force: true });
+delete process.env.STAR_CODE_DATA;
+
+// (e) the key table, decoded from the exact keypress shapes readline emits
+// (including the layered xterm and kitty sequences a terminal sends for the
+// keys a plain readline cannot name).
+const K = cli.createKeyDecoder();
+const kp = (name, o = {}) => ({ name, sequence: o.sequence ?? "", ctrl: !!o.ctrl, meta: !!o.meta, shift: !!o.shift });
+const same = (label, got, want) => ok(label, JSON.stringify(got) === JSON.stringify(want), JSON.stringify(got));
+same("ctrl+t opens a tab", K(null, kp("t", { ctrl: true })), { t: "new" });
+same("ctrl+w closes a tab (and arms on the second press)", K(null, kp("w", { ctrl: true })), { t: "close" });
+same("ctrl+tab and ctrl+shift+tab cycle tabs", [K(null, kp("tab", { ctrl: true })), K(null, kp("tab", { ctrl: true, shift: true }))],
+  [{ t: "cycle", d: 1 }, { t: "cycle", d: -1 }]);
+same("ctrl+pgup/ctrl+pgdn cycle tabs", [K(null, kp("pageup", { ctrl: true })), K(null, kp("pagedown", { ctrl: true }))],
+  [{ t: "cycle", d: -1 }, { t: "cycle", d: 1 }]);
+same("ctrl+1..9 jumps to a tab", [K(null, kp("1", { ctrl: true })), K(null, kp("9", { ctrl: true }))],
+  [{ t: "jump", n: 1 }, { t: "jump", n: 9 }]);
+same("ctrl+o toggles the thinking block", K(null, kp("o", { ctrl: true })), { t: "think" });
+same("ctrl+c is stop-or-quit and ctrl+d quits", [K(null, kp("c", { ctrl: true })), K(null, kp("d", { ctrl: true }))],
+  [{ t: "stop" }, { t: "exit" }]);
+same("ctrl+home/ctrl+end jump the transcript", [K(null, kp("home", { ctrl: true })), K(null, kp("end", { ctrl: true }))],
+  [{ t: "top" }, { t: "bottom" }]);
+same("pgup/pgdn scroll by a page", [K(null, kp("pageup")), K(null, kp("pagedown"))],
+  [{ t: "scroll", d: 1 }, { t: "scroll", d: -1 }]);
+same("enter sends, alt+enter and shift+enter insert a newline",
+  [K(null, kp("return")), K(null, kp("return", { meta: true })), K(null, kp(undefined, { sequence: "\x1b[13;2u" }))],
+  [{ t: "enter" }, { t: "nl" }, { t: "nl" }]);
+same("kitty-protocol forms decode too (ctrl+o, ctrl+tab, ctrl+9)",
+  [K(null, kp(undefined, { sequence: "\x1b[111;5u" })), K(null, kp(undefined, { sequence: "\x1b[9;5u" })), K(null, kp(undefined, { sequence: "\x1b[57;5u" }))],
+  [{ t: "think" }, { t: "cycle", d: 1 }, { t: "jump", n: 9 }]);
+const glue = (parts) => parts.map((k) => K(null, k));
+same("xterm layered sequences decode (ctrl+shift+tab, shift+enter)",
+  [glue([kp(undefined, { sequence: "\x1b[27;6;" }), kp("9", { sequence: "9" }), kp("~", { sequence: "~" })]).pop(),
+   glue([kp(undefined, { sequence: "\x1b[27;2;" }), kp("1", { sequence: "1" }), kp("3", { sequence: "3" }), kp("~", { sequence: "~" })]).pop()],
+  [{ t: "cycle", d: -1 }, { t: "nl" }]);
+same("bracketed-paste markers are their own intents, text is text",
+  [K(null, kp("paste-start", { sequence: "\x1b[200~" })), K(null, kp("paste-end", { sequence: "\x1b[201~" })),
+   K("a", kp("a", { sequence: "a" })), K(null, kp("escape")), K(null, kp("backspace")), K(null, kp("up"))],
+  [{ t: "paste-start" }, { t: "paste-end" }, { t: "text", s: "a" }, { t: "esc" }, { t: "backspace" }, { t: "up" }]);
+
+// (f) the app loop itself, headless. `tuiApp` takes a stream pair, so a fake
+// TTY (a PassThrough painted into a string, keys written as raw bytes) drives
+// the real session: alt-screen enter/leave, frames on every change, typing
+// while a reply streams, a multi-line bracketed paste, input history,
+// scrollback, resize and the tabs saved on the way out.
+const { PassThrough } = await import("node:stream");
+const appData = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-apploop-"));
+process.env.STAR_CODE_DATA = appData;
+const fakeOut = new PassThrough();
+fakeOut.isTTY = true;
+fakeOut.columns = 120;   // wide enough for the right-aligned status hint
+fakeOut.rows = 24;
+let painted = "";
+fakeOut.on("data", (d) => { painted += d.toString(); });
+const fakeIn = new PassThrough();
+fakeIn.isTTY = true;
+const feed = (s) => fakeIn.write(s);
+const lastFrame = () => painted.split("\x1b[H").pop();
+const waitFor = async (what, fn, ms = 8000) => {
+  const t0 = Date.now();
+  while (Date.now() - t0 < ms) {
+    if (fn()) return true;
+    await new Promise((r) => setTimeout(r, 25));
+  }
+  ok("app loop: " + what, false, "timed out");
+  return false;
+};
+
+const appHits = [];
+const appStub = http.createServer((req, res) => {
+  if (req.method !== "POST" || !req.url.endsWith("/chat/completions")) { res.writeHead(404); res.end(); return; }
+  let body = "";
+  req.on("data", (c) => { body += c; });
+  req.on("end", () => {
+    let msgs = [];
+    try { msgs = JSON.parse(body).messages || []; } catch { /* not json - fine */ }
+    appHits.push(msgs);
+    res.writeHead(200, { "Content-Type": "text/event-stream" });
+    const send = (o) => res.write("data: " + JSON.stringify(o) + "\n\n");
+    const finished = () => { res.write("data: [DONE]\n\n"); res.end(); };
+    const content = appHits.length === 1 ? "stub-one"
+      : appHits.length === 2 ? "stub-two"
+      : appHits.length === 3 ? Array.from({ length: 40 }, (_, i) => "line-mark-" + String(i + 1).padStart(2, "0")).join("\n")
+      : "stub-four";
+    send({ choices: [{ delta: { content } }] });
+    if (appHits.length === 1) setTimeout(finished, 400);   // still streaming while the next line is typed
+    else finished();
+  });
+});
+await listen(appStub);
+process.env.STAR_CODE_TEST_BASE = "http://127.0.0.1:" + appStub.address().port + "/v1";
+
+let appError = null;
+const appRun = cli.tuiApp({ stdout: fakeOut, stdin: fakeIn });
+appRun.catch((e) => { appError = e; });
+
+await waitFor("enters and paints", () => painted.includes("\x1b[?1049h") && lastFrame().includes("Ask Star"));
+ok("the app enters the alternate screen, enables paste and hides the cursor",
+  painted.includes("\x1b[?1049h") && painted.includes("\x1b[?2004h") && painted.includes("\x1b[?25l"));
+ok("the first frame is the full terminal height",
+  lastFrame().split("\n").length === 24, String(lastFrame().split("\n").length));
+
+feed("say hi\n");
+await waitFor("the first turn streams", () => painted.includes("stub-one"));
+feed("queued while streaming\n");
+await waitFor("the queue reaches the status line", () => lastFrame().includes("1 queued"));
+ok("typing during a stream queues the message instead of sending it",
+  appHits.length === 1 && lastFrame().includes("1 queued") && lastFrame().includes("queued (1)"),
+  "hits=" + appHits.length + " hint=" + JSON.stringify((lastFrame().match(/streaming[^│]*/) || [""])[0].trim()));
+await waitFor("the queued message sends when the turn ends", () => appHits.length === 2);
+ok("the queued message only goes after the running turn",
+  appHits.length >= 2 && appHits[1].some((m) => m.role === "user" && m.content === "queued while streaming"),
+  JSON.stringify((appHits[1] || []).slice(-1)));
+
+await waitFor("the second turn ends", () => lastFrame().includes("stub-two"));
+feed("\x1b[200~a\nb\x1b[201~\n");
+await waitFor("the pasted message becomes one turn", () => appHits.length === 3);
+const pastedMsg = (appHits[2] || []).filter((m) => m.role === "user").pop();
+ok("a multi-line bracketed paste is one message, newline and all",
+  Boolean(pastedMsg) && pastedMsg.content === "a\nb", JSON.stringify(pastedMsg && pastedMsg.content));
+await waitFor("the long answer lands", () => lastFrame().includes("line-mark-40"));
+ok("new output is pinned to the bottom", lastFrame().includes("line-mark-40"));
+
+feed("\x1b[5~");   // pgup
+await waitFor("pgup scrolls up", () => !lastFrame().includes("line-mark-40"));
+ok("PgUp scrolls the transcript back (new output no longer snaps the view)",
+  !lastFrame().includes("line-mark-40"), JSON.stringify((lastFrame().match(/line-mark-\d\d/g) || []).slice(0, 3)));
+feed("\x1b[5~");   // one more page: the start of the answer comes into view
+await waitFor("older output comes into view", () => lastFrame().includes("line-mark-01"));
+ok("PgUp keeps going until the oldest lines are on screen", lastFrame().includes("line-mark-01"),
+  JSON.stringify((lastFrame().match(/line-mark-\d\d/g) || []).slice(0, 3)));
+feed("\x1b[5~\x1b[5~");   // two pages past the ceiling: clamped, never blank
+await waitFor("an over-scroll stays clamped", () => !lastFrame().includes("line-mark-40"));
+ok("scrolling past the top is clamped instead of blanking the frame",
+  !lastFrame().includes("line-mark-40") && lastFrame().split("\n").length >= 20,
+  JSON.stringify((lastFrame().match(/line-mark-\d\d/g) || []).slice(-2)));
+feed("\x1b[1;5H");   // ctrl+home: the very top
+await waitFor("ctrl+home reaches the top", () => !lastFrame().includes("line-mark-40"));
+ok("Ctrl+Home jumps to the top without blanking the frame",
+  !lastFrame().includes("line-mark-40") && lastFrame().split("\n").length >= 20,
+  JSON.stringify((lastFrame().match(/line-mark-\d\d/g) || []).slice(-2)));
+feed("\x1b[1;5F");   // ctrl+end
+await waitFor("ctrl+end returns to the bottom", () => lastFrame().includes("line-mark-40"));
+ok("Ctrl+End jumps back to the newest output", lastFrame().includes("line-mark-40"));
+
+feed("\x1b[A");   // up: input history
+await waitFor("history recalls the last line", () => lastFrame().includes("a⏎b"));
+ok("up-arrow recalls the last submitted line (multi-line shown as ⏎)",
+  lastFrame().includes("a⏎b"));
+feed("\n");
+await waitFor("the recalled line resends", () => appHits.length === 4);
+const againMsg = (appHits[3] || []).filter((m) => m.role === "user").pop();
+ok("enter resends the recalled line unchanged", Boolean(againMsg) && againMsg.content === "a\nb",
+  JSON.stringify(againMsg && againMsg.content));
+await waitFor("the fourth turn ends", () => lastFrame().includes("stub-four"));
+
+fakeOut.columns = 100;
+fakeOut.emit("resize");
+await waitFor("a resize repaints", () => painted.includes("\x1b[2J"));
+ok("a terminal resize triggers a clear and a fresh frame",
+  painted.includes("\x1b[2J") && lastFrame().split("\n").length === 24);
+
+feed("\x04");   // ctrl+d with an empty input: quit
+await Promise.race([appRun, new Promise((r) => setTimeout(r, 3000))]);
+ok("ctrl+d leaves the app and restores the terminal",
+  painted.includes("\x1b[?1049l") && painted.includes("\x1b[?2004l") && painted.includes("\x1b[?25h"),
+  JSON.stringify([painted.includes("\x1b[?1049l"), painted.includes("\x1b[?2004l"), painted.includes("\x1b[?25h")]));
+ok("the app loop finished without throwing", appError === null, appError && appError.message);
+const appSaved = cli.tabsFromStore(cfg.readCliSessions());
+ok("the tab is on disk on the way out, titled from the first message",
+  appSaved.length === 1 && appSaved[0].title === "say hi" && appSaved[0].messages.length >= 8 &&
+  appSaved[0].messages.some((m) => m.role === "assistant" && m.content === "stub-four"),
+  JSON.stringify(appSaved.map((t) => [t.title, t.messages.length])));
+appStub.close();
+fakeIn.end();
+fakeOut.end();
+delete process.env.STAR_CODE_TEST_BASE;
+delete process.env.STAR_CODE_DATA;
+fs.rmSync(appData, { recursive: true, force: true });
+
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(results.join("\n"));
+if (skips.length) console.log(skips.join("\n"));
 const failed = results.filter((r) => r.startsWith("FAIL")).length;
 console.log("\n" + (results.length - failed) + "/" + results.length + " checks passed" +
+  (skips.length ? " (" + skips.length + " skipped)" : "") +
   (failed ? " - " + failed + " FAILED" : ""));
 process.exitCode = failed ? 1 : 0;

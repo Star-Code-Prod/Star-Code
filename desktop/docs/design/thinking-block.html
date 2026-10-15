@@ -1,0 +1,478 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Star Thinking Block</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: narrow column. Live chat demo first, three frozen states next, rules and brief last. */
+:root{
+  --bg:#F2F4F8; --surface:#FFFFFF; --surface-2:#E7EBF3; --fg:#151A2E; --muted:#555D7A; --line:#D3D9E6;
+  --accent:#A35F00; --accent-soft:#FBE8C4; --on-accent:#FFFFFF; --link:#3443C0; --good:#1D7448;
+  --font-display:"Familjen Grotesk","Helvetica Neue",Arial,sans-serif;
+  --font-body:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1120; --surface:#161A2E; --surface-2:#1F2440; --fg:#E8EAF4; --muted:#9AA1BF; --line:#2B3152;
+    --accent:#F2B544; --accent-soft:#3A2E12; --on-accent:#1A1300; --link:#98A4FF; --good:#5BD08F;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1120; --surface:#161A2E; --surface-2:#1F2440; --fg:#E8EAF4; --muted:#9AA1BF; --line:#2B3152;
+  --accent:#F2B544; --accent-soft:#3A2E12; --on-accent:#1A1300; --link:#98A4FF; --good:#5BD08F;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--fg); font-family:var(--font-body); font-size:15px; line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px)); padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:32px 64px;
+}
+.wrap{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:52px}
+h1,h2,h3{font-family:var(--font-display);text-wrap:balance;margin:0;line-height:1.1;letter-spacing:-0.01em}
+h1{font-size:clamp(2.1rem,6vw,3.3rem);font-weight:700}
+h2{font-size:1.5rem;font-weight:600}
+h3{font-size:1.05rem;font-weight:600;letter-spacing:0}
+p{margin:0;max-width:65ch}
+.label{font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.mono{font-family:var(--font-mono)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mast{display:flex;flex-direction:column;gap:16px}
+.mast .row{display:flex;gap:10px;align-items:center}
+.lede{font-size:1.08rem;color:var(--muted)}
+.sec{display:flex;flex-direction:column;gap:18px}
+.sec>.head{display:flex;flex-direction:column;gap:6px}
+.sec>.head p{color:var(--muted)}
+
+/* ---- thinking component (same code as the brief) ---- */
+.think{display:flex;flex-direction:column;gap:6px;align-items:flex-start;max-width:100%}
+.think-h{display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 12px 0 10px;border:0;border-radius:999px;
+  background:var(--surface-2);color:var(--muted);font:500 13px var(--font-body);cursor:pointer}
+.think-h:hover{color:var(--fg)}
+.think-star{width:14px;height:14px;color:var(--accent)}
+.think-label{font-variant-numeric:tabular-nums}
+.think-chev{width:12px;height:12px;transition:transform .2s}
+.think:not([data-mode="closed"]) .think-chev{transform:rotate(180deg)}
+.think-b{width:100%;max-height:0;overflow:hidden;transition:max-height .3s ease}
+.think[data-mode="peek"] .think-b{max-height:68px;
+  -webkit-mask-image:linear-gradient(transparent,#000 45%);mask-image:linear-gradient(transparent,#000 45%)}
+.think[data-mode="open"] .think-b{max-height:240px;overflow-y:auto}
+.think-t{margin-left:12px;padding:2px 0 2px 14px;border-left:2px solid var(--line);
+  color:var(--muted);font-size:13.5px;line-height:1.6;white-space:pre-wrap}
+.think[data-live] .think-star{animation:spin 2.4s linear infinite}
+.think[data-live] .think-label{background:linear-gradient(90deg,var(--muted) 30%,var(--fg) 50%,var(--muted) 70%);
+  background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shimmer 1.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes shimmer{from{background-position:100% 0}to{background-position:-100% 0}}
+@media (prefers-reduced-motion:reduce){.think *{animation:none!important;transition:none!important}}
+
+/* ---- chat mock ---- */
+.chat{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;min-width:0}
+.chat-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+.chat-bar .who{display:flex;align-items:center;gap:8px;font-family:var(--font-display);font-weight:600;font-size:14px}
+.chat-bar svg{width:16px;height:16px;color:var(--accent)}
+.btn{font:600 13px var(--font-body);background:var(--accent);color:var(--on-accent);border:0;border-radius:6px;padding:7px 14px;cursor:pointer}
+.btn:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
+.msgs{padding:18px 16px;display:flex;flex-direction:column;gap:16px;min-height:300px}
+.me{align-self:flex-end;max-width:85%;background:var(--accent-soft);padding:9px 13px;border-radius:14px 14px 3px 14px}
+.bot{display:flex;flex-direction:column;gap:12px;min-width:0}
+.ans{font-size:15.5px;line-height:1.6;color:var(--fg);min-height:3.2em}
+.ans b{font-weight:600}
+.ans:empty::before{content:"";display:block}
+.legend{display:flex;gap:8px;flex-wrap:wrap}
+.legend span{font-family:var(--font-mono);font-size:11px;padding:3px 9px;border:1px solid var(--line);border-radius:999px;color:var(--muted);background:var(--surface)}
+.legend span.on{border-color:var(--accent);color:var(--accent)}
+
+/* ---- three states ---- */
+.states{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:16px}
+.state{display:flex;flex-direction:column;gap:10px;min-width:0}
+.state .box{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:14px;display:flex;flex-direction:column;gap:12px;min-height:250px}
+.state .reply{font-size:14px;line-height:1.55}
+.state .meta{display:flex;flex-direction:column;gap:2px}
+.state .meta p{color:var(--muted);font-size:14px}
+.dim{font-family:var(--font-mono);font-size:11px;color:var(--accent)}
+
+/* ---- numbers + rules ---- */
+.nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:10px}
+.num{border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:12px;display:flex;flex-direction:column;gap:2px}
+.num b{font-family:var(--font-display);font-size:26px;line-height:1;font-variant-numeric:tabular-nums}
+.num span{font-size:12.5px;color:var(--muted)}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px}
+.rule{border-top:2px solid var(--fg);padding-top:10px;display:flex;flex-direction:column;gap:6px}
+.rule ul{margin:0;padding-left:18px;color:var(--muted);font-size:14px;display:flex;flex-direction:column;gap:4px}
+.bar{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.status{font-family:var(--font-mono);font-size:12px;color:var(--good);min-height:1.2em}
+.pre{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;max-height:360px;overflow:auto;
+  font-family:var(--font-mono);font-size:12.5px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;margin:0;min-width:0}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <div class="row">
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" style="color:var(--accent)"><path fill="currentColor" d="M12 1.5l2.9 6.6 7.1.7-5.4 4.7 1.6 7-6.2-3.7-6.2 3.7 1.6-7L2 8.8l7.1-.7z"/></svg>
+    <span class="label">Star harness · reasoning display</span>
+  </div>
+  <h1>Thinking, folded small</h1>
+  <p class="lede">Reasoning shows as a slim pill with a live peek while the model works, then folds to one line. One click opens it in a panel that never grows past 240px. The answer stays the loudest thing on screen.</p>
+</header>
+
+<section class="sec" aria-labelledby="dh">
+  <div class="head">
+    <h2 id="dh">Watch it run</h2>
+    <p>The demo streams, folds, then types the answer. Click the pill at any point to open or close it.</p>
+  </div>
+  <div class="chat">
+    <div class="chat-bar">
+      <span class="who"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 1.5l2.9 6.6 7.1.7-5.4 4.7 1.6 7-6.2-3.7-6.2 3.7 1.6-7L2 8.8l7.1-.7z"/></svg>Star</span>
+      <button class="btn ghost" id="replay" type="button">Replay</button>
+    </div>
+    <div class="msgs">
+      <div class="me">Four of us ate for 1 240 SEK. We want to tip 10%. What does each person pay?</div>
+      <div class="bot">
+        <div class="think" id="demo" data-mode="peek" data-live>
+          <button class="think-h" type="button" aria-expanded="true" aria-controls="demo-b">
+            <svg class="think-star" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 1.5l2.9 6.6 7.1.7-5.4 4.7 1.6 7-6.2-3.7-6.2 3.7 1.6-7L2 8.8l7.1-.7z"/></svg>
+            <span class="think-label">Thinking…</span>
+            <svg class="think-chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4.5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="think-b" id="demo-b" role="region" aria-label="Reasoning" aria-live="off"><div class="think-t"></div></div>
+        </div>
+        <div class="ans" id="ans"></div>
+      </div>
+    </div>
+  </div>
+  <div class="legend" aria-hidden="true"><span id="lg-peek" class="on">peek · while thinking</span><span id="lg-closed">closed · default after</span><span id="lg-open">open · on click</span></div>
+</section>
+
+<section class="sec" aria-labelledby="sh">
+  <div class="head">
+    <h2 id="sh">The three states</h2>
+    <p>Same component, one attribute. These are frozen so you can compare heights.</p>
+  </div>
+  <div class="states">
+    <div class="state">
+      <div class="box">
+        <div class="think" data-mode="peek" data-live id="s1">
+          <button class="think-h" type="button" aria-expanded="true" aria-controls="s1-b">
+            <svg class="think-star" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 1.5l2.9 6.6 7.1.7-5.4 4.7 1.6 7-6.2-3.7-6.2 3.7 1.6-7L2 8.8l7.1-.7z"/></svg>
+            <span class="think-label">Thinking… 4s</span>
+            <svg class="think-chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4.5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="think-b" id="s1-b" role="region" aria-label="Reasoning"><div class="think-t" data-fill="peek"></div></div>
+        </div>
+      </div>
+      <div class="meta"><h3>peek</h3><span class="dim">pill 30px + 68px</span><p>Last three lines, top edge fading, newest at the bottom.</p></div>
+    </div>
+    <div class="state">
+      <div class="box">
+        <div class="think" data-mode="closed" id="s2">
+          <button class="think-h" type="button" aria-expanded="false" aria-controls="s2-b">
+            <svg class="think-star" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 1.5l2.9 6.6 7.1.7-5.4 4.7 1.6 7-6.2-3.7-6.2 3.7 1.6-7L2 8.8l7.1-.7z"/></svg>
+            <span class="think-label">Thought for 9s</span>
+            <svg class="think-chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4.5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="think-b" id="s2-b" role="region" aria-label="Reasoning"><div class="think-t" data-fill="all"></div></div>
+        </div>
+        <div class="reply"><b>341 SEK each.</b> The bill plus a 124 SEK tip comes to 1 364, and that split four ways is 341.</div>
+      </div>
+      <div class="meta"><h3>closed</h3><span class="dim">pill 30px</span><p>The default once the model is done. Answer takes the space.</p></div>
+    </div>
+    <div class="state">
+      <div class="box">
+        <div class="think" data-mode="open" id="s3">
+          <button class="think-h" type="button" aria-expanded="true" aria-controls="s3-b">
+            <svg class="think-star" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 1.5l2.9 6.6 7.1.7-5.4 4.7 1.6 7-6.2-3.7-6.2 3.7 1.6-7L2 8.8l7.1-.7z"/></svg>
+            <span class="think-label">Thought for 9s</span>
+            <svg class="think-chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4.5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="think-b" id="s3-b" role="region" aria-label="Reasoning"><div class="think-t" data-fill="all"></div></div>
+        </div>
+        <div class="reply"><b>341 SEK each.</b> The bill plus a 124 SEK tip comes to 1 364, and that split four ways is 341.</div>
+      </div>
+      <div class="meta"><h3>open</h3><span class="dim">pill 30px + up to 240px</span><p>Full text. Long reasoning scrolls inside the panel.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="nh">
+  <div class="head"><h2 id="nh">The numbers that matter</h2></div>
+  <div class="nums">
+    <div class="num"><b>30px</b><span>pill height</span></div>
+    <div class="num"><b>68px</b><span>live peek, 3 lines</span></div>
+    <div class="num"><b>240px</b><span>open panel cap</span></div>
+    <div class="num"><b>300ms</b><span>open and close</span></div>
+    <div class="num"><b>500ms</b><span>wait before folding</span></div>
+  </div>
+  <div class="rules">
+    <div class="rule"><h3>Behavior</h3><ul><li>Starts as a peek when the first text arrives.</li><li>Folds to one line when thinking ends.</li><li>Stays open if the person opened it.</li><li>No reasoning text means no block.</li></ul></div>
+    <div class="rule"><h3>Look</h3><ul><li>Muted text, small star in the accent color.</li><li>2px rule on the left of the panel.</li><li>All colors from the chat's tokens, light and dark.</li></ul></div>
+    <div class="rule"><h3>Motion</h3><ul><li>Star turns once per 2.4s, label shimmers.</li><li>Both stop under reduced motion.</li><li>Chevron flips over 200ms.</li></ul></div>
+    <div class="rule"><h3>Access</h3><ul><li>The pill is a real button with aria-expanded.</li><li>Panel is a labeled region, not read aloud while live.</li><li>Visible focus ring.</li></ul></div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="bh">
+  <div class="head">
+    <h2 id="bh">The brief to paste</h2>
+    <p>Spec, copy, and a working reference component in plain HTML, CSS and JS.</p>
+  </div>
+  <div class="bar">
+    <button class="btn" id="copy" type="button">Copy the brief</button>
+    <button class="btn ghost" id="sel" type="button">Select all</button>
+    <span class="status" id="status" role="status"></span>
+  </div>
+  <pre class="pre" id="brief" tabindex="0"># Star thinking block brief
+
+Give this to the AI or the front-end developer building Star's chat. It describes how the assistant's reasoning should appear: visible enough that people want to open it, small enough that it never takes over the chat.
+
+## 1. The idea
+
+Reasoning is a side detail, not the answer. It lives in one small pill above the reply. While the model thinks, a short live peek shows the latest few lines. When it finishes, the block folds into a single line ("Thought for 9s"). One click opens the full text in a capped, scrollable panel.
+
+The answer is always the largest, darkest thing on screen. Reasoning is smaller, lighter, and indented.
+
+## 2. The three modes
+
+One component, one attribute: `data-mode="peek" | "closed" | "open"`.
+
+| Mode | When | Height | What shows |
+|---|---|---|---|
+| peek | while the model is thinking | pill (30px) + 68px | last 3 lines, top edge fades out, newest line at the bottom |
+| closed | after thinking, default | pill only (30px) | "Thought for 9s" with a chevron pointing down |
+| open | the person clicked the pill | pill + up to 240px | full text, scrolls inside the panel, chevron pointing up |
+
+The panel never grows past 240px. Long reasoning scrolls inside it. The reply below never moves more than 240px.
+
+## 3. Anatomy
+
+- **Pill:** rounded full, 13px text, muted color, `--surface-2` fill. Left: a small 14px star in the accent color. Middle: the label. Right: a 12px chevron.
+- **Panel:** indented 12px from the left, a 2px vertical rule in `--line`, 14px of padding after the rule. Text is 13.5px, line-height 1.6, muted color, `pre-wrap`.
+- **Gap:** 6px between pill and panel. 12px between the block and the reply.
+
+## 4. Label copy
+
+- While thinking: `Thinking…` then `Thinking… 4s` (a live counter, tabular numbers).
+- After: `Thought for 9s`. Under one second: `Thought for a moment`.
+- Never show token counts, model names, or the word "reasoning".
+
+## 5. Behavior
+
+1. Start in `peek` the moment the first reasoning text arrives. Keep the newest line pinned to the bottom (`scrollTop = scrollHeight` after each append).
+2. When reasoning ends, set the label, wait 500ms, then switch to `closed`. The reply starts streaming right after.
+3. Clicking the pill while thinking toggles `peek` and `open`. Clicking after toggles `closed` and `open`.
+4. If the person opened it during the stream, keep it `open` when it ends. Do not close something they chose to read.
+5. In `open`, do not auto-scroll if the person has scrolled up.
+6. Remember nothing between messages. Every new answer starts at `peek`, then `closed`.
+7. No reasoning text (the model skipped it): render no block at all.
+
+## 6. Motion
+
+- Open and close: `max-height` over 300ms, ease.
+- Chevron: rotate 180deg over 200ms.
+- Live star: spins slowly, one turn per 2.4s.
+- Live label: a soft shimmer sweeping across the text, 1.8s loop.
+- Under `prefers-reduced-motion: reduce`: no spin, no shimmer, no height animation. States swap instantly.
+
+## 7. Color and type
+
+Use the chat's tokens. Never a literal color.
+
+- Pill fill: `--surface-2`. Pill text and panel text: `--muted`, brightening to `--fg` on hover.
+- Rule: `--line`. Star: `--accent`.
+- Both themes must be checked. The panel text must stay readable on the dark ground.
+
+## 8. Accessibility
+
+- The pill is a real `&lt;button&gt;` with `aria-expanded` and `aria-controls` pointing at the panel.
+- The panel has `role="region"` and `aria-label="Reasoning"`.
+- While live, the panel has `aria-live="off"` so screen readers do not read every character. Announce only the final label.
+- Visible focus ring on the pill.
+
+## 9. Reference component
+
+```html
+&lt;div class="think" data-mode="peek" data-live&gt;
+  &lt;button class="think-h" type="button" aria-expanded="true" aria-controls="t1"&gt;
+    &lt;svg class="think-star" viewBox="0 0 24 24" aria-hidden="true"&gt;&lt;path fill="currentColor" d="M12 1.5l2.9 6.6 7.1.7-5.4 4.7 1.6 7-6.2-3.7-6.2 3.7 1.6-7L2 8.8l7.1-.7z"/&gt;&lt;/svg&gt;
+    &lt;span class="think-label"&gt;Thinking…&lt;/span&gt;
+    &lt;svg class="think-chev" viewBox="0 0 12 12" aria-hidden="true"&gt;&lt;path d="M2 4.5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/&gt;&lt;/svg&gt;
+  &lt;/button&gt;
+  &lt;div class="think-b" id="t1" role="region" aria-label="Reasoning" aria-live="off"&gt;
+    &lt;div class="think-t"&gt;&lt;/div&gt;
+  &lt;/div&gt;
+&lt;/div&gt;
+```
+
+```css
+.think{display:flex;flex-direction:column;gap:6px;align-items:flex-start;max-width:100%}
+.think-h{display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 12px 0 10px;border:0;border-radius:999px;
+  background:var(--surface-2);color:var(--muted);font:500 13px var(--font-body);cursor:pointer}
+.think-h:hover{color:var(--fg)}
+.think-star{width:14px;height:14px;color:var(--accent)}
+.think-chev{width:12px;height:12px;transition:transform .2s}
+.think:not([data-mode="closed"]) .think-chev{transform:rotate(180deg)}
+.think-b{width:100%;max-height:0;overflow:hidden;transition:max-height .3s ease}
+.think[data-mode="peek"] .think-b{max-height:68px;
+  -webkit-mask-image:linear-gradient(transparent,#000 45%);mask-image:linear-gradient(transparent,#000 45%)}
+.think[data-mode="open"] .think-b{max-height:240px;overflow-y:auto}
+.think-t{margin-left:12px;padding:2px 0 2px 14px;border-left:2px solid var(--line);
+  color:var(--muted);font-size:13.5px;line-height:1.6;white-space:pre-wrap}
+.think[data-live] .think-star{animation:spin 2.4s linear infinite}
+.think[data-live] .think-label{background:linear-gradient(90deg,var(--muted) 30%,var(--fg) 50%,var(--muted) 70%);
+  background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shimmer 1.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes shimmer{from{background-position:100% 0}to{background-position:-100% 0}}
+@media (prefers-reduced-motion:reduce){.think *{animation:none!important;transition:none!important}}
+```
+
+```js
+function setMode(el, mode){
+  el.dataset.mode = mode;
+  el.querySelector('.think-h').setAttribute('aria-expanded', mode !== 'closed');
+}
+function toggle(el){
+  var live = el.hasAttribute('data-live');
+  var open = el.dataset.mode === 'open';
+  setMode(el, open ? (live ? 'peek' : 'closed') : 'open');
+}
+```
+
+## 10. Do not
+
+- Do not show the whole reasoning inline in the chat flow.
+- Do not make the pill larger or darker than the reply.
+- Do not use a loud color for the block. One small accent star is enough.
+- Do not hide the pill's label while streaming. People like to see that something is happening.
+- Do not auto-open it after the answer starts.
+</pre>
+</section>
+
+</div>
+
+<script>
+(function(){
+  var LINES=[
+    "The bill is 1 240 SEK and the tip is 10%.",
+    "Tip: 1 240 x 0.10 = 124.",
+    "Total with tip: 1 240 + 124 = 1 364.",
+    "Four people: 1 364 / 4 = 341.",
+    "Check: 341 x 4 = 1 364. Matches.",
+    "Lead with the per-person amount, then show the tip."
+  ];
+  var FULL=LINES.join("\n");
+  var LONG=FULL+"\n"+[
+    "Rounding: 341 is exact, no coins to split.",
+    "If they wanted to round up, 345 each would be 1 380 total, a 140 SEK tip.",
+    "Keep the answer short. They asked one thing."
+  ].join("\n");
+  var ANSWER="<b>341 SEK each.</b> The bill plus a 124 SEK tip comes to 1 364, and that split four ways is 341.";
+  var reduce=false;
+  try{reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;}catch(e){}
+
+  function setMode(el,mode){
+    el.dataset.mode=mode;
+    el.querySelector('.think-h').setAttribute('aria-expanded',mode!=='closed');
+    mark(mode);
+  }
+  var demo=document.getElementById('demo');
+  var legend={peek:document.getElementById('lg-peek'),closed:document.getElementById('lg-closed'),open:document.getElementById('lg-open')};
+  function mark(mode){
+    for(var k in legend){legend[k].classList.toggle('on',k===mode);}
+  }
+
+  /* frozen specimens */
+  document.querySelectorAll('.think-t[data-fill]').forEach(function(t){
+    var kind=t.getAttribute('data-fill');
+    t.textContent=kind==='peek'?LINES.slice(2,5).join("\n"):(t.closest('#s3')?LONG:FULL);
+  });
+  var s1=document.getElementById('s1-b');
+  if(s1){s1.scrollTop=s1.scrollHeight;}
+  ['s1','s2','s3'].forEach(function(id){
+    var el=document.getElementById(id);
+    el.querySelector('.think-h').addEventListener('click',function(){
+      var live=el.hasAttribute('data-live');
+      var open=el.dataset.mode==='open';
+      var next=open?(live?'peek':'closed'):'open';
+      el.dataset.mode=next;
+      this.setAttribute('aria-expanded',next!=='closed');
+      var b=el.querySelector('.think-b');if(next==='peek'){setTimeout(function(){b.scrollTop=b.scrollHeight;},320);}
+    });
+  });
+
+  /* live demo */
+  var label=demo.querySelector('.think-label');
+  var body=demo.querySelector('.think-b');
+  var text=demo.querySelector('.think-t');
+  var ans=document.getElementById('ans');
+  var run=0, timers=[];
+  function later(fn,ms){var id=setTimeout(fn,ms);timers.push(id);return id;}
+  function clear(){timers.forEach(clearTimeout);timers=[];}
+
+  demo.querySelector('.think-h').addEventListener('click',function(){
+    var live=demo.hasAttribute('data-live');
+    var open=demo.dataset.mode==='open';
+    setMode(demo,open?(live?'peek':'closed'):'open');
+    if(live&&demo.dataset.mode==='peek'){later(function(){body.scrollTop=body.scrollHeight;},320);}
+  });
+
+  function finish(secs){
+    demo.removeAttribute('data-live');
+    label.textContent='Thought for '+secs+'s';
+    var keepOpen=demo.dataset.mode==='open';
+    if(reduce){if(!keepOpen)setMode(demo,'closed');ans.innerHTML=ANSWER;return;}
+    later(function(){
+      if(!keepOpen)setMode(demo,'closed');
+      typeAnswer();
+    },500);
+  }
+  function typeAnswer(){
+    var tmp=document.createElement('div');tmp.innerHTML=ANSWER;
+    var plain=tmp.textContent,i=0,boldLen='341 SEK each.'.length;
+    (function step(){
+      i+=2;
+      var s=plain.slice(0,i);
+      ans.innerHTML=i<=boldLen?'<b>'+s+'</b>':'<b>'+plain.slice(0,boldLen)+'</b>'+plain.slice(boldLen,i);
+      if(i<plain.length){later(step,18);}else{ans.innerHTML=ANSWER;}
+    })();
+  }
+  function start(){
+    clear();run++;
+    demo.setAttribute('data-live','');
+    setMode(demo,'peek');
+    text.textContent='';ans.innerHTML='';
+    label.textContent='Thinking…';
+    if(reduce){text.textContent=FULL;finish(9);return;}
+    var chars=FULL.split(''),i=0,t0=Date.now(),mine=run;
+    var tick=setInterval(function(){
+      if(mine!==run||!demo.hasAttribute('data-live')){clearInterval(tick);return;}
+      var s=Math.floor((Date.now()-t0)/1000);
+      label.textContent=s>0?'Thinking… '+s+'s':'Thinking…';
+    },250);
+    (function step(){
+      if(mine!==run)return;
+      var n=Math.min(2,chars.length-i);
+      text.textContent+=chars.slice(i,i+n).join('');i+=n;
+      body.scrollTop=body.scrollHeight;
+      if(i<chars.length){later(step,28);}
+      else{clearInterval(tick);finish(Math.max(1,Math.round((Date.now()-t0)/1000)));}
+    })();
+  }
+  document.getElementById('replay').addEventListener('click',start);
+  start();
+
+  /* brief copy */
+  var pre=document.getElementById('brief'),st=document.getElementById('status');
+  function say(t){st.textContent=t;setTimeout(function(){st.textContent='';},2500);}
+  function selectAll(){try{var r=document.createRange();r.selectNodeContents(pre);var s=window.getSelection();s.removeAllRanges();s.addRange(r);}catch(e){}}
+  document.getElementById('sel').addEventListener('click',function(){selectAll();say('Selected. Copy it with your keyboard.');});
+  document.getElementById('copy').addEventListener('click',function(){
+    try{navigator.clipboard.writeText(pre.textContent).then(function(){say('Copied the brief');},function(){selectAll();say('Could not copy. Text is selected, copy it now.');});}
+    catch(e){selectAll();say('Could not copy. Text is selected, copy it now.');}
+  });
+})();
+</script>
+
+</body></html>

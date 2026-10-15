@@ -14,9 +14,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
+import { pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
 import * as providers from "../lib/providers.js";
 import { readAuth, resolveKey, mask } from "../lib/auth.js";
+import { readConfig, writeLastModel, readCliSessions, writeCliSessions } from "../lib/config.js";
 import { createToolRunner } from "../lib/tools.js";
 import { runAgentTurn, systemPrompt } from "../lib/agent.js";
 import { listAgentsWithProblems, BUILTIN_EXPLORER } from "../lib/agents.js";
@@ -50,7 +52,10 @@ const red = (s) => paint(INK.red, s);
 const dim = (s) => paint(INK.dim, s);
 const strike = (s) => paint("9;" + INK.dim, s);
 const plain = (s) => String(s).replace(/\x1b\[[0-9;]*m/g, "");
-const width = () => Math.max(40, Math.min((process.stdout.columns || 80) - 1, 100));
+// The drawing width is the terminal's, unless the full-screen app is painting
+// (FRAME_W, set per frame) - the ported renderers below then match the frame.
+let FRAME_W = 0;
+const width = () => FRAME_W || Math.max(40, Math.min((process.stdout.columns || 80) - 1, 100));
 
 /** One horizontal rule of a box, e.g. rule("╭", "╮"). */
 const rule = (l, r, border = "line") => paint(INK[border], l + "─".repeat(width() - 2) + r);
@@ -105,12 +110,17 @@ Usage:
 
 Flags:
   --mode <manual|acceptEdits|plan|bypass>    permission mode (default manual)
-  --model <provider/model>                   pick provider and model
+  --model <provider/model>                   pick provider and model (default: last used)
   --root <dir>                               working directory (default: cwd)
   --demo [scene]                             render scripted frames (no key, no network)
   --help
 
-Interactive commands: /help /clear /status /model /connect /knowledge /agents /exit`;
+Interactive commands: /help /clear /status /model /connect /knowledge /agents /tabs /exit
+
+On a real terminal the session runs full screen (tabs are sessions):
+  ctrl+t new tab · ctrl+w close tab · ctrl+tab or ctrl+pgup/pgdn cycle tabs · ctrl+1..9 jump
+  ctrl+o open/close the last thinking block · pgup/pgdn scroll · ctrl+home/end top/bottom
+  enter sends (queues while a reply streams) · shift+enter newline · esc dismiss · ctrl+c stop/quit`;
 
 const argv = process.argv.slice(2);
 const flags = { mode: "manual", model: null, root: null };
@@ -143,14 +153,34 @@ function pickDefaultProvider() {
 }
 
 let provider, model;
+let modelSource;                    // flag | config | default - decides the persistence below
+const lastUsed = readConfig().lastModel;
 if (flags.model) {
   const slash = flags.model.indexOf("/");
   provider = slash > 0 ? flags.model.slice(0, slash) : flags.model;
   model = slash > 0 ? flags.model.slice(slash + 1) : (PROVIDERS[provider]?.defaultModel || "model-name");
   if (!PROVIDERS[provider]) { console.error("unknown provider: " + provider); process.exit(2); }
+  modelSource = "flag";
+} else if (lastUsed && PROVIDERS[lastUsed.provider]) {
+  // Resume the shared last-used record: it beats the catalog default for as
+  // long as it names a provider the catalog still knows.
+  provider = lastUsed.provider;
+  model = lastUsed.model;
+  modelSource = "config";
 } else {
   provider = pickDefaultProvider();
   model = PROVIDERS[provider].defaultModel;
+  modelSource = "default";
+}
+
+// The last used model is one shared record (lib/config.js) that the desktop
+// writes too. Persist the effective choice so the next boot resumes it - but
+// never let a catalog default stomp a stored pick: that only happens when the
+// stored provider left the catalog, and the old choice is kept for when it
+// returns. A true first run (no record at all) may save the default. Demo is
+// skipped: scripted frames use no model and stay read-only.
+if (!demo && (modelSource !== "default" || !lastUsed)) {
+  writeLastModel(provider, model);
 }
 const storedBase = readAuth().providers[provider]?.baseUrl || "";
 /** Stored base-url override for a provider, plus the custom-provider test hook. */
@@ -210,7 +240,10 @@ function tips() {
 }
 
 /* --------------------------------- output -------------------------------- */
-const out = (s) => process.stdout.write(s);
+// out() writes to the terminal; the full-screen app may point it at another
+// stream (a test's fake TTY) while it runs, then puts it back.
+let OUT_STREAM = process.stdout;
+const out = (s) => OUT_STREAM.write(s);
 const err = (s) => process.stderr.write(s + "\n");
 
 // Control blocks (tool/todo/artifact fences) are machine traffic, not part
@@ -548,18 +581,28 @@ async function askPrompt() {
   return line;
 }
 
-async function requestPermission({ name, args }) {
-  if (autoAllow.has(name)) return { allowed: true, scope: "once" };
-  const detail = name === "run_command" ? String(args.command || "")
-    : name === "download" ? String(args.url || "") + (args.source ? " — " + args.source : "")
-    : JSON.stringify(args);
-  const title = name === "run_command" ? "Star wants to run a command"
+/** The title of a permission box - shared by the plain prompt and the TUI. */
+function askTitle(name) {
+  return name === "run_command" ? "Star wants to run a command"
     : name === "download" ? "Star wants to download a file"
     : ["write_file", "edit_file", "multi_edit"].includes(name) ? "Star wants to edit a file"
     : "Star wants to use " + (VERB[name] || name);
+}
+
+/** What the permission box shows: the command, the URL (with its source),
+ *  or the arguments. */
+function askDetail({ name, args }) {
+  const a = args || {};
+  return name === "run_command" ? String(a.command || "")
+    : name === "download" ? String(a.url || "") + (a.source ? " — " + a.source : "")
+    : JSON.stringify(a);
+}
+
+async function requestPermission({ name, args }) {
+  if (autoAllow.has(name)) return { allowed: true, scope: "once" };
   out(box([
-    { segs: [{ t: title, c: "gold" }] },
-    { t: "  " + detail.slice(0, 400), bg: "bar" },
+    { segs: [{ t: askTitle(name), c: "gold" }] },
+    { t: "  " + askDetail({ name, args }).slice(0, 400), bg: "bar" },
     { t: "" },
     { segs: [{ t: " 1  ", c: "gold" }, { t: "Allow once" }] },
     { segs: [{ t: " 2  ", c: "gold" }, { t: "Allow for this session" }] },
@@ -601,6 +644,7 @@ const SLASH = [
   ["/connect", "Connect a provider (key)"],
   ["/knowledge", "List the project knowledge files"],
   ["/agents", "List custom agents (.star-code/agents)"],
+  ["/tabs", "List the open tabs (full-screen session)"],
   ["/help", "Show available commands"],
   ["/exit", "Quit Star Code"],
 ];
@@ -705,9 +749,13 @@ function connectRows(query) {
     .map(([id, cfg]) => ({ label: "  " + id.padEnd(14), hint: (cfg.label || "") + (cfg.noKeyRequired ? " · no key" : ""), value: id }));
 }
 
-/** Whatever the current input calls for: nothing, or a fresh popup. */
+/** Whatever the current input calls for: nothing, or a fresh popup. A filter
+ *  with no matches closes the popup instead of asking it to render a string. */
 function refreshPopup(input) {
-  if (input.startsWith("/") && !input.includes(" ")) return setPopup("slash", "Commands", slashRows(input));
+  if (input.startsWith("/") && !input.includes(" ")) {
+    const rows = slashRows(input);
+    return Array.isArray(rows) && rows.length ? setPopup("slash", "Commands", rows) : closePopup();
+  }
   if (input.startsWith("/model ")) return setPopup("model", "Model", modelRows(input.slice(7)));
   if (input.startsWith("/connect ")) return setPopup("connect", "Connect", connectRows(input.slice(9)));
   const at = /@([^\s@]*)$/.exec(input);
@@ -833,6 +881,942 @@ async function liveInput() {
   });
 }
 
+/* ============================= full-screen TUI =========================== */
+// The alternate-screen app: tabs are sessions, the transcript scrolls, the
+// thinking block peeks, popups live inside the prompt box and the input takes
+// keys while a reply streams. It only runs when stdout AND stdin are TTYs and
+// NO_COLOR is unset - every other path in this file is exactly what it was.
+// All pure drawing lives in lib/tui.js, imported lazily so the plain path
+// never pays for it. Nothing here writes to stdout except the frame painter.
+
+let TUI_MOD = null;                    // loaded module, or true when missing
+async function loadTui() {
+  if (TUI_MOD) return TUI_MOD === true ? null : TUI_MOD;
+  try {
+    TUI_MOD = await import("../lib/tui.js");
+  } catch (e) {
+    TUI_MOD = true;
+    err(dim("the full-screen UI needs lib/tui.js (" + (e.code || e.message) + "); using the plain prompt."));
+    return null;
+  }
+  return TUI_MOD;
+}
+
+const TAB_LIMIT = 20;                  // open tabs, matching lib/config.js
+const ITEM_CAP = 400;                  // transcript items kept per tab
+const HISTORY_MAX = 100;               // input history, in memory only
+const CLOSE_ARM_MS = 3000;             // ctrl+w confirm window on a streaming tab
+const PASTE_START = "\x1b[200~";
+const PASTE_END = "\x1b[201~";
+
+/** A tab title: the first non-empty line of the first user message, cut to
+ *  20 columns. A tab that has not been used yet is "new session". */
+export function titleForMessage(text) {
+  const first = String(text ?? "").split(/\r?\n/).map((s) => s.trim()).find(Boolean) || "";
+  if (!first) return "new session";
+  return first.length > 20 ? first.slice(0, 19) + "…" : first;
+}
+
+/** One fresh tab. `rec` is a session record from lib/config.js, or null. */
+export function newSession(rec = null) {
+  const msgs = (Array.isArray(rec?.messages) ? rec.messages : [])
+    .filter((m) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
+    .map((m) => ({ role: m.role, content: m.content }));
+  const items = (Array.isArray(rec?.items) ? rec.items : [])
+    .filter((i) => i && typeof i === "object" && typeof i.k === "string")
+    .slice(-ITEM_CAP);
+  return {
+    title: typeof rec?.title === "string" && rec.title ? rec.title : "new session",
+    messages: [{ role: "system", content: systemPrompt(root, flags.mode) }, ...msgs],
+    items,
+    input: "", queue: [], scroll: 0,
+    stream: false, turnStarted: 0, controller: null, autoAllow: new Set(),
+    pending: [], heldDiff: null, liveText: null, turnRaw: "", ctxPct: 0, turnFailed: false,
+    think: null, perm: null, keyPrompt: null, toast: null, closeArm: 0,
+  };
+}
+
+/** Live tabs -> the records lib/config.js persists; one tab is `active`. */
+export function sessionsToStore(tabs, activeIndex = 0) {
+  const stored = (i) => {
+    if (!i || typeof i !== "object") return null;
+    switch (i.k) {
+      case "user": case "text": case "note": case "raw": return { k: i.k, t: String(i.t ?? "") };
+      case "think": return { k: "think", label: i.label, lines: i.lines, mode: i.mode, scroll: 0, maxOpen: i.maxOpen };
+      case "tool": return { k: "tool", name: i.name, arg: i.arg, meta: i.meta, tone: i.tone };
+      case "diff": return { k: "diff", path: i.path, before: i.before, after: i.after };
+      case "todos": return { k: "todos", todos: i.todos };
+      default: return null;   // any other kind (old file) is dropped on the way out
+    }
+  };
+  return (Array.isArray(tabs) ? tabs : []).slice(0, TAB_LIMIT).map((t, i) => ({
+    title: String(t.title || "new session"),
+    active: i === activeIndex,
+    messages: (t.messages || []).filter((m) => m.role !== "system").map((m) => ({ role: m.role, content: String(m.content ?? "") })),
+    items: (t.items || []).map(stored).filter(Boolean),
+  }));
+}
+
+/** Stored records -> live tabs (a malformed record reads as a fresh tab). */
+export function tabsFromStore(records) {
+  if (!Array.isArray(records)) return [];
+  return records.slice(0, TAB_LIMIT).map((rec) => newSession(rec));
+}
+
+/** Hard-wrap plain text to `w` columns, keeping its own line breaks. */
+function wrapPlain(text, w) {
+  const cw = Math.max(1, w | 0);
+  const out = [];
+  for (const line of String(text ?? "").replace(/\n$/, "").split("\n")) {
+    if (!line) { out.push(""); continue; }
+    for (let i = 0; i < line.length; i += cw) out.push(line.slice(i, i + cw));
+  }
+  return out;
+}
+
+const invalidate = (item) => { delete item._key; delete item._lines; };
+
+/** One transcript item -> its styled lines, cached per (width, ansi, flags).
+ *  This ports the plain renderers: a boxed user turn, the streamed answer
+ *  (with the gold caret at its end), the think pill from lib/tui.js, one-line
+ *  tool cards, diff boxes, checklists, dim notes and pre-rendered blocks. */
+function itemLines(tui, item, w, ansi, isLastThink, caret) {
+  const key = w + "|" + (ansi ? 1 : 0) + "|" + (isLastThink ? 1 : 0) + "|" + (caret ? 1 : 0);
+  if (item._key === key && item._lines) return item._lines;
+  const prev = ANSI; ANSI = ansi;
+  let lines;
+  try {
+    switch (item.k) {
+      case "user": {
+        // One box row per line, so a multi-line message keeps its borders.
+        const text = String(item.t ?? "").split("\n");
+        lines = box(text.map((l, i) => ({ segs: [{ t: (i ? "  " : "> "), c: "gold" }, { t: l }] }))).split("\n");
+        break;
+      }
+      case "text": {
+        lines = wrapPlain(item.t, w);
+        if (caret) {
+          if (!lines.length) lines = [];
+          lines[lines.length - 1] = (lines[lines.length - 1] || "") + gold("▊");
+        }
+        break;
+      }
+      case "think": {
+        const think = {
+          mode: item.mode === "open" ? "open" : "closed", live: false,
+          label: item.label || "Thought", lines: item.lines,
+          scroll: item.scroll | 0, maxOpen: item.maxOpen || 12,
+        };
+        // Only the newest block is toggled by ctrl+o, so older ones drop the
+        // hint (and their invisible bodies) rather than lie about the key.
+        lines = tui.thinkBlock(isLastThink ? think : { ...think, lines: [] }, w, ansi, 0).split("\n");
+        break;
+      }
+      case "tool": lines = [toolLine(item.name, item.arg, item.meta, item.tone)]; break;
+      case "diff": lines = diffBox(item).split("\n"); break;
+      case "todos": lines = todoBlock(item.todos).split("\n"); break;
+      case "note": lines = wrapPlain(item.t, w).map((l) => dim(l)); break;
+      case "raw": lines = String(item.t ?? "").replace(/\n+$/, "").split("\n"); break;
+      default: lines = [];
+    }
+  } finally { ANSI = prev; }
+  item._key = key; item._lines = lines;
+  return lines;
+}
+
+/** The whole transcript of a tab as styled lines, plus the transient toast. */
+function tabLines(tui, tab, w, ansi) {
+  let lastThink = -1;
+  for (let i = tab.items.length - 1; i >= 0; i--) if (tab.items[i].k === "think") { lastThink = i; break; }
+  const lines = [];
+  for (let i = 0; i < tab.items.length; i++) {
+    const it = tab.items[i];
+    lines.push(...itemLines(tui, it, w, ansi, i === lastThink, it.k === "text" && it === tab.liveText && tab.stream));
+  }
+  if (tab.toast && Date.now() < tab.toast.until) lines.push(gold("✻ ") + dim(tab.toast.text));
+  return lines;
+}
+
+const secsOf = (tab) => Math.max(0, Math.round((Date.now() - (tab.turnStarted || Date.now())) / 1000));
+
+/** The live label: a running counter while it streams, the frozen one after. */
+function thinkLabel(think) {
+  if (!think.live) return think.label || "Thought";
+  const s = Math.round((Date.now() - (think.started || Date.now())) / 1000);
+  return s > 0 ? "Thinking… " + s + "s" : "Thinking…";
+}
+
+/** The state one frame is drawn from - the exact shape lib/tui.js reads. */
+function frameState(tui, tabs, active, spinFrame, w) {
+  FRAME_W = Math.max(8, w);
+  const tab = tabs[active];
+  const lines = tabLines(tui, tab, FRAME_W, ANSI);
+  // scrollFromBottom counts lines up from the newest; keep the top line in
+  // view as the ceiling so an over-scrolled page can never blank the screen.
+  tab.scroll = Math.min(tab.scroll, Math.max(0, lines.length - 1));
+  return {
+    ansi: ANSI,
+    tabs: tabs.map((t, i) => ({ title: t.title, active: i === active, streaming: t.stream })),
+    view: { lines, scrollFromBottom: tab.scroll },
+    think: tab.think ? { ...tab.think, label: thinkLabel(tab.think), spinFrame } : null,
+    spinFrame,
+    // Shift+Enter newlines are part of the message, but the box draws one row:
+    // show them as ⏎ so the frame's geometry survives a multi-line draft.
+    input: { value: tab.input.replace(/\n/g, "⏎"), placeholder: inputPlaceholder(tab) },
+    popup: framePopup(tab),
+    status: frameStatus(tab),
+  };
+}
+
+function inputPlaceholder(tab) {
+  if (tab.perm) return "choose 1/2/3 or y/n/a · enter takes the highlighted option";
+  if (tab.keyPrompt) return "API key for " + tab.keyPrompt + " · enter stores it · esc cancels";
+  if (tab.stream) return "type to queue the next message";
+  return "Ask Star — / commands · @ files · pgup/pgdn scroll";
+}
+
+function frameStatus(tab) {
+  let hint = "ctrl+t tab · ctrl+o think · /help";
+  if (tab.closeArm && Date.now() - tab.closeArm < CLOSE_ARM_MS) {
+    hint = "ctrl+w again to close this tab and stop the stream";
+  } else if (tab.stream) {
+    hint = "streaming " + secsOf(tab) + "s" +
+      (tab.queue.length ? " · " + tab.queue.length + " queued" : "") + " · ctrl+c stops";
+  } else if (tab.queue.length) {
+    hint = tab.queue.length + " queued";
+  }
+  return { mode: MODE_LABEL[flags.mode] || flags.mode, model: provider + "/" + model, ctxPct: tab.ctxPct, root, hint };
+}
+
+/** The permission box and the connect key prompt replace the popup content. */
+function framePopup(tab) {
+  if (tab.perm) {
+    const ask = tab.perm.ask || {};
+    return {
+      kind: "permission",
+      header: askTitle(ask.name),
+      rows: [
+        { head: askDetail(ask) },
+        { label: "1  Allow once", value: "1" },
+        { label: "2  Allow for this session", value: "2" },
+        { label: "3  Deny", value: "3" },
+      ],
+      sel: 1 + Math.min(2, Math.max(0, tab.perm.sel | 0)),
+    };
+  }
+  if (tab.keyPrompt) {
+    return {
+      kind: "connect",
+      header: "API key for " + tab.keyPrompt + " · stored in ~/.star-code/auth.json",
+      rows: [],
+      sel: 0,
+    };
+  }
+  if (!popupOpen()) return null;
+  return {
+    kind: POPUP.kind,
+    header: POPUP.header,
+    rows: POPUP.rows.map((r) => (r.head ? { head: r.head }
+      : { label: String(r.label || "").replace(/^ {1,2}/, ""), hint: r.hint || "", value: r.value })),
+    sel: POPUP.sel,
+  };
+}
+
+/** Map raw readline keypresses to intents. Covers the sequences Node hands
+ *  over whole (arrows, pgup/pgdn, ctrl+home/end) and the two that arrive in
+ *  pieces or as CSI-u: xterm modifyOtherKeys layers (ESC [ 27 ; mod ; code ~)
+ *  and the kitty protocol (ESC [ code ; mod u). Pure apart from a one-key
+ *  glue buffer, so a test can drive the whole key table without a terminal. */
+export function createKeyDecoder() {
+  let glue = "";
+  return function decodeKey(str, key) {
+    if (!key) return null;
+    const seq = String(key.sequence || "");
+    if (glue) {
+      const piece = seq || String(str || "");
+      if (/^[\d;~]*$/.test(piece)) {
+        glue += piece;
+        if (!glue.endsWith("~")) { if (glue.length > 24) glue = ""; return null; }
+        const m = /^\x1b\[27;(\d+);(\d+)~$/.exec(glue);
+        glue = "";
+        if (!m) return { t: "seq" };
+        const mods = Number(m[1]) - 1, code = Number(m[2]);   // xterm mod = 1 + modifiers
+        const ctrl = (mods & 4) !== 0, shift = (mods & 1) !== 0, alt = (mods & 2) !== 0;
+        if (code === 9) return ctrl ? { t: "cycle", d: shift ? -1 : 1 } : { t: "tab" };
+        if (code === 13) return shift || alt ? { t: "nl" } : { t: "enter" };
+        if (code === 111 && ctrl) return { t: "think" };
+        if (ctrl && code >= 49 && code <= 57) return { t: "jump", n: code - 48 };
+        return { t: "seq" };
+      }
+      glue = "";   // not part of the sequence after all: handle it normally
+    }
+    if (key.name === undefined && seq.startsWith("\x1b[27;")) { glue = seq; return null; }
+
+    const csiU = /^\x1b\[(\d+)(?:;(\d+))?u$/.exec(seq);
+    if (key.name === undefined && csiU) {
+      const code = Number(csiU[1]);
+      const mods = csiU[2] ? Number(csiU[2]) - 1 : 0;
+      const shift = (mods & 1) !== 0, alt = (mods & 2) !== 0, ctrl = (mods & 4) !== 0;
+      if (code === 13) return ctrl ? { t: "enter" } : shift || alt ? { t: "nl" } : { t: "enter" };
+      if (code === 9) return ctrl ? { t: "cycle", d: shift ? -1 : 1 } : { t: "tab" };
+      if (code === 111 && ctrl) return { t: "think" };
+      if (ctrl && code >= 49 && code <= 57) return { t: "jump", n: code - 48 };
+      if (ctrl) {
+        const ch = code >= 65 && code <= 90 ? String.fromCharCode(code + 32) : code >= 97 && code <= 122 ? String.fromCharCode(code) : "";
+        if (ch === "t") return { t: "new" };
+        if (ch === "w") return { t: "close" };
+        if (ch === "o") return { t: "think" };
+        if (ch === "c") return { t: "stop" };
+        if (ch === "d") return { t: "exit" };
+      }
+      return { t: "seq" };
+    }
+
+    if (key.name === "paste-start" || seq === PASTE_START) return { t: "paste-start" };
+    if (key.name === "paste-end" || seq === PASTE_END) return { t: "paste-end" };
+
+    const n = String(key.name || "");
+    if (key.ctrl) {
+      if (n === "t") return { t: "new" };
+      if (n === "w") return { t: "close" };
+      if (n === "o") return { t: "think" };
+      if (n === "c") return { t: "stop" };
+      if (n === "d") return { t: "exit" };
+      if (n === "tab") return { t: "cycle", d: key.shift ? -1 : 1 };
+      if (n === "pageup") return { t: "cycle", d: -1 };
+      if (n === "pagedown") return { t: "cycle", d: 1 };
+      if (n === "home") return { t: "top" };
+      if (n === "end") return { t: "bottom" };
+      if (/^[1-9]$/.test(n)) return { t: "jump", n: Number(n) };
+      return null;
+    }
+    if (key.meta && /^[1-9]$/.test(n)) return { t: "jump", n: Number(n) };
+    switch (n) {
+      case "return": case "enter": return key.meta ? { t: "nl" } : { t: "enter" };
+      case "tab": return { t: "tab" };
+      case "escape": return { t: "esc" };
+      case "backspace": case "delete": return { t: "backspace" };
+      case "up": return { t: "up" };
+      case "down": return { t: "down" };
+      case "pageup": return { t: "scroll", d: 1 };
+      case "pagedown": return { t: "scroll", d: -1 };
+      case "home": return { t: "top" };
+      case "end": return { t: "bottom" };
+      default: break;
+    }
+    const typed = typeof str === "string" && str ? str : (seq.length === 1 && seq !== "\x1b" ? seq : "");
+    if (typed && typed >= " " && !key.ctrl && !key.meta) return { t: "text", s: typed };
+    return null;
+  };
+}
+
+/** The app loop. Returning from here means the terminal is restored and the
+ *  tabs are on disk. `io` exists for the tests: pass a pair of streams and
+ *  the whole loop runs headless (no process.stdout/stdin touched). */
+export async function tuiApp(io = {}) {
+  const tui = await loadTui();
+  if (!tui) return repl();   // the plain interactive path is the fallback
+  const { renderFrame, clipTo } = tui;
+
+  const records = readCliSessions();
+  const tabs = records.length ? tabsFromStore(records) : [newSession()];
+  let active = records.length ? Math.max(0, records.findIndex((r) => r.active === true)) : 0;
+  if (active >= tabs.length) active = 0;
+
+  const stdout = io.stdout || process.stdout, stdin = io.stdin || process.stdin;
+  const prevOut = OUT_STREAM;
+  OUT_STREAM = stdout;
+  const tab = () => tabs[active];
+  const hist = [];
+  let histIdx = -1, histDraft = "";
+  let pasting = false, spinning = 0;
+  let timer = null, renderQueued = false, restored = false, exiting = false;
+  let forceClear = false, renderError = null;
+  let done = null;
+
+  FRAME_W = 0;
+  const draw = () => {
+    renderQueued = false;
+    try {
+      sweep(false);
+      const w = Math.max(20, stdout.columns || 80), h = Math.max(6, stdout.rows || 24);
+      const frame = renderFrame(frameState(tui, tabs, active, spinning, w), w, h, true);
+      const rows = String(frame).split("\n");
+      let s = (forceClear ? "\x1b[2J" : "") + "\x1b[H";
+      forceClear = false;
+      for (let i = 0; i < h; i++) {
+        s += clipTo(rows[i] ?? "", w) + "\x1b[K";
+        if (i < h - 1) s += "\r\n";
+      }
+      out(s);
+    } catch (e) {
+      if (!renderError) renderError = e;   // report on exit, never loop-crash
+    }
+  };
+  const requestRender = () => {
+    if (renderQueued || exiting) return;
+    renderQueued = true;
+    setImmediate(() => { if (!exiting) draw(); });
+  };
+
+  /** Fold a thinking block 500ms after it ends (immediately for turns that
+   *  end or when the reply starts), keeping it open if the user opened it. */
+  function sweep(force) {
+    for (const t of tabs) {
+      const think = t.think;
+      if (!think || !think.holdUntil) continue;
+      if (!force && Date.now() < think.holdUntil) continue;
+      const opened = think.mode === "open";
+      if (think.lines && think.lines.length) {
+        pushItem(t, {
+          k: "think", label: think.label || "Thought", lines: think.lines.slice(),
+          mode: opened ? "open" : "closed", scroll: 0, maxOpen: think.maxOpen || 12,
+        });
+      }
+      t.think = null;   // no reasoning text means no block, then or later
+    }
+  }
+
+  const needTick = () => tabs.some((t) =>
+    t.stream || (t.think && (t.think.live || t.think.holdUntil)) ||
+    (t.toast && Date.now() < t.toast.until) ||
+    (t.closeArm && Date.now() - t.closeArm < CLOSE_ARM_MS));
+  const ensureTick = () => {
+    if (timer || exiting) return;
+    if (!needTick()) return;
+    timer = setInterval(() => {
+      spinning++;
+      draw();
+      if (!needTick()) { clearInterval(timer); timer = null; }
+    }, 100);
+  };
+
+  function pushItem(t, item) {
+    t.items.push(item);
+    if (t.items.length > ITEM_CAP) {
+      t.items.splice(0, t.items.length - ITEM_CAP);
+      if (t.liveText && !t.items.includes(t.liveText)) t.liveText = null;
+    }
+    return item;
+  }
+  function pushRaw(t, text) { return pushItem(t, { k: "raw", t: String(text).replace(/\n+$/, "") }); }
+  function toast(t, text) {
+    t.toast = { text: String(text), until: Date.now() + 2600 };
+    requestRender();
+    ensureTick();
+  }
+  const saveTabs = () => writeCliSessions(sessionsToStore(tabs, active));
+
+  /* ------------------------------ terminal ------------------------------- */
+  const restoreTerm = () => {
+    if (restored) return;
+    restored = true;
+    try { stdin.setRawMode(false); } catch { /* not raw (or already gone) */ }
+    try { stdin.pause(); } catch { /* closed */ }
+    out("\x1b[?2004l\x1b[?1049l\x1b[?25h\x1b[0m");
+  };
+  const exitApp = (code = 0) => {
+    if (exiting) return;
+    exiting = true;
+    try { saveTabs(); } catch { /* best effort: the in-memory tabs die with us */ }
+    restoreTerm();
+    if (renderError) err(red("tui: " + (renderError.message || renderError)));
+    process.exitCode = code;
+    if (done) done();
+  };
+  const onExit = () => { try { saveTabs(); } catch { /* ignore */ } restoreTerm(); };
+  const onSig = (code) => () => { try { saveTabs(); } catch { /* ignore */ } restoreTerm(); process.exit(code); };
+  const sigInt = onSig(130), sigTerm = onSig(143);
+  const onResize = () => { forceClear = true; draw(); };
+  const onStdinEnd = () => exitApp(0);
+
+  /* --------------------------------- keys -------------------------------- */
+  const decode = createKeyDecoder();
+  const movePopup = (d) => { moveSel(d); requestRender(); };
+
+  function permKey(t, intent, str) {
+    const p = t.perm;
+    if (!p) return;
+    const s = String(str || "").toLowerCase();
+    const answer = (allowed, scope, note) => {
+      t.perm = null;
+      pushItem(t, { k: "note", t: note });
+      p.resolve({ allowed, scope });
+      requestRender();
+    };
+    if (intent.t === "stop") return answer(false, "once", "✕ Denied. Star will not run this.");
+    if (s === "1" || s === "y") return answer(true, "once", "✓ Allowed once.");
+    if (s === "2" || s === "a") return answer(true, "session", "✓ Allowed for this session.");
+    if (s === "3" || s === "n") return answer(false, "once", "✕ Denied. Star will not run this.");
+    if (intent.t === "up") { p.sel = (p.sel + 2) % 3; return requestRender(); }
+    if (intent.t === "down") { p.sel = (p.sel + 1) % 3; return requestRender(); }
+    if (intent.t === "enter") {
+      const pick = p.sel | 0;
+      if (pick === 1) return answer(true, "session", "✓ Allowed for this session.");
+      if (pick === 2) return answer(false, "once", "✕ Denied. Star will not run this.");
+      return answer(true, "once", "✓ Allowed once.");
+    }
+    return undefined;
+  }
+
+  async function keyPromptKey(t, intent) {
+    if (intent.t === "enter") {
+      const key = t.input.trim(), pid = t.keyPrompt;
+      t.keyPrompt = null; t.input = "";
+      if (key) {
+        try {
+          const { writeAuthEntry } = await import("../lib/auth.js");
+          writeAuthEntry(pid, { apiKey: key });
+          toast(t, "stored " + mask(key) + " for " + pid + ".");
+        } catch (e) { toast(t, "could not store the key: " + e.message); }
+      }
+      requestRender();
+      return;
+    }
+    if (intent.t === "esc" || intent.t === "stop") {
+      t.keyPrompt = null; t.input = "";
+      toast(t, "connect cancelled");
+      requestRender();
+      return;
+    }
+    if (intent.t === "backspace") { t.input = t.input.slice(0, -1); requestRender(); return; }
+    if (intent.t === "text") { t.input += intent.s; requestRender(); }
+  }
+
+  function newTab() {
+    const t = tab();
+    if (tabs.length >= TAB_LIMIT) return toast(t, "tab limit reached (" + TAB_LIMIT + ")");
+    tabs.push(newSession());
+    active = tabs.length - 1;
+    closePopup();
+    try { saveTabs(); } catch { /* ignore */ }
+    requestRender();
+  }
+
+  function closeTab() {
+    const t = tab();
+    if (t.stream && !(t.closeArm && Date.now() - t.closeArm < CLOSE_ARM_MS)) {
+      t.closeArm = Date.now();
+      toast(t, "streaming — ctrl+w again to close and stop");
+      requestRender();
+      ensureTick();
+      return;
+    }
+    if (t.stream && t.controller) t.controller.abort = true;
+    if (t.perm) { t.perm.resolve({ allowed: false, scope: "once" }); t.perm = null; }
+    tabs.splice(active, 1);
+    if (!tabs.length) tabs.push(newSession());
+    active = Math.min(active, tabs.length - 1);
+    closePopup();
+    refreshPopup(tab().input);
+    try { saveTabs(); } catch { /* ignore */ }
+    requestRender();
+  }
+
+  function cycleTab(d) {
+    active = (active + d + tabs.length) % tabs.length;
+    closePopup();
+    refreshPopup(tab().input);
+    requestRender();
+  }
+
+  function jumpTab(n) {
+    const i = Math.min(tabs.length, Math.max(1, n)) - 1;
+    if (i === active) return;
+    active = i;
+    closePopup();
+    refreshPopup(tab().input);
+    requestRender();
+  }
+
+  function thinkKey(t) {
+    if (t.think) {
+      const think = t.think;
+      think.mode = think.mode === "open" ? (think.live ? "peek" : "closed") : "open";
+      requestRender();
+      ensureTick();
+      return;
+    }
+    for (let i = t.items.length - 1; i >= 0; i--) {
+      if (t.items[i].k === "think") {
+        t.items[i].mode = t.items[i].mode === "open" ? "closed" : "open";
+        invalidate(t.items[i]);
+        requestRender();
+        return;
+      }
+    }
+    toast(t, "nothing to open yet");
+  }
+
+  function scrollKey(t, what) {
+    if (what === "top") t.scroll = Math.max(0, tabLines(tui, t, FRAME_W || Math.max(20, stdout.columns || 80), ANSI).length - 1);
+    else if (what === "bottom") t.scroll = 0;
+    else {
+      const page = Math.max(3, (stdout.rows || 24) - 8);
+      t.scroll = Math.max(0, t.scroll + what * page);
+    }
+    requestRender();
+  }
+
+  function histKey(t, dir) {
+    if (popupOpen()) return movePopup(dir === "up" ? -1 : 1);
+    if (!hist.length) return;
+    if (histIdx < 0) histDraft = t.input;
+    histIdx = dir === "up" ? Math.min(hist.length - 1, histIdx + 1) : Math.max(-1, histIdx - 1);
+    t.input = histIdx < 0 ? histDraft : hist[hist.length - 1 - histIdx];
+    refreshPopup(t.input);
+    requestRender();
+  }
+
+  function enterKey(t) {
+    const v = currentValue();
+    if (popupOpen() && POPUP.kind === "slash" && v) { t.input = v + " "; refreshPopup(t.input); return requestRender(); }
+    if (popupOpen() && (POPUP.kind === "model" || POPUP.kind === "connect") && v) {
+      return submit(t, (POPUP.kind === "model" ? "/model " : "/connect ") + v);
+    }
+    if (popupOpen() && POPUP.kind === "file" && v) {
+      t.input = t.input.replace(/@[^\s@]*$/, "@" + v + " ");
+      refreshPopup(t.input);
+      return requestRender();
+    }
+    return submit(t, t.input);
+  }
+
+  function submit(t, raw) {
+    const line = String(raw ?? "");
+    if (!line.trim()) { t.input = ""; closePopup(); return requestRender(); }
+    t.input = ""; closePopup();
+    if (line !== hist[hist.length - 1]) { hist.push(line); if (hist.length > HISTORY_MAX) hist.shift(); }
+    histIdx = -1; histDraft = "";
+    if (t.stream) {
+      t.queue.push(line);
+      toast(t, "queued (" + t.queue.length + ") — sends when this turn ends");
+      return undefined;
+    }
+    return route(t, line);
+  }
+
+  function stopKey(t) {
+    if (t.stream) {
+      if (t.controller) t.controller.abort = true;
+      toast(t, "stopping…");
+      requestRender();
+      ensureTick();
+      return;
+    }
+    if (t.input) { t.input = ""; closePopup(); return requestRender(); }
+    return exitApp(130);
+  }
+
+  /* ------------------------------ transcript ----------------------------- */
+  function tuiEmit(t, evt) {
+    switch (evt.type) {
+      case "assistant_start":
+        t.turnRaw = "";
+        t.liveText = null;
+        break;
+      case "delta": {
+        t.turnRaw += evt.text;
+        const shown = stripCtl(t.turnRaw).replace(/\n{3,}/g, "\n\n");
+        if (!t.liveText) {
+          t.liveText = pushItem(t, { k: "text", t: shown });
+        } else {
+          t.liveText.t = shown;
+          invalidate(t.liveText);
+        }
+        break;
+      }
+      case "thinking_start":
+        t.think = { mode: "peek", live: true, label: "Thinking…", lines: [], scroll: 0, maxOpen: 12, started: Date.now(), holdUntil: 0 };
+        break;
+      case "thinking_delta": {
+        if (!t.think) break;
+        const w = Math.max(20, (FRAME_W || stdout.columns || 80) - 6);
+        const text = String(evt.text ?? "");
+        for (const line of text.split("\n")) {
+          if (!line) continue;
+          for (let i = 0; i < line.length; i += w) t.think.lines.push(line.slice(i, i + w));
+        }
+        if (t.think.lines.length > 400) t.think.lines.splice(0, t.think.lines.length - 400);
+        break;
+      }
+      case "thinking_end": {
+        const think = t.think;
+        if (!think) break;
+        const ms = Math.max(0, evt.ms | 0);
+        think.label = ms >= 1000 ? "Thought for " + Math.round(ms / 1000) + "s" : "Thought for a moment";
+        think.live = true;                 // the 500ms fold window still shimmers
+        think.holdUntil = Date.now() + 500;
+        break;
+      }
+      case "todos":
+        pushItem(t, { k: "todos", todos: evt.todos });
+        break;
+      case "tool": {
+        const arg = toolArg(evt.name, evt.args);
+        if (evt.allowed === false) {
+          pushItem(t, { k: "tool", name: evt.name, arg, meta: "denied", tone: "red" });
+        } else {
+          t.pending.push(pushItem(t, { k: "tool", name: evt.name, arg, meta: "", tone: "gold" }));
+        }
+        break;
+      }
+      case "diff":
+        t.heldDiff = evt;
+        break;
+      case "tool_result": {
+        const item = t.pending.shift();
+        if (item) {
+          const { meta, tone } = toolOutcome(item.name, evt);
+          item.meta = meta;
+          item.tone = tone;
+          invalidate(item);
+        }
+        if (t.heldDiff) { pushItem(t, { k: "diff", ...t.heldDiff }); t.heldDiff = null; }
+        break;
+      }
+      case "usage":
+        t.ctxPct = evt.contextPct || 0;
+        ctxPct = evt.contextPct || 0;
+        break;
+      case "error":
+        t.turnFailed = true;
+        process.exitCode = 1;
+        pushItem(t, { k: "note", t: "error: " + evt.message });
+        break;
+      case "done":
+        sweep(true);
+        break;
+      default:
+        break;   // assistant_end, context_pruned: the transcript is complete
+    }
+    requestRender();
+    ensureTick();
+  }
+
+  function tuiPermission(t, ask) {
+    return new Promise((resolve) => {
+      t.perm = { resolve, ask, sel: 0 };
+      requestRender();
+    });
+  }
+
+  /* -------------------------------- turns -------------------------------- */
+  async function startTurn(t, text) {
+    if (exiting) return;
+    if (t.title === "new session" && !t.items.some((i) => i.k === "user")) t.title = titleForMessage(text);
+    pushItem(t, { k: "user", t: text });
+    t.messages.push({ role: "user", content: text });
+    t.messages[0] = { role: "system", content: systemPrompt(root, flags.mode) };
+    t.stream = true;
+    t.turnStarted = Date.now();
+    t.turnRaw = "";
+    t.liveText = null;
+    t.turnFailed = false;
+    t.controller = { abort: false };
+    spinning = 0;
+    draw();
+    ensureTick();
+    try {
+      await runAgentTurn({
+        provider, model, apiKey: currentKey(), baseUrl: effectiveBase(),
+        messages: t.messages, runner,
+        emit: (evt) => tuiEmit(t, evt),
+        requestPermission: (ask) => tuiPermission(t, ask),
+        mode: flags.mode, autoAllow: t.autoAllow, controller: t.controller,
+      });
+    } catch (e) {
+      t.turnFailed = true;
+      process.exitCode = 1;
+      pushItem(t, { k: "note", t: "error: " + e.message });
+    }
+    t.stream = false;
+    t.liveText = null;
+    sweep(true);
+    draw();
+    ensureTick();
+    // A tab closed (or the whole app quit) mid-turn owns nothing anymore:
+    // its queue must not start a model call nobody can see.
+    if (exiting || !tabs.includes(t)) return;
+    const next = t.queue.shift();
+    if (next != null) await route(t, next);   // queued typing sends when the turn ends
+  }
+
+  /* ------------------------------- commands ------------------------------ */
+  async function route(t, line) {
+    if (line === "/exit" || line === "/quit") return exitApp(0);
+    if (line === "/help") return pushRaw(t, slashList("/"));
+    if (line === "/clear") {
+      t.messages.length = 1;
+      t.ctxPct = 0;
+      ctxPct = 0;
+      t.items = [];
+      t.think = null;
+      t.liveText = null;
+      return toast(t, "cleared.");
+    }
+    if (line === "/tabs") {
+      const rows = tabs.map((x, i) => ({
+        segs: [
+          { t: (i === active ? "▸ " : "  ") + String(x.title).padEnd(20), c: i === active ? "gold" : "dim" },
+          { t: x.stream ? "streaming" : "idle", c: x.stream ? "gold" : "dim" },
+          { t: x.queue.length ? "  ·  " + x.queue.length + " queued" : "", c: "dim" },
+        ],
+        bg: i === active ? "sel" : undefined,
+      }));
+      return pushRaw(t, box(rows));
+    }
+    if (line === "/status") {
+      const key = currentKey();
+      return pushRaw(t, [
+        gold(provider + "/" + model) + dim(" · " + (MODE_LABEL[flags.mode] || flags.mode) + " · " + root),
+        dim(key ? "key: " : "key: none (use /connect or --model)") + (key ? green(mask(key)) : ""),
+      ].join("\n"));
+    }
+    if (line.startsWith("/model")) {
+      const sel = line.split(/\s+/)[1] || "";
+      if (!sel) {
+        const rows = Object.entries(PROVIDERS).map(([id, cfg]) => ({
+          segs: [{ t: (id === provider ? "▸ " : "  ") + id.padEnd(14), c: "gold" },
+                 { t: id === provider ? model : cfg.defaultModel, c: "dim" }],
+          bg: id === provider ? "sel" : undefined,
+        }));
+        pushRaw(t, box(rows));
+        return pushRaw(t, dim("switch with /model <provider/model>"));
+      }
+      const slash = sel.indexOf("/");
+      const pid = slash > 0 ? sel.slice(0, slash) : sel;
+      if (!PROVIDERS[pid]) return toast(t, "unknown provider: " + sel);
+      provider = pid;
+      model = slash > 0 ? sel.slice(slash + 1) : PROVIDERS[pid].defaultModel;
+      writeLastModel(provider, model);   // the switch is remembered for the next boot
+      return toast(t, "using " + provider + "/" + model);
+    }
+    if (line.startsWith("/connect")) {
+      const wanted = line.split(/\s+/)[1] || "";
+      if (!PROVIDERS[wanted]) return toast(t, "usage: /connect <provider>  (e.g. /connect deepseek)");
+      t.keyPrompt = wanted;
+      t.input = "";
+      return toast(t, "paste the API key and press enter (esc cancels)");
+    }
+    if (line === "/knowledge") {
+      const { listKnowledge } = await import("../lib/knowledge.js");
+      const files = listKnowledge(root);
+      return pushRaw(t, files.length
+        ? files.map((f) => dim("- ") + f.name + dim(" (" + f.bytes + " bytes)")).join("\n")
+        : dim("No knowledge yet (.star-code/knowledge/)."));
+    }
+    if (line === "/agents") {
+      const { agents, problems } = listAgentsWithProblems(root);
+      const rows = [];
+      const entry = (a, marker) => {
+        rows.push({ segs: [{ t: marker + a.name, c: "gold" }, { t: "  · " + a.source, c: "dim" }] });
+        rows.push({ segs: [{ t: "    " + (a.description || "(no description)"), c: "dim" }] });
+        rows.push({ segs: [{ t: "    tools: " + (a.tools ? a.tools.join(", ") : "all"), c: "dim" }] });
+        rows.push({ segs: [{ t: "    model: " + (a.model || "default"), c: "dim" }] });
+      };
+      entry(BUILTIN_EXPLORER, "▸ ");
+      for (const a of agents) entry(a, "  ");
+      pushRaw(t, box(rows));
+      if (problems.length) {
+        pushRaw(t, dim("Skipped " + problems.length + " agent file" + (problems.length === 1 ? "" : "s") + ":") + "\n" +
+          problems.map((p) => dim("  - " + path.basename(p.file) + " (" + p.source + "): " + p.error)).join("\n"));
+      }
+      return pushRaw(t, dim("Add one: ") + gold(".star-code/agents/<name>.md") + dim(" or ") +
+        gold("~/.star-code/agents/<name>.md") + dim(" · run one with ") + gold('task agent:"name"'));
+    }
+    if (line.startsWith("/")) return pushRaw(t, slashList(line));
+    return startTurn(t, line);
+  }
+
+  /* --------------------------------- loop -------------------------------- */
+  const onKeypress = (str, key) => {
+    if (!key) return;
+    try {
+      // Bracketed paste: the markers are key semantics, everything between
+      // them is raw text - a multi-line paste must never press enter.
+      if (key.name === "paste-start" || key.sequence === PASTE_START) { pasting = true; return; }
+      if (key.name === "paste-end" || key.sequence === PASTE_END) {
+        pasting = false;
+        refreshPopup(tab().input);
+        return requestRender();
+      }
+      if (pasting) {
+        const raw = String(str ?? key.sequence ?? "");
+        if (raw && raw[0] !== "\x1b") tab().input += raw;
+        return;
+      }
+      const intent = decode(str, key);
+      if (!intent) return;
+      const t = tab();
+      if (t.perm) return permKey(t, intent, str);
+      if (t.keyPrompt) return void keyPromptKey(t, intent);
+      switch (intent.t) {
+        case "new": return newTab();
+        case "close": return closeTab();
+        case "cycle": return cycleTab(intent.d);
+        case "jump": return jumpTab(intent.n);
+        case "stop": return void stopKey(t);
+        case "exit": return t.input ? undefined : exitApp(0);
+        case "think": return thinkKey(t);
+        case "scroll": return scrollKey(t, intent.d);
+        case "top": case "bottom": return scrollKey(t, intent.t);
+        case "enter": return void enterKey(t);
+        case "nl": t.input += "\n"; refreshPopup(t.input); return requestRender();
+        case "tab":
+          if (popupOpen() && POPUP.kind === "slash" && currentValue()) {
+            t.input = currentValue() + " ";
+            refreshPopup(t.input);
+          }
+          return requestRender();
+        case "esc":
+          if (popupOpen()) closePopup(); else t.input = "";
+          return requestRender();
+        case "up": case "down": return histKey(t, intent.t);
+        case "backspace": t.input = t.input.slice(0, -1); refreshPopup(t.input); return requestRender();
+        case "text": t.input += intent.s; refreshPopup(t.input); return requestRender();
+        default: return undefined;
+      }
+    } catch (e) {
+      toast(tab(), "tui error: " + e.message);
+    }
+    return undefined;
+  };
+
+  // Enter with the loop: raw mode, the alt screen, and cleanup that a crash
+  // cannot skip: 'exit' fires on the way out no matter what threw.
+  out("\x1b[?1049h\x1b[?2004h\x1b[2J\x1b[H\x1b[?25l");
+  readline.emitKeypressEvents(stdin);
+  try { stdin.setRawMode(true); } catch { /* not a TTY after all: plain keys below still work */ }
+  stdin.resume();
+  stdin.on("keypress", onKeypress);
+  stdin.on("end", onStdinEnd);
+  stdout.on("resize", onResize);
+  process.on("exit", onExit);
+  process.on("SIGINT", sigInt);
+  process.on("SIGTERM", sigTerm);
+  try {
+    refreshPopup(tab().input);
+    draw();
+    ensureTick();
+    await new Promise((resolve) => { done = resolve; });
+  } finally {
+    exiting = true;
+    restoreTerm();
+    try { saveTabs(); } catch { /* ignore */ }
+    if (timer) { clearInterval(timer); timer = null; }
+    stdin.removeListener("keypress", onKeypress);
+    stdin.removeListener("end", onStdinEnd);
+    stdout.removeListener("resize", onResize);
+    process.removeListener("exit", onExit);
+    process.removeListener("SIGINT", sigInt);
+    process.removeListener("SIGTERM", sigTerm);
+    FRAME_W = 0;
+    OUT_STREAM = prevOut;
+    if (rl) rl.close();
+  }
+}
+
 /* --------------------------------- demo ---------------------------------- */
 // Scripted frames of the interactive states, written for reviews and
 // screenshots. No model call, no key lookup, no network: it only exercises
@@ -866,9 +1850,59 @@ function demoScene(name) {
         { segs: [{ t: " 2  ", c: "gold" }, { t: "Allow for this session" }] },
         { segs: [{ t: " 3  ", c: "gold" }, { t: "Deny" }] },
       ]) + "\n" + statusLine() + "\n";
+    case "tui":
+      return demoTui();
     default:
-      return "demo scenes: start · slash · model · files · permission\n";
+      return "demo scenes: start · slash · model · files · permission · tui\n";
   }
+}
+
+/** The whole full-screen session, scripted through the real frame builder:
+ *  three tabs, the first streaming with a live thinking peek and the slash
+ *  popup open, another with a tool line and an answer line. No TTY needed, so
+ *  it pipes and screenshots like every other scene. */
+async function demoTui() {
+  const tui = await loadTui();
+  if (!tui) return null;
+  const W = 100, H = 28;
+  const t1 = newSession();
+  t1.title = "fix the failing test";
+  t1.items.push({ k: "user", t: "the watcher test fails on windows" });
+  t1.items.push({ k: "tool", name: "run_command", arg: "npm test -- watcher", meta: "3 failed", tone: "red" });
+  t1.items.push({ k: "text", t: "Found it: the temp directory emits one change for the write and a second for the rename, so the debounce sees two events." });
+  const streamed = { k: "text", t: "I'll debounce per path instead: keep the last mtime, fold the rename into the write, and re-run" };
+  t1.items.push(streamed);
+  t1.liveText = streamed;
+  t1.stream = true;
+  t1.turnStarted = Date.now() - 4000;
+  t1.think = {
+    mode: "peek", live: true, label: "Thinking… 4s", started: Date.now() - 4000, holdUntil: 0,
+    scroll: 0, maxOpen: 12,
+    lines: [
+      "The test writes a file and then renames it.",
+      "Two change events reach the debounce.",
+      "Track the last mtime per path to fold them.",
+      "Then re-run just that test file.",
+    ],
+  };
+  t1.input = "/";
+  setPopup("slash", "Commands", slashRows("/"));
+  const t2 = newSession();
+  t2.title = "publish 1.3.9";
+  t2.items.push({ k: "user", t: "run the test suite" });
+  t2.items.push({ k: "tool", name: "run_command", arg: "npm test", meta: "42 passed", tone: "green" });
+  t2.items.push({ k: "text", t: "All 42 checks pass — the packaging step is ready to ship." });
+  const t3 = newSession();
+  t3.title = "read the release notes";
+  t3.items.push({ k: "user", t: "summarise the changelog" });
+  t3.items.push({ k: "text", t: "Three fixes, one feature." });
+  const state = frameState(tui, [t1, t2, t3], 0, 2, W);
+  // Scripted status: a short root leaves room for the streaming hint, which
+  // a real (long) project path would otherwise clip away.
+  state.status.root = "~/projects/star";
+  const frame = tui.renderFrame(state, W, H, ANSI);
+  closePopup();
+  return frame + "\n";
 }
 
 async function repl() {
@@ -906,6 +1940,7 @@ async function repl() {
       if (!PROVIDERS[pid]) { out(dim("unknown provider: ") + sel + "\n"); continue; }
       provider = pid;
       model = slash > 0 ? sel.slice(slash + 1) : PROVIDERS[pid].defaultModel;
+      writeLastModel(provider, model);   // the switch is remembered for the next boot
       out(green("using " + provider + "/" + model) + "\n");
       continue;
     }
@@ -959,14 +1994,34 @@ async function repl() {
 // No process.exit(): with bursty stdout, exiting mid-write aborts the
 // process on Windows (libuv assertion, 0xC0000409). Setting exitCode and
 // letting the loop drain is what the exit contract actually needs.
-if (demo) {
-  ANSI = !("NO_COLOR" in process.env);   // frames are inked for review, unless the user said no colour
-  out(demoScene(demo));
-  if (rl) rl.close();
-} else if (prompt.length) {
-  out(box([{ segs: [{ t: "> ", c: "gold" }, { t: prompt.join(" ") }] }]) + "\n");
-  await runTurn(prompt.join(" "));
-  if (rl) rl.close();
-} else {
-  await repl();
+//
+// The CLI only runs when this module *is* the program: import it and all you
+// get is its functions (the tests rely on that), run it and the guard passes.
+const isMain = (() => {
+  try { return !!process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href; }
+  catch { return true; }
+})();
+
+if (isMain) {
+  if (demo) {
+    ANSI = !("NO_COLOR" in process.env);   // frames are inked for review, unless the user said no colour
+    const frame = await demoScene(demo);
+    if (frame == null) {
+      err(red("error: --demo tui needs lib/tui.js (the full-screen renderer)"));
+      process.exitCode = 1;
+    } else {
+      out(frame);
+    }
+    if (rl) rl.close();
+  } else if (prompt.length) {
+    out(box([{ segs: [{ t: "> ", c: "gold" }, { t: prompt.join(" ") }] }]) + "\n");
+    await runTurn(prompt.join(" "));
+    if (rl) rl.close();
+  } else if (ANSI && process.stdin.isTTY) {
+    // A real terminal: the full-screen session. Anything else - piped stdout,
+    // piped stdin, NO_COLOR - keeps the exact behaviour of the plain path.
+    await tuiApp();
+  } else {
+    await repl();
+  }
 }

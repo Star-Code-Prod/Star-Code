@@ -1,0 +1,607 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Star Artifact Reference</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one narrow reading column on top (intro + brief), then a wrapping grid of specimen frames, then rules. */
+:root{
+  --bg:#F2F4F8; --surface:#FFFFFF; --surface-2:#E7EBF3; --fg:#151A2E; --muted:#555D7A; --line:#D3D9E6;
+  --accent:#A35F00; --accent-soft:#FBE8C4; --on-accent:#FFFFFF; --link:#3443C0;
+  --good:#1D7448; --warn:#A8500A; --bad:#B3261E;
+  --good-soft:#D9F0E3; --warn-soft:#FCE5CF; --bad-soft:#F9DAD6;
+  --font-display:"Familjen Grotesk","Helvetica Neue",Arial,sans-serif;
+  --font-body:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;
+  --font-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1120; --surface:#161A2E; --surface-2:#1F2440; --fg:#E8EAF4; --muted:#9AA1BF; --line:#2B3152;
+    --accent:#F2B544; --accent-soft:#3A2E12; --on-accent:#1A1300; --link:#98A4FF;
+    --good:#5BD08F; --warn:#F0A04B; --bad:#FF8A80;
+    --good-soft:#12301F; --warn-soft:#3A260F; --bad-soft:#3E1714;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1120; --surface:#161A2E; --surface-2:#1F2440; --fg:#E8EAF4; --muted:#9AA1BF; --line:#2B3152;
+  --accent:#F2B544; --accent-soft:#3A2E12; --on-accent:#1A1300; --link:#98A4FF;
+  --good:#5BD08F; --warn:#F0A04B; --bad:#FF8A80;
+  --good-soft:#12301F; --warn-soft:#3A260F; --bad-soft:#3E1714;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--fg); font-family:var(--font-body); font-size:15px; line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px)); padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:32px 64px;
+}
+.wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:56px}
+h1,h2,h3{font-family:var(--font-display);text-wrap:balance;margin:0;line-height:1.1;letter-spacing:-0.01em}
+h1{font-size:clamp(2.2rem,6vw,3.6rem);font-weight:700}
+h2{font-size:1.6rem;font-weight:600}
+h3{font-size:1.05rem;font-weight:600;letter-spacing:0}
+p{margin:0;max-width:65ch}
+code,.mono{font-family:var(--font-mono);font-size:.85em}
+.label{font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+a{color:var(--link)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* masthead */
+.mast{display:flex;flex-direction:column;gap:18px;padding-top:8px}
+.mast .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.star{width:22px;height:22px;color:var(--accent);flex:none}
+.lede{font-size:1.1rem;color:var(--muted)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{font-family:var(--font-mono);font-size:12px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--surface)}
+.chip b{color:var(--accent);font-weight:500}
+
+/* brief */
+.brief{display:flex;flex-direction:column;gap:14px}
+.bar{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.btn{font:600 14px var(--font-body);background:var(--accent);color:var(--on-accent);border:0;border-radius:6px;padding:10px 16px;cursor:pointer}
+.btn:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
+.btns{display:flex;gap:8px;flex-wrap:wrap}
+.status{font-family:var(--font-mono);font-size:12px;color:var(--good);min-height:1.2em}
+.pre{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;max-height:340px;overflow:auto;
+  font-family:var(--font-mono);font-size:12.5px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;margin:0;min-width:0}
+
+/* section head */
+.sec{display:flex;flex-direction:column;gap:20px}
+.sec>.head{display:flex;flex-direction:column;gap:6px}
+.sec>.head p{color:var(--muted)}
+
+/* specimens */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:20px}
+.spec{display:flex;flex-direction:column;gap:12px;min-width:0}
+.spec .meta{display:flex;flex-direction:column;gap:4px}
+.spec .meta p{color:var(--muted);font-size:14px}
+.tag{align-self:flex-start;font-family:var(--font-mono);font-size:11px;padding:2px 8px;border-radius:4px;background:var(--surface-2);color:var(--muted)}
+.tag.typed{background:var(--accent-soft);color:var(--accent)}
+.frame{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;aspect-ratio:4/3;max-width:100%;position:relative;display:flex;flex-direction:column;min-width:0}
+.frame.wide{grid-column:1/-1;aspect-ratio:auto}
+.fbar{display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line);background:var(--surface-2);font-family:var(--font-mono);font-size:10.5px;color:var(--muted)}
+.fbar i{width:8px;height:8px;border-radius:50%;background:var(--line);display:block}
+.fbody{padding:14px;flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;overflow:hidden}
+
+/* inline reply */
+.bub{align-self:flex-start;background:var(--surface-2);border-radius:12px 12px 12px 2px;padding:9px 12px;font-size:12.5px;max-width:88%}
+.bub.me{align-self:flex-end;background:var(--accent-soft);border-radius:12px 12px 2px 12px}
+.mini-note{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);align-self:flex-start;border:1px dashed var(--line);padding:3px 8px;border-radius:4px}
+
+/* doc */
+.doc h4{font-family:var(--font-display);font-size:17px;margin:0;font-weight:700}
+.doc .by{font-family:var(--font-mono);font-size:10px;color:var(--muted)}
+.doc h5{font-family:var(--font-display);font-size:12px;margin:6px 0 0;font-weight:600}
+.doc p{font-size:11px;line-height:1.5;color:var(--fg)}
+.doc .ck{display:flex;gap:6px;font-size:11px;align-items:center}
+.doc .ck s{color:var(--muted)}
+.box{width:10px;height:10px;border:1.5px solid var(--muted);border-radius:2px;display:inline-block;flex:none}
+.box.on{background:var(--accent);border-color:var(--accent)}
+
+/* slides */
+.slide{flex:1;min-height:0;margin:12px;border-radius:6px;background:var(--fg);color:var(--bg);padding:16px;display:flex;flex-direction:column;justify-content:space-between}
+.slide h4{font-family:var(--font-display);font-size:clamp(17px,3.4vw,24px);line-height:1.1;margin:0;font-weight:700;max-width:14ch}
+.slide .sub{font-family:var(--font-mono);font-size:10px;opacity:.7}
+.slide .bars{display:flex;gap:6px;align-items:flex-end;height:44px}
+.slide .bars span{flex:1;background:var(--accent);border-radius:2px 2px 0 0}
+.strip{display:flex;gap:6px;padding:0 12px 12px}
+.strip span{flex:1;aspect-ratio:16/9;border-radius:3px;background:var(--surface-2);border:1px solid var(--line)}
+.strip span.on{border-color:var(--accent);outline:1px solid var(--accent)}
+
+/* design canvas */
+.canvas{flex:1;background:var(--surface-2);background-image:radial-gradient(var(--line) 1px,transparent 1px);background-size:14px 14px;
+  display:flex;gap:14px;padding:14px;align-items:center;justify-content:center;min-height:0}
+.board{background:var(--surface);border:1px solid var(--line);border-radius:4px;display:flex;flex-direction:column;gap:5px;padding:8px;position:relative}
+.board small{position:absolute;top:-13px;left:0;font-family:var(--font-mono);font-size:8.5px;color:var(--muted)}
+.board.phone{width:34%;aspect-ratio:9/16}
+.board.desk{flex:1;aspect-ratio:16/10}
+.ln{height:5px;border-radius:3px;background:var(--line)}
+.ln.h{height:9px;background:var(--fg);width:70%}
+.ln.s{width:55%}
+.blk{border-radius:3px;background:var(--accent-soft);flex:1;min-height:16px}
+.pill{height:12px;width:44%;border-radius:6px;background:var(--accent)}
+
+/* tool */
+.tool{display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1;min-height:0}
+.field{display:flex;flex-direction:column;gap:3px;font-size:10.5px;color:var(--muted)}
+.field div{border:1px solid var(--line);border-radius:5px;padding:5px 8px;font-family:var(--font-mono);color:var(--fg);font-size:12px;background:var(--bg)}
+.result{background:var(--accent-soft);border-radius:8px;padding:12px;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.result b{font-family:var(--font-display);font-size:26px;line-height:1;color:var(--accent)}
+.result span{font-size:10.5px;color:var(--muted)}
+
+/* dashboard */
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.kpi{border:1px solid var(--line);border-radius:6px;padding:7px 9px;display:flex;flex-direction:column;gap:1px}
+.kpi span{font-size:9.5px;color:var(--muted)}
+.kpi b{font-family:var(--font-display);font-size:17px;font-variant-numeric:tabular-nums}
+.st{font-family:var(--font-mono);font-size:9.5px;padding:1px 6px;border-radius:999px;align-self:flex-start}
+.st.good{background:var(--good-soft);color:var(--good)}
+.st.warn{background:var(--warn-soft);color:var(--warn)}
+.st.bad{background:var(--bad-soft);color:var(--bad)}
+.chart{flex:1;min-height:0;width:100%}
+
+/* sheet */
+.fx{display:flex;gap:8px;align-items:center;font-family:var(--font-mono);font-size:10.5px;border:1px solid var(--line);border-radius:4px;padding:3px 8px;color:var(--muted)}
+.fx b{color:var(--accent);font-weight:500}
+table.sh{border-collapse:collapse;width:100%;font-size:11px;font-variant-numeric:tabular-nums}
+table.sh th{background:var(--surface-2);font-weight:500;color:var(--muted);text-align:left;padding:4px 8px;border:1px solid var(--line);font-family:var(--font-mono);font-size:10px}
+table.sh td{padding:4px 8px;border:1px solid var(--line)}
+table.sh td.n{text-align:right;font-family:var(--font-mono)}
+table.sh td.sel{outline:2px solid var(--accent);outline-offset:-2px;background:var(--accent-soft)}
+
+/* tasks */
+.tk{display:flex;gap:8px;align-items:center;font-size:11.5px;padding:5px 0;border-bottom:1px solid var(--line)}
+.tk .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tk.done .t{text-decoration:line-through;color:var(--muted)}
+.av{width:18px;height:18px;border-radius:50%;background:var(--surface-2);font-size:9px;display:grid;place-items:center;font-family:var(--font-mono);flex:none}
+.due{font-family:var(--font-mono);font-size:10px;color:var(--muted)}
+.grp{font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding-top:4px}
+
+/* whiteboard + diagram */
+.svgfill{flex:1;min-height:0;width:100%;display:block}
+.svgfill text{font-family:var(--font-body)}
+
+/* card mock */
+.cardmock{display:flex;flex-direction:column;gap:12px;max-width:520px}
+.acard{display:flex;gap:12px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--surface)}
+.acard .ico{width:40px;height:40px;border-radius:8px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;flex:none}
+.acard .tx{flex:1;min-width:0;display:flex;flex-direction:column}
+.acard .tx b{font-family:var(--font-display);font-size:15px}
+.acard .tx span{font-size:12.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acard .go{font:600 12px var(--font-body);border:1px solid var(--line);border-radius:6px;padding:6px 10px;background:var(--bg);color:var(--fg)}
+.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:12px}
+.step{border:1px solid var(--line);border-radius:8px;padding:12px;background:var(--surface);display:flex;flex-direction:column;gap:4px}
+.step b{font-family:var(--font-display)}
+.step p{font-size:13.5px;color:var(--muted)}
+
+/* tokens */
+.sw{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:10px}
+.swi{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.swi i{display:block;height:44px}
+.swi div{padding:7px 9px;display:flex;flex-direction:column}
+.swi div span{font-family:var(--font-mono);font-size:11px;color:var(--muted)}
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px}
+.rule{border-top:2px solid var(--fg);padding-top:10px;display:flex;flex-direction:column;gap:6px}
+.rule ul{margin:0;padding-left:18px;color:var(--muted);font-size:14px;display:flex;flex-direction:column;gap:4px}
+.type{display:flex;flex-direction:column;gap:6px;border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:16px}
+.type .d{font-family:var(--font-display);font-size:32px;font-weight:700;line-height:1}
+.type .b{font-size:15px}
+.type .m{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+@media (max-width:560px){ .tool{grid-template-columns:1fr} }
+@media (prefers-reduced-motion:no-preference){ .btn{transition:filter .15s} }
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <div class="row">
+    <svg class="star" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 1.5l2.9 6.6 7.1.7-5.4 4.7 1.6 7-6.2-3.7-6.2 3.7 1.6-7L2 8.8l7.1-.7z"/></svg>
+    <span class="label">Star harness · artifact reference</span>
+  </div>
+  <h1>What every artifact looks like</h1>
+  <p class="lede">One page to hand to the AI that runs inside Star. It shows each kind of artifact I can make, how it sits in the chat, and the rules every page follows. Copy the brief below, or send this page's link.</p>
+  <div class="chips">
+    <span class="chip"><b>3</b> typed: Docs, Slides, Design</span>
+    <span class="chip"><b>7</b> hand-built HTML kinds</span>
+    <span class="chip">light + dark, from 400px up</span>
+  </div>
+</header>
+
+<section class="sec brief" aria-labelledby="bh">
+  <div class="head">
+    <h2 id="bh">The brief to paste</h2>
+    <p>Plain text, written to the AI. It covers what an artifact is, when to make one, each kind, the page contract, and the design rules.</p>
+  </div>
+  <div class="bar">
+    <div class="btns">
+      <button class="btn" id="copy" type="button">Copy the brief</button>
+      <button class="btn ghost" id="sel" type="button">Select all</button>
+    </div>
+    <span class="status" id="status" role="status"></span>
+  </div>
+  <pre class="pre" id="brief" tabindex="0"># Star artifact brief
+
+Give this to the AI that runs inside Star. It explains what an artifact is, when to make one, what each kind looks like, and the rules every artifact page must follow.
+
+## 1. What an artifact is
+
+An artifact is a self-contained page the assistant publishes from the chat.
+
+- It has its own URL and is private to the user until they share it.
+- In the conversation it shows as a card: title, one-sentence description, and an Open button. The card carries the link, so the reply does not repeat the URL.
+- The reply that follows the card is one sentence: what the page is, or what changed on an update.
+- To change an artifact, republish to the same URL. Never make a second artifact for an edit.
+- Opening a card shows the page in a side panel next to the chat. On a phone it opens full screen.
+
+## 2. When to make one
+
+Make an artifact when the person will keep, edit, share, or operate the result: a document, a deck, a design, a tool, a dashboard, a tracker, a board.
+
+Answer inline, with no artifact, when the person reads once and moves on: a question answered, an explanation, a short summary, a small chart or diagram that supports the reply.
+
+If the person names a file format (.pptx, .docx, .xlsx, .pdf), build that file instead of an artifact.
+
+## 3. The kinds and what each looks like
+
+Typed artifacts (a ready-made editor with its own structure):
+
+- **Docs.** A long-form page for reading and editing: title, byline with date, headings, body text at about 65 characters wide, tables, and checklists. Calm, typographic, no decoration. Exports to Word, PDF, Markdown.
+- **Slides.** 16:9 slides: one idea per slide, a large headline, one visual or short list, a filmstrip to page through. Exports to .pptx and PDF.
+- **Design.** A canvas holding one or more artboards: websites, landing pages, app screens, posters, social posts, invites. The artboards are the deliverable and carry real content, not placeholder text.
+
+Hand-built HTML artifacts (one self-contained .html page; use these when no typed artifact fits, or when this session does not list the typed one):
+
+- **Tool or app.** A calculator, converter, planner, game. Opens already filled with a realistic example so the first screen shows what it does. Inputs on the left or top, result next to them.
+- **Dashboard.** Summary first: a row of key figures, then charts, then detail. State shown as pills and stripes. Sparklines with an emphasized last point. Semantic colors (good, warning, critical) are separate from the accent.
+- **Sheet.** A table to sort, fill, and calculate: sticky header row, right-aligned tabular numbers, a formula bar, one selected cell.
+- **Whiteboard.** Sticky notes, boxes, and arrows on a dotted canvas. Free positioning. Used for brainstorms, retros, flowcharts, architecture sketches.
+- **Task list.** Rows with a checkbox, title, owner chip, due date, and status pill. Grouped by status or project.
+- **Diagram.** An inline SVG that shows the real mechanism: labeled boxes, directed arrows, one highlighted path. Readable in both themes.
+- **Website or microsite.** A page with a real hero, sections, and a footer. Editorial: one distinctive typographic choice, restrained color.
+
+## 4. Page contract (every hand-built page)
+
+Authoring
+
+- Write the page content directly. No `&lt;!DOCTYPE&gt;`, `&lt;html&gt;`, `&lt;head&gt;`, or `&lt;body&gt;` tags; the host wraps it.
+- Put a `&lt;title&gt;` at the top: a name of two to four words, not a sentence. No "Name: explainer".
+- Put `&lt;meta name="claude:viewport-fit-sides" content="cover"&gt;` beside the title, and only together with the two side paddings under Layout.
+- Keep the page at 16 MB or less, including data: URIs.
+
+Loading
+
+- Scripts load only from cdnjs.cloudflare.com (preferred), cdn.jsdelivr.net/npm, unpkg.com, cdn.tailwindcss.com, code.jquery.com. Pin an exact version. Use the UMD build.
+- Stylesheets load only from fonts.googleapis.com. Give every font a fallback stack.
+- Everything else is inline: CSS, JS, images as data: URIs. Fetch, XHR, and WebSocket to other hosts are blocked.
+
+What the frame refuses
+
+- No `window.print()`, no download links (`&lt;a download&gt;`), no `alert`, `confirm`, or `prompt`. Build confirmation into the page.
+- No camera, microphone, location, or clipboard reads. Copy buttons work from a click handler; catch the rejection and fall back to selecting the text.
+- No iframes or embeds of other sites. Link out with a real `&lt;a href&gt;`.
+- `mailto:` and `tel:` links are unreliable. Show the address as selectable text.
+- Forms are page UI only. Handle `submit` with `preventDefault()`.
+
+Storage
+
+- `localStorage` works but belongs to one viewer in one browser and can come back empty. Wrap every access in try/catch and use it only for small conveniences (a remembered tab, an unsent draft).
+- State that must be shared or durable needs a runtime capability, not browser storage.
+
+Layout
+
+- Side gutter of at least 16px on every width:
+  `padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));`
+  Set it once on the body or one outer wrapper. Use `padding-block` for vertical padding.
+- Must work at 400px wide and never scroll sideways. Rows wrap or stack. Flex and grid children that hold text get `min-width: 0`. Only tables, code, and diagrams may be wider, each in its own `overflow-x: auto` box.
+- A sticky header uses `top: env(safe-area-inset-top, 0px)`.
+- Use flex or grid with `gap` for spacing, not per-element margins.
+
+Theme (required)
+
+Every color is a token. Define all tokens on bare `:root` (light), then redefine them for dark:
+
+```css
+:root { --bg: #F2F4F8; --fg: #151A2E; --accent: #A35F00; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg: #0E1120; --fg: #E8EAF4; --accent: #F2B544; color-scheme: dark }
+}
+:root[data-theme="dark"] { --bg: #0E1120; --fg: #E8EAF4; --accent: #F2B544; color-scheme: dark }
+body { background: var(--bg); color: var(--fg) }
+```
+
+- `body` always sets an explicit background from a token.
+- No component uses a literal color that reads in only one theme.
+- Design both themes with care; do not just invert.
+
+## 5. Design rules
+
+- Real content, never lorem ipsum. Include at least one detail only this subject would have.
+- Pair two or three typefaces: a characterful display face used sparingly, a body face, and a mono face for data. Avoid Inter and Space Grotesk as the default.
+- Neutrals lean toward the accent's hue. No pure mid-grey.
+- Cards, borders, and shadows mark objects by role. Not every block gets the same radius and shadow.
+- No emoji as section markers. No purple-to-blue gradient hero. No centered-everything layout. No numbered markers unless the content is a real sequence.
+- The page is complete at first paint: nothing waits at `opacity: 0` for a scroll trigger. A tool opens with realistic sample data.
+- Numbers that line up use `font-variant-numeric: tabular-nums`.
+- Keyboard focus is visible. Respect `prefers-reduced-motion`.
+- Charts use one scale for marks, ticks, and labels, with chart text colored from theme tokens.
+
+## 6. Writing the copy
+
+- Name things by what people recognize, not how the system is built.
+- Controls say exactly what happens ("Publish"). Errors say what went wrong and how to fix it.
+- Short, direct sentences. No stock phrases, no scare quotes, no "not X, but Y".
+
+## 7. Delivery checklist for the assistant
+
+1. Decide: inline reply, typed artifact, hand-built page, or a named file format.
+2. Gather the material first, then build.
+3. Publish. The card appears with the title and description.
+4. Reply with one sentence. Do not paste the URL.
+5. On a change, republish to the same URL and say what changed in one sentence.
+</pre>
+</section>
+
+<section class="sec" aria-labelledby="kh">
+  <div class="head">
+    <h2 id="kh">The kinds, side by side</h2>
+    <p>Each frame is a miniature of the finished page. Typed kinds open in their own editor. Hand-built kinds are one self-contained HTML file.</p>
+  </div>
+
+  <div class="grid">
+
+    <article class="spec">
+      <div class="frame" aria-label="Inline reply example">
+        <div class="fbar"><i></i><i></i><i></i><span>chat</span></div>
+        <div class="fbody">
+          <div class="bub me">What is the difference between a mutex and a semaphore?</div>
+          <div class="bub">A mutex lets one thread in at a time and only the owner can release it. A semaphore counts permits, so several threads can hold one, and any thread can release.</div>
+          <span class="mini-note">no artifact: read once, move on</span>
+        </div>
+      </div>
+      <div class="meta"><span class="tag">no artifact</span><h3>Inline reply</h3><p>Answers, explanations, short summaries and small supporting charts stay in the chat as prose.</p></div>
+    </article>
+
+    <article class="spec">
+      <div class="frame">
+        <div class="fbar"><i></i><i></i><i></i><span>Docs</span></div>
+        <div class="fbody doc">
+          <h4>Harbor Cafe opening plan</h4>
+          <span class="by">Erik S. · 15 Oct 2026</span>
+          <h5>Goals</h5>
+          <p>Open the doors on 1 December with a seven-item menu and two baristas per shift.</p>
+          <h5>Before launch</h5>
+          <div class="ck"><span class="box on"></span><s>Sign espresso machine lease</s></div>
+          <div class="ck"><span class="box on"></span><s>Health inspection booked</s></div>
+          <div class="ck"><span class="box"></span>Hire second barista</div>
+        </div>
+      </div>
+      <div class="meta"><span class="tag typed">typed</span><h3>Docs</h3><p>Plans, memos, briefs, resumes. Title, byline, headings, body at reading width. Exports to Word, PDF, Markdown.</p></div>
+    </article>
+
+    <article class="spec">
+      <div class="frame">
+        <div class="fbar"><i></i><i></i><i></i><span>Slides · 16:9</span></div>
+        <div class="slide">
+          <span class="sub">Q3 REVIEW · 14 slides</span>
+          <h4>Repeat orders grew 31%</h4>
+          <div class="bars" aria-hidden="true"><span style="height:35%"></span><span style="height:48%"></span><span style="height:58%"></span><span style="height:100%"></span></div>
+        </div>
+        <div class="strip" aria-hidden="true"><span></span><span class="on"></span><span></span><span></span></div>
+      </div>
+      <div class="meta"><span class="tag typed">typed</span><h3>Slides</h3><p>One idea per slide, a large headline, one visual. Filmstrip to page through. Downloads as .pptx or PDF.</p></div>
+    </article>
+
+    <article class="spec">
+      <div class="frame">
+        <div class="fbar"><i></i><i></i><i></i><span>Design canvas</span></div>
+        <div class="canvas">
+          <div class="board desk"><small>Landing · 1440</small><div class="ln h"></div><div class="ln s"></div><div class="blk"></div><div class="pill"></div></div>
+          <div class="board phone"><small>Mobile · 390</small><div class="ln h"></div><div class="blk"></div><div class="ln"></div><div class="pill"></div></div>
+        </div>
+      </div>
+      <div class="meta"><span class="tag typed">typed</span><h3>Design</h3><p>Artboards on a dotted canvas: sites, app screens, posters, social posts. Real copy, labeled sizes, edit by hand.</p></div>
+    </article>
+
+    <article class="spec">
+      <div class="frame">
+        <div class="fbar"><i></i><i></i><i></i><span>Tool</span></div>
+        <div class="fbody">
+          <h3 style="font-size:14px">Tip splitter</h3>
+          <div class="tool">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div class="field">Bill (SEK)<div>1 240</div></div>
+              <div class="field">Tip<div>10 %</div></div>
+              <div class="field">People<div>4</div></div>
+            </div>
+            <div class="result"><span>Each pays</span><b>341</b><span>incl. 124 tip</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="meta"><span class="tag">hand-built</span><h3>Tool or app</h3><p>Calculator, converter, planner, game. Opens with a filled example so the first screen shows what it does.</p></div>
+    </article>
+
+    <article class="spec">
+      <div class="frame">
+        <div class="fbar"><i></i><i></i><i></i><span>Dashboard</span></div>
+        <div class="fbody">
+          <div class="kpis">
+            <div class="kpi"><span>Orders</span><b>1 482</b><i class="st good">+6.2%</i></div>
+            <div class="kpi"><span>Refunds</span><b>2.1%</b><i class="st warn">watch</i></div>
+            <div class="kpi"><span>Uptime</span><b>98.4%</b><i class="st bad">below 99</i></div>
+          </div>
+          <svg class="chart" viewBox="0 0 300 90" preserveAspectRatio="none" role="img" aria-label="Orders per week, rising">
+            <g stroke="var(--line)" stroke-width="1"><line x1="0" y1="20" x2="300" y2="20"/><line x1="0" y1="50" x2="300" y2="50"/><line x1="0" y1="80" x2="300" y2="80"/></g>
+            <path d="M0 70 L50 62 L100 66 L150 48 L200 40 L250 30 L292 18 L292 90 L0 90Z" fill="var(--accent-soft)"/>
+            <path d="M0 70 L50 62 L100 66 L150 48 L200 40 L250 30 L292 18" fill="none" stroke="var(--accent)" stroke-width="2.2" vector-effect="non-scaling-stroke"/>
+            <circle cx="292" cy="18" r="3.5" fill="var(--accent)"/>
+          </svg>
+        </div>
+      </div>
+      <div class="meta"><span class="tag">hand-built</span><h3>Dashboard</h3><p>Summary first, then charts, then detail. State as pills. Faint grid, area fill, emphasized endpoint.</p></div>
+    </article>
+
+    <article class="spec">
+      <div class="frame">
+        <div class="fbar"><i></i><i></i><i></i><span>Sheet</span></div>
+        <div class="fbody" style="gap:6px">
+          <div class="fx"><b>fx</b> =SUM(C2:C4)</div>
+          <div style="overflow:auto;min-width:0">
+          <table class="sh">
+            <tr><th>Item</th><th>Qty</th><th>Cost</th></tr>
+            <tr><td>Beans, 5 kg</td><td class="n">4</td><td class="n">1 560</td></tr>
+            <tr><td>Oat milk</td><td class="n">24</td><td class="n">432</td></tr>
+            <tr><td>Cups, 500 pc</td><td class="n">2</td><td class="n">610</td></tr>
+            <tr><td><b>Total</b></td><td></td><td class="n sel"><b>2 602</b></td></tr>
+          </table>
+          </div>
+        </div>
+      </div>
+      <div class="meta"><span class="tag">hand-built</span><h3>Sheet</h3><p>Sticky header, right-aligned tabular numbers, a formula bar and one selected cell.</p></div>
+    </article>
+
+    <article class="spec">
+      <div class="frame">
+        <div class="fbar"><i></i><i></i><i></i><span>Whiteboard</span></div>
+        <div class="canvas" style="padding:0">
+          <svg class="svgfill" viewBox="0 0 320 200" role="img" aria-label="Retro board with three sticky notes joined by arrows">
+            <defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--muted)"/></marker></defs>
+            <rect x="18" y="28" width="86" height="62" rx="3" fill="var(--accent-soft)" stroke="var(--accent)"/>
+            <text x="28" y="50" font-size="10" fill="var(--fg)">Deploys are</text><text x="28" y="64" font-size="10" fill="var(--fg)">slow on Fridays</text>
+            <rect x="130" y="22" width="86" height="62" rx="3" fill="var(--good-soft)" stroke="var(--good)"/>
+            <text x="140" y="44" font-size="10" fill="var(--fg)">Cache build</text><text x="140" y="58" font-size="10" fill="var(--fg)">layers</text>
+            <rect x="222" y="104" width="86" height="62" rx="3" fill="var(--warn-soft)" stroke="var(--warn)"/>
+            <text x="232" y="126" font-size="10" fill="var(--fg)">Owner: Maja</text><text x="232" y="140" font-size="10" fill="var(--fg)">by 30 Oct</text>
+            <path d="M104 56 L128 54" stroke="var(--muted)" stroke-width="1.5" fill="none" marker-end="url(#ar)"/>
+            <path d="M216 62 C250 66 262 82 264 102" stroke="var(--muted)" stroke-width="1.5" fill="none" marker-end="url(#ar)"/>
+          </svg>
+        </div>
+      </div>
+      <div class="meta"><span class="tag">hand-built</span><h3>Whiteboard</h3><p>Sticky notes, boxes and arrows placed freely. For brainstorms, retros and architecture sketches.</p></div>
+    </article>
+
+    <article class="spec">
+      <div class="frame">
+        <div class="fbar"><i></i><i></i><i></i><span>Tasks</span></div>
+        <div class="fbody" style="gap:0">
+          <div class="grp">In progress</div>
+          <div class="tk"><span class="box"></span><span class="t">Draft supplier contract</span><span class="av">MK</span><span class="due">17 Oct</span></div>
+          <div class="tk"><span class="box"></span><span class="t">Order menu boards</span><span class="av">ES</span><span class="due">21 Oct</span></div>
+          <div class="grp">Done</div>
+          <div class="tk done"><span class="box on"></span><span class="t">Pick the opening date</span><span class="av">ES</span><span class="due">9 Oct</span></div>
+          <div class="tk done"><span class="box on"></span><span class="t">Book inspection</span><span class="av">MK</span><span class="due">11 Oct</span></div>
+        </div>
+      </div>
+      <div class="meta"><span class="tag">hand-built</span><h3>Task list</h3><p>Checkbox, title, owner chip, due date. Grouped by status or project.</p></div>
+    </article>
+
+    <article class="spec">
+      <div class="frame">
+        <div class="fbar"><i></i><i></i><i></i><span>Diagram</span></div>
+        <div class="fbody" style="padding:0">
+          <svg class="svgfill" viewBox="0 0 320 200" role="img" aria-label="Request flows from client through gateway to a service, with an optional cache hit path">
+            <defs><marker id="ar2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--muted)"/></marker><marker id="ar3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--accent)"/></marker></defs>
+            <rect x="14" y="76" width="70" height="40" rx="6" fill="var(--surface-2)" stroke="var(--line)"/>
+            <text x="49" y="100" font-size="11" text-anchor="middle" fill="var(--fg)">Client</text>
+            <rect x="124" y="76" width="70" height="40" rx="6" fill="var(--surface-2)" stroke="var(--line)"/>
+            <text x="159" y="100" font-size="11" text-anchor="middle" fill="var(--fg)">Gateway</text>
+            <rect x="236" y="30" width="70" height="40" rx="6" fill="var(--accent-soft)" stroke="var(--accent)"/>
+            <text x="271" y="54" font-size="11" text-anchor="middle" fill="var(--fg)">Service</text>
+            <rect x="236" y="130" width="70" height="40" rx="6" fill="var(--surface-2)" stroke="var(--line)"/>
+            <text x="271" y="154" font-size="11" text-anchor="middle" fill="var(--fg)">Cache</text>
+            <path d="M84 96 L122 96" stroke="var(--muted)" stroke-width="1.5" fill="none" marker-end="url(#ar2)"/>
+            <path d="M194 88 L234 56" stroke="var(--accent)" stroke-width="2" fill="none" marker-end="url(#ar3)"/>
+            <path d="M194 104 L234 144" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 3" fill="none" marker-end="url(#ar2)"/>
+            <text x="198" y="190" font-size="9.5" fill="var(--muted)">solid: main path · dashed: on hit</text>
+          </svg>
+        </div>
+      </div>
+      <div class="meta"><span class="tag">hand-built</span><h3>Diagram</h3><p>Inline SVG that shows the real mechanism. Labeled boxes, directed arrows, one highlighted path.</p></div>
+    </article>
+
+    <article class="spec">
+      <div class="frame">
+        <div class="fbar"><i></i><i></i><i></i><span>Site</span></div>
+        <div class="fbody" style="gap:10px;justify-content:center">
+          <span class="label" style="color:var(--accent)">Tidvatten bakery</span>
+          <div style="font-family:var(--font-display);font-size:clamp(20px,4.6vw,28px);font-weight:700;line-height:1.05;max-width:12ch">Rye loaves, out at six.</div>
+          <p style="font-size:12px;color:var(--muted)">Sourdough baked in a wood oven. Open Tue to Sat, Storgatan 14.</p>
+          <div style="display:flex;gap:8px"><span class="btn" style="font-size:11px;padding:6px 10px">See the menu</span><span class="btn ghost" style="font-size:11px;padding:6px 10px">Find us</span></div>
+        </div>
+      </div>
+      <div class="meta"><span class="tag">hand-built</span><h3>Website or microsite</h3><p>A real hero, sections, footer. One distinctive type choice, restrained color. Opens fully visible, nothing hidden for scroll.</p></div>
+    </article>
+
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="ch">
+  <div class="head">
+    <h2 id="ch">How it sits in Star's chat</h2>
+    <p>The assistant publishes, the chat shows a card, and the reply is one sentence. Updates reuse the same URL.</p>
+  </div>
+  <div class="cardmock">
+    <div class="acard">
+      <div class="ico"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M6 3h8l4 4v14H6z M14 3v4h4"/></svg></div>
+      <div class="tx"><b>Harbor Cafe opening plan</b><span>Launch checklist and hiring plan for 1 December.</span></div>
+      <span class="go">Open</span>
+    </div>
+    <p class="mono" style="color:var(--muted)">Reply under the card: "A launch plan with goals, a checklist and hiring needs."</p>
+  </div>
+  <div class="flow">
+    <div class="step"><span class="label">1 · decide</span><b>Inline or artifact?</b><p>Keep, edit, share or operate it? Make an artifact. Read once? Answer in chat.</p></div>
+    <div class="step"><span class="label">2 · publish</span><b>Private by default</b><p>The page gets its own URL. Only the user can see it until they share it.</p></div>
+    <div class="step"><span class="label">3 · card</span><b>Title + one sentence</b><p>The card carries the link. The reply does not paste the URL again.</p></div>
+    <div class="step"><span class="label">4 · update</span><b>Same URL</b><p>Edits republish in place and say what changed in one sentence.</p></div>
+  </div>
+</section>
+
+<section class="sec" aria-labelledby="th">
+  <div class="head">
+    <h2 id="th">Rules every page follows</h2>
+    <p>These are the swatches and type this page itself uses. Colors are tokens with a light and a dark value; flip your system theme to see both.</p>
+  </div>
+  <div class="sw" aria-label="Color tokens">
+    <div class="swi"><i style="background:var(--bg)"></i><div><b>--bg</b><span>page ground</span></div></div>
+    <div class="swi"><i style="background:var(--surface)"></i><div><b>--surface</b><span>cards, frames</span></div></div>
+    <div class="swi"><i style="background:var(--fg)"></i><div><b>--fg</b><span>text</span></div></div>
+    <div class="swi"><i style="background:var(--muted)"></i><div><b>--muted</b><span>secondary text</span></div></div>
+    <div class="swi"><i style="background:var(--accent)"></i><div><b>--accent</b><span>one bold place</span></div></div>
+    <div class="swi"><i style="background:var(--good)"></i><div><b>--good / warn / bad</b><span>state, not accent</span></div></div>
+  </div>
+  <div class="grid">
+    <div class="type"><span class="label">Display</span><span class="d">Familjen Grotesk</span><span class="m">headings, big numbers</span></div>
+    <div class="type"><span class="label">Body</span><span class="b">IBM Plex Sans keeps running text clear at about 65 characters a line.</span><span class="m">paragraphs, controls</span></div>
+    <div class="type"><span class="label">Utility</span><span class="m" style="font-size:14px;color:var(--fg)">IBM Plex Mono 1 482 · 98.4% · 15 Oct</span><span class="m">labels, data, code</span></div>
+  </div>
+  <div class="rules">
+    <div class="rule"><h3>Layout</h3><ul><li>16px side gutter at every width, set once on the body.</li><li>Works at 400px and never scrolls sideways.</li><li>Tables, code and diagrams scroll inside their own box.</li></ul></div>
+    <div class="rule"><h3>Theme</h3><ul><li>Every color is a token defined on :root.</li><li>Dark values in the media query and in data-theme="dark".</li><li>The body sets its own background from a token.</li></ul></div>
+    <div class="rule"><h3>Loading</h3><ul><li>Scripts only from cdnjs, jsDelivr, unpkg, Tailwind, jQuery.</li><li>Fonts only from Google Fonts. Everything else inline.</li><li>Pin exact library versions.</li></ul></div>
+    <div class="rule"><h3>Blocked in the frame</h3><ul><li>No print, no download links, no alert or confirm.</li><li>No camera, microphone or clipboard reads.</li><li>No iframes of other sites; link out instead.</li></ul></div>
+    <div class="rule"><h3>Content</h3><ul><li>Real copy, never lorem ipsum.</li><li>Complete at first paint, tools open with sample data.</li><li>Controls say exactly what they do.</li></ul></div>
+    <div class="rule"><h3>Avoid</h3><ul><li>Emoji as section markers.</li><li>Purple-to-blue hero gradients.</li><li>The same radius and shadow on every block.</li></ul></div>
+  </div>
+</section>
+
+</div>
+
+<script>
+(function(){
+  var pre=document.getElementById('brief');
+  var st=document.getElementById('status');
+  function say(t){st.textContent=t;setTimeout(function(){st.textContent='';},2500);}
+  function selectAll(){
+    try{var r=document.createRange();r.selectNodeContents(pre);var s=window.getSelection();s.removeAllRanges();s.addRange(r);}catch(e){}
+  }
+  document.getElementById('sel').addEventListener('click',function(){selectAll();say('Selected. Copy it with your keyboard.');});
+  document.getElementById('copy').addEventListener('click',function(){
+    var text=pre.textContent;
+    try{
+      navigator.clipboard.writeText(text).then(function(){say('Copied the brief');},function(){selectAll();say('Could not copy. Text is selected, copy it now.');});
+    }catch(e){selectAll();say('Could not copy. Text is selected, copy it now.');}
+  });
+})();
+</script>
+
+</body></html>

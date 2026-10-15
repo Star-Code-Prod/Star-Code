@@ -1,6 +1,7 @@
 // Unit checks for the pieces that have no HTTP surface: the credential
-// store, the provider catalog, the discovery normalizers, and the agent's
-// decision rules. Boots nothing; uses temp dirs and mocked fetches.
+// store, the provider catalog, the discovery normalizers, the agent's
+// decision rules, and the system-prompt doctrine. Boots nothing; uses temp
+// dirs and mocked fetches.
 //
 // Run: node tools/verify-core.mjs
 import fs from "node:fs";
@@ -258,6 +259,29 @@ fs.writeFileSync(path.join(frozenRoot, "AGENTS.md"), "# memory: CHANGED mid-sess
 const p2 = systemPrompt(frozenRoot, "manual");
 ok("system prompt is frozen per session (stable prefix)", p1 === p2);
 ok("the frozen prompt still carries the doctrine", /Execution doctrine/.test(p1));
+
+/* --------------------------- motion artifact doctrine --------------------------- */
+// The system prompt teaches the motion artifact contract beside the html one,
+// and carries one self-contained worked example (a 40-60 line scene).
+ok("motion artifact contract documented", p1.includes("```artifact motion"));
+ok("motion doc gives the MOTION.scene signature", p1.includes("MOTION.scene({ width, height, duration, fps }, draw)") && p1.includes("draw(ctx, t, w, h)"));
+ok("motion doc demands a deterministic t", /deterministic function of t/.test(p1) && p1.includes("no Date.now()") && p1.includes("no unseeded Math.random()"));
+ok("motion doc names the in-app recording destination", p1.includes("Preview pane") && p1.includes("artifacts/") && p1.includes("recording is saved"));
+ok("motion doc carries the worked example marker", p1.includes("Worked example"));
+const exCode = (p1.match(/Worked example[\s\S]*?```artifact motion\n([\s\S]*?)\n```/) || [])[1] || "";
+const exLines = exCode ? exCode.split("\n").length : 0;
+ok("motion worked example is a 40-60 line scene", exLines >= 40 && exLines <= 60, exLines + " lines");
+let exParses = false;
+try { exParses = exCode.length > 0 && !!new Function(exCode); } catch { exParses = false; }
+ok("motion worked example parses as JavaScript", exParses);
+ok("motion worked example obeys its own determinism rule", exCode.length > 0 && !exCode.includes("Date.now") && !exCode.includes("Math.random"));
+ok("html artifact contract still documented", p1.includes("```artifact html") && p1.includes("four backticks"));
+ok("chat prompt carries the artifact doctrine", /## Artifacts/.test(chat) && chat.includes("```artifact html") && chat.includes("```artifact motion"), "chat prompt must teach artifacts");
+ok("chat prompt carries the delivery rules", chat.includes("reply with one short sentence") && /new version of the same artifact/.test(chat));
+ok("both prompts share the same artifact doctrine", /## Artifacts/.test(p1) && p1.indexOf("## Artifacts") >= 0 && chat.indexOf("## Artifacts") >= 0);
+ok("doctrine says when to make one and when not to", p1.includes("Answer inline, with no artifact") && /Make one when they will keep, edit, share or operate/.test(p1));
+ok("doctrine names the four formats", ["html", "svg", "md", "motion"].every((f) => new RegExp("^- " + f + " - ", "m").test(p1)) && p1.includes("```artifact html") && p1.includes("```artifact motion"));
+
 resetSystemPromptCache();
 const p3 = systemPrompt(frozenRoot, "manual");
 ok("resetSystemPromptCache rebuilds from disk", p3 !== p1 && p3.includes("CHANGED mid-session"));
