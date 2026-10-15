@@ -1,5 +1,8 @@
 # What's new in Star
 
+## 1.11.3 — 2026-10-15
+- Dragging a rail card (or a session) now moves the whole card with your cursor the entire way - a live preview, not a marker that jumps at the end. The card floats with a shadow while a dashed slot shows where it will land.
+
 ## 1.11.2 — 2026-10-15
 - An artifact card that follows its own message sits snugly under it now: the copy bar was stranded in a dead pocket (10px above, 13px below) - the card tucks up so the bar reads as its caption.
 - The chat/code switch in the sidebar gets more air between its two buttons.

@@ -241,7 +241,7 @@ ok("every pane card has a bottom resize grip",
   (html.match(/data-panegrip="/g) || []).length === 5 && js.includes("setPaneHeight(") && /\.pane-grip-b\{/.test(html.replace(/\s+/g, "")));
 ok("pane cards reorder by dragging their header",
   js.includes("function applyPaneOrder(") && js.includes('state.paneOrder = [...body.querySelectorAll(".pane-row")]') &&
-  /\.pane-row\.dragging\{/.test(html.replace(/\s+/g, "")));
+  js.includes('drag.row.classList.add("dragging")'));
 ok("per-pane heights persist and reset on double-click",
   js.includes("function applyPaneHeights(") && fnBody("function applyPaneHeights(").includes("state.paneHeights") &&
   js.includes("setPaneHeight(g.dataset.panegrip, null)"));
@@ -255,10 +255,13 @@ ok("a card under its own message tucks above the hover bar",
   /#stream > \.msg-a \+ \.artifactcard\{margin-top:2px\}/.test(html.replace(/\s+/g, " ")));
 
 /* --- session drag: reorder, and drop-to-the-side for a second chat --- */
-ok("the rail drag uses a marker, never moving the captured row",
-  js.includes('drag.marker.className = "pane-marker"') &&
-  js.includes("body.insertBefore(d.row, d.marker)") &&
-  /\.pane-marker\{/.test(html.replace(/\s+/g, "")));
+ok("the rail drag floats the whole card while dragging",
+  js.includes("function beginFloatDrag(") && js.includes("function endFloatDrag(") &&
+  js.includes('el.dataset.floating = "1"') && /\.dragph\{/.test(html.replace(/\s+/g, "")) &&
+  /\[data-floating="1"\]\{/.test(html.replace(/\s+/g, "")));
+ok("the placeholder walks so nothing teleports",
+  fnBody("function wirePaneDynamics(").includes("body.insertBefore(drag.fl.ph, before)") &&
+  fnBody("function wireSessionDrag(").includes("box.insertBefore(drag.fl.ph, before)"));
 ok("sessions reorder by dragging in the sidebar",
   js.includes("function wireSessionDrag(") && js.includes("state.sessionOrder = [...new Set(order)]") &&
   fnBody("function renderSessions(").includes("state.sessionOrder") && js.includes("suppressRowClick"));

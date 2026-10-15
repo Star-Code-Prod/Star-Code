@@ -866,8 +866,15 @@ body.pane-drag .pane-grip{background:color-mix(in srgb,var(--accent) 45%,transpa
 .pane-grip-b:hover::after{opacity:1;background:var(--accent)}
 body.pane-hdrag{cursor:row-resize;user-select:none}
 body.pane-hdrag .pane-grip-b::after{opacity:1;background:var(--accent)}
-.pane-row.dragging{opacity:.75;outline:1px dashed var(--border2);outline-offset:-2px}
-.pane-marker{height:8px;margin:0 2px;border-radius:4px;background:color-mix(in srgb,var(--accent) 45%,transparent)}
+/* Live drags: the card itself floats under the pointer while its slot
+   placeholder holds the place it will land in. */
+[data-floating="1"]{
+  box-shadow:var(--shadow-md);border-radius:var(--r-md);opacity:.97;cursor:grabbing;
+}
+.dragph{
+  border-radius:var(--r-md);border:1px dashed var(--border2);
+  background:color-mix(in srgb,var(--accent) 8%,transparent);
+}
 
 /* Sidebar width drag: the right-edge grip. */
 .sb-grip{
@@ -878,12 +885,6 @@ body.pane-hdrag .pane-grip-b::after{opacity:1;background:var(--accent)}
 body.sb-drag{cursor:col-resize;user-select:none}
 
 /* ---- sessions: drag to reorder, or drag to the side for a second chat ---- */
-.sess-ghost{
-  position:fixed;z-index:200;pointer-events:none;padding:6px 11px;border-radius:var(--r-sm);
-  background:var(--panel);border:1px solid var(--border2);box-shadow:var(--shadow-md);color:var(--text);
-  font-size:var(--fs-125);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-}
-.sess-marker{height:2px;margin:4px 10px;border-radius:2px;background:var(--accent)}
 body.sess-drag{cursor:grabbing;user-select:none}
 body.sess-forsplit .session{outline:1px dashed var(--border2);outline-offset:-10px}
 body.sess-forsplit .session::after{
@@ -2629,6 +2630,35 @@ function applySbW() {
   grip.addEventListener("pointerup", stop);
   grip.addEventListener("pointercancel", stop);
 })();
+/* ---- live drags: the whole card moves, nothing teleports ----
+   While dragging, the element itself floats under the pointer (fixed
+   position + transform) and a same-size placeholder takes its slot and
+   walks through the list - on drop the element lands where the placeholder
+   stands. The element is never MOVED in the DOM mid-drag: moving a node
+   releases its pointer capture (the old drags went deaf that way), and a
+   marker + drop-time jump is what read as "teleport". */
+function beginFloatDrag(el, list) {
+  const rect = el.getBoundingClientRect();
+  const ph = document.createElement("div");
+  ph.className = "dragph";
+  ph.style.height = Math.max(32, Math.round(rect.height)) + "px";
+  list.insertBefore(ph, el);
+  el.dataset.floating = "1";
+  el.style.position = "fixed";
+  el.style.left = rect.left + "px";
+  el.style.top = rect.top + "px";
+  el.style.width = rect.width + "px";
+  el.style.margin = "0";
+  el.style.zIndex = "220";
+  return { ph, rect, list };
+}
+function endFloatDrag(el, fl) {
+  fl.list.insertBefore(el, fl.ph);
+  fl.ph.remove();
+  delete el.dataset.floating;
+  el.style.cssText = "";
+}
+
 /* ---- per-pane height grips + drag-to-reorder the stack ---- */
 (function wirePaneDynamics() {
   const body = $("paneBody");
@@ -2665,38 +2695,40 @@ function applySbW() {
       const row = sub.closest(".pane-row");
       if (!row || !row.classList.contains("open")) return;
       if (body.querySelectorAll(".pane-row.open").length < 2) return;
-      drag = { row, marker: null };
+      drag = { row, fl: null, grabY: e.clientY };
       try { sub.setPointerCapture(e.pointerId); } catch {}
       e.preventDefault();
     });
     sub.addEventListener("pointermove", (e) => {
       if (!drag) return;
-      if (!drag.marker) {
+      if (!drag.fl) {
+        drag.fl = beginFloatDrag(drag.row, body);
+        drag.grabY = e.clientY - drag.fl.rect.top;   // keep the grab point steady
         drag.row.classList.add("dragging");
-        drag.marker = document.createElement("div");
-        drag.marker.className = "pane-marker";
-        body.appendChild(drag.marker);
       }
+      const dy = e.clientY - drag.grabY - drag.fl.rect.top;
+      drag.row.style.transform = "translateY(" + dy + "px)";
+      // The placeholder walks through the other open rows; the floating card
+      // follows the pointer, so the move is visible the whole way.
       const others = [...body.querySelectorAll(".pane-row.open")].filter((r) => r !== drag.row);
       let before = null;
       for (const r of others) {
         const b = r.getBoundingClientRect();
         if (e.clientY < b.top + b.height / 2) { before = r; break; }
       }
-      if (before) body.insertBefore(drag.marker, before);
-      else body.appendChild(drag.marker);
+      if (before) body.insertBefore(drag.fl.ph, before);
+      else body.appendChild(drag.fl.ph);
     });
     const stop = () => {
       if (!drag) return;
       const d = drag;
       drag = null;
       d.row.classList.remove("dragging");
-      if (d.marker && d.marker.parentNode) {
-        body.insertBefore(d.row, d.marker);
-        d.marker.remove();
+      if (d.fl) {
+        endFloatDrag(d.row, d.fl);
         state.paneOrder = [...body.querySelectorAll(".pane-row")].map((r) => r.dataset.pane);
         save();
-      } else if (d.marker) d.marker.remove();
+      }
     };
     sub.addEventListener("pointerup", stop);
     sub.addEventListener("pointercancel", stop);
@@ -2916,48 +2948,48 @@ function wireSessionDrag() {
   box.addEventListener("pointerdown", (e) => {
     const row = e.target.closest(".sess");
     if (!row || e.target.closest(".more")) return;
-    drag = { id: row.dataset.id, row, x0: e.clientX, y0: e.clientY, armed: false, ghost: null, marker: null, overSplit: false };
+    drag = { id: row.dataset.id, row, x0: e.clientX, y0: e.clientY, armed: false, fl: null, grabX: 0, grabY: 0, overSplit: false };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", end);
     window.addEventListener("pointercancel", end);
   });
 
-  function begin() {
+  function begin(e) {
     drag.armed = true;
     document.body.classList.add("sess-drag");
-    drag.ghost = document.createElement("div");
-    drag.ghost.className = "sess-ghost";
-    drag.ghost.textContent = (drag.row.querySelector(".lbl") || {}).textContent || "";
-    document.body.appendChild(drag.ghost);
-    drag.marker = document.createElement("div");
-    drag.marker.className = "sess-marker";
-    drag.row.style.opacity = "0.45";
+    drag.fl = beginFloatDrag(drag.row, box);
+    drag.grabX = e.clientX - drag.fl.rect.left;
+    drag.grabY = e.clientY - drag.fl.rect.top;
   }
 
   function move(e) {
     if (!drag) return;
     if (!drag.armed) {
       if (Math.abs(e.clientY - drag.y0) < HOLD && Math.abs(e.clientX - drag.x0) < HOLD) return;
-      begin();
+      begin(e);
     }
-    drag.ghost.style.left = (e.clientX + 12) + "px";
-    drag.ghost.style.top = (e.clientY + 8) + "px";
+    const dx = e.clientX - drag.grabX - drag.fl.rect.left;
+    const dy = e.clientY - drag.grabY - drag.fl.rect.top;
+    drag.row.style.transform = "translate(" + dx + "px," + dy + "px)";
     const sbRight = $("sidebar").getBoundingClientRect().right;
     drag.overSplit = e.clientX > sbRight + 60;
     document.body.classList.toggle("sess-forsplit", drag.overSplit);
     if (drag.overSplit) {
-      if (drag.marker.parentNode) drag.marker.remove();
+      // Headed for the side-by-side drop: park the slot placeholder out of
+      // sight until the pointer comes back over the list.
+      drag.fl.ph.style.display = "none";
       return;
     }
-    // The insertion line follows the cursor between the rows.
+    drag.fl.ph.style.display = "";
+    // The slot walks with the cursor between the rows; the row itself floats.
     const rows = [...box.querySelectorAll(".sess")].filter((r) => r !== drag.row);
     let before = null;
     for (const r of rows) {
       const b = r.getBoundingClientRect();
       if (e.clientY < b.top + b.height / 2) { before = r; break; }
     }
-    if (before) box.insertBefore(drag.marker, before);
-    else box.appendChild(drag.marker);
+    if (before) box.insertBefore(drag.fl.ph, before);
+    else box.appendChild(drag.fl.ph);
   }
 
   function end() {
@@ -2969,22 +3001,20 @@ function wireSessionDrag() {
     if (!d || !d.armed) return;
     suppressRowClick = Date.now();
     document.body.classList.remove("sess-drag", "sess-forsplit");
-    if (d.ghost) d.ghost.remove();
-    d.row.style.opacity = "";
-    if (d.overSplit) {
-      if (d.marker && d.marker.parentNode) d.marker.remove();
+    const split = d.overSplit;
+    d.row.style.transform = "";
+    endFloatDrag(d.row, d.fl);
+    if (split) {
       openSplit(d.id);
       return;
     }
-    if (!d.marker || !d.marker.parentNode) return;
-    // The dropped line becomes the new order. The dragged row keeps its old
-    // DOM slot during the drag (only the marker moves), so skip it and take
-    // its position from the marker; dedupe as a belt.
+    // The row landed where the placeholder stood: that is the new order;
+    // anything not on screen keeps its relative slot after it.
     const order = [];
     for (const el of [...box.children]) {
       if (el === d.row) continue;
       if (el.classList.contains("sess")) order.push(el.dataset.id);
-      else if (el === d.marker) order.push(d.id);
+      else if (el.classList.contains("dragph")) order.push(d.id);
     }
     for (const s of sessionList) if ((s.kind || "code") === state.mode && !order.includes(s.id)) order.push(s.id);
     state.sessionOrder = [...new Set(order)];
