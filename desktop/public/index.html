@@ -2039,6 +2039,14 @@ function setActivePane(id) {
   applyActivePane();
   renderPaneTabs();
   if (id === "plan" && $("planBody")) $("planBody").scrollIntoView({ block: "nearest" });
+  syncMotionVisibility();
+}
+/** Tell a live motion player whether its pane is actually visible. */
+function syncMotionVisibility() {
+  const m = motionCtx;
+  if (!m || !m.frame || !m.frame.contentWindow) return;
+  const visible = activePane === "preview" && !$("panes").classList.contains("hide");
+  try { m.frame.contentWindow.postMessage({ type: "motion-visibility", visible }, "*"); } catch { /* dropped frame */ }
 }
 
 function closePaneTab(id) {
@@ -2214,6 +2222,7 @@ $("btnPanes").addEventListener("click", () => {
   // a narrow window slides the panes over the conversation instead of squeezing it
   if (innerWidth <= 1000) { document.body.classList.toggle("pane-open"); return; }
   $("panes").classList.toggle("hide");
+  syncMotionVisibility();
 });
 $("btnSidebar").addEventListener("click", () => toggleSidebar());
 $("sbScrim").addEventListener("click", () => toggleSidebar(false));
@@ -3356,6 +3365,7 @@ canvas{max-width:100%;max-height:100%;display:block}
   var cfg = { width: 1280, height: 720, duration: 6, fps: 30 };
   var draw = null, cur = 0, playing = false, raf = 0, base = 0, started = 0;
   var rec = null, chunks = [], stream = null, recTimer = 0, recActive = false;
+  var lastFrame = 0, lastPost = 0, visPlay = false;
 
   function post(msg, transfer) { try { parent.postMessage(msg, "*", transfer || []); } catch (e) {} }
   function sizeCanvas(scale) {
@@ -3374,10 +3384,16 @@ canvas{max-width:100%;max-height:100%;display:block}
   function stopRaf() { if (raf) cancelAnimationFrame(raf); raf = 0; }
   function tick() {
     raf = requestAnimationFrame(tick);
-    var t = base + (performance.now() - started) / 1000;
+    // Pace to the artifact's own fps (default 30): rAF ticks at the display
+    // rate, but a 60/120 Hz screen should not run the scene that fast.
+    var now = performance.now();
+    if (now - lastFrame < 1000 / Math.max(1, cfg.fps) - 1) return;
+    lastFrame = now;
+    var t = base + (now - started) / 1000;
     if (t >= cfg.duration) { t = t % cfg.duration; base = t; started = performance.now(); }
     render(t);
-    post({ type: "motion-progress", t: cur });
+    // Progress to the host a few times a second, not every frame.
+    if (now - lastPost > 250) { lastPost = now; post({ type: "motion-progress", t: cur }); }
   }
   function play() {
     if (!draw || playing || recActive) return;
@@ -3467,6 +3483,11 @@ canvas{max-width:100%;max-height:100%;display:block}
     if (m.type === "motion-seek") seek(m.t);
     else if (m.type === "motion-play") play();
     else if (m.type === "motion-pause") pause();
+    else if (m.type === "motion-visibility") {
+      // The pane is hidden: stop burning CPU; resume when it returns.
+      if (!m.visible) { visPlay = playing; pause(); }
+      else if (visPlay) { visPlay = false; play(); }
+    }
     else if (m.type === "motion-record") startRecorder(m);
     else if (m.type === "motion-stop") stopRecorder();
   });
