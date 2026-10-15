@@ -2605,7 +2605,6 @@ async function switchSession(id) {
 function renderTranscript(msgs) {
   $("stream").innerHTML = "";
   currentMsg = null; currentThink = null; toolGroup = null; lastDiff = []; diffs = [];
-  turnThink = null;
   if (thinkFlush) { cancelAnimationFrame(thinkFlush); thinkFlush = 0; }
   if (answerFlush) { cancelAnimationFrame(answerFlush); answerFlush = 0; }
   answerDirty = false;
@@ -4139,25 +4138,23 @@ document.addEventListener("keydown", e => {
   e.preventDefault(); e.stopPropagation();
   items[next].focus();
 }, true);
-/* ---- thinking pill (the reference "Star Thinking Block" component) ----
-   One component, three modes on `data-mode`: `peek` while streaming (68px,
-   newest lines), `closed` after the wait (pill only) and `open` once the
-   person clicks it (capped at 240px, scrolls inside).
+/* ---- thinking card (the reference "Star Thinking Block" component) ----
+   One card PER PHASE. While a phase streams, the card is `open` - the
+   reasoning is visible (capped at 240px, auto-scrolls) instead of a tiny
+   peek - and `data-live` marks it. Modes: `open` while live or once the
+   person clicks, `peek` if the person shrinks it while live, `closed`
+   (pill only, "Thought for Ns") once it settles.
    Settings mapping — the two switches in Settings → Appearance:
-   - showThinking off: the block is never created at all (handle() gates the
+   - showThinking off: no card is ever created (handle() gates the
      thinking_* events on state.showThinking).
-   - autoCollapseThinking off: when thinking ends we keep the current mode
-     (peek stays peek, open stays open) instead of folding to `closed`.
-     On (the default): the block folds 500ms after the end, unless the
-     person opened it while it was live.
-   No reasoning text at all → the (empty) block is removed again. */
+   - autoCollapseThinking off: a settled card keeps its mode instead of
+     folding to `closed`. On (the default): it folds 500ms after the end,
+     unless the person touched it.
+   No reasoning text at all → the (empty) card is removed again. */
 const SPARK_SVG = '<svg class="think-star" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1.5l2.9 6.6 7.1.7-5.4 4.7 1.6 7-6.2-3.7-6.2 3.7 1.6-7L2 8.8l7.1-.7z"/></svg>';
 const CHEV_SVG = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 3.5l4.5 4.5L6 12.5"/></svg>';
 const THINK_CHEV = '<svg class="think-chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4.5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 let thinkSeq = 0;
-// The turn's thinking block. Later phases of the SAME turn revive this one in
-// place (no train of collapsed pills); endTurnThink clears it for the next.
-let turnThink = null;
 
 /** Set the mode and keep the pill's aria state truthful. */
 function thinkMode(n, mode) {
@@ -4168,24 +4165,10 @@ function thinkMode(n, mode) {
 
 function startThinking() {
   thinkStart = performance.now();
-  const reviving = turnThink && turnThink.node && turnThink.node.isConnected;
-  if (reviving) {
-    // Later phase of the same turn: reopen this turn's block where it sits.
-    currentThink = turnThink;
-    const n = currentThink.node;
-    thinkMode(n, n.dataset.mode === "open" ? "open" : "peek");
-    n.setAttribute("data-live", "");
-    currentThink.label.textContent = "Thinking…";
-    if (currentThink.text && !currentThink.text.endsWith("\n\n")) {
-      currentThink.text += "\n\n";
-      currentThink.pending = (currentThink.pending || "") + "\n\n";
-    }
-    if (!thinkFlush) thinkFlush = requestAnimationFrame(flushThink);
-  } else {
-    // Deferred DOM: an empty phase never flashes a pill that removes itself.
-    currentThink = { node: null, text: "", body: null, panel: null, label: null, userScrolled: false };
-    turnThink = currentThink;
-  }
+  // Every phase gets its OWN card, right where it happens: the transcript
+  // reads think - answer - tools - think - answer, never one reused block.
+  // Deferred DOM: an empty phase never flashes a card that removes itself.
+  currentThink = { node: null, text: "", body: null, panel: null, label: null, userScrolled: false, userTouched: false };
   clearInterval(thinkTimer);
   thinkTimer = setInterval(() => {
     if (!currentThink || !currentThink.label) return;
@@ -4205,7 +4188,8 @@ function materializeThink() {
   // append would park the thinking UNDER the answer it explains: insert the
   // block directly above the message it belongs to.
   if (currentMsg && currentMsg.parentNode === $("stream")) $("stream").insertBefore(n, currentMsg);
-  thinkMode(n, "peek");
+  // The live card shows the reasoning itself, not a peek of the newest lines.
+  thinkMode(n, "open");
   n.setAttribute("data-live", "");
   n.innerHTML = `
     <button class="think-h" type="button" aria-expanded="true" aria-controls="${pid}">
@@ -4226,6 +4210,7 @@ function materializeThink() {
   pill.addEventListener("click", () => {
     const live = n.hasAttribute("data-live");
     const open = n.dataset.mode === "open";
+    cur.userTouched = true;
     thinkMode(n, open ? (live ? "peek" : "closed") : "open");
     if (n.dataset.mode === "peek") setTimeout(() => { cur.body.scrollTop = cur.body.scrollHeight; }, 320);
     if (n.dataset.mode === "open" && currentThink === cur && !cur.userScrolled) {
@@ -4279,29 +4264,28 @@ function endThinking(ms) {
   const n = cur.node;
   const secs = Math.max(0, (ms != null ? ms : performance.now() - thinkStart) / 1000);
 
-  // The model skipped reasoning: no text ever arrived, so no block either.
-  if (!cur.text.trim()) { n.remove(); if (turnThink === cur) turnThink = null; return; }
+  // The model skipped reasoning: no text ever arrived, so no card either.
+  if (!cur.text.trim()) { n.remove(); return; }
 
   n.removeAttribute("data-live");
   cur.label.textContent = secs < 1 ? "Thought for a moment" : "Thought for " + Math.max(1, Math.round(secs)) + "s";
   cur.body.scrollTop = cur.body.scrollHeight;
 
-  // autoCollapseThinking on → fold (unless the person opened it, or a new
-  // phase went live again in the meantime); off → stay in the current mode.
+  // autoCollapseThinking on → fold after half a second (unless the person
+  // touched this card, or a newer phase went live in the meantime);
+  // off → the settled card keeps its mode.
   if (state.autoCollapseThinking && state.verbosity !== "verbose") {
-    const keepOpen = n.dataset.mode === "open";
-    setTimeout(() => { if (!keepOpen && n.isConnected && !n.hasAttribute("data-live")) thinkMode(n, "closed"); }, 500);
+    setTimeout(() => { if (!cur.userTouched && n.isConnected && !n.hasAttribute("data-live")) thinkMode(n, "closed"); }, 500);
   }
   scrollDown();
 }
 
-/** The turn is over (send finished, session changed): the next turn starts a
- *  fresh thinking block instead of reviving this one. */
+/** The turn is over (send finished, session changed): whatever card was
+ *  live is settled; the next phase starts fresh on its own. */
 function endTurnThink() {
   clearInterval(thinkTimer);
   thinkTimer = null;
   currentThink = null;
-  turnThink = null;
 }
 
 /* ---- tool summary group ---- */
@@ -4750,7 +4734,6 @@ async function newSession(opts = {}) {
   artifacts = []; msgArtifacts = []; msgCards = 0; artifactView = { i: 0, mode: "render" };
   artifactCards = new Map();
   currentMsg = null; currentThink = null; toolGroup = null;
-  turnThink = null;
   if (thinkFlush) { cancelAnimationFrame(thinkFlush); thinkFlush = 0; }
   if (answerFlush) { cancelAnimationFrame(answerFlush); answerFlush = 0; }
   answerDirty = false;

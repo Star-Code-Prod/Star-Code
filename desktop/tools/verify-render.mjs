@@ -174,6 +174,12 @@ ok("cards are committed with the artifact, not at message end",
 ok("an unfinished fence never leaves the working state up", fnBody("function endAssistant()").includes("pendingArt = null"));
 ok("the thinking block sits above its message, not under it",
   fnBody("function materializeThink()").includes("insertBefore(n, currentMsg)"));
+ok("every thinking phase gets its own card",
+  !js.includes("turnThink") && fnBody("function startThinking(").includes("currentThink = { node: null"));
+ok("the live card shows the reasoning, not a peek",
+  fnBody("function materializeThink(").includes('thinkMode(n, "open")'));
+ok("settled cards fold unless the person touched them",
+  fnBody("function endThinking(").includes("!cur.userTouched"));
 ok("menu items hand focus back to the composer",
   fnBody("function closeMenuAndRun(").includes("runMenuItem(") &&
   js.includes("closeMenuAndRun(b, it.run)") && js.includes("closeMenuAndRun(b, real.run)"));
