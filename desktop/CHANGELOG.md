@@ -1,7 +1,7 @@
 # What's new in Star
 
-## 1.9.1 � 2026-10-15
-- Thinking shows as a card per phase while it happens - the reasoning is visible as it streams, then folds to a 'Thought for a moment' pill.
+## 1.9.1 — 2026-10-15
+- Thinking shows as a card per phase while it happens - the reasoning is visible as it streams, then folds to a "Thought for a moment" pill.
 - The transcript reads think, answer, tools, think, answer - one card per phase, never one reused block.
 
 ## 1.9.0 — 2026-10-15
