@@ -66,7 +66,7 @@ ok("code turns keep the coding prompt",
 // 1c. a chat runner is limited to the chat tools: write_file is refused (and
 // must not touch the disk), while an allowed tool still answers. This asserts
 // against the same runner shape the server uses for a chat turn.
-const chatRunner = makeRunner(os.homedir(), ["websearch", "fetch_url", "self_knowledge", "task"]);
+const chatRunner = makeRunner(os.homedir(), ["websearch", "fetch_url", "self_knowledge", "task", "ask_user"]);
 const probe = path.join(dir, "chat-must-not-write.txt");
 let refusal = "";
 try { await chatRunner.run("write_file", { path: probe, content: "should never be written" }); }
@@ -74,6 +74,10 @@ catch (e) { refusal = e.message || ""; }
 ok("chat runner refuses write_file", refusal.length > 0 && !fs.existsSync(probe), refusal.slice(0, 60));
 const manual = await chatRunner.run("self_knowledge", {});
 ok("chat runner still runs an allowed tool", typeof manual === "string" && manual.length > 0);
+// A runner with no live turn (warm-up, subagent context) has nobody to click:
+// ask_user degrades to "ask in prose" instead of hanging forever.
+const noTurn = await chatRunner.run("ask_user", { questions: [{ question: "Pick", options: [{ label: "A" }, { label: "B" }] }] });
+ok("ask_user without a live turn asks for prose", /plain prose/.test(noTurn), noTurn.slice(0, 80));
 
 // 2. list them
 const list = await get("/api/sessions");
@@ -187,3 +191,4 @@ console.log(results.join("\n"));
 const failed = results.filter((r) => r.startsWith("FAIL")).length;
 console.log("\n" + (results.length - failed) + "/" + results.length + " passed" +
   (failed ? " - " + failed + " FAILED" : ""));
+process.exitCode = failed ? 1 : 0;

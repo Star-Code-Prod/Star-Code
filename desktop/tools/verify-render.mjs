@@ -389,6 +389,20 @@ ok("a standalone motion doc plays itself",
 ok("the cursor roams the pane, not its own box", /@keyframes caret\{\s*0%\{left:16%;top:40%\}/.test(html.replace(/\n/g, "")));
 ok("reduced motion stills the working state", /prefers-reduced-motion:reduce\)\{\s*\.apwork-cursor\{animation:none/.test(html.replace(/\s+/g, "")));
 
+/* -------------------- ask_user: clickable questions --------------------- */
+ok("question events render a clickable ask card",
+  js.includes("function renderAsk(") && js.includes('case "question": renderAsk(evt);') &&
+  js.includes('n.querySelectorAll(".ask-opt")') && /\.askcard\{/.test(html.replace(/\s+/g, "")));
+ok("one simple question answers on the click itself",
+  js.includes("a click IS the answer") && js.includes("qs.length === 1 && !multi"));
+ok("several questions pick then submit",
+  js.includes('n.querySelector("[data-send]").addEventListener("click", () => send(true))') &&
+  js.includes('n.querySelector("[data-skip]").addEventListener("click", () => send(false))'));
+ok("answers travel to /api/answer with the session",
+  js.includes('fetch("/api/answer"') && js.includes("id: evt.id, answers: final ? answers : []") &&
+  /\.ask-opt\.on\{[^}]*border-color:var\(--accent\)/.test(html.replace(/\s+/g, "")));
+ok("ask_user gets its own tool-row words", js.includes('ask_user: ["Ask", "Asked"]'));
+
 console.log(results.join("\n"));
 const failed = results.filter((r) => r.startsWith("FAIL")).length;
 console.log("\n" + (results.length - failed) + "/" + results.length + " checks passed" +

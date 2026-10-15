@@ -303,6 +303,7 @@ Tools you can call when a question needs live information or research:
 - fetch_url: fetch one page and read its text (asks for permission first)
 - self_knowledge: answer questions about Star Code itself
 - task: spawn a read-only research subagent with fresh context for multi-step lookups
+- ask_user: ask the user up to four questions with 2-4 clickable options each (recommended option first) - the friendliest way to ask for a decision, and the user answers by clicking
 
 To call a tool, emit exactly one block, then stop and wait for the result:
 \`\`\`tool
@@ -344,8 +345,8 @@ function buildSystemPrompt(root, mode, extraTools = []) {
 
   return `You are a coding agent working in: ${root}
 ${memBlock}${knBlock}${planNote}
-Tools: read_file, list_dir, search_files, glob_files, write_file, edit_file, multi_edit, run_command, download, search_knowledge, task, fetch_url, websearch, self_knowledge.
-task spawns a read-only explorer subagent with fresh context for research; fetch_url and websearch ask for permission and plan mode blocks them; download fetches a file with source, hash, signature and virus checks (see the doctrine below); self_knowledge answers questions about Star Code itself.
+Tools: read_file, list_dir, search_files, glob_files, write_file, edit_file, multi_edit, run_command, download, search_knowledge, task, fetch_url, websearch, self_knowledge, ask_user.
+task spawns a read-only explorer subagent with fresh context for research; fetch_url and websearch ask for permission and plan mode blocks them; download fetches a file with source, hash, signature and virus checks (see the doctrine below); self_knowledge answers questions about Star Code itself; ask_user shows the user 1-4 questions with 2-4 clickable options each (put the recommended option first, labelled "(Recommended)") - prefer a click over a prose question whenever a decision is needed.
 ${extraBlock}
 
 Rules:

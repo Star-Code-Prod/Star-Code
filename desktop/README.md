@@ -34,7 +34,8 @@ setting you change — including a model running on your own machine.
 
 | | |
 |---|---|
-| **14 real tools** | `read_file` `list_dir` `search_files` `glob_files` `write_file` `edit_file` `multi_edit` `run_command` `download` `search_knowledge` `task` `fetch_url` `websearch` `self_knowledge` |
+| **15 real tools** | `read_file` `list_dir` `search_files` `glob_files` `write_file` `edit_file` `multi_edit` `run_command` `download` `search_knowledge` `task` `fetch_url` `websearch` `self_knowledge` `ask_user` |
+| **Clickable questions** | `ask_user` asks 1-4 questions with 2-4 options each — the card renders in the conversation, the recommended option first, and a click is the answer (several questions pick, then Submit) |
 | **Artifacts** | ` ```artifact ` html/svg/md blocks render in a sandboxed preview pane with version history |
 | **Knowledge** | Markdown notes in `.star-code/knowledge` — indexed in the prompt, searchable by the agent |
 | **Custom agents** | Markdown personas in `.star-code/agents/` — the `task` tool runs them as read-only subagents, and the composer's agent chip (or `/agents`) runs one as the turn's persona: its prompt, its tools and its model |
@@ -294,7 +295,7 @@ server that owns the tools.
 │  browser)          │  HTTP    │  ├─ lib/agent.js         │
 └────────────────────┘          │  │   agent loop, modes   │
                                 │  ├─ lib/tools.js         │
-                                │  │  14 tools, real I/O   │
+                                │  │  15 tools, real I/O   │
                                 │  └─ lib/providers.js     │
                                 │      5 provider adapters │
                                 └──────────────────────────┘
@@ -309,7 +310,7 @@ star-code/
 ├── lib/
 │   ├── auth.js            credential store (auth.json), masking, resolution
 │   ├── providers.js       provider catalog, model discovery, streaming
-│   ├── tools.js           the 14 tools
+│   ├── tools.js           the 15 tools
 │   └── agent.js           agent loop, permission modes, reasoning, usage
 ├── public/index.html      the entire UI (no build step, no framework)
 ├── electron/

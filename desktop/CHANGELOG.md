@@ -1,5 +1,10 @@
 # What's new in Star
 
+## 1.14.0 — 2026-10-16
+- Star can ask you questions you answer with a click. When a choice is really yours - colors, names, which direction - it shows its questions in the chat as cards with 2-4 options each, the recommended one first, and clicking an option IS the answer. Several questions (or pick-more-than-one) collect up and Submit sends them all; Skip declines and Star carries on.
+- While a question waits, the turn simply pauses: the work line reads "asking a question" and everything else keeps running - switch chats, start another session, and the card appears in the conversation that asked, never the other one. Chat mode gets questions too.
+- Everywhere without a clickable card - the CLI, subagents - the model is told to ask in plain prose instead of stalling, and the manual, README and prompt teach the new ask_user tool (recommended option first).
+
 ## 1.13.3 — 2026-10-15
 - The AI actually knows how to use MCP tools now. Star used to tell it only their names and descriptions, so it guessed the arguments and calls failed - the prompt now lists each tool's parameters (mcp__server__tool(text:string, mode?:enum) - what it does), teaches the exact call shape, and every live turn carries that list.
 

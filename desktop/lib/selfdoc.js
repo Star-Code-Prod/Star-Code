@@ -27,7 +27,11 @@ server-side), bypass (everything allowed). Reads never ask. Network tools ask.
 read_file, list_dir, search_files, glob_files, write_file, edit_file,
 multi_edit, run_command, download, search_knowledge, task (read-only research
 subagent; pass agent:"name" to run a custom agent instead of the built-in
-explorer), fetch_url, websearch, self_knowledge. Writes, commands, downloads
+explorer), fetch_url, websearch, self_knowledge, ask_user. ask_user asks the
+person 1-4 questions with 2-4 clickable options each (recommended option
+first) and returns the clicks as the tool result - the desktop app renders
+them as a card in the conversation; anywhere without a clickable UI it tells
+the model to ask in prose instead. Writes, commands, downloads
 and network tools ask by default; plan mode blocks them entirely. download
 fetches a file only with verification: it classifies the source host
 (local/official/codehost/unknown, unknown hosts are called out in the

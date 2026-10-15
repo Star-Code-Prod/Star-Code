@@ -608,6 +608,43 @@ body.is-mac.is-electron .brand{margin-left:2px}
 .mo-pick-hint{display:flex;align-items:center;gap:6px;font-size:var(--fs-11);color:var(--dim)}
 .mo-pick-chip{font-family:var(--font-mono);color:var(--accent);flex:none}
 
+/* ================= ASK-USER CARD (clickable questions) ================= */
+.askcard{
+  margin:13px auto;border:1px solid var(--border);border-radius:var(--r-md);
+  background:var(--panel);box-shadow:var(--shadow-sm);overflow:hidden;
+}
+.ask-h{
+  display:flex;align-items:center;gap:8px;padding:9px 13px;background:var(--panel2);
+  border-bottom:1px solid var(--border);font-size:var(--fs-12);color:var(--text2);
+}
+.ask-h svg{width:13px;height:13px;color:var(--accent);flex:none}
+.ask-q{padding:12px 13px;display:flex;flex-direction:column;gap:8px}
+.ask-q + .ask-q{border-top:1px dashed var(--border)}
+.ask-tag{
+  align-self:flex-start;font-size:10px;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--muted);background:var(--chip);padding:2px 8px;border-radius:var(--r-full);
+}
+.ask-t{font-size:var(--fs-13);color:var(--text);line-height:1.5}
+.ask-opts{display:flex;flex-direction:column;gap:6px}
+.ask-opt{
+  display:flex;flex-direction:column;gap:2px;text-align:left;width:100%;
+  padding:8px 11px;border:1px solid var(--border);border-radius:var(--r-sm);
+  background:var(--panel2);color:var(--text);
+  transition:background var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease);
+}
+.ask-opt:hover{background:var(--hover);border-color:var(--border2)}
+.ask-opt .lb{font-size:var(--fs-125);font-weight:500}
+.ask-opt .ds{font-size:var(--fs-11);color:var(--muted);line-height:1.45}
+.ask-opt.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.askcard.done .ask-opt:not(.on){opacity:.55}
+.askcard.done .ask-f{opacity:.6}
+.ask-f{
+  display:flex;align-items:center;gap:8px;padding:9px 13px;
+  border-top:1px solid var(--border);background:var(--panel2);
+}
+.ask-note{font-size:var(--fs-11);color:var(--dim)}
+.ask-f .spacer{flex:1}
+
 /* ================= TASK LIST ================= */
 .tasklist{margin:13px auto;border:1px solid var(--border);border-radius:var(--r-md);background:var(--panel);overflow:hidden}
 .tasklist .th{
@@ -1808,6 +1845,7 @@ const ICONS = {
   multi_edit: ["Edit", "Edited"], run_command: ["Run", "Ran"],
   fetch_url: ["Fetch", "Fetched"], websearch: ["Web", "Searched web"],
   task: ["Explore", "Explored"], self_knowledge: ["Learn", "Learned"],
+  ask_user: ["Ask", "Asked"],
   search_knowledge: ["Knowledge", "Searched knowledge"], error: ["Error", "Error"],
 };
 
@@ -5399,8 +5437,69 @@ function renderDiffPane() {
 }
 
 /* ---- tasks ---- */
-function renderTodos(list) {
-  todos = list;
+/** ask_user: the model's questions as clickable options in the transcript.
+ *  One simple question answers on the first click; several questions (or any
+ *  multiSelect) pick, then Submit sends them all. Skip = the user declined. */
+function renderAsk(evt) {
+  const qs = Array.isArray(evt.questions) ? evt.questions : [];
+  if (!qs.length) return;
+  const n = node("askcard");
+  const picks = qs.map(() => new Set());
+  n.innerHTML = `
+    <div class="ask-h">${SPARK_SVG}<span>Star has a question</span></div>
+    ${qs.map((q, qi) => `
+      <div class="ask-q" data-q="${qi}">
+        ${q.header ? `<span class="ask-tag">${esc(q.header)}</span>` : ""}
+        <div class="ask-t">${esc(q.question)}</div>
+        <div class="ask-opts">
+          ${(q.options || []).map((o, oi) => `<button type="button" class="ask-opt" data-o="${oi}">
+            <span class="lb">${esc(o.label)}</span>${o.description ? `<span class="ds">${esc(o.description)}</span>` : ""}
+          </button>`).join("")}
+        </div>
+      </div>`).join("")}
+    <div class="ask-f">
+      <span class="ask-note" data-note>${qs.some((q) => q.multiSelect) ? "Pick one or more, then Submit." : "Click an option."}</span>
+      <span class="spacer"></span>
+      <button class="btn sm" data-skip>Skip</button>
+      <button class="btn sm pri" data-send disabled>Submit</button>
+    </div>`;
+  const syncSend = () => {
+    const btn = n.querySelector("[data-send]");
+    if (btn) btn.disabled = !qs.every((q, i) => picks[i].size > 0);
+  };
+  const mark = (qi) => n.querySelectorAll(`[data-q="${qi}"] .ask-opt`).forEach((x, xi) => x.classList.toggle("on", picks[qi].has(xi)));
+  const send = (final) => {
+    if (n.classList.contains("done")) return;
+    n.classList.add("done");
+    n.querySelectorAll("button").forEach((b) => { b.disabled = true; });
+    const note = n.querySelector("[data-note]");
+    if (note) note.textContent = final
+      ? "Answered"
+      : "Skipped - Star will continue without an answer.";
+    const answers = qs.map((q, i) => [...picks[i]].map((oi) => ((q.options || [])[oi] || {}).label).filter(Boolean));
+    fetch("/api/answer", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId, id: evt.id, answers: final ? answers : [] }),
+    }).catch(() => {});
+  };
+  n.querySelectorAll(".ask-opt").forEach((b) => b.addEventListener("click", () => {
+    if (n.classList.contains("done")) return;
+    const qi = Number(b.closest("[data-q]").dataset.q);
+    const oi = Number(b.dataset.o);
+    const multi = !!qs[qi].multiSelect;
+    if (multi) { if (picks[qi].has(oi)) picks[qi].delete(oi); else picks[qi].add(oi); }
+    else { picks[qi].clear(); picks[qi].add(oi); }
+    mark(qi);
+    syncSend();
+    if (qs.length === 1 && !multi) send(true);   // a click IS the answer
+  }));
+  n.querySelector("[data-send]").addEventListener("click", () => send(true));
+  n.querySelector("[data-skip]").addEventListener("click", () => send(false));
+  syncSend();
+  scrollDownSoon();
+}
+
+function renderTodos(list) {  todos = list;
   $("tasksEmpty").style.display = list.length ? "none" : "block";
   $("tasksList").innerHTML = list.map(t => {
     const bx = t.status === "completed"
@@ -5695,6 +5794,7 @@ function handle(evt) {
     case "thinking_delta": if (state.showThinking && state.verbosity !== "minimal") addThinking(evt.text); break;
     case "thinking_end": if (state.showThinking && state.verbosity !== "minimal") endThinking(evt.ms); break;
     case "todos": renderTodos(evt.todos); break;
+    case "question": renderAsk(evt); break;
     case "permission_request": askPermission(evt); break;
     case "tool": sessStats.tools[evt.name] = (sessStats.tools[evt.name] || 0) + 1; setActivity(activityForTool(evt.name)); addTool({ name: evt.name, args: evt.args, status: evt.allowed === false ? "denied" : "running", detail: "" }); break;
     case "tool_result": setActivity("thinking"); finishTool(evt.status, evt.preview); break;
@@ -5868,6 +5968,7 @@ const ACTIVITY_VERBS = {
   multi_edit: "editing files", run_command: "running a command", download: "downloading",
   fetch_url: "fetching a page", websearch: "searching the web", search_knowledge: "checking the notes",
   self_knowledge: "checking the Star docs", task: "exploring", error: "recovering",
+  ask_user: "asking a question",
 };
 function activityForTool(name) {
   const n = String(name || "");

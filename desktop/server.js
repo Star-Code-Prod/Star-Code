@@ -55,8 +55,12 @@ const sessions = new Map();
 // Chat sessions additionally restrict the main runner to CHAT_TOOLS; the same
 // allowlist is inherited by subagents and never widened by a custom agent.
 let subagentCtx = null;
+// Live ask_user emitters, one per streaming session. A turn registers its
+// emit here while it runs and removes it when it ends; a call with no live
+// turn for its session falls back to prose.
+const askTurns = new Map();
 const SUBAGENT_BLOCKED = new Set(["write_file", "edit_file", "multi_edit", "run_command", "download", "fetch_url", "websearch", "task"]);
-const CHAT_TOOLS = ["websearch", "fetch_url", "self_knowledge", "task"];
+const CHAT_TOOLS = ["websearch", "fetch_url", "self_knowledge", "task", "ask_user"];
 
 /* --------------------------------- mcp ----------------------------------- */
 // The shared MCP manager: connects enabled servers at boot, exposes their
@@ -130,10 +134,23 @@ function restrictRunner(toolRunner, allowed) {
   return wrapped;
 }
 
-function makeRunner(r, allowed) {
+function makeRunner(r, allowed, session = null) {
   const toolRunner = createToolRunner(r, {
     ...(allowed ? { allowed } : {}),
     mcp: mcpManager,
+    askUser: async (questions) => {
+      // Render clickable options in the conversation that asked and wait for
+      // the clicks. Keyed by session, so two background turns never cross
+      // wires. No live turn (a warm-up call) means null: the tool asks the
+      // model to use prose instead.
+      const turn = session ? askTurns.get(session.id) : null;
+      if (!turn) return null;
+      return new Promise((resolve) => {
+        const id = randomUUID();
+        session.asks.set(id, resolve);
+        turn({ type: "question", id, questions });
+      });
+    },
     runSubagent: async ({ instructions, agent } = {}) => {
       if (!subagentCtx) return { error: "no model configured yet - answer without a subagent" };
       // A custom agent may narrow the explorer further (its own tools) and
@@ -187,8 +204,6 @@ function makeRunner(r, allowed) {
   });
   return allowed ? restrictRunner(toolRunner, allowed) : toolRunner;
 }
-let runner = makeRunner(ROOT);
-
 /* ------------------------------ persistence ------------------------------ */
 // Sessions live in memory for speed and are mirrored to disk so they survive a
 // restart. Location: STAR_CODE_DATA when the desktop app sets it, otherwise
@@ -266,6 +281,7 @@ function loadStore() {
             messages: Array.isArray(s.messages) ? s.messages : [],
             stats: normalizeStats(s.stats),
             pending: new Map(),
+            asks: new Map(),
             aborts: new Set(),
             autoAllow: new Set(),
           };
@@ -371,6 +387,7 @@ function newSession(title, kind) {
     messages: [{ role: "system", content: system }],
     stats: emptyStats(),
     pending: new Map(),
+    asks: new Map(),
     aborts: new Set(),
     autoAllow: new Set(),
   };
@@ -448,19 +465,19 @@ function agentTurnTarget(agent, session) {
 }
 
 /**
- * Tool runner for one turn. Chat sessions always build their own runner,
- * rooted at the home directory and limited to CHAT_TOOLS; code sessions
- * share the server's default runner unless they carry their own cwd. A
- * selected agent narrows the allowlist (never widens it) and gets its own
- * runner, so the shared default is never rebuilt with the agent's limits.
+ * Tool runner for one turn. Chat sessions build their own runner, rooted at
+ * the home directory and limited to CHAT_TOOLS; code sessions run in their
+ * own cwd. A selected agent narrows the allowlist (never widens it). Every
+ * runner carries its session, so ask_user routes its question card to the
+ * conversation that asked - two background turns never cross wires.
  */
 function sessionRunner(s, agent = null) {
   if (agent) {
     const allowed = agentAllowedTools(agent, s.kind === "chat" ? CHAT_TOOLS : null);
-    return allowed ? makeRunner(sessionRoot(s), allowed) : makeRunner(sessionRoot(s));
+    return allowed ? makeRunner(sessionRoot(s), allowed, s) : makeRunner(sessionRoot(s), null, s);
   }
-  if (s.kind === "chat") return makeRunner(sessionRoot(s), CHAT_TOOLS);
-  return (s.cwd && path.resolve(s.cwd) !== ROOT) ? makeRunner(s.cwd) : runner;
+  if (s.kind === "chat") return makeRunner(sessionRoot(s), CHAT_TOOLS, s);
+  return makeRunner(sessionRoot(s), null, s);
 }
 
 loadStore();
@@ -879,7 +896,6 @@ async function route(req, res) {
     if (root && fs.existsSync(root) && fs.statSync(root).isDirectory()) {
       ROOT = path.resolve(root);
       mcpManager.setRoot(ROOT);
-      runner = makeRunner(ROOT);
       // Existing sessions keep their own cwd - never clear them here.
       return sendJSON(res, 200, { ok: true, root: ROOT });
     }
@@ -1010,6 +1026,7 @@ async function route(req, res) {
 
     const controller = { abort: false };
     session.aborts.add(controller);
+    askTurns.set(session.id, emit);
 
     // Each session runs against its own working directory; the server's
     // current root is only the default for brand-new sessions. Chat sessions
@@ -1033,6 +1050,7 @@ async function route(req, res) {
     session.messages[0] = { role: "system", content: sessionSystemContent(session) };
     session.updated = Date.now();
     session.activeTurn = 0;
+    askTurns.delete(session.id);
     persist();
     session.aborts.delete(controller);
     return res.end();
@@ -1048,6 +1066,19 @@ async function route(req, res) {
       return sendJSON(res, 200, { ok: true });
     }
     return sendJSON(res, 404, { error: "no such pending permission" });
+  }
+
+  // Ask-user answers: the clickable option card resolves the waiting tool.
+  if (req.method === "POST" && url.pathname === "/api/answer") {
+    const { sessionId, id, answers } = await readBody(req);
+    const session = sessions.get(sessionId);
+    const resolver = session?.asks.get(id);
+    if (resolver) {
+      session.asks.delete(id);
+      resolver(Array.isArray(answers) ? answers : []);
+      return sendJSON(res, 200, { ok: true });
+    }
+    return sendJSON(res, 404, { error: "no such pending question" });
   }
 
   if (req.method === "POST" && url.pathname === "/api/abort") {
@@ -1093,7 +1124,6 @@ export async function startServer({ port = PORT, root, silent = false } = {}) {
   if (root) {
     ROOT = path.resolve(root);
     mcpManager.setRoot(ROOT);
-    runner = makeRunner(ROOT);
     // Stored sessions are history, not scratch: keep them across boots.
   }
   await new Promise((resolve, reject) => {
@@ -1129,7 +1159,6 @@ export async function startServer({ port = PORT, root, silent = false } = {}) {
 export function setRoot(newRoot) {
   ROOT = path.resolve(newRoot);
   mcpManager.setRoot(ROOT);
-  runner = makeRunner(ROOT);
   // Sessions keep their own cwd; history survives a root change.
   return ROOT;
 }

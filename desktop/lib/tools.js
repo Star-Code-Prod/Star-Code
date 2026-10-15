@@ -102,7 +102,37 @@ export const TOOL_SPECS = [
     dangerous: false,
     schema: { topic: "string?" },
   },
+  {
+    name: "ask_user",
+    description: "Ask the user 1-4 questions with clickable options instead of asking in prose. Each question: a short header, the question text and 2-4 options (label + one-line description); put the recommended option first and add '(Recommended)' to its label. Set multiSelect when several answers may apply. Use it when you genuinely need a decision; never for things you can choose yourself.",
+    dangerous: false,
+    schema: { questions: "array" },
+  },
 ];
+
+/** Ask questions, clamped to something a clickable card can render: 1-4
+ *  questions, each with 2-4 options. Exported for the suites. */
+export function normalizeAskQuestions(questions) {
+  const list = Array.isArray(questions) ? questions : [];
+  const out = [];
+  for (const q of list.slice(0, 4)) {
+    if (!q || typeof q !== "object") continue;
+    const question = String(q.question || "").trim().slice(0, 300);
+    if (!question) continue;
+    const options = (Array.isArray(q.options) ? q.options : []).slice(0, 4).map((o) => {
+      const src = o && typeof o === "object" ? o : { label: o };
+      return { label: String(src.label || "").trim().slice(0, 80), description: String(src.description || "").trim().slice(0, 160) };
+    }).filter((o) => o.label);
+    if (options.length < 2) continue;
+    out.push({
+      question,
+      header: String(q.header || "").trim().slice(0, 24),
+      multiSelect: !!q.multiSelect,
+      options,
+    });
+  }
+  return out;
+}
 
 // ---------------------------------------------------------------------------
 // Context budget. Everything a tool returns is re-sent to the model on every
@@ -713,6 +743,9 @@ export function createToolRunner(root, opts = {}) {
   // An MCP manager hook (lib/mcp.js): routes `mcp__server__tool` names to the
   // live stdio servers. Without it those names stay unavailable, never half-work.
   const mcp = opts.mcp || null;
+  // A UI hook for ask_user: resolves with the clicked answers, or null where
+  // nobody can click (CLI, subagents) - the tool then says to ask in prose.
+  const askUser = typeof opts.askUser === "function" ? opts.askUser : null;
   // A custom agent may restrict which tools exist at all: `allowed` is the
   // union of names the runner will accept, null/undefined = every tool. The
   // refusal and the filtered schemas are the same list, so a restricted
@@ -1195,10 +1228,28 @@ export function createToolRunner(root, opts = {}) {
     return elide(String((out && out.text) || "(no findings)"), 8000, "subagent findings");
   }
 
+  async function ask_user({ questions }) {
+    const list = normalizeAskQuestions(questions);
+    if (!list.length) throw new Error("ask_user needs 1-4 questions, each with 2-4 options");
+    if (!askUser) return "(this environment has no clickable questions - ask the user in plain prose instead)";
+    const answers = await askUser(list);
+    // null/undefined = nobody could click (no live turn): same prose fallback.
+    // An empty array is different: the user really skipped.
+    if (answers == null) return "(this environment has no clickable questions - ask the user in plain prose instead)";
+    if (!answers.length) return "The user skipped the questions.";
+    return list.map((q, i) => {
+      const chosen = (Array.isArray(answers[i]) ? answers[i] : []).map((label) => {
+        const opt = q.options.find((o) => o.label === label) || { label, description: "" };
+        return opt.label + (opt.description ? " - " + opt.description : "");
+      });
+      return "Q: " + q.question + "\n  answer: " + (chosen.length ? chosen.join("; ") : "(skipped)");
+    }).join("\n");
+  }
+
   const impl = {
     read_file, list_dir, search_files, glob_files, write_file, edit_file, run_command, download,
     search_knowledge: ({ query }) => searchKnowledge(root, query),
-    fetch_url, websearch, multi_edit, task,
+    fetch_url, websearch, multi_edit, task, ask_user,
     self_knowledge: ({ topic }) => selfKnowledge(topic),
   };
 

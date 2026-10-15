@@ -327,11 +327,11 @@ try {
   // reviewer first reads a file (inside its list), then calls one outside the
   // list - the runner must refuse it - then finishes.
   const turnBodies = [];
-  const turnStub = http.createServer((req, res) => {
+  const turnStub = http.createServer(async (req, res) => {
     if (req.method !== "POST" || !req.url.endsWith("/chat/completions")) { res.writeHead(404); res.end(); return; }
     let body = "";
     req.on("data", (c) => { body += c; });
-    req.on("end", () => {
+    req.on("end", async () => {
       let parsed = {};
       try { parsed = JSON.parse(body); } catch { /* not json - fine */ }
       turnBodies.push(parsed);
@@ -347,6 +347,18 @@ try {
       else if (lt.includes("echo ask")) script = { tool: "mcp__verify_stub__echo", args: { text: "from-ask" } };
       else if (lt.includes("echo:from-bypass")) script = { text: "mcp-bypass-ok" };
       else if (lt.includes("echo:from-ask")) script = { text: "mcp-ask-ok" };
+      else if (lt.includes("ask delay") && !lt.includes("Tool result for ask_user")) {
+        await new Promise((r) => setTimeout(r, 400));   // let a second turn start first
+        script = { tool: "ask_user", args: { questions: [{ question: "Which color scheme?", header: "Color", options: [{ label: "Blue (Recommended)", description: "calm, cool" }, { label: "Red" }] }] } };
+      }
+      else if (lt.includes("ask probe") && !lt.includes("Tool result for ask_user")) {
+        script = { tool: "ask_user", args: { questions: [{ question: "Which color scheme?", header: "Color", options: [{ label: "Blue (Recommended)", description: "calm, cool" }, { label: "Red" }] }] } };
+      }
+      else if (lt.includes("Which color scheme?")) script = { text: "ask-ok" };
+      else if (lt.includes("slow turn b")) {
+        await new Promise((r) => setTimeout(r, 600));   // stay live across A's ask
+        script = { text: "b-done" };
+      }
       if (!script) script = [
         { tool: "read_file", args: { path: "package.json" } },  // reviewer: allowed
         { tool: "list_dir", args: { path: "." } },              // reviewer: refused
@@ -574,7 +586,121 @@ try {
     ok("the messages endpoint carries the flag too", msgs.pending === false);
   }
 
-  ok("every scripted persona turn made exactly one model call per step", turnBodies.length === 20, String(turnBodies.length));
+  /* -------------- ask_user: clickable questions, answered end to end -------- */
+  {
+    let qEv = null;
+    let answered = false;
+    let sawAskOk = false;
+    let resultPreview = "";
+    const res = await fetch(s.url + "/api/chat", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: "custom", model: "base-model", apiKey: "k", baseUrl: turnBase, mode: "manual", sessionId: codeNew.id, kind: "code", message: "ask probe" }),
+    });
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, i).trim();
+        buf = buf.slice(i + 1);
+        if (!line.startsWith("data:")) continue;
+        const payload = line.slice(5).trim();
+        if (!payload || payload === "[DONE]") continue;
+        let ev2 = null;
+        try { ev2 = JSON.parse(payload); } catch { continue; }
+        if (ev2.type === "question" && !qEv) {
+          qEv = ev2;
+          const r = await fetch(s.url + "/api/answer", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId: codeNew.id, id: ev2.id, answers: [["Blue (Recommended)"]] }),
+          });
+          answered = r.status === 200;
+        }
+        if (ev2.type === "tool_result" && ev2.name === "ask_user") resultPreview = String(ev2.preview || "");
+        if (ev2.type === "delta" && String(ev2.text || "").includes("ask-ok")) sawAskOk = true;
+      }
+    }
+    ok("ask_user reaches the client as a question event",
+      !!qEv && qEv.questions.length === 1 && qEv.questions[0].options.length === 2 &&
+      qEv.questions[0].header === "Color", JSON.stringify(qEv).slice(0, 140));
+    ok("the posted answer resolves the suspended tool",
+      answered && /answer: Blue \(Recommended\) - calm, cool/.test(resultPreview), resultPreview.slice(0, 130));
+    ok("the turn continues after the click", sawAskOk);
+    const ghost = await fetch(s.url + "/api/answer", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: codeNew.id, id: "ghost", answers: [["x"]] }),
+    });
+    ok("answering an unknown question is a 404", ghost.status === 404);
+  }
+
+  /* ------- questions route to the asking session, mid-stream or not --------- */
+  {
+    const readBag = async (res, bag, onEvent) => {
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        let i;
+        while ((i = buf.indexOf("\n")) >= 0) {
+          const line = buf.slice(0, i).trim();
+          buf = buf.slice(i + 1);
+          if (!line.startsWith("data:")) continue;
+          const payload = line.slice(5).trim();
+          if (!payload || payload === "[DONE]") continue;
+          let ev = null;
+          try { ev = JSON.parse(payload); } catch { continue; }
+          bag.push(ev);
+          if (onEvent) await onEvent(ev);
+        }
+      }
+    };
+    const bSession = await (await fetch(s.url + "/api/sessions/new", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "code" }),
+    })).json();
+    const chatBody = (sessionId, message) => JSON.stringify({
+      provider: "custom", model: "base-model", apiKey: "k", baseUrl: turnBase,
+      mode: "manual", sessionId, kind: "code", message,
+    });
+    // A starts first and waits 400ms on its model call; B starts 150ms later
+    // and stays live across A's ask. The question must land on A's stream.
+    const resA = await fetch(s.url + "/api/chat", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: chatBody(codeNew.id, "ask delay"),
+    });
+    await new Promise((r) => setTimeout(r, 150));
+    const resB = await fetch(s.url + "/api/chat", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: chatBody(bSession.id, "slow turn b"),
+    });
+    const aEvents = [];
+    const bEvents = [];
+    let answeredOnA = false;
+    await Promise.all([
+      readBag(resA, aEvents, async (ev) => {
+        if (ev.type === "question" && !answeredOnA) {
+          answeredOnA = true;
+          await fetch(s.url + "/api/answer", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId: codeNew.id, id: ev.id, answers: [["Red"]] }),
+          });
+        }
+      }),
+      readBag(resB, bEvents),
+    ]);
+    ok("a question lands on the session that asked, not the other live turn",
+      answeredOnA && !bEvents.some((e) => e.type === "question"),
+      "b-events: " + bEvents.map((e) => e.type).join(","));
+    ok("each live turn finishes with its own answer",
+      said(aEvents, "ask-ok") && said(bEvents, "b-done") && !said(bEvents, "ask-ok") && !said(aEvents, "b-done"));
+  }
+
+  ok("every scripted persona turn made exactly one model call per step", turnBodies.length === 25, String(turnBodies.length));
   turnStub.close();
   if (turnStub.closeAllConnections) turnStub.closeAllConnections();
 
@@ -590,9 +716,10 @@ try {
 
   const statsLoad = await (await fetch(s.url + "/api/sessions/messages?id=" + codeNew.id)).json();
   ok("a live session's stats ride with its messages", !!statsLoad.stats && typeof statsLoad.stats.calls === "number");
-  ok("model calls are counted", statsLoad.stats.calls === 16, String(statsLoad.stats.calls));
+  ok("model calls are counted", statsLoad.stats.calls === 20, String(statsLoad.stats.calls));
   ok("tool calls are counted per name",
-    statsLoad.stats.tools.read_file === 1 && statsLoad.stats.tools.list_dir === 1 && statsLoad.stats.tools.write_file === 2,
+    statsLoad.stats.tools.read_file === 1 && statsLoad.stats.tools.list_dir === 1 && statsLoad.stats.tools.write_file === 2 &&
+    statsLoad.stats.tools.ask_user === 2,
     JSON.stringify(statsLoad.stats.tools));
   ok("mcp tool calls join the same counts",
     statsLoad.stats.tools.mcp__verify_stub__echo === 3,

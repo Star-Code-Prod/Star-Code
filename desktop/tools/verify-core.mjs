@@ -401,7 +401,7 @@ fs.rmSync(kdir, { recursive: true, force: true });
 /* ------------------------------- new tools ------------------------------- */
 const http = await import("node:http");
 const {
-  createToolRunner, htmlToText, parseDuckDuckGo, readProjectMemory,
+  createToolRunner, htmlToText, parseDuckDuckGo, readProjectMemory, normalizeAskQuestions,
 } = await import(pathToFileURL(path.resolve("lib/tools.js")).href);
 const { SELF_DOC, selfKnowledge } = await import(pathToFileURL(path.resolve("lib/selfdoc.js")).href);
 
@@ -433,6 +433,38 @@ ok("multi_edit rejects ambiguous oldText", /2 times/.test(multiErr), multiErr);
 const m2 = await mr.run("multi_edit", { path: "a.txt", edits: [{ oldText: "beta", newText: "B", replaceAll: true }] });
 ok("multi_edit replaceAll", fs.readFileSync(medFile, "utf8") === "ALPHA B\nB GAMMA\n", m2);
 ok("multi_edit is dangerous", mr.isDangerous("multi_edit") === true);
+
+/* ---------------------- ask_user: clickable questions ---------------------- */
+{
+  const ask = normalizeAskQuestions([
+    { question: "Which color scheme?", header: "Color", options: [{ label: "Blue", description: "calm, cool" }, { label: "Red" }, { label: "" }] },
+    { question: "", options: [{ label: "x" }, { label: "y" }] },
+    { question: "Which extras?", multiSelect: true, options: [{ label: "a" }, { label: "b" }, { label: "c" }, { label: "d" }, { label: "e" }] },
+  ]);
+  ok("ask_user clamps to 1-4 questions of 2-4 usable options",
+    ask.length === 2 && ask[0].options.length === 2 && ask[1].options.length === 4,
+    JSON.stringify(ask.map((q) => q.options.length)));
+  ok("multiSelect rides along", ask[1].multiSelect === true && ask[0].multiSelect === false);
+  ok("headers and questions stay trimmed", ask[0].question === "Which color scheme?" && ask[0].header === "Color");
+  ok("a question with fewer than two options is dropped",
+    normalizeAskQuestions([{ question: "q", options: [{ label: "only" }] }]).length === 0 &&
+    normalizeAskQuestions(null).length === 0);
+  ok("asking the user needs no permission in any mode",
+    decisionFor("manual", "ask_user", empty) === "allow" && decisionFor("plan", "ask_user", empty) === "allow");
+
+  // Without a UI hook the tool falls back to prose instead of hanging.
+  const bare = await mr.run("ask_user", { questions: [{ question: "Pick", options: [{ label: "A" }, { label: "B" }] }] });
+  ok("ask_user without a hook asks for prose", /plain prose/.test(bare), bare);
+  // With a hook the clicks become the tool result.
+  const clicked = createToolRunner(med, { askUser: async (qs) => qs.map(() => ["Blue"]) });
+  const res = await clicked.run("ask_user", { questions: [{ question: "Which color scheme?", options: [{ label: "Blue", description: "calm, cool" }, { label: "Red" }] }] });
+  ok("clicked answers become the tool result", res.includes("Q: Which color scheme?") && res.includes("answer: Blue - calm, cool"), res);
+  const skipped = createToolRunner(med, { askUser: async () => [] });
+  ok("a skip is reported as skipped", (await skipped.run("ask_user", { questions: [{ question: "Pick", options: [{ label: "A" }, { label: "B" }] }] })).includes("skipped"));
+  let askErr = "";
+  try { await mr.run("ask_user", { questions: [{ question: "Pick", options: [{ label: "only" }] }] }); } catch (e) { askErr = e.message; }
+  ok("a malformed ask errors cleanly", /1-4 questions/.test(askErr), askErr);
+}
 
 // fetch_url against a local server (no external network)
 const fetchSrv = http.createServer((req, res) => {
