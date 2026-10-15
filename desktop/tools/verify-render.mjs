@@ -324,10 +324,21 @@ ok("length is clamped to something playable", /duration: 0\.2/.test(fns.motionSe
 const mmsg = fns.motionNoteMessage("Ride", 69, "by the moon");
 ok("a comment becomes the feedback message",
   mmsg.includes('"Ride"') && mmsg.includes("1:09") && mmsg.includes("by the moon"));
+ok("a point on the picture rides along as percentages",
+  fns.motionNoteMessage("Ride", 4, "brighter", { x: 0.32, y: 0.7 }).includes("pointing at around 32% across and 70% down"));
+ok("a dragged box becomes a region",
+  fns.motionNoteMessage("Ride", 4, "shift it", { x: 0.1, y: 0.2, w: 0.5, h: 0.3 }).includes("marking the region 10-60% across and 20-50% down"));
+ok("a time-only note stays time-only",
+  !fns.motionNoteMessage("Ride", 4, "faster").includes("pointing at") &&
+  !fns.motionNoteMessage("Ride", 4, "faster").includes("marking the region"));
 ok("the motion player carries Comment and Tweaks",
   js.includes('id="moComment"') && js.includes('id="moTweaks"') && js.includes('id="moPanel"') &&
   /\.mo-mark\{/.test(html.replace(/\s+/g, "")) && /\.mo-panel\{/.test(html.replace(/\s+/g, "")));
 ok("notes anchor to moments and persist", js.includes("state.motionNotes") && js.includes("persistNotes()") && js.includes("renderMarks()"));
+ok("comments can point at the picture",
+  js.includes("let pick = null;") && js.includes("pinsLayer.classList.toggle(\"picking\"") &&
+  js.includes("mo-pinbox") && /\.mo-pins\.picking\{/.test(html.replace(/\s+/g, "")) &&
+  js.includes("if (pick) Object.assign(n, pick);"));
 ok("a note can be sent to Star as feedback",
   js.includes("sendToAgent(motionNoteMessage(artifactName(a)") && js.includes("Send to Star"));
 ok("the runtime plays at the chosen speed",

@@ -590,6 +590,24 @@ body.is-mac.is-electron .brand{margin-left:2px}
 .mo-tw-words{display:flex;flex-direction:column;gap:6px}
 .mo-tw .segbtn{flex:none}
 
+/* ---- pointing at the spot: pins and boxes over the picture ---- */
+.mo-stage{position:relative}
+.mo-pins{position:absolute;inset:0;pointer-events:none;z-index:5}
+.mo-pins.picking{pointer-events:auto;cursor:crosshair}
+.mo-pin{
+  position:absolute;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:var(--r-full);
+  border:2.5px solid var(--accent);background:color-mix(in srgb,var(--accent) 35%,transparent);
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--bg) 55%,transparent);
+}
+.mo-pin.live{border-style:dashed;animation:pulse 1.2s ease-in-out infinite}
+.mo-pinbox{
+  position:absolute;border:2px dashed var(--accent);border-radius:var(--r-sm);
+  background:color-mix(in srgb,var(--accent) 14%,transparent);
+}
+.mo-pinbox.live{animation:pulse 1.2s ease-in-out infinite}
+.mo-pick-hint{display:flex;align-items:center;gap:6px;font-size:var(--fs-11);color:var(--dim)}
+.mo-pick-chip{font-family:var(--font-mono);color:var(--accent);flex:none}
+
 /* ================= TASK LIST ================= */
 .tasklist{margin:13px auto;border:1px solid var(--border);border-radius:var(--r-md);background:var(--panel);overflow:hidden}
 .tasklist .th{
@@ -3809,6 +3827,7 @@ let msgArtifacts = [];     // parsed from the message currently streaming
 let msgCards = 0;          // cards committed for that message
 let artifactView = { i: 0, mode: "render" };
 let lastArtRender = 0;
+let lastArtSignature = "";   // what the player last rendered: skip no-op rebuilds
 let artifactCards = new Map();   // group key -> { node, indices, select, saveBtn }
 let pendingArt = null;     // { lang, t0 } while an artifact fence is being written
 let artWorkTimer = 0;      // the artifact working state's elapsed ticker
@@ -3850,8 +3869,14 @@ function syncArtifacts(raw, streaming) {
     const now = Date.now();
     const justFinished = wasPending && !pendingArt;
     if (justFinished) setActivity("thinking");
-    if (justFinished || !streaming || now - lastArtRender > 450) {
+    // Only rebuild the player when its content actually changed. Rebuilding
+    // on every streaming flush (any answer, artifact or not) used to reset
+    // the motion panel, the playback state and the picked spot mid-edit.
+    const lastA = artifacts[artifacts.length - 1];
+    const sig = artifacts.length + ":" + ((lastA && lastA.code) || "").length;
+    if (justFinished || !streaming || (now - lastArtRender > 450 && sig !== lastArtSignature)) {
       lastArtRender = now;
+      lastArtSignature = sig;
       renderArtifact();
     }
   }
@@ -4193,11 +4218,21 @@ function motionSetDuration(code, seconds) {
   return String(code || "").replace(/(duration\s*:\s*)([\d.]+)/, (mm, head) => head + String(s));
 }
 
-/** The chat message a "Send to Claude" note becomes. */
-function motionNoteMessage(name, t, text) {
+/** The chat message a "Send to Claude" note becomes. `target` carries the
+ *  picked spot on the picture: { x, y } fractions for a point, plus { w, h }
+ *  for a dragged box - so the model knows exactly which element to change. */
+function motionNoteMessage(name, t, text, target) {
   const mm = Math.floor((Number(t) || 0) / 60);
   const ss = Math.floor((Number(t) || 0) % 60);
-  return "Motion feedback on \"" + name + "\" at " + mm + ":" + String(ss).padStart(2, "0") +
+  const pct = (v) => Math.round(Math.max(0, Math.min(1, Number(v) || 0)) * 100);
+  let loc = "";
+  if (target && Number.isFinite(target.x) && Number.isFinite(target.y)) {
+    loc = Number.isFinite(target.w) && Number.isFinite(target.h)
+      ? " marking the region " + pct(target.x) + "-" + pct(target.x + target.w) + "% across and " +
+        pct(target.y) + "-" + pct(target.y + target.h) + "% down"
+      : " pointing at around " + pct(target.x) + "% across and " + pct(target.y) + "% down";
+  }
+  return "Motion feedback on \"" + name + "\" at " + mm + ":" + String(ss).padStart(2, "0") + loc +
     ' — "' + String(text || "").trim() + '". Please update the motion artifact accordingly.';
 }
 
@@ -4416,7 +4451,7 @@ function renderMotionArtifact(body, a) {
         <button class="btn sm" id="moOpen" hidden>Open</button>
       </div>
       <div class="mo-panel" id="moPanel" hidden></div>
-      <div class="mo-stage"></div>
+      <div class="mo-stage"><div class="mo-pins" id="moPins" aria-hidden="true"></div></div>
       <div class="mo-status" id="moStatus">Waiting for the scene…</div>
     </div>`;
   const frame = document.createElement("iframe");
@@ -4435,6 +4470,7 @@ function renderMotionArtifact(body, a) {
   const openBtn = body.querySelector("#moOpen");
   const status = body.querySelector("#moStatus");
   const panel = body.querySelector("#moPanel");
+  const pinsLayer = body.querySelector("#moPins");
   const commentBtn = body.querySelector("#moComment");
   const tweaksBtn = body.querySelector("#moTweaks");
 
@@ -4586,6 +4622,7 @@ function renderMotionArtifact(body, a) {
       if (!st.recording && !scrubbing) { scrub.value = String(st.t); setFill(st.t); }
       showTime();
       syncNoteAt();
+      renderPins();
       return;
     }
     if (m.type === "motion-recorded") {
@@ -4642,10 +4679,86 @@ function renderMotionArtifact(body, a) {
     panel.hidden = true;
     panel.dataset.mode = "";
     panel.innerHTML = "";
+    setPicking(false);
   };
+
+  /* ---- pointing at the spot: click the picture (or drag a box) ---- */
+  let pick = null;                 // { x, y, w?, h? } - fractions of the frame
+  const pctStr = (v) => Math.round(Math.max(0, Math.min(1, v)) * 100);
+  const pickLabel = () => !pick ? "" :
+    (Number.isFinite(pick.w)
+      ? pctStr(pick.x) + "-" + pctStr(pick.x + pick.w) + "% × " + pctStr(pick.y) + "-" + pctStr(pick.y + pick.h) + "%"
+      : pctStr(pick.x) + "% × " + pctStr(pick.y) + "%");
+  const renderPins = () => {
+    if (!pinsLayer) return;
+    pinsLayer.innerHTML = "";
+    const add = (n, live) => {
+      if (!Number.isFinite(n.x) || !Number.isFinite(n.y)) return;
+      const el = document.createElement("div");
+      const isBox = Number.isFinite(n.w) && Number.isFinite(n.h);
+      el.className = (isBox ? "mo-pinbox" : "mo-pin") + (live ? " live" : "");
+      el.style.left = (n.x * 100) + "%";
+      el.style.top = (n.y * 100) + "%";
+      if (isBox) {
+        el.style.width = (n.w * 100) + "%";
+        el.style.height = (n.h * 100) + "%";
+      }
+      if (!live && n.text) el.title = n.text;
+      pinsLayer.appendChild(el);
+    };
+    if (pick) add(pick, true);
+    // Notes with a target show it while the playhead is around their moment.
+    for (const n of notes) if (Math.abs((n.t || 0) - st.t) <= 1.2) add(n, false);
+  };
+  const setPicking = (on) => {
+    if (!pinsLayer) return;
+    pinsLayer.classList.toggle("picking", !!on);
+    if (!on) { pick = null; renderPins(); }
+  };
+  let pdrag = null;
+  pinsLayer.addEventListener("pointerdown", (e) => {
+    if (panel.dataset.mode !== "notes") return;
+    const r = pinsLayer.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    pdrag = {
+      sx: Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)),
+      sy: Math.max(0, Math.min(1, (e.clientY - r.top) / r.height)),
+      r,
+    };
+    try { pinsLayer.setPointerCapture(e.pointerId); } catch {}
+    e.preventDefault();
+  });
+  pinsLayer.addEventListener("pointermove", (e) => {
+    if (!pdrag) return;
+    const x = Math.max(0, Math.min(1, (e.clientX - pdrag.r.left) / pdrag.r.width));
+    const y = Math.max(0, Math.min(1, (e.clientY - pdrag.r.top) / pdrag.r.height));
+    const moved = Math.abs(x - pdrag.sx) * pdrag.r.width > 6 || Math.abs(y - pdrag.sy) * pdrag.r.height > 6;
+    pick = moved
+      ? { x: Math.min(pdrag.sx, x), y: Math.min(pdrag.sy, y), w: Math.abs(x - pdrag.sx), h: Math.abs(y - pdrag.sy) }
+      : { x: pdrag.sx, y: pdrag.sy };
+    renderPins();
+  });
+  const pinDone = () => {
+    if (!pdrag) return;
+    // A plain click (no drag) still marks the spot under the pointer.
+    if (!pick) pick = { x: pdrag.sx, y: pdrag.sy };
+    pdrag = null;
+    renderPins();
+    const chip = panel.querySelector("#moPick");
+    if (chip) chip.textContent = pick ? "on " + pickLabel() : "anywhere";
+    const clear = panel.querySelector("#moPickClear");
+    if (clear) clear.hidden = !pick;
+  };
+  pinsLayer.addEventListener("pointerup", pinDone);
+  pinsLayer.addEventListener("pointercancel", pinDone);
   const renderNotesPanel = () => {
     panel.innerHTML = `
-      <div class="mo-note-head">${notes.length ? notes.length + " comment" + (notes.length === 1 ? "" : "s") : "Comment on the moment you are looking at, then send it to Star."}</div>
+      <div class="mo-note-head">${notes.length ? notes.length + " comment" + (notes.length === 1 ? "" : "s") : "Point at the exact spot on the picture."}</div>
+      <div class="mo-pick-hint">
+        <span>Click a spot on the picture - or drag a box around it - then say what to change.</span>
+        <span class="mo-pick-chip" id="moPick">anywhere</span>
+        <button class="mo-note-d" id="moPickClear" title="Clear the picked spot" aria-label="Clear the picked spot" hidden>×</button>
+      </div>
       <div class="mo-notes"></div>
       <div class="mo-note-add">
         <span class="mo-note-at" id="moNoteAt"></span>
@@ -4654,6 +4767,17 @@ function renderMotionArtifact(body, a) {
         <button class="btn sm pri" id="moNoteSend">Send to Star</button>
       </div>`;
     syncNoteAt();
+    const chip = panel.querySelector("#moPick");
+    const clearBtn = panel.querySelector("#moPickClear");
+    if (pick) { chip.textContent = "on " + pickLabel(); clearBtn.hidden = false; }
+    clearBtn.addEventListener("click", () => {
+      pick = null;
+      chip.textContent = "anywhere";
+      clearBtn.hidden = true;
+      renderPins();
+    });
+    setPicking(true);
+    renderPins();
     const list = panel.querySelector(".mo-notes");
     notes.forEach((n, i) => {
       const row = document.createElement("div");
@@ -4682,13 +4806,15 @@ function renderMotionArtifact(body, a) {
       const text = input.value.trim();
       if (!text) { input.focus(); return; }
       const n = { t: st.t, text, sent: !!send };
+      if (pick) Object.assign(n, pick);   // the exact spot, carried into the note
       notes.push(n);
       persistNotes();
+      pick = null;
       renderMarks();
       if (send) {
         closePanel();
         toast("Sent to Star");
-        sendToAgent(motionNoteMessage(artifactName(a), n.t, text));
+        sendToAgent(motionNoteMessage(artifactName(a), n.t, text, n));
       } else {
         input.value = "";
         renderNotesPanel();
