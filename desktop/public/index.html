@@ -477,6 +477,34 @@ body.is-mac.is-electron .brand{margin-left:2px}
 .apmd p{margin:10px 0}
 .apmd h1,.apmd h2,.apmd h3{font-size:var(--fs-15);font-weight:600;margin:18px 0 8px}
 
+/* ---- the working state: from the first fence line to the finished thing ---- */
+.apwork{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:var(--sp-4)}
+.apwork-in{width:min(520px,86%);display:flex;flex-direction:column;gap:10px}
+.apwork-head{display:flex;align-items:center;gap:8px;font-size:var(--fs-13);color:var(--text)}
+.apwork-head svg{width:14px;height:14px;color:var(--accent);flex:none}
+.apwork-el{margin-left:auto;font-family:var(--font-mono);font-size:var(--fs-11);color:var(--muted);font-variant-numeric:tabular-nums}
+.apwork-sub{font-size:var(--fs-12);color:var(--muted);line-height:1.55}
+.apwork-sk{display:flex;flex-direction:column;gap:9px;margin-top:8px}
+.apwork-sk .sk{
+  height:12px;border-radius:6px;
+  background:linear-gradient(90deg,var(--elev) 25%,var(--hover) 37%,var(--elev) 63%);
+  background-size:400% 100%;animation:shimmer 1.4s linear infinite;
+}
+.apwork-cursor{
+  position:absolute;left:16%;top:40%;z-index:2;pointer-events:none;
+  filter:drop-shadow(0 1px 2px rgba(0,0,0,.35));
+  animation:caret 3.6s ease-in-out infinite;
+}
+@keyframes caret{
+  0%{left:16%;top:40%}22%{left:58%;top:16%}
+  46%{left:34%;top:68%}70%{left:78%;top:52%}
+  88%{left:52%;top:28%}100%{left:16%;top:40%}
+}
+@media(prefers-reduced-motion:reduce){
+  .apwork-cursor{animation:none;left:58%;top:38%}
+  .apwork-sk .sk{animation:none}
+}
+
 /* ---- motion artifacts: canvas scene → recorded video ---- */
 .mo{display:flex;flex-direction:column;flex:1;min-height:0}
 .mo-bar{display:flex;align-items:center;gap:7px;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--panel2);flex:none;flex-wrap:wrap}
@@ -2896,7 +2924,6 @@ function addUser(text) {
 function startAssistant() {
   currentMsg = node("msg-a streaming");
   msgActs(currentMsg, () => currentMsg._t || "");
-  toolGroup = null;
   msgArtifacts = [];
   msgCards = 0;
 }
@@ -2956,6 +2983,26 @@ function parseArtifacts(s) {
     });
   }
   return out;
+}
+
+/** The opening fence of the artifact being written RIGHT NOW: the last
+ *  ```artifact opener whose closer has not arrived yet. null when between
+ *  artifacts (or the last thing written had no opener at all). */
+function pendingFence(raw) {
+  const src = String(raw || "");
+  const re = /^(`{3,})artifact[ \t]*(\w*)[ \t]*\r?\n/gm;
+  let last = null, m;
+  while ((m = re.exec(src)) !== null) last = { index: m.index, len: m[0].length, ticks: m[1], lang: m[2] };
+  if (!last) return null;
+  // A closer of the same length already means the fence is complete (and
+  // parseArtifacts has it) - nothing is pending for THIS opener.
+  const rest = src.slice(last.index + last.len);
+  if (new RegExp("^" + last.ticks + "[ \\t]*$", "m").test(rest)) return null;
+  let lang = (last.lang || "").toLowerCase();
+  if (lang === "markdown") lang = "md";
+  // Still typing the language word: no claim until it names a real format.
+  if (lang && !["html", "svg", "md", "motion", "doc", "slides", "design"].includes(lang)) return null;
+  return { lang: lang || "html" };
 }
 
 /* ---- typed artifact shells: doc, slides, design ---- */
@@ -3092,9 +3139,12 @@ let msgCards = 0;          // cards committed for that message
 let artifactView = { i: 0, mode: "render" };
 let lastArtRender = 0;
 let artifactCards = new Map();   // group key -> { node, indices, select, saveBtn }
+let pendingArt = null;     // { lang, t0 } while an artifact fence is being written
+let artWorkTimer = 0;      // the artifact working state's elapsed ticker
 
 function syncArtifacts(raw, streaming) {
   const arts = parseArtifacts(raw || "");
+  const wasPending = !!pendingArt;
   for (let k = msgArtifacts.length; k < arts.length; k++) {
     artifacts.push({ lang: arts[k].lang, code: arts[k].code, title: arts[k].title, desc: arts[k].desc });
   }
@@ -3106,10 +3156,28 @@ function syncArtifacts(raw, streaming) {
     last.desc = arts[arts.length - 1].desc;
   }
   msgArtifacts = arts;
+  // Open the viewer - pane, or the dialog in chat with the rail hidden - on
+  // the FIRST line of a fence, showing a working state until the real thing
+  // is complete. No more staring at nothing for half a minute.
+  if (streaming) {
+    const pf = pendingFence(raw);
+    if (pf) {
+      if (!pendingArt || pendingArt.lang !== pf.lang) {
+        pendingArt = { lang: pf.lang, t0: performance.now() };
+        autoOpenArtifactView();
+      }
+    } else pendingArt = null;
+  }
+  // Cards land with the artifact, not at the end of the whole message.
+  if (arts.length > msgCards) {
+    for (let k = msgCards; k < arts.length; k++) addArtifactCard(artifacts.length - arts.length + k);
+    msgCards = arts.length;
+  }
   if (artifacts.length) {
     artifactView.i = artifacts.length - 1;
     const now = Date.now();
-    if (!streaming || now - lastArtRender > 450) {
+    const justFinished = wasPending && !pendingArt;
+    if (justFinished || !streaming || now - lastArtRender > 450) {
       lastArtRender = now;
       renderArtifact();
     }
@@ -3297,11 +3365,14 @@ function renderArtifactInto(host, a) {
 
 /** Show the selected artifact: the Preview pane when the dock is available
  *  (always in code mode; in chat mode when the user keeps the rail open),
- *  otherwise the centered dialog. */
+ *  otherwise the centered dialog. While an artifact is still being written,
+ *  the newest view IS the working state. */
 function renderArtifact() {
+  if (state.mode === "chat" && $("panes").classList.contains("hide")) { openArtifactDialog(); return; }
+  if (pendingArt && artifactView.i >= artifacts.length - 1) { autoOpenArtifactView(); return; }
   const a = artifacts[artifactView.i];
   if (!a) return;
-  if (state.mode === "chat" && $("panes").classList.contains("hide")) { openArtifactDialog(); return; }
+  $("filePreview").dataset.working = "";
   showPane("preview");
   const group = artifactGroup(artifactView.i);
   $("previewTitle").textContent = artifactName(a) +
@@ -3332,6 +3403,9 @@ function flushAnswer() {
   syncArtifacts(currentMsg._raw, true);
   if (!shown.trim()) { currentMsg.style.display = "none"; scrollDownSoon(); return; }
   currentMsg.style.display = "";
+  // Visible prose ends the tool run: tools after it start a NEW group, so one
+  // turn reads as prose - its tools - prose - its tools, like a written log.
+  toolGroup = null;
   setMsgHtml(currentMsg, md(shown));
   wireCopy(currentMsg);
   scrollDownSoon();
@@ -3343,6 +3417,25 @@ function flushAnswerNow() {
 function endAssistant() {
   flushAnswerNow();
   if (currentMsg) currentMsg.classList.remove("streaming");
+  // A fence that never closed (or an interrupted turn) must not leave the
+  // working state up: drop it back to the last real artifact, or the empty
+  // preview note when there is none.
+  if (pendingArt) {
+    pendingArt = null;
+    if (artWorkTimer) { clearInterval(artWorkTimer); artWorkTimer = 0; }
+    const host = $("filePreview");
+    if (host.dataset.working) {
+      host.dataset.working = "";
+      if (artifacts.length) renderArtifact();
+      else { $("previewEmpty").style.display = "block"; host.style.display = "none"; }
+    }
+    if ($("artBody").dataset.working) {
+      $("artBody").dataset.working = "";
+      if (artifacts.length) {
+        if ($("artDlg").classList.contains("on")) openArtifactDialog();
+      } else closeArtifactDialog();
+    }
+  }
   if (msgArtifacts.length > msgCards) {
     for (let k = msgCards; k < msgArtifacts.length; k++) {
       addArtifactCard(artifacts.length - msgArtifacts.length + k);
@@ -3396,7 +3489,7 @@ canvas{max-width:100%;max-height:100%;display:block}
   var cfg = { width: 1280, height: 720, duration: 6, fps: 30 };
   var draw = null, cur = 0, playing = false, raf = 0, base = 0, started = 0;
   var rec = null, chunks = [], stream = null, recTimer = 0, recActive = false;
-  var lastFrame = 0, lastPost = 0, visPlay = false;
+  var lastPost = 0, visPlay = false, nextAt = 0;
 
   function post(msg, transfer) { try { parent.postMessage(msg, "*", transfer || []); } catch (e) {} }
   function sizeCanvas(scale) {
@@ -3415,11 +3508,13 @@ canvas{max-width:100%;max-height:100%;display:block}
   function stopRaf() { if (raf) cancelAnimationFrame(raf); raf = 0; }
   function tick() {
     raf = requestAnimationFrame(tick);
-    // Pace to the artifact's own fps (default 30): rAF ticks at the display
-    // rate, but a 60/120 Hz screen should not run the scene that fast.
+    // Hold the scene's own cadence (default 30fps) on any display: render when
+    // the next frame is due and keep the phase, so 24fps on a 60Hz screen
+    // interleaves 2,3,2,3 ticks instead of quantising down to 20fps.
     var now = performance.now();
-    if (now - lastFrame < 1000 / Math.max(1, cfg.fps) - 1) return;
-    lastFrame = now;
+    var iv = 1000 / Math.max(1, cfg.fps);
+    if (nextAt && now + 0.5 < nextAt) return;
+    nextAt = Math.max(now, (nextAt || now) + iv);
     var t = base + (now - started) / 1000;
     if (t >= cfg.duration) { t = t % cfg.duration; base = t; started = performance.now(); }
     render(t);
@@ -3431,6 +3526,7 @@ canvas{max-width:100%;max-height:100%;display:block}
     playing = true;
     base = cur >= cfg.duration ? 0 : cur;
     started = performance.now();
+    nextAt = performance.now();
     stopRaf(); tick();
   }
   function pause() { playing = false; stopRaf(); }
@@ -3587,6 +3683,7 @@ function renderMotionArtifact(body, a) {
   const status = body.querySelector("#moStatus");
 
   const st = { ready: false, duration: 0, sceneW: 1280, sceneH: 720, t: 0, playing: false, recording: false, savedPath: "" };
+  let autoPlayed = false;
   const fmt = (t) => (Number(t) || 0).toFixed(2) + "s";
   const setStatus = (text, err) => { status.textContent = text; status.classList.toggle("err", !!err); };
   const showTime = () => { time.textContent = (st.recording ? "record " : "") + fmt(st.t) + " / " + fmt(st.duration); };
@@ -3691,8 +3788,16 @@ function renderMotionArtifact(body, a) {
         stage.style.flex = "none";
         stage.style.maxHeight = "100%";
       }
-      setStatus("Scene " + st.sceneW + "×" + st.sceneH + " · " + fmt(st.duration) + " · " + (Number(m.fps) || 30) + "fps. Play to preview, Record to render a video file.", false);
+      setStatus("Scene " + st.sceneW + "×" + st.sceneH + " · " + fmt(st.duration) + " · " + (Number(m.fps) || 30) + "fps. Playing — Record renders a video file.", false);
       showTime();
+      // A motion artifact is a moving picture: it plays the moment it lands.
+      // Pause stays pause; this fires once, on the first ready of this player.
+      if (!autoPlayed) {
+        autoPlayed = true;
+        st.playing = true;
+        playBtn.textContent = "Pause";
+        send({ type: "motion-play" });
+      }
       return;
     }
     if (m.type === "motion-progress") {
@@ -3722,6 +3827,64 @@ function renderMotionArtifact(body, a) {
   }, 2500);
 }
 
+const WORK_CURSOR_SVG = '<svg class="apwork-cursor" width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 2.5l11 6.2-4.8 1.2-1.9 4.8z" fill="var(--text)" stroke="var(--panel)" stroke-width="1.2"/></svg>';
+
+/** The working state: shown in the viewer from the first line of an artifact
+ *  fence until the finished artifact replaces it. Skeleton + a cursor moving
+ *  around like Star is working on the page. */
+function renderWorkingInto(host, lang) {
+  motionCtx = null;   // any previous player is gone with this rebuild
+  host.dataset.working = "1";
+  const label = (ACT_ART_LANGS[lang] || "Artifact").toLowerCase();
+  host.innerHTML = `
+    <div class="apwork">
+      <div class="apwork-in">
+        <div class="apwork-head">${SPARK_SVG}<span>Star is working</span><span class="apwork-el" data-el></span></div>
+        <div class="apwork-sub">Writing your ${esc(label)} — it appears here finished, nothing to click.</div>
+        <div class="apwork-sk">
+          <div class="sk" style="width:42%"></div>
+          <div class="sk" style="width:88%"></div>
+          <div class="sk" style="width:71%"></div>
+          <div class="sk" style="width:80%"></div>
+          <div class="sk" style="width:34%"></div>
+        </div>
+      </div>
+      ${WORK_CURSOR_SVG}
+    </div>`;
+  const el = host.querySelector("[data-el]");
+  const t0 = (pendingArt && pendingArt.t0) || performance.now();
+  if (artWorkTimer) { clearInterval(artWorkTimer); artWorkTimer = 0; }
+  if (el) {
+    artWorkTimer = setInterval(() => {
+      if (!pendingArt || !host.dataset.working) { clearInterval(artWorkTimer); artWorkTimer = 0; return; }
+      const s = Math.floor((performance.now() - t0) / 1000);
+      el.textContent = s >= 1 ? s + "s" : "";
+    }, 300);
+  }
+}
+
+/** Open the artifact viewer the moment a fence starts: the Preview pane when
+ *  the dock is available, else the chat dialog. */
+function autoOpenArtifactView() {
+  const lang = (pendingArt && pendingArt.lang) || "html";
+  if (state.mode === "chat" && $("panes").classList.contains("hide")) {
+    const el = $("artDlg");
+    const wasOpen = el.classList.contains("on");
+    if (!wasOpen) artDlgReturnFocus = document.activeElement;
+    el.classList.add("on");
+    $("artTitle").textContent = "Star is working…";
+    renderWorkingInto($("artBody"), lang);
+    if (!wasOpen) { const b = $("artClose"); if (b) b.focus(); }
+    return;
+  }
+  showPane("preview");
+  $("previewTitle").textContent = "Star is working…";
+  $("previewEmpty").style.display = "none";
+  const host = $("filePreview");
+  host.style.display = "flex";
+  renderWorkingInto(host, lang);
+}
+
 /* ---- artifact dialog (chat mode, rail hidden) ---------------------------
    When the chat rail is closed the artifact preview opens as a centered
    dialog instead. Same pattern as the settings dialog: backdrop + card,
@@ -3735,11 +3898,21 @@ function artDlgFocusables() {
   return [...card.querySelectorAll(sel)].filter(el => !el.disabled && el.getClientRects().length);
 }
 function openArtifactDialog() {
+  const el = $("artDlg");
+  if (pendingArt && artifactView.i >= artifacts.length - 1) {
+    const wasOpen = el.classList.contains("on");
+    if (!wasOpen) artDlgReturnFocus = document.activeElement;
+    el.classList.add("on");
+    $("artTitle").textContent = "Star is working…";
+    renderWorkingInto($("artBody"), pendingArt.lang);
+    if (!wasOpen) { const b = $("artClose"); if (b) b.focus(); }
+    return;
+  }
   const a = artifacts[artifactView.i];
   if (!a) return;
-  const el = $("artDlg");
   const wasOpen = el.classList.contains("on");
   if (!wasOpen) artDlgReturnFocus = document.activeElement;
+  $("artBody").dataset.working = "";
   el.classList.add("on");
   $("artTitle").textContent = artifactName(a);
   renderArtifactInto($("artBody"), a);
@@ -3829,7 +4002,6 @@ function startThinking() {
     currentThink.label.textContent = s > 0 ? "Thinking… " + s + "s" : "Thinking…";
   }, 250);
   scrollDown();
-  toolGroup = null;
 }
 
 /** First delta of a phase builds the block (and wires its interactions). */
@@ -3939,7 +4111,16 @@ function endTurnThink() {
 
 /* ---- tool summary group ---- */
 function ensureToolGroup() {
-  if (toolGroup) return toolGroup;
+  if (toolGroup) {
+    // The turn's tools stay ONE group across rounds and thinking phases. If
+    // anything landed after it since (thinking, a diff card), move it back to
+    // the end so the transcript keeps reading top-to-bottom.
+    const stream = $("stream");
+    if (toolGroup.node && toolGroup.node.parentNode === stream && stream.lastElementChild !== toolGroup.node) {
+      stream.appendChild(toolGroup.node);
+    }
+    return toolGroup;
+  }
   const n = node("tools");
   n.innerHTML = `
     <button class="tools-h run">
@@ -4253,7 +4434,7 @@ async function handleCommand(text) {
   say(j.text || j.error || "(no output)");
   if (name === "memory" && j.text) renderPlan(j.text);
 }
-function say(t) { startAssistant(); currentMsg._t = t; setMsgHtml(currentMsg, md(t)); wireCopy(currentMsg); endAssistant(); }
+function say(t) { startAssistant(); toolGroup = null; currentMsg._t = t; setMsgHtml(currentMsg, md(t)); wireCopy(currentMsg); endAssistant(); }
 
 async function sendToAgent(message) {
   addUser(message); showChat();

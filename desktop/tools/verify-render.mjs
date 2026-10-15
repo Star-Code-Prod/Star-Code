@@ -29,7 +29,7 @@ if (stFrom < 0 || stTo < 0) {
 }
 const fns = new Function(
   js.slice(from, to) + js.slice(sbFrom, sbTo) + js.slice(stFrom, stTo) +
-  "; return { esc, hl, md, stripBlocks, parseArtifacts, toolGroupOf, groupToolCounts, fmtCount, splitArtifactParts, deckIframeHtml, docIframeHtml, boardIframeHtml };"
+  "; return { esc, hl, md, stripBlocks, parseArtifacts, pendingFence, toolGroupOf, groupToolCounts, fmtCount, splitArtifactParts, deckIframeHtml, docIframeHtml, boardIframeHtml };"
 )();
 
 const results = [];
@@ -129,6 +129,54 @@ const board = fns.boardIframeHtml("<h1>Frame A</h1>\n---\n<h1>Frame B</h1>");
 ok("the board shell frames every artboard", board.includes("Frame A") && board.includes("Frame B") && board.includes("Artboard 1") && board.includes("Artboard 2"));
 ok("one-part bodies still render in every shell",
   fns.deckIframeHtml("solo").includes("1 / 1") && fns.docIframeHtml("solo text").includes("solo text") && fns.boardIframeHtml("solo frame").includes("Artboard 1"));
+
+/* ------------------ pendingFence: the artifact being written ------------------ */
+// The viewer opens on the opener line, not when the closer lands: this is the
+// detection that makes the "Star is working" state possible.
+const pf1 = fns.pendingFence("intro\n```artifact html\n<h1>started but no closer");
+ok("an open fence is pending with its language", !!pf1 && pf1.lang === "html", JSON.stringify(pf1));
+ok("a closed fence is not pending", fns.pendingFence("```artifact html\n<body></body>\n```\nafter") === null);
+ok("slides and markdown name correctly",
+  (fns.pendingFence("```artifact slides\n# A") || {}).lang === "slides" &&
+  (fns.pendingFence("```artifact markdown\n# A") || {}).lang === "md");
+ok("a lang still being typed claims nothing",
+  fns.pendingFence("```artifact sli\nx") === null && fns.pendingFence("```artifact sli") === null);
+ok("the last unclosed fence wins",
+  (fns.pendingFence("```artifact html\ndone\n```\n```artifact design\n<frame>") || {}).lang === "design");
+ok("no fence at all is null", fns.pendingFence("plain text") === null && fns.pendingFence("") === null);
+
+/* ------------- transcript behavior: grouping + the working state ------------- */
+// Source-shape pins for logic the DOM-less suite cannot execute; the live
+// behavior is covered by the acceptance probes (probe-groups-art).
+function fnBody(name) {
+  const at = js.indexOf(name);
+  if (at < 0) return "";
+  const open = js.indexOf("{", at);
+  if (open < 0) return "";
+  let depth = 0;
+  for (let k = open; k < js.length; k++) {
+    if (js[k] === "{") depth++;
+    else if (js[k] === "}") { depth--; if (!depth) return js.slice(open, k + 1); }
+  }
+  return "";
+}
+ok("a new assistant round keeps the turn's tool group", !fnBody("function startAssistant()").includes("toolGroup = null"));
+ok("thinking phases keep the group", !fnBody("function startThinking()").includes("toolGroup = null"));
+ok("a new tool moves the group back to the bottom", fnBody("function ensureToolGroup()").includes("appendChild(toolGroup.node)"));
+ok("visible prose ends the tool run", fnBody("function flushAnswer()").includes("toolGroup = null"));
+ok("local notes break the run too", fnBody("function say(").includes("toolGroup = null"));
+ok("the working state exists for pane and dialog",
+  /\.apwork-cursor\{/.test(html) && js.includes("function renderWorkingInto(") && js.includes("Star is working…"));
+ok("syncArtifacts opens on the fence's first line",
+  fnBody("function syncArtifacts(").includes("pendingFence(") && fnBody("function syncArtifacts(").includes("autoOpenArtifactView("));
+ok("cards are committed with the artifact, not at message end",
+  fnBody("function syncArtifacts(").includes("addArtifactCard("));
+ok("an unfinished fence never leaves the working state up", fnBody("function endAssistant()").includes("pendingArt = null"));
+ok("motion autoplays once per player",
+  js.includes("let autoPlayed = false") && js.includes("autoPlayed = true") && js.includes('playBtn.textContent = "Pause"'));
+ok("motion pacing keeps the scene's cadence", js.includes("nextAt = Math.max(now, (nextAt || now) + iv)"));
+ok("the cursor roams the pane, not its own box", /@keyframes caret\{\s*0%\{left:16%;top:40%\}/.test(html.replace(/\n/g, "")));
+ok("reduced motion stills the working state", /prefers-reduced-motion:reduce\)\{\s*\.apwork-cursor\{animation:none/.test(html.replace(/\s+/g, "")));
 
 console.log(results.join("\n"));
 const failed = results.filter((r) => r.startsWith("FAIL")).length;
