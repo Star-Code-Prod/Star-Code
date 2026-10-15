@@ -13,7 +13,8 @@ const KEY = process.env.STAR_CODE_TEST_KEY || "";
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-sessions-"));
 process.env.STAR_CODE_DATA = dir;
 
-const { startServer } = await import(pathToFileURL(path.resolve("server.js")).href);
+const { startServer, makeRunner, sessionSystemContent } = await import(pathToFileURL(path.resolve("server.js")).href);
+const { chatSystemPrompt, systemPrompt } = await import(pathToFileURL(path.resolve("lib/agent.js")).href);
 const srv = await startServer({ port: 0, silent: true });
 const base = srv.url;
 
@@ -35,6 +36,44 @@ ok("create session A", !!a.id, a.id ? a.id.slice(0, 8) : "");
 ok("create session B", !!b.id, b.id ? b.id.slice(0, 8) : "");
 ok("create session C", !!c.id, c.id ? c.id.slice(0, 8) : "");
 ok("each session has a distinct id", new Set([a.id, b.id, c.id]).size === 3);
+ok("create defaults to kind code", a.kind === "code", String(a.kind));
+
+// 1b. kinds: a chat session lives in the home directory, and kind round-trips
+const chat = await post("/api/sessions/new", { title: "Explain context windows", kind: "chat" });
+ok("create chat session", chat.kind === "chat", String(chat.kind));
+const chatLoad = await get("/api/sessions/messages?id=" + chat.id);
+ok("chat session root is the home dir", chatLoad.cwd === os.homedir(), chatLoad.cwd);
+ok("loading a session returns its kind", chatLoad.kind === "chat", String(chatLoad.kind));
+const kindList = await get("/api/sessions");
+ok("list carries a kind on every session",
+   kindList.sessions.every((x) => x.kind === "chat" || x.kind === "code"));
+ok("chat session is listed as chat",
+   kindList.sessions.some((x) => x.id === chat.id && x.kind === "chat"));
+
+const badKind = await fetch(base + "/api/sessions/new", {
+  method: "POST", headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ title: "Bad kind", kind: "robot" }),
+});
+ok("invalid kind is rejected", badKind.status === 400, "HTTP " + badKind.status);
+
+// 1b-2. the system message a turn runs with: chat uses chatSystemPrompt(),
+// code keeps the coding prompt.
+ok("chat turns use chatSystemPrompt()",
+   sessionSystemContent({ kind: "chat", mode: "manual" }) === chatSystemPrompt());
+ok("code turns keep the coding prompt",
+   sessionSystemContent({ kind: "code", mode: "manual" }) === systemPrompt(process.cwd(), "manual"));
+
+// 1c. a chat runner is limited to the chat tools: write_file is refused (and
+// must not touch the disk), while an allowed tool still answers. This asserts
+// against the same runner shape the server uses for a chat turn.
+const chatRunner = makeRunner(os.homedir(), ["websearch", "fetch_url", "self_knowledge", "task"]);
+const probe = path.join(dir, "chat-must-not-write.txt");
+let refusal = "";
+try { await chatRunner.run("write_file", { path: probe, content: "should never be written" }); }
+catch (e) { refusal = e.message || ""; }
+ok("chat runner refuses write_file", refusal.length > 0 && !fs.existsSync(probe), refusal.slice(0, 60));
+const manual = await chatRunner.run("self_knowledge", {});
+ok("chat runner still runs an allowed tool", typeof manual === "string" && manual.length > 0);
 
 // 2. list them
 const list = await get("/api/sessions");
@@ -103,6 +142,10 @@ if (fs.existsSync(storeFile)) {
   ok("store round-trips the remaining sessions",
      Array.isArray(stored.sessions) && stored.sessions.length === (await get("/api/sessions")).sessions.length,
      stored.sessions.length + " on disk");
+  ok("kind is persisted for stored sessions",
+     stored.sessions.every((x) => x.kind === "chat" || x.kind === "code") &&
+     stored.sessions.some((x) => x.id === chat.id && x.kind === "chat"),
+     stored.sessions.map((x) => x.kind).join(","));
 }
 
 // 9. a root-parameterized boot (the desktop app's normal path) must keep
@@ -110,16 +153,21 @@ if (fs.existsSync(storeFile)) {
 const dir2 = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-rootboot-"));
 fs.writeFileSync(path.join(dir2, "sessions.json"), JSON.stringify({
   version: 1,
-  sessions: [{
-    id: "keep-me", title: "Precious history", mode: "manual", cwd: process.cwd(),
-    created: Date.now(), updated: Date.now(),
-    messages: [{ role: "system", content: "s" }, { role: "user", content: "hello there" }],
-  }],
+  sessions: [
+    // written before kinds existed: must load as "code"
+    { id: "keep-me", title: "Precious history", mode: "manual", cwd: process.cwd(),
+      created: Date.now(), updated: Date.now(),
+      messages: [{ role: "system", content: "s" }, { role: "user", content: "hello there" }] },
+    { id: "chat-me", title: "Old chat", kind: "chat", mode: "manual", cwd: process.cwd(),
+      created: Date.now(), updated: Date.now(),
+      messages: [{ role: "system", content: "s" }, { role: "user", content: "hi" }] },
+  ],
 }));
 const bootScript = `import(${JSON.stringify(pathToFileURL(path.resolve("server.js")).href)}).then(async (m) => {
   const srv = await m.startServer({ port: 0, root: ${JSON.stringify(process.cwd())}, silent: true });
   const list = await (await fetch(srv.url + "/api/sessions")).json();
   console.log("SESSIONS:" + (list.sessions || []).length);
+  console.log("KINDS:" + (list.sessions || []).map((s) => s.id + "=" + s.kind).join(","));
   await srv.close();
 });`;
 const boot = spawnSync(process.execPath, ["--input-type=module", "-e", bootScript], {
@@ -127,7 +175,9 @@ const boot = spawnSync(process.execPath, ["--input-type=module", "-e", bootScrip
   env: { ...process.env, STAR_CODE_DATA: dir2 },
   timeout: 30000,
 });
-ok("rooted boot keeps stored sessions", (boot.stdout || "").includes("SESSIONS:1"), (boot.stdout || "").trim().slice(-80));
+ok("rooted boot keeps stored sessions", (boot.stdout || "").includes("SESSIONS:2"), (boot.stdout || "").trim().slice(-80));
+ok("existing sessions without kind default to code", (boot.stdout || "").includes("keep-me=code"));
+ok("stored chat kind survives a reboot", (boot.stdout || "").includes("chat-me=chat"));
 fs.rmSync(dir2, { recursive: true, force: true });
 
 await srv.close();

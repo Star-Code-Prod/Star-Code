@@ -15,6 +15,7 @@ import { searchKnowledge } from "./knowledge.js";
 import { selfKnowledge } from "./selfdoc.js";
 import { classifySource } from "./sources.js";
 import { reputationReport } from "./reputation.js";
+import { getAgent, listAgents } from "./agents.js";
 
 export const TOOL_SPECS = [
   {
@@ -91,9 +92,9 @@ export const TOOL_SPECS = [
   },
   {
     name: "task",
-    description: "Run a read-only explorer subagent with fresh context: give it a research question, get its findings back without polluting this conversation.",
+    description: "Run a read-only research subagent with fresh context: give it a research question, get its findings back without polluting this conversation. Pass agent to use a custom agent defined in .star-code/agents or ~/.star-code/agents (name from its frontmatter); omit it for the built-in explorer.",
     dangerous: false,
-    schema: { instructions: "string" },
+    schema: { instructions: "string", agent: "string?" },
   },
   {
     name: "self_knowledge",
@@ -709,6 +710,12 @@ export function blockedDownloadCommand(command) {
 export function createToolRunner(root, opts = {}) {
   const resolve = (p) => (path.isAbsolute(p) ? path.normalize(p) : path.resolve(root, p || "."));
   const runSubagent = opts.runSubagent || null;
+  // A custom agent may restrict which tools exist at all: `allowed` is the
+  // union of names the runner will accept, null/undefined = every tool. The
+  // refusal and the filtered schemas are the same list, so a restricted
+  // runner can never advertise a tool it would refuse.
+  const allowed = Array.isArray(opts.allowed) ? [...new Set(opts.allowed.map(String))] : null;
+  const allowedSet = allowed ? new Set(allowed) : null;
 
   async function read_file({ path: p }) {
     const abs = resolve(p);
@@ -1165,11 +1172,22 @@ export function createToolRunner(root, opts = {}) {
     return "Edited " + (path.relative(root, abs) || abs) + " (" + list.length + " edit" + (list.length === 1 ? "" : "s") + ").";
   }
 
-  async function task({ instructions }) {
+  async function task({ instructions, agent }) {
     const text = String(instructions || "").trim();
     if (!text) throw new Error("task needs instructions");
     if (!runSubagent) return "task: no subagent runner is configured in this environment - continue without it.";
-    const out = await runSubagent({ instructions: text });
+    const wanted = String(agent || "").trim();
+    let picked = null;
+    if (wanted) {
+      picked = getAgent(root, wanted);
+      if (!picked) {
+        const names = listAgents(root).map((a) => a.name);
+        throw new Error("task: unknown agent \"" + wanted + "\". " +
+          (names.length ? "Available custom agents: " + names.join(", ") + "." : "There are no custom agents configured.") +
+          " Omit agent to use the built-in explorer, or add .star-code/agents/<name>.md.");
+      }
+    }
+    const out = await runSubagent({ instructions: text, agent: picked });
     if (out && out.error) return "task failed: " + out.error;
     return elide(String((out && out.text) || "(no findings)"), 8000, "subagent findings");
   }
@@ -1185,12 +1203,22 @@ export function createToolRunner(root, opts = {}) {
     async run(name, args) {
       const fn = impl[name];
       if (!fn) throw new Error("Unknown tool: " + name);
+      if (allowedSet && !allowedSet.has(name)) {
+        throw new Error("Tool \"" + name + "\" is not available to this agent. Allowed tools: " +
+          (allowed.length ? allowed.join(", ") : "(none)") + ".");
+      }
       return await fn(args || {});
     },
     isDangerous(name) {
       return !!TOOL_SPECS.find((t) => t.name === name)?.dangerous;
     },
     root,
+    /** The allowed tool names (null = every tool), for the chat loop. */
+    allowed,
+    /** The OpenAI tool schemas this runner may actually call. */
+    toolSchemas() {
+      return toolSchemasOpenAI(allowed);
+    },
   };
 }
 
@@ -1209,9 +1237,18 @@ export function readProjectMemory(root) {
   return null;
 }
 
-/** OpenAI-style tool schema so the model knows what it can call. */
-export function toolSchemasOpenAI() {
-  return TOOL_SPECS.map((t) => ({
+/** The tool specs a restricted runner may use (null/undefined = all of them). */
+export function toolSpecsFor(allowed) {
+  if (allowed == null) return TOOL_SPECS;
+  const set = new Set(allowed);
+  return TOOL_SPECS.filter((t) => set.has(t.name));
+}
+
+/** OpenAI-style tool schema so the model knows what it can call. Pass an
+ *  agent's `allowed` list to advertise only the tools it may actually run;
+ *  no argument is every tool, exactly as before. */
+export function toolSchemasOpenAI(allowed) {
+  return toolSpecsFor(allowed).map((t) => ({
     type: "function",
     function: { name: t.name, description: t.description, parameters: schemaToJson(t.schema) },
   }));

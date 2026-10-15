@@ -98,6 +98,31 @@ try {
   const listed = (await (await fetch(s.url + "/api/sessions")).json()).sessions;
   ok("empty untitled sessions are not listed", !listed.some((x) => x.title === "New session"));
 
+  // Session kinds: accepted + returned on create, validated, carried by the
+  // list and by the load endpoint.
+  const chatNew = await (await fetch(s.url + "/api/sessions/new", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title: "Verify chat session", kind: "chat" }),
+  })).json();
+  ok("sessions/new accepts kind=chat", chatNew.kind === "chat", String(chatNew.kind));
+  const codeNew = await (await fetch(s.url + "/api/sessions/new", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title: "Verify code session" }),
+  })).json();
+  ok("sessions/new defaults to kind=code", codeNew.kind === "code", String(codeNew.kind));
+  const badKind = await fetch(s.url + "/api/sessions/new", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title: "Verify bad kind", kind: "nonsense" }),
+  });
+  ok("sessions/new rejects an invalid kind", badKind.status === 400, "HTTP " + badKind.status);
+  const kindList = (await (await fetch(s.url + "/api/sessions")).json()).sessions;
+  ok("sessions list carries kind on every session",
+    kindList.every((x) => x.kind === "chat" || x.kind === "code") &&
+    kindList.some((x) => x.id === chatNew.id && x.kind === "chat"));
+  const chatLoad = await (await fetch(s.url + "/api/sessions/messages?id=" + chatNew.id)).json();
+  ok("loading a session returns its kind",
+    chatLoad.kind === "chat" && chatLoad.cwd === os.homedir(), chatLoad.cwd);
+
   // knowledge round-trip (writes into the repo root, cleaned up after)
   const kPost = await (await fetch(s.url + "/api/knowledge", {
     method: "POST", headers: { "Content-Type": "application/json" },

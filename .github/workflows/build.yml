@@ -163,6 +163,33 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
+      # The standalone CLI exe is built on Windows only, so it can be RUN here
+      # before it ships (a Windows binary cannot execute on the Linux runner).
+      - name: Set up Bun (build tool for the CLI exe)
+        if: matrix.os == 'windows-latest'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Build the standalone CLI exe
+        if: matrix.os == 'windows-latest'
+        working-directory: CLI
+        run: node build-exe.mjs
+
+      - name: Smoke-test the CLI exe
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        working-directory: CLI
+        run: |
+          $exe = Get-ChildItem Star-Code-CLI-*.exe | Select-Object -First 1
+          if (-not $exe) { throw "no CLI exe was built" }
+          & $exe.FullName --help | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "star-code --help failed ($LASTEXITCODE)" }
+          & $exe.FullName --demo start | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "star-code --demo start failed ($LASTEXITCODE)" }
+          Copy-Item $exe.FullName ../desktop/release/ -Force
+          "smoke-tested and staged: $($exe.Name) ($([math]::Round($exe.Length/1MB,1)) MB)"
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -277,13 +304,15 @@ jobs:
             <!-- keep in sync with the artifactName templates in package.json -->
             | Platform | File |
             |---|---|
-            | Windows | `Star-Code-Desktop-Setup-*.exe` (installer) or `Star-Code-Desktop-*-portable.exe` |
-            | macOS | `Star-Code-Desktop-*-arm64.dmg` |
-            | Linux | `Star-Code-Desktop-*-x86_64.AppImage` or `Star-Code-Desktop-*-amd64.deb` |
+            | Windows | `Star-Setup-*.exe` (installer) or `Star-*-portable.exe` |
+            | Windows (CLI) | `Star-Code-CLI-*.exe` — standalone `star-code`, no Node needed |
+            | macOS | `Star-*-arm64.dmg` |
+            | Linux | `Star-*-x86_64.AppImage` or `Star-*-amd64.deb` |
             | CLI (any OS) | `star-code-cli-<version>.tgz` or `star-code-cli-<version>.zip` |
 
-            The CLI (Node 18+, no dependencies):
-            - `star-code-cli-<version>.tgz` — `npm i -g ./star-code-cli-<version>.tgz`, then `star-code "…"`
+            The CLI:
+            - `Star-Code-CLI-<version>.exe` — download and run it; `Star-Code-CLI-<version>.exe "…"` for one-shots, no arguments for the interactive session. No Node install required.
+            - `star-code-cli-<version>.tgz` — `npm i -g ./star-code-cli-<version>.tgz`, then `star-code "…"` (Node 18+, no dependencies)
             - `star-code-cli-<version>.zip` — extract it, then run `node bin/star-code.mjs` (or `npm i -g .` inside the extracted folder)
 
             Builds are unsigned, so your OS will warn on first launch.

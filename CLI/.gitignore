@@ -1,0 +1,3 @@
+# Local executable builds (produced by build-exe.mjs). CI builds the exe fresh
+# for each release; it is never committed.
+Star-Code-CLI-*.exe

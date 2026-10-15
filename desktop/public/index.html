@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Star Code</title>
+<title>Star</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -915,6 +915,22 @@ textarea.inp{line-height:1.6;resize:vertical}
   .landing{gap:var(--sp-4);padding:var(--sp-6) var(--sp-4)}
   .landing .lmark{width:46px;height:46px}
 }
+
+/* ============================ CHAT MODE ============================ */
+/* The chat surface is the same shell minus everything project-shaped: the
+   project-files section, the right dock (and every button that opens it) and
+   the folder chips. Nothing here applies in code mode, which keeps today's
+   layout untouched. */
+body.mode-chat .pf-sec,
+body.mode-chat #fileTree,
+body.mode-chat #panes,
+body.mode-chat #btnPanes,
+body.mode-chat #cPanels,
+body.mode-chat #sProj,
+body.mode-chat .shead .acts,
+body.mode-chat #btnOpenFolder,
+body.mode-chat .envl,
+body.mode-chat #bigProj{display:none}
 </style>
 </head>
 <body>
@@ -934,7 +950,7 @@ textarea.inp{line-height:1.6;resize:vertical}
       <rect x="178" y="386" width="120" height="24" rx="9" fill="#8c8c88" opacity="0.38"/>
       <path d="M366 154c5 33 20 48 53 53-33 5-48 20-53 53-5-33-20-48-53-53 33-5 48-20 53-53z" fill="url(#bs)"/>
     </svg>
-    <span class="nm" id="brandVer">Star Code</span>
+    <span class="nm" id="brandVer">Star</span>
   </span>
   <button class="tb-btn" id="btnSidebar" title="Toggle sidebar" aria-label="Toggle sidebar">
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M5.6 2.5v11"/></svg>
@@ -957,7 +973,7 @@ textarea.inp{line-height:1.6;resize:vertical}
   <span class="ic">
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 2.5v7M8 9.5L5 6.5M8 9.5l3-3M3 12.5h10"/></svg>
   </span>
-  <span><b>Star Code <span class="rel" id="updateVer">—</span></b> is available — you have <span class="rel" id="updateCur">—</span>.</span>
+  <span><b>Star <span class="rel" id="updateVer">—</span></b> is available — you have <span class="rel" id="updateCur">—</span>.</span>
   <span class="spacer"></span>
   <span class="rel" id="updateState"></span>
   <button class="btn pri sm" id="updateNow">Update now</button>
@@ -969,9 +985,9 @@ textarea.inp{line-height:1.6;resize:vertical}
   <!-- ==================== SIDEBAR ==================== -->
   <aside class="sidebar" id="sidebar">
     <div class="seg">
-      <button class="on" title="Star Code">
+      <button class="on" title="Star">
         <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M5.5 4L2 8l3.5 4M10.5 4L14 8l-3.5 4"/></svg>
-        Star Code
+        Star
       </button>
     </div>
     <div class="sb-links">
@@ -992,6 +1008,16 @@ textarea.inp{line-height:1.6;resize:vertical}
         More
       </button>
     </div>
+    <div class="seg" id="modeSeg" role="group" aria-label="Mode">
+      <button type="button" data-mode="chat" aria-pressed="false" title="Chat with Star">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3.3c3.2 0 5.7 2 5.7 4.5S11.2 12.3 8 12.3c-.5 0-1.1-.1-1.6-.2l-2.9.9.8-2.2c-1.3-.8-2.1-1.9-2.1-3C2.2 5.3 4.8 3.3 8 3.3z"/></svg>
+        Chat
+      </button>
+      <button type="button" data-mode="code" class="on" aria-pressed="true" title="Code in your project folder">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M5.5 4L2 8l3.5 4M10.5 4L14 8l-3.5 4"/></svg>
+        Code
+      </button>
+    </div>
     <div class="sb-sec">Sessions<span class="spacer"></span>
       <button title="Toggle sort order" aria-label="Toggle sort order" id="btnSort">
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.4 5.4h8M2.4 9.8h4.6"/><path d="M12.8 4.6v6.8M12.8 11.4l-1.9-1.9M12.8 11.4l1.9-1.9"/></svg>
@@ -1005,7 +1031,7 @@ textarea.inp{line-height:1.6;resize:vertical}
       </button>
     </div>
     <div class="sessions" id="sessions"></div>
-    <div class="sb-sec">Project files<span class="spacer"></span>
+    <div class="sb-sec pf-sec">Project files<span class="spacer"></span>
       <button title="Refresh files" aria-label="Refresh project files" id="btnTreeRefresh">
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M13 8a5 5 0 11-1.5-3.5M13 2.5V5h-2.5"/></svg>
       </button>
@@ -1056,7 +1082,7 @@ textarea.inp{line-height:1.6;resize:vertical}
         </svg>
       </span>
       <h1 id="landingTitle">What should we build today?</h1>
-      <p class="lsub">Star Code works in your project folder — it reads, searches, edits, and runs commands on this machine.</p>
+      <p class="lsub">Star works in your project folder — it reads, searches, edits, and runs commands on this machine.</p>
       <div class="bigbox">
         <textarea id="bigInput" rows="2" placeholder="Describe a task or ask a question about the project" aria-label="Describe a task"></textarea>
         <div class="crow">
@@ -1072,7 +1098,7 @@ textarea.inp{line-height:1.6;resize:vertical}
           </button>
         </div>
       </div>
-      <div class="starters">
+      <div class="starters" id="startersCode">
         <button class="chip" data-starter="Explain the structure of this project and how to run it.">
           <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M8 5.4v3.2M8 10.8h.01"/></svg>
           Explain this project
@@ -1088,6 +1114,24 @@ textarea.inp{line-height:1.6;resize:vertical}
         <button class="chip" data-starter="Search this project for TODOs and FIXMEs and suggest the highest-value next step.">
           <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M8 2.5l5.5 9.5h-11z"/><path d="M8 6.6v2.6M8 10.9h.01"/></svg>
           Find TODOs
+        </button>
+      </div>
+      <div class="starters" id="startersChat" hidden>
+        <button class="chip" data-starter="Explain something to me simply, as if I'm new to it, with one concrete example.">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M6.4 6.3a1.7 1.7 0 1 1 2.4 1.6c-.5.3-.8.6-.8 1.2v.3M8 11.5h.01"/></svg>
+          Explain something
+        </button>
+        <button class="chip" data-starter="Help me draft a short, friendly message about this: ">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.2 2.9l1.9 1.9-7.4 7.4-2.6.7.7-2.6z"/><path d="M3 13.6h10"/></svg>
+          Help me write
+        </button>
+        <button class="chip" data-starter="Brainstorm ten ideas for a side project and pick the three most promising.">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2.4a4.2 4.2 0 0 1 2.6 7.5c-.3.3-.5.6-.5 1v.6H5.9v-.6c0-.4-.2-.7-.5-1A4.2 4.2 0 0 1 8 2.4z"/><path d="M6.4 13.3h3.2"/></svg>
+          Brainstorm ideas
+        </button>
+        <button class="chip" data-starter="Let's think through a decision together: I'll describe the options and you help me weigh them.">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.5 7.7c0 2.6-2.5 4.7-5.5 4.7-.6 0-1.2-.1-1.8-.3l-2.7.9.8-2.3c-1.1-.8-1.8-1.8-1.8-3C2.5 5.1 5 3 8 3s5.5 2.1 5.5 4.7z"/></svg>
+          Think it through
         </button>
       </div>
       <div class="envl">
@@ -1112,7 +1156,7 @@ textarea.inp{line-height:1.6;resize:vertical}
         <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v10M3.5 8.5L8 13l4.5-4.5"/></svg>
       </button>
       <div class="cbox">
-        <textarea id="input" rows="1" placeholder="Type / for commands" aria-label="Message Star Code"></textarea>
+        <textarea id="input" rows="1" placeholder="Type / for commands" aria-label="Message Star"></textarea>
         <button class="kbdh" id="kbdHint" type="button" title="Send" aria-label="Send message">⏎</button>
       </div>
       <div class="crow">
@@ -1253,6 +1297,7 @@ const LS = "ccd.state.v4";
 /* ============================ STATE ============================ */
 const DEFAULT_STATE = {
   theme: "dark",
+  mode: "code",          // desktop surface: "chat" | "code"
   current: "deepseek",
   providers: {
     deepseek: { apiKey: "", baseUrl: "https://api.deepseek.com", model: "deepseek-chat" },
@@ -1354,7 +1399,7 @@ const bridge = (typeof window !== "undefined" && window.desktop && window.deskto
       if (info.platform === "darwin") document.body.classList.add("is-mac");
       if (info.appVersion) {
         appVersion = info.appVersion;
-        $("brandVer").textContent = "Star Code " + info.appVersion;
+        $("brandVer").textContent = "Star " + info.appVersion;
       }
       if (info.root) state.root = info.root;
     } catch {}
@@ -1367,6 +1412,7 @@ const bridge = (typeof window !== "undefined" && window.desktop && window.deskto
   updateChrome();
   loadLocalSessionFlags();
   await loadSessions();
+  applyUiMode(state.mode);
   loadTree();
   buildSlash();
   wirePanes();
@@ -1442,6 +1488,72 @@ function modeMenu(anchor) {
     run: () => { applyMode(m.id); save(); toast("Mode: " + m.label); },
   })));
 }
+
+/* ============================ UI MODE (Chat | Code) ============================ */
+/* `state.mode` is the desktop *surface*: "code" is the project workspace
+   (file tree, dock, folder chips), "chat" is the plain conversation view.
+   It is unrelated to `state.defaultMode`, which is the agent's permission
+   mode. Code stays byte-for-byte the old layout. */
+const UI_COPY = {
+  code: {
+    title: "What should we build today?",
+    sub: "Star works in your project folder — it reads, searches, edits, and runs commands on this machine.",
+    placeholder: "Type / for commands",
+    bigPlaceholder: "Describe a task or ask a question about the project",
+  },
+  chat: {
+    title: "Chat with Star",
+    sub: "Questions, drafts, and ideas — answers stream right here.",
+    placeholder: "Ask Star anything",
+    bigPlaceholder: "Ask Star anything",
+  },
+};
+
+function applyUiMode(m) {
+  state.mode = m === "chat" ? "chat" : "code";
+  const chat = state.mode === "chat";
+  document.body.classList.toggle("mode-chat", chat);
+  $("modeSeg").querySelectorAll("button[data-mode]").forEach((b) => {
+    const on = b.dataset.mode === state.mode;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+  });
+  const c = UI_COPY[state.mode];
+  $("landingTitle").textContent = c.title;
+  document.querySelector(".landing .lsub").textContent = c.sub;
+  $("input").placeholder = c.placeholder;
+  $("bigInput").placeholder = c.bigPlaceholder;
+  $("startersCode").hidden = chat;
+  $("startersChat").hidden = !chat;
+  renderSessions();
+}
+
+function switchMode(m) {
+  m = m === "chat" ? "chat" : "code";
+  if (m === state.mode) return;
+  if (streaming) { toast("Wait for the current reply to finish."); return; }
+  // The open session was created for the other surface, so start one for the
+  // new mode; its kind is sent with the create call below (newSession).
+  const open = sessionList.find((s) => s.id === sessionId);
+  const openKind = open ? (open.kind || "code") : state.mode;
+  applyUiMode(m);
+  save();
+  if (sessionId && openKind !== m) newSession();
+}
+
+$("modeSeg").querySelectorAll("button[data-mode]").forEach((b) =>
+  b.addEventListener("click", () => switchMode(b.dataset.mode)));
+/* segmented control: Left/Right move between the two options */
+$("modeSeg").addEventListener("keydown", (e) => {
+  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+  const btns = [...$("modeSeg").querySelectorAll("button[data-mode]")];
+  const dir = e.key === "ArrowRight" ? 1 : btns.length - 1;
+  const next = btns[(btns.indexOf(document.activeElement) + dir) % btns.length];
+  if (!next) return;
+  e.preventDefault();
+  next.focus();
+  switchMode(next.dataset.mode);
+});
 
 /* ============================ MODEL PICKER ============================ */
 let liveModels = {};   // provider id -> { models, live } from /api/models
@@ -1745,6 +1857,10 @@ async function loadSessions() {
     const j = await (await fetch("/api/sessions")).json();
     sessionList = j.sessions || [];
   } catch { sessionList = []; }
+  // Entries saved before the two-mode desktop have no kind and count as code
+  // sessions. Keep `state.sessions` (persisted) in step with the loaded list.
+  for (const s of sessionList) s.kind = s.kind === "chat" ? "chat" : "code";
+  state.sessions = sessionList.map((s) => ({ ...s }));
   renderSessions();
 }
 
@@ -1775,6 +1891,8 @@ function sessionRow(s) {
       <span class="ico">${
         pinned
           ? '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M9.6 1.8l4.6 4.6-1.4 1.4-.7-.7-2.6 2.6.3 2.4-1.3 1.3-3.3-3.3-3 3-.9-.9 3-3L1.3 6.4l1.3-1.3 2.4.3L7.6 2.8l-.7-.7z"/></svg>'
+          : (s.kind || "code") === "chat"
+          ? '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 3.3c3.2 0 5.7 2 5.7 4.5S11.2 12.3 8 12.3c-.5 0-1.1-.1-1.6-.2l-2.9.9.8-2.2c-1.3-.8-2.1-1.9-2.1-3C2.2 5.3 4.8 3.3 8 3.3z"/></svg>'
           : '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="5"/></svg>'
       }</span>
       <span class="lbl">${esc(s.title)}</span>
@@ -1788,10 +1906,12 @@ function sessionRow(s) {
 
 function renderSessions() {
   const box = $("sessions");
+  // Only sessions that belong to the current surface show up; entries saved
+  // before the two-mode desktop have no kind and count as code sessions.
+  const list = sessionList.slice().filter((s) => (s.kind || "code") === state.mode);
   // the live session may not be saved yet, so show it even when absent
-  const list = sessionList.slice();
   if (sessionId && !list.some((s) => s.id === sessionId)) {
-    list.unshift({ id: sessionId, title: $("sTitle").textContent, updated: Date.now(), turns: 0, cwd: state.root });
+    list.unshift({ id: sessionId, title: $("sTitle").textContent, updated: Date.now(), turns: 0, cwd: state.root, kind: state.mode });
   }
 
   const dir = state.sortAsc ? 1 : -1;
@@ -1806,7 +1926,7 @@ function renderSessions() {
   const matches = q ? list.filter((s) => String(s.title || "").toLowerCase().includes(q)) : list;
 
   if (!list.length) {
-    box.innerHTML = '<div class="sess-empty">No sessions yet.</div>';
+    box.innerHTML = '<div class="sess-empty">No ' + (state.mode === "chat" ? "chat " : "") + 'sessions yet.</div>';
     return;
   }
   if (!matches.length) {
@@ -2792,7 +2912,7 @@ async function sendToAgent(message) {
   streaming = true; setWorking(true);
   const p = prov();
   const payload = {
-    sessionId, message, mode: state.defaultMode,
+    sessionId, message, mode: state.defaultMode, kind: state.mode,
     provider: state.current, model: p.model, apiKey: p.apiKey, baseUrl: payloadBaseUrl(),
   };
   const wasNew = !sessionId;
@@ -2871,7 +2991,7 @@ async function newSession(opts = {}) {
   try {
     const j = await (await fetch("/api/sessions/new", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: opts.title || "" }),
+      body: JSON.stringify({ title: opts.title || "", kind: state.mode }),
     })).json();
     if (j && j.id) sessionId = j.id;
   } catch { sessionId = null; }
@@ -3230,7 +3350,7 @@ function settingsProviders() {
     </div>
     <div class="card">
       <div class="ct">Online reputation</div>
-      <div class="cs">Star Code hashes every file it downloads and, with this key, checks that hash against VirusTotal — detections, community votes and comments — before keeping the file or letting it run. Paste a free API key from virustotal.com → Profile → API key.</div>
+      <div class="cs">Star hashes every file it downloads and, with this key, checks that hash against VirusTotal — detections, community votes and comments — before keeping the file or letting it run. Paste a free API key from virustotal.com → Profile → API key.</div>
       <div class="fld">
         <label>VirusTotal API key ${vtPill()}</label>
         <input class="inp mono" id="fVtKey" type="password" value="" placeholder="VirusTotal API key" autocomplete="off">
@@ -3323,7 +3443,7 @@ function settingsAppearance() {
   return `
   <div class="sect">
     <h2 class="h">Appearance</h2>
-    <p class="sh">Dark matches the shipping Star Code desktop app. Light is the warm paper theme.</p>
+    <p class="sh">Dark matches the shipping Star desktop app. Light is the warm paper theme.</p>
     <div class="card">
       <div class="ct">Theme</div>
       <div class="cs">Applies immediately and is remembered.</div>
@@ -3452,11 +3572,11 @@ function settingsAbout() {
   return `
   <div class="sect">
     <h2 class="h">About</h2>
-    <p class="sh">Star Code Desktop runs entirely on this machine — the same agent also ships as <b>Star Code CLI</b> (<span class="mono">star-code</span>). It only talks to the model provider you configure.</p>
+    <p class="sh">Star runs entirely on this machine — the same agent also ships as the <b>Star Code CLI</b> (<span class="mono">star-code</span>). It only talks to the model provider you configure.</p>
 
     <div class="card">
       <div class="ct">Updates</div>
-      <div class="cs">Star Code never installs updates on its own. This checks the release list and, if a newer version exists, points you at the download page.</div>
+      <div class="cs">Star never installs updates on its own. This checks the release list and, if a newer version exists, points you at the download page.</div>
       <div class="row">
         <div class="rl">
           <div class="rt">Version <span class="pill" style="margin-left:6px">v${esc(String(ver))}</span>${

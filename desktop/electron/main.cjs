@@ -15,6 +15,13 @@ const APP_DIR = path.join(__dirname, "..");
 const ICON = path.join(APP_DIR, "assets", "icon.ico");
 const ICON_PNG = path.join(APP_DIR, "assets", "icon.png");
 
+// The app is called "Star" now, but every existing install keeps its settings
+// (window bounds, working directory) under the old product name: Electron
+// derives userData from productName, so the rename would silently switch the
+// folder and look like data loss. Pin the original directory path before
+// anything reads or writes it.
+app.setPath("userData", path.join(app.getPath("appData"), "Star Code Desktop"));
+
 let win = null;
 let srv = null;
 let serverModule = null;
@@ -71,7 +78,7 @@ function createWindow(url) {
     minHeight: 560,
     backgroundColor: "#1a1a1a",
     show: false,
-    title: "Star Code Desktop",
+    title: "Star",
     icon: process.platform === "win32" ? ICON : ICON_PNG,
     titleBarStyle: isMac ? "hiddenInset" : "hidden",
     trafficLightPosition: isMac ? { x: 16, y: 15 } : undefined,
@@ -391,7 +398,7 @@ app.whenReady().then(boot).catch((e) => {
   const detail = String(e && e.stack ? e.stack : e);
   console.error("[main] startup failed:", detail);
   try { fs.appendFileSync(path.join(app.getPath("userData"), "startup-error.log"), detail + "\n"); } catch {}
-  dialog.showErrorBox("Star Code Desktop - startup failed", detail);
+  dialog.showErrorBox("Star - startup failed", detail);
   app.quit();
 });
 

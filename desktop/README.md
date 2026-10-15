@@ -1,12 +1,12 @@
 <div align="center">
 
-<img src="assets/icon.png" width="96" alt="Star Code">
+<img src="assets/icon.png" width="96" alt="Star">
 
-# Star Code — Desktop & CLI
+# Star — desktop & CLI
 
 **A local, provider-agnostic agentic coding agent — as a desktop app and a terminal CLI.**
 
-Bring your own model. Star Code reads, searches, edits, and runs commands in your
+Bring your own model. Star reads, searches, edits, and runs commands in your
 project — and asks before it touches anything.
 
 [![Build](https://github.com/Star-Code-Prod/Star-Code/actions/workflows/build.yml/badge.svg)](https://github.com/Star-Code-Prod/Star-Code/actions/workflows/build.yml)
@@ -14,7 +14,7 @@ project — and asks before it touches anything.
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](#install)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org)
 
-<img src="docs/screenshot.png" width="900" alt="Star Code desktop app">
+<img src="docs/screenshot.png" width="900" alt="Star desktop app">
 
 </div>
 
@@ -22,7 +22,7 @@ project — and asks before it touches anything.
 
 ## Why
 
-Most coding agents lock you into one vendor. Star Code is just the harness: the
+Most coding agents lock you into one vendor. Star is just the harness: the
 tools, the permission model, the diff review, the desktop shell. The model is a
 setting you change — including a model running on your own machine.
 
@@ -59,9 +59,10 @@ Grab an installer from [Releases](https://github.com/Star-Code-Prod/Star-Code/re
 
 | Platform | File |
 |---|---|
-| Windows | `Star-Code-Desktop-Setup-1.3.6.exe` (installer) or `Star-Code-Desktop-1.3.6-portable.exe` |
-| macOS | `Star-Code-Desktop-1.3.6-arm64.dmg` |
-| Linux | `Star-Code-Desktop-1.3.6-x86_64.AppImage` or `Star-Code-Desktop-1.3.6-amd64.deb` |
+| Windows | `Star-Setup-<version>.exe` (installer) or `Star-<version>-portable.exe` |
+| Windows (CLI) | `Star-Code-CLI-<version>.exe` — standalone `star-code`, no Node needed |
+| macOS | `Star-<version>-arm64.dmg` |
+| Linux | `Star-<version>-x86_64.AppImage` or `Star-<version>-amd64.deb` |
 
 Builds are unsigned, so your OS will warn you on first launch.
 
@@ -90,7 +91,7 @@ present and falls back to the browser when it isn't.
    the provider and shows the real error if anything is wrong
 3. Choose a model with the picker (`/models`) — the list comes from the
    provider itself, so it is exactly what your key can use
-4. **Session** → **Browse…** to choose the folder Star Code works in
+4. **Session** → **Browse…** to choose the folder Star works in
 
 Ollama, LM Studio and vLLM need no setup: if one is running it shows up as
 **Detected** and its models join the picker.

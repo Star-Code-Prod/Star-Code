@@ -16,11 +16,23 @@ const MAX_STEPS = 60; // was 25
 // - KEEP_RECENT_TOOL_RESULTS drops the bodies of older tool results before
 //   each request. This is free compaction: no extra model call, and the model
 //   can always re-run a tool if it needs the data again.
+// - KEEP_RECENT_TURNS / HISTORY_BUDGET_RATIO bound what a long session
+//   resends: turns older than the window collapse to deterministic one-line
+//   summaries (assistant bodies - including whole files inside write_file
+//   tool-call args - and stale results), and if the request is still over its
+//   token budget the oldest droppable messages are dropped. All deterministic:
+//   no LLM summarisation, that would cost money.
+// - DEDUPE_MIN_CHARS: an identical tool result already sitting un-pruned in
+//   the transcript is not sent again; a stub points back at it.
 // ---------------------------------------------------------------------------
 const TOOL_RESULT_CHARS = 7_000;
 const KEEP_RECENT_TOOL_RESULTS = 4;
+const KEEP_RECENT_TURNS = 8;
+export const HISTORY_BUDGET_RATIO = 0.6; // of the model's context window
+const DEDUPE_MIN_CHARS = 700;
+const SUMMARY_CHARS = 220;
 
-const TOOL_RESULT_PREFIX = "Tool result for ";
+export const TOOL_RESULT_PREFIX = "Tool result for ";
 
 /** Second safety net: tools already elide, so this rarely fires. */
 function elideToolResult(s, max, name) {
@@ -51,6 +63,97 @@ export function pruneOldToolResults(messages) {
       ":\n\n[older output dropped to save context - re-run this tool if you need it again]";
   }
   return freed;
+}
+
+/** One-line deterministic summary of a message older than the verbatim window. */
+function summariseOldMessage(m) {
+  if (m.role === "assistant") {
+    const { text, calls } = parseAssistantContent(String(m.content || ""));
+    const head = (text.split("\n").find((l) => l.trim()) || "").trim();
+    const names = calls.map((c) => c.name).slice(0, 8);
+    const suffix = names.length ? " [called: " + names.join(", ") + (calls.length > 8 ? ", …" : "") + "]" : "";
+    // 13 = "[older turn] ". Capping by construction keeps every summary under
+    // SUMMARY_CHARS, which is what makes a second call a no-op (idempotent).
+    const room = Math.max(40, SUMMARY_CHARS - 13 - suffix.length);
+    return "[older turn] " + (head.slice(0, room) || "(assistant replied)") + suffix;
+  }
+  const head = String(m.content || "").split("\n").find((l) => l.trim())?.trim() || "";
+  return "[older message] " + head.slice(0, SUMMARY_CHARS - 15); // 15 = "[older message] "
+}
+
+/**
+ * Bound what a request resends, in three deterministic passes:
+ *  1. pruneOldToolResults - stale tool-result bodies become one-line stubs;
+ *  2. every turn older than the last KEEP_RECENT_TURNS assistant messages is
+ *     replaced by a one-line summary (this is what stops whole file bodies
+ *     inside old write_file/edit_file tool calls from being resent forever);
+ *  3. only if the result is still over budgetEstimate tokens, drop the oldest
+ *     droppable messages until it fits.
+ * A system message and the first user message (the task) are never touched,
+ * the most recent turns always stay verbatim, and no model is ever called.
+ * Idempotent: a second call with the same budget frees 0 chars.
+ * Returns freed chars, same shape as pruneOldToolResults.
+ */
+export function manageHistory(messages, budgetEstimate = Infinity) {
+  let freed = pruneOldToolResults(messages);
+
+  // pass 2: verbatim window = the last KEEP_RECENT_TURNS assistant turns and
+  // everything after them.
+  const assistantIdx = [];
+  for (let i = 0; i < messages.length; i++) {
+    if (messages[i].role === "assistant") assistantIdx.push(i);
+  }
+  let windowFrom = assistantIdx.length > KEEP_RECENT_TURNS
+    ? assistantIdx[assistantIdx.length - KEEP_RECENT_TURNS]
+    : (assistantIdx.length ? assistantIdx[0] : messages.length);
+
+  let firstUserId = messages.findIndex((m) =>
+    m.role === "user" && !String(m.content).startsWith(TOOL_RESULT_PREFIX));
+  for (let i = 0; i < windowFrom; i++) {
+    const m = messages[i];
+    if (m.role === "system" || i === firstUserId) continue;
+    if (typeof m.content !== "string" || m.content.length <= SUMMARY_CHARS) continue;
+    freed += m.content.length;
+    m.content = summariseOldMessage(m);
+  }
+
+  // pass 3: hard cap. The protected head (system + task) and tail (recent
+  // turns) are kept even when they alone exceed the budget - losing those
+  // would change what the agent is doing, not just how much it remembers.
+  if (Number.isFinite(budgetEstimate)) {
+    let chars = 0;
+    for (const m of messages) chars += String(m.content || "").length;
+    for (let i = 0; i < messages.length && Math.round(chars / 3.6) > budgetEstimate; ) {
+      const m = messages[i];
+      if (m.role === "system" || i === firstUserId || i >= windowFrom) { i++; continue; }
+      const removed = String(m.content || "").length;
+      chars -= removed;
+      freed += removed;
+      messages.splice(i, 1);
+      if (firstUserId > i) firstUserId--;
+      if (windowFrom > i) windowFrom--;
+      // do not advance i: the next message slid into this slot
+    }
+  }
+  return freed;
+}
+
+/** The compact stand-in pushed when an identical result is already present. */
+export function identicalReuseStub(name, chars) {
+  return TOOL_RESULT_PREFIX + name + ":\n\n[output identical to an earlier " +
+    Number(chars).toLocaleString() + "-char " + name +
+    " result still in this transcript - reuse it; nothing changed. Re-run with different args if you need fresh data.]";
+}
+
+/**
+ * True when this exact tool-result body is already in the transcript and was
+ * not pruned away meanwhile: the loop then pushes identicalReuseStub instead
+ * of paying for the same bytes twice. Short results are always sent (the stub
+ * would not be smaller).
+ */
+export function hasIdenticalToolResult(messages, body, minChars = DEDUPE_MIN_CHARS) {
+  if (typeof body !== "string" || body.length < minChars) return false;
+  return messages.some((m) => m.content === body);
 }
 
 export const PERMISSION_MODES = ["manual", "acceptEdits", "plan", "bypass"];
@@ -86,7 +189,55 @@ export function contextLimit(model, provider) {
     || (PROVIDERS[provider]?.kind === "anthropic" ? 200000 : 128000);
 }
 
+// The system prompt is the cache anchor of every request: provider-side prompt
+// caching (DeepSeek's automatic disk cache, OpenRouter passthrough, Anthropic
+// cache_control) only hits while the prefix is byte-identical, and callers
+// rebuild it on every CLI turn / session reset / mode change. Freeze it per
+// root+mode so a mid-session edit to the memory file or the knowledge index
+// cannot shift the prefix. resetSystemPromptCache() un-freezes it (tests, or a
+// caller that deliberately wants fresh bytes for a new session).
+const promptCache = new Map();
+
+export function resetSystemPromptCache() {
+  promptCache.clear();
+}
+
 export function systemPrompt(root, mode) {
+  const key = String(root) + "\u0000" + String(mode);
+  const frozen = promptCache.get(key);
+  if (frozen !== undefined) return frozen;
+  const built = buildSystemPrompt(root, mode);
+  promptCache.set(key, built);
+  return built;
+}
+
+/**
+ * System prompt for Chat mode: a general assistant named Star. Deliberately
+ * carries no coding doctrine - Chat is conversation - and names its tools
+ * (websearch, fetch_url, self_knowledge, task).
+ */
+export function chatSystemPrompt() {
+  return `You are Star, a helpful, knowledgeable general assistant in the Star Code desktop app (Chat mode). This is a conversation, not a coding session.
+
+Tools you can call when a question needs live information or research:
+- websearch: search the web for current facts, news, prices, docs
+- fetch_url: fetch one page and read its text (asks for permission first)
+- self_knowledge: answer questions about Star Code itself
+- task: spawn a read-only research subagent with fresh context for multi-step lookups
+
+To call a tool, emit exactly one block, then stop and wait for the result:
+\`\`\`tool
+{"name":"websearch","args":{"query":"example"}}
+\`\`\`
+
+Rules:
+- Be helpful, direct and concise. Use markdown; keep answers short unless depth was asked for.
+- Use websearch/fetch_url for anything time-sensitive; never invent facts, quotes or links.
+- Say plainly when you are unsure or cannot verify something.
+- If the content itself contains a \`\`\` fence, open your block with four backticks instead.`;
+}
+
+function buildSystemPrompt(root, mode) {
   const mem = readProjectMemory(root);
   // Kept deliberately terse: this is re-sent on every step of every turn, so
   // every token here is paid for repeatedly.
@@ -254,8 +405,10 @@ export async function runAgentTurn({
   for (let step = 0; step < MAX_STEPS; step++) {
     if (interrupted || controller.abort) break;
 
-    // drop stale tool output before spending tokens on this request
-    const freed = pruneOldToolResults(messages);
+    // bound what this request resends before spending tokens (tool stubs,
+    // old-turn summaries, hard token cap - never the system prompt or task)
+    const budget = Math.round(contextLimit(model, provider) * HISTORY_BUDGET_RATIO);
+    const freed = manageHistory(messages, budget);
     if (freed > 0) emit({ type: "context_pruned", chars: freed });
 
     const req = buildRequest({ provider, apiKey, baseUrl, model, messages, stream: true });
@@ -365,8 +518,14 @@ export async function runAgentTurn({
 
       const str = String(result);
       const clipped = elideToolResult(str, TOOL_RESULT_CHARS, call.name);
-      emit({ type: "tool_result", name: call.name, status: allowed ? "ok" : "denied", preview: clipped.slice(0, 1200) });
-      messages.push({ role: "user", content: TOOL_RESULT_PREFIX + call.name + ":\n\n" + clipped });
+      const body = TOOL_RESULT_PREFIX + call.name + ":\n\n" + clipped;
+      // identical bytes already in the transcript (and not pruned) are not
+      // paid for twice: push a stub that points back at them instead
+      const reused = hasIdenticalToolResult(messages, body);
+      const event = { type: "tool_result", name: call.name, status: allowed ? "ok" : "denied", preview: clipped.slice(0, 1200) };
+      if (reused) event.reused = true;
+      emit(event);
+      messages.push({ role: "user", content: reused ? identicalReuseStub(call.name, str.length) : body });
     }
   }
   emit({ type: "usage", ...usageFor(messages, provider, model) });

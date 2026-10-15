@@ -15,10 +15,13 @@ import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
 import { execFileSync } from "node:child_process";
-import { PROVIDERS } from "../lib/providers.js";
+import * as providers from "../lib/providers.js";
 import { readAuth, resolveKey, mask } from "../lib/auth.js";
 import { createToolRunner } from "../lib/tools.js";
 import { runAgentTurn, systemPrompt } from "../lib/agent.js";
+import { listAgentsWithProblems, BUILTIN_EXPLORER } from "../lib/agents.js";
+
+const { PROVIDERS } = providers;
 
 /* ---------------------------------- ink ---------------------------------- */
 // Palette straight from the design card. Boxes are drawn with plain box
@@ -107,7 +110,7 @@ Flags:
   --demo [scene]                             render scripted frames (no key, no network)
   --help
 
-Interactive commands: /help /clear /status /model /connect /knowledge /exit`;
+Interactive commands: /help /clear /status /model /connect /knowledge /agents /exit`;
 
 const argv = process.argv.slice(2);
 const flags = { mode: "manual", model: null, root: null };
@@ -150,13 +153,19 @@ if (flags.model) {
   model = PROVIDERS[provider].defaultModel;
 }
 const storedBase = readAuth().providers[provider]?.baseUrl || "";
-function effectiveBase() {
-  const base = readAuth().providers[provider]?.baseUrl || storedBase || "";
-  return (provider === "custom" && process.env.STAR_CODE_TEST_BASE) ? process.env.STAR_CODE_TEST_BASE : base || undefined;
+/** Stored base-url override for a provider, plus the custom-provider test hook. */
+function effectiveBase(pid = provider) {
+  const base = readAuth().providers[pid]?.baseUrl || (pid === provider ? storedBase : "") || "";
+  return (pid === "custom" && process.env.STAR_CODE_TEST_BASE) ? process.env.STAR_CODE_TEST_BASE : base || undefined;
+}
+
+/** First non-empty key for a provider: stored key, then its env vars. */
+function keyFor(pid) {
+  return resolveKey(pid, "", PROVIDERS[pid]?.envKeys || []);
 }
 
 function currentKey() {
-  return resolveKey(provider, "", PROVIDERS[provider]?.envKeys || []);
+  return keyFor(provider);
 }
 
 /* ------------------------------ session chrome --------------------------- */
@@ -168,6 +177,9 @@ const MODE_LABEL = {
   bypass: "Bypass permissions",
 };
 const VERSION = (() => {
+  // The standalone build (build-exe.mjs) folds the version in at compile time;
+  // an npm install reads it from the package.json next to the source.
+  if (process.env.STAR_CODE_VERSION) return process.env.STAR_CODE_VERSION;
   try { return JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")).version || "dev"; }
   catch { return "dev"; }
 })();
@@ -430,9 +442,32 @@ const emit = (evt) => {
 /* ------------------------------ conversation ----------------------------- */
 const messages = [{ role: "system", content: systemPrompt(root, flags.mode) }];
 const SUBAGENT_BLOCKED = new Set(["write_file", "edit_file", "multi_edit", "run_command", "download", "fetch_url", "websearch", "task"]);
+
+/** Which provider/model a subagent turn runs on: the agent's `model:` line,
+ *  else the provider's cheap default when lib/providers.js exports
+ *  cheapModelFor, else the parent's model. An unknown provider or a
+ *  malformed `model:` is ignored, never fatal. */
+function subagentModel(agent) {
+  if (agent && agent.model) {
+    const slash = agent.model.indexOf("/");
+    const pid = slash > 0 ? agent.model.slice(0, slash) : agent.model;
+    if (PROVIDERS[pid]) {
+      const mid = slash > 0 ? agent.model.slice(slash + 1).trim() : "";
+      return { provider: pid, model: mid || PROVIDERS[pid].defaultModel || model };
+    }
+  }
+  if (agent) {
+    const cheap = typeof providers.cheapModelFor === "function" ? providers.cheapModelFor(provider) : null;
+    if (typeof cheap === "string" && cheap) return { provider, model: cheap };
+  }
+  return { provider, model };
+}
+
 const runner = createToolRunner(root, {
-  runSubagent: async ({ instructions }) => {
-    const base = createToolRunner(root);
+  runSubagent: async ({ instructions, agent }) => {
+    // A custom agent narrows the child runner to its own tools and runs the
+    // turn on its prompt and model; with no agent this is today's explorer.
+    const base = createToolRunner(root, { allowed: agent && Array.isArray(agent.tools) ? agent.tools : null });
     const explorer = {
       run: (name, args) => {
         if (SUBAGENT_BLOCKED.has(name)) throw new Error(name + " is not available to subagents");
@@ -441,13 +476,16 @@ const runner = createToolRunner(root, {
       isDangerous: base.isDangerous,
       root: base.root,
     };
+    const persona = agent && agent.promptText ? agent.promptText.trim() + "\n\n" : "";
     const child = [
-      { role: "system", content: systemPrompt(root, "plan") },
+      { role: "system", content: persona + systemPrompt(root, "plan") },
       { role: "user", content: "Research task - explore and report findings only: " + instructions },
     ];
+    const picked = agent ? subagentModel(agent) : { provider, model };
     let text = "";
     await runAgentTurn({
-      provider, model, apiKey: currentKey(), baseUrl: effectiveBase(),
+      provider: picked.provider, model: picked.model,
+      apiKey: keyFor(picked.provider), baseUrl: effectiveBase(picked.provider),
       messages: child, runner: explorer,
       emit: (e) => { if (e.type === "done") text = e.text || text; },
       requestPermission: async () => ({ allowed: false, scope: "once" }),
@@ -562,6 +600,7 @@ const SLASH = [
   ["/model", "Choose provider and model"],
   ["/connect", "Connect a provider (key)"],
   ["/knowledge", "List the project knowledge files"],
+  ["/agents", "List custom agents (.star-code/agents)"],
   ["/help", "Show available commands"],
   ["/exit", "Quit Star Code"],
 ];
@@ -887,6 +926,26 @@ async function repl() {
       out(files.length
         ? files.map((f) => dim("- ") + f.name + dim(" (" + f.bytes + " bytes)")).join("\n") + "\n"
         : dim("No knowledge yet (.star-code/knowledge/).") + "\n");
+      continue;
+    }
+    if (line === "/agents") {
+      const { agents, problems } = listAgentsWithProblems(root);
+      const rows = [];
+      const entry = (a, marker) => {
+        rows.push({ segs: [{ t: marker + a.name, c: "gold" }, { t: "  · " + a.source, c: "dim" }] });
+        rows.push({ segs: [{ t: "    " + (a.description || "(no description)"), c: "dim" }] });
+        rows.push({ segs: [{ t: "    tools: " + (a.tools ? a.tools.join(", ") : "all"), c: "dim" }] });
+        rows.push({ segs: [{ t: "    model: " + (a.model || "default"), c: "dim" }] });
+      };
+      entry(BUILTIN_EXPLORER, "▸ ");
+      for (const a of agents) entry(a, "  ");
+      out(box(rows) + "\n");
+      if (problems.length) {
+        out(dim("Skipped " + problems.length + " agent file" + (problems.length === 1 ? "" : "s") + ":") + "\n");
+        for (const p of problems) out(dim("  - " + path.basename(p.file) + " (" + p.source + "): " + p.error) + "\n");
+      }
+      out(dim("Add one: ") + gold(".star-code/agents/<name>.md") + dim(" or ") +
+        gold("~/.star-code/agents/<name>.md") + dim(" · run one with ") + gold('task agent:"name"') + "\n");
       continue;
     }
     // Unknown slash line: offer the list instead of sending it to the model.

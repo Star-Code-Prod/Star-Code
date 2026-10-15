@@ -3,9 +3,9 @@
 // model reads about its own harness.
 
 export const SELF_DOC = `# Star Code
-Star Code is a local, provider-agnostic agentic coding agent. It ships as a
-desktop app (Star Code Desktop, Electron + a local server on 127.0.0.1) and a
-terminal client (Star Code CLI, the same agent in-process). Everything runs on
+Star Code is a local, provider-agnostic agentic coding agent. It ships as the
+desktop app Star (Electron + a local server on 127.0.0.1; Chat and Code modes)
+and the terminal client Star Code CLI (the same agent in-process). Everything runs on
 the user's machine; the only outbound traffic is to the model provider the
 user configured, plus fetch_url/websearch when the user allows them, and
 download (source, hash, signature and virus checks) when the user allows it.
@@ -25,8 +25,9 @@ server-side), bypass (everything allowed). Reads never ask. Network tools ask.
 
 ## Tools available to the agent
 read_file, list_dir, search_files, glob_files, write_file, edit_file,
-multi_edit, run_command, download, search_knowledge, task (read-only explorer
-subagent), fetch_url, websearch, self_knowledge. Writes, commands, downloads
+multi_edit, run_command, download, search_knowledge, task (read-only research
+subagent; pass agent:"name" to run a custom agent instead of the built-in
+explorer), fetch_url, websearch, self_knowledge. Writes, commands, downloads
 and network tools ask by default; plan mode blocks them entirely. download
 fetches a file only with verification: it classifies the source host
 (local/official/codehost/unknown, unknown hosts are called out in the
@@ -50,10 +51,39 @@ Markdown notes under <project>/.star-code/knowledge/. Their titles are always
 indexed in the system prompt; the agent reads them in full with
 search_knowledge. Managed in Settings > Knowledge or the /knowledge command.
 
+## Custom agents
+Anyone can define their own research subagents as markdown files with a
+small frontmatter block - no YAML library, just key: value lines:
+
+  <project>/.star-code/agents/<name>.md   project agents
+  ~/.star-code/agents/<name>.md           user agents (STAR_CODE_AGENTS_DIR overrides)
+
+  ---
+  name: reviewer
+  description: Reviews a change for bugs
+  tools: read_file, list_dir, search_files, glob_files
+  model: deepseek/deepseek-chat
+  ---
+  You are a meticulous reviewer. ...
+
+Fields: name (required, sanitised to [a-z0-9-]; defaults to the filename),
+description, tools (comma separated; default read_file, list_dir,
+search_files, glob_files, search_knowledge, self_knowledge; "*" = no
+restriction), model (provider/model; omitted = the provider's cheap default,
+else the parent's model). A project agent wins over a user agent with the
+same name; files that do not parse are skipped and listed as problems.
+
+Run one with the task tool: {"name":"task","args":{"instructions":"...",
+"agent":"reviewer"}}. The subagent runs with the agent's prompt as its
+system prompt, only the agent's tools (the runner refuses the rest), and the
+agent's model; it stays read-only (plan mode) and can never write, run
+commands or use the network. The CLI lists agents with /agents.
+
 ## Slash commands (desktop and CLI)
 /help /clear /compact /init /diff /context /status /memory /export /btw
 /plan /review /model /models /connect /knowledge /theme /settings.
-CLI extra: /exit. CLI flags: --mode, --model provider/model, --root dir.
+CLI extra: /agents (list the built-in explorer and custom agents), /exit.
+CLI flags: --mode, --model provider/model, --root dir.
 
 ## Sessions and projects
 Sessions persist to ~/.star-code/sessions.json (or $STAR_CODE_DATA) and list

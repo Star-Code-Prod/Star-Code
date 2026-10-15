@@ -3,13 +3,18 @@
 **The Star Code agent in your terminal — no window, no server.**
 
 One-shot for scripts, a REPL for real work. It runs the same agent loop, the
-same tools and the same credential store as the desktop app, with zero runtime
-dependencies.
+same tools and the same credential store as the **Star** desktop app, with zero
+runtime dependencies.
 
 ## Install
 
-Download the `.tgz` or `.zip` from the
-[GitHub Releases page](https://github.com/Star-Code-Prod/Star-Code/releases):
+**Windows, no Node needed:** download `Star-Code-CLI-<version>.exe` from the
+[GitHub Releases page](https://github.com/Star-Code-Prod/Star-Code/releases)
+and run it — `Star-Code-CLI-<version>.exe "explain this error"` for a
+one-shot, no arguments for the interactive session. It is the whole CLI in one
+file (built from this source, smoke-tested in CI before it ships).
+
+With Node 18+ (any OS), download the `.tgz` or `.zip` from the same page:
 
 ```bash
 # .tgz — installs the `star-code` command

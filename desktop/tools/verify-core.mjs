@@ -13,9 +13,12 @@ process.env.STAR_CODE_DATA = dir;
 
 const { authPath, readAuth, writeAuthEntry, removeAuthEntry, resolveKey, mask } =
   await import(pathToFileURL(path.resolve("lib/auth.js")).href);
-const { PROVIDERS, normalizeModels, filterChatModels, isReasoning, discoverModels, detectLocals, getDiscoveredLimit } =
+const { PROVIDERS, normalizeModels, filterChatModels, isReasoning, discoverModels, detectLocals, getDiscoveredLimit,
+  attributionHeaders, isOpenRouterHost, cheapModelFor, buildRequest, streamCompletion } =
   await import(pathToFileURL(path.resolve("lib/providers.js")).href);
-const { decisionFor } = await import(pathToFileURL(path.resolve("lib/agent.js")).href);
+const { decisionFor, systemPrompt, resetSystemPromptCache, chatSystemPrompt, pruneOldToolResults, manageHistory,
+  estimateTokens, hasIdenticalToolResult, identicalReuseStub, TOOL_RESULT_PREFIX } =
+  await import(pathToFileURL(path.resolve("lib/agent.js")).href);
 
 const results = [];
 const ok = (label, pass, extra = "") =>
@@ -127,6 +130,138 @@ ok("acceptEdits commands ask", decisionFor("acceptEdits", "run_command", empty) 
 ok("acceptEdits commands honour the allowlist", decisionFor("acceptEdits", "run_command", new Set(["run_command"])) === "allow");
 ok("plan allows knowledge search", decisionFor("plan", "search_knowledge", empty) === "allow");
 ok("manual allows knowledge search without asking", decisionFor("manual", "search_knowledge", empty) === "allow");
+
+/* --------------------- OpenRouter attribution headers --------------------- */
+const at = attributionHeaders("https://openrouter.ai/api/v1");
+ok("attribution sets the app title", at["X-Title"] === "Star");
+ok("attribution links the repo", at["HTTP-Referer"] === "https://github.com/Star-Code-Prod/Star-Code");
+ok("no attribution to other hosts", Object.keys(attributionHeaders("https://api.deepseek.com")).length === 0);
+ok("no attribution to lookalike hosts", Object.keys(attributionHeaders("https://openrouter.ai.evil.example/v1")).length === 0);
+ok("a bare openrouter host still qualifies", isOpenRouterHost("openrouter.ai/api/v1") === true);
+
+const orReq = buildRequest({ provider: "openrouter", apiKey: "sk-or-attr1", model: "deepseek/deepseek-chat-v3", messages: [{ role: "user", content: "hi" }], stream: true });
+ok("openrouter chat request carries the headers", orReq.headers["X-Title"] === "Star" && orReq.headers["HTTP-Referer"] === "https://github.com/Star-Code-Prod/Star-Code");
+const oaReq = buildRequest({ provider: "openai", apiKey: "sk-openai-attr1", messages: [{ role: "user", content: "hi" }], stream: true });
+ok("openai chat request does not", oaReq.headers["X-Title"] === undefined && oaReq.headers["HTTP-Referer"] === undefined);
+const anReq = buildRequest({ provider: "anthropic", apiKey: "sk-ant-attr1", messages: [{ role: "user", content: "hi" }], stream: true });
+ok("anthropic requests do not either", anReq.headers["X-Title"] === undefined);
+
+// intercepted streaming request: the exact headers the fetch implementation sees
+let sentTo = null;
+const spyStream = async (url, init) => {
+  sentTo = { url: String(url), headers: init.headers };
+  return { ok: true, status: 200, json: async () => ({}), body: { getReader: () => ({ read: async () => ({ done: true, value: undefined }) }) } };
+};
+for await (const _chunk of streamCompletion(orReq, spyStream)) { /* no SSE chunks on the stub */ }
+ok("streaming request to openrouter carries X-Title", sentTo && sentTo.headers["X-Title"] === "Star" && sentTo.url.includes("openrouter.ai"));
+
+// the model-discovery fetch obeys the same rule
+let orDiscHeaders = null;
+const orDisc = async (_u, init) => { orDiscHeaders = init.headers; return { ok: true, status: 200, json: async () => ({ data: [{ id: "deepseek/deepseek-chat-v3" }] }) }; };
+const orDiscRes = await discoverModels("openrouter", { baseUrl: "https://openrouter.ai/api/v1", apiKey: "sk-or-disc1" }, orDisc);
+ok("openrouter discovery carries the headers", orDiscRes.live && orDiscHeaders["X-Title"] === "Star");
+let oaDiscHeaders = null;
+const oaDisc = async (_u, init) => { oaDiscHeaders = init.headers; return { ok: true, status: 200, json: async () => ({ data: [{ id: "gpt-4o" }] }) }; };
+await discoverModels("openai", { baseUrl: "https://api.test/v1", apiKey: "sk-attr-disc2" }, oaDisc);
+ok("other hosts' discovery gets no headers", oaDiscHeaders["X-Title"] === undefined);
+
+/* ------------------------ cheap subagent model picks ------------------------ */
+const cheapExpected = {
+  openai: "gpt-4o-mini",
+  anthropic: "claude-3-5-haiku-20241022",
+  deepseek: "deepseek-chat",
+  openrouter: "deepseek/deepseek-chat-v3",
+};
+for (const [pid, want] of Object.entries(cheapExpected)) {
+  ok("cheap model for " + pid, cheapModelFor(pid) === want, String(cheapModelFor(pid)));
+}
+let cheapBad = "";
+for (const pid of ids) {
+  const m = cheapModelFor(pid);
+  if (!(typeof m === "string" && ((PROVIDERS[pid].models || []).includes(m) || m === PROVIDERS[pid].defaultModel))) {
+    cheapBad += pid + "=" + m + "; ";
+  }
+}
+ok("every provider's cheap model is in its catalog", cheapBad === "", cheapBad);
+ok("local providers keep their default", cheapModelFor("ollama") === PROVIDERS.ollama.defaultModel && cheapModelFor("vllm") === PROVIDERS.vllm.defaultModel);
+ok("unknown provider has no cheap model", cheapModelFor("nope") === null);
+
+/* ------------------------------ history control ------------------------------ */
+const toolMsg = (chars, name = "read_file") => ({ role: "user", content: TOOL_RESULT_PREFIX + name + ":\n\n" + "x".repeat(chars) });
+const turnPair = (i) => [
+  { role: "assistant", content: "step " + i + "\n" + "a".repeat(1200) },
+  toolMsg(7000),
+];
+const hist = [{ role: "system", content: "SYSTEM PROMPT" }, { role: "user", content: "TASK" }];
+for (let i = 0; i < 12; i++) hist.push(...turnPair(i));
+const preTokens = estimateTokens(hist);
+const freedHist = manageHistory(hist, 1_000_000);
+ok("manageHistory frees characters", freedHist > 0);
+ok("manageHistory keeps the system message", hist[0].role === "system" && hist[0].content === "SYSTEM PROMPT");
+ok("manageHistory keeps the first user message", hist[1].content === "TASK");
+const keptBodies = hist.filter((m) => typeof m.content === "string" && m.content.startsWith(TOOL_RESULT_PREFIX) && m.content.length > 500).length;
+ok("recent tool results kept verbatim", keptBodies === 4, String(keptBodies));
+ok("old turns are summarised", hist.some((m) => m.role === "assistant" && String(m.content).startsWith("[older turn]")));
+ok("manageHistory lowers the token estimate", estimateTokens(hist) < preTokens);
+const snapHist = JSON.stringify(hist);
+const freedAgain = manageHistory(hist, 1_000_000);
+ok("manageHistory is idempotent", freedAgain === 0 && JSON.stringify(hist) === snapHist, String(freedAgain));
+
+// hard cap: after passes 1-2 a monster session is still over budget, so the
+// oldest droppable messages go - never the system prompt, the task, or the tail.
+const big = [{ role: "system", content: "S".repeat(4000) }, { role: "user", content: "TASK" }];
+for (let i = 0; i < 300; i++) big.push(...turnPair(i));
+const freedCap = manageHistory(big, 20000);
+ok("cap fires on very long sessions", freedCap > 100000, String(freedCap));
+ok("cap is enforced", estimateTokens(big) <= 20000, String(estimateTokens(big)));
+ok("cap never drops the system message", big[0].role === "system" && big[0].content.startsWith("SSS"));
+ok("cap never drops the task", big[1].content === "TASK");
+ok("cap is idempotent too", manageHistory(big, 20000) === 0);
+const impossible = [{ role: "system", content: "SYS" }, { role: "user", content: "TASK" }];
+for (let i = 0; i < 12; i++) impossible.push(...turnPair(i));
+manageHistory(impossible, 1);
+ok("impossible budget still keeps system and task", impossible[0].content === "SYS" && impossible[1].content === "TASK");
+ok("impossible budget still keeps the newest result", String(impossible[impossible.length - 1].content).includes("x".repeat(100)));
+
+// the pruner the loop used before: same contract, still exported and used by manageHistory
+const prFull = TOOL_RESULT_PREFIX + "read_file:\n\n" + "x".repeat(3000);
+const pr = [{ role: "system", content: "s" }, { role: "user", content: "t" }];
+for (let i = 0; i < 8; i++) pr.push({ role: "assistant", content: "c" }, { role: "user", content: prFull });
+const freedPrune = pruneOldToolResults(pr);
+ok("pruner frees the four oldest bodies", freedPrune === 4 * prFull.length, String(freedPrune));
+ok("pruner keeps the last four", pr.filter((m) => m.content === prFull).length === 4);
+ok("pruner is idempotent", pruneOldToolResults(pr) === 0);
+
+/* --------------------------- identical-result reuse --------------------------- */
+const dbody = TOOL_RESULT_PREFIX + "read_file:\n\n" + "d".repeat(1500);
+const dhist = [{ role: "system", content: "s" }, { role: "user", content: "t" }, { role: "user", content: dbody }];
+ok("identical unpruned result is detected", hasIdenticalToolResult(dhist, dbody) === true);
+ok("short results are never deduped", hasIdenticalToolResult(dhist, TOOL_RESULT_PREFIX + "read_file:\n\nshort") === false);
+ok("different bytes are not reused", hasIdenticalToolResult(dhist, dbody + "!") === false);
+for (let i = 0; i < 5; i++) dhist.push({ role: "assistant", content: "c" + i }, toolMsg(1500, "search_files"));
+pruneOldToolResults(dhist);
+ok("a pruned result is not reused", hasIdenticalToolResult(dhist, dbody) === false);
+const stub = identicalReuseStub("read_file", 1500);
+ok("reuse stub names the tool and size", stub.includes("read_file") && stub.includes(Number(1500).toLocaleString()) && stub.startsWith(TOOL_RESULT_PREFIX));
+
+/* --------------------------- chat mode + prompt freeze --------------------------- */
+const chat = chatSystemPrompt();
+ok("chatSystemPrompt is a string", typeof chat === "string" && chat.length > 300);
+ok("chat prompt introduces Star", chat.includes("You are Star"));
+for (const t of ["websearch", "fetch_url", "self_knowledge", "task"]) ok("chat prompt mentions " + t, chat.includes(t));
+ok("chat prompt carries no coding doctrine", !/Execution doctrine/.test(chat) && !/PLAN MODE/.test(chat));
+
+const frozenRoot = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-frozen-"));
+fs.writeFileSync(path.join(frozenRoot, "AGENTS.md"), "# memory: always run tests\n");
+const p1 = systemPrompt(frozenRoot, "manual");
+fs.writeFileSync(path.join(frozenRoot, "AGENTS.md"), "# memory: CHANGED mid-session\n");
+const p2 = systemPrompt(frozenRoot, "manual");
+ok("system prompt is frozen per session (stable prefix)", p1 === p2);
+ok("the frozen prompt still carries the doctrine", /Execution doctrine/.test(p1));
+resetSystemPromptCache();
+const p3 = systemPrompt(frozenRoot, "manual");
+ok("resetSystemPromptCache rebuilds from disk", p3 !== p1 && p3.includes("CHANGED mid-session"));
+fs.rmSync(frozenRoot, { recursive: true, force: true });
 
 /* ------------------------------ knowledge ------------------------------ */
 const kdir = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-knowledge-"));

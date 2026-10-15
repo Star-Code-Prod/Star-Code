@@ -296,6 +296,126 @@ const dStart = demoRun("start");
 ok("demo start renders the banner and status", /Star Code/.test(stripAnsi(dStart.stdout)) && /⏵/.test(stripAnsi(dStart.stdout)));
 fs.rmSync(demoTmp, { recursive: true, force: true });
 
+// 12. /agents lists the built-in explorer and the custom agents (temp dirs)
+const agentsHome = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-agents-"));
+fs.writeFileSync(path.join(agentsHome, "tone.md"), "---\nname: tone\ndescription: Keeps the tone calm\ntools: read_file, glob_files\nmodel: custom/model-name\n---\nYou are calm.\n");
+fs.writeFileSync(path.join(agentsHome, "broken.md"), "no frontmatter here\n");
+const agentsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-agentroot-"));
+fs.mkdirSync(path.join(agentsRoot, ".star-code", "agents"), { recursive: true });
+fs.writeFileSync(path.join(agentsRoot, ".star-code", "agents", "proj.md"), "---\nname: proj\ndescription: Project helper\n---\nHelp with the project.\n");
+const agentsRun = await spawnCli(["--root", agentsRoot], "/agents\n/exit\n", { STAR_CODE_AGENTS_DIR: agentsHome });
+ok("/agents lists the built-in explorer", /▸ explorer/.test(agentsRun.stdout || "") && /builtin/.test(agentsRun.stdout || ""), (agentsRun.stdout || "").slice(0, 200));
+ok("/agents shows a user agent with its fields",
+  /tone/.test(agentsRun.stdout || "") && /Keeps the tone calm/.test(agentsRun.stdout || "") &&
+  /tools: read_file, glob_files/.test(agentsRun.stdout || "") &&
+  /model: custom\/model-name/.test(agentsRun.stdout || "") && /· user/.test(agentsRun.stdout || ""),
+  (agentsRun.stdout || "").slice(0, 300));
+ok("/agents shows the project agent and its source", /proj/.test(agentsRun.stdout || "") && /Project helper/.test(agentsRun.stdout || "") && /· project/.test(agentsRun.stdout || ""));
+ok("/agents reports a broken file instead of hiding it", /broken\.md/.test(agentsRun.stdout || "") && /frontmatter/.test(agentsRun.stdout || ""));
+ok("/agents exits cleanly", agentsRun.status === 0, String(agentsRun.status));
+ok("/agents carries no escape codes when piped", !/\x1b\[/.test(agentsRun.stdout + agentsRun.stderr));
+
+// 13. a custom agent runs the child turn with its prompt, tools and model
+const agentHome = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-agenthome-"));
+const agentRoot = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-agentrun-"));
+fs.mkdirSync(path.join(agentRoot, ".star-code", "agents"), { recursive: true });
+fs.writeFileSync(path.join(agentRoot, ".star-code", "agents", "tester.md"), [
+  "---",
+  "name: tester",
+  "description: End-to-end agent",
+  "tools: read_file, glob_files",
+  "model: custom/agent-model-x",
+  "---",
+  "You are the tester persona.",
+].join("\n"));
+const agentBodies = [];
+const agentStub = http.createServer((req, res) => {
+  if (req.method !== "POST" || !req.url.endsWith("/chat/completions")) { res.writeHead(404); res.end(); return; }
+  let body = "";
+  req.on("data", (c) => { body += c; });
+  req.on("end", () => {
+    let parsed = {};
+    try { parsed = JSON.parse(body); } catch { /* not json - fine */ }
+    agentBodies.push(parsed);
+    res.writeHead(200, { "Content-Type": "text/event-stream" });
+    const send = (obj) => res.write("data: " + JSON.stringify(obj) + "\n\n");
+    const n = agentBodies.length;
+    if (n === 1) send({ choices: [{ delta: { content: "Let me delegate.\n```tool\n{\"name\":\"task\",\"args\":{\"instructions\":\"review the diff\",\"agent\":\"tester\"}}\n```" } }] });
+    else if (n === 2) send({ choices: [{ delta: { content: "```tool\n{\"name\":\"search_knowledge\",\"args\":{\"query\":\"x\"}}\n```" } }] });
+    else if (n === 3) send({ choices: [{ delta: { content: "agent-child-findings" } }] });
+    else send({ choices: [{ delta: { content: "parent-final" } }] });
+    res.write("data: [DONE]\n\n");
+    res.end();
+  });
+});
+await listen(agentStub);
+const agentRun = await spawnCli(["research it", "--model", "custom/model-name", "--mode", "manual", "--root", agentRoot], "", {
+  STAR_CODE_TEST_BASE: "http://127.0.0.1:" + agentStub.address().port + "/v1",
+  STAR_CODE_AGENTS_DIR: agentHome,
+});
+agentStub.close();
+ok("the custom agent turn completes", agentRun.status === 0 && (agentRun.stdout || "").includes("parent-final"), String(agentRun.status));
+ok("four model calls happened (parent, child, child, parent)", agentBodies.length === 4, String(agentBodies.length));
+const agentChildSys = (agentBodies[1] && agentBodies[1].messages && agentBodies[1].messages[0] && agentBodies[1].messages[0].content) || "";
+ok("the child runs with the agent's prompt", agentChildSys.includes("tester persona") && /PLAN MODE/.test(agentChildSys), agentChildSys.slice(0, 140));
+ok("the child runs on the agent's model", agentBodies[1] && agentBodies[1].model === "agent-model-x" && agentBodies[0].model === "model-name", agentBodies[1] && agentBodies[1].model);
+ok("the child runner only allows the agent's tools",
+  /not available to this agent/.test(JSON.stringify((agentBodies[2] && agentBodies[2].messages) || [])) &&
+  /search_knowledge/.test(JSON.stringify((agentBodies[2] && agentBodies[2].messages) || [])),
+  JSON.stringify((agentBodies[2] && agentBodies[2].messages) || []).slice(0, 220));
+fs.rmSync(agentRoot, { recursive: true, force: true });
+fs.rmSync(agentHome, { recursive: true, force: true });
+fs.rmSync(agentsRoot, { recursive: true, force: true });
+fs.rmSync(agentsHome, { recursive: true, force: true });
+
+// 14. an agent with no model: line runs the child on the provider's cheap
+// default when lib/providers.js offers one (cheapModelFor), else the parent
+// model. The stub sits behind a stored baseUrl, so the parent keeps a
+// flagship model while the child is the downgrade.
+const cheapRoot = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-cheap-"));
+const cheapHome = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-cheaphome-"));
+const cheapData = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-cheapdata-"));
+fs.mkdirSync(path.join(cheapRoot, ".star-code", "agents"), { recursive: true });
+fs.writeFileSync(path.join(cheapRoot, ".star-code", "agents", "cheapie.md"), "---\nname: cheapie\ndescription: No model line\n---\nCheap agent.\n");
+const cheapBodies = [];
+const cheapStub = http.createServer((req, res) => {
+  if (req.method !== "POST" || !req.url.endsWith("/chat/completions")) { res.writeHead(404); res.end(); return; }
+  let body = "";
+  req.on("data", (c) => { body += c; });
+  req.on("end", () => {
+    let parsed = {};
+    try { parsed = JSON.parse(body); } catch { /* not json - fine */ }
+    cheapBodies.push(parsed);
+    res.writeHead(200, { "Content-Type": "text/event-stream" });
+    const send = (obj) => res.write("data: " + JSON.stringify(obj) + "\n\n");
+    if (cheapBodies.length === 1) send({ choices: [{ delta: { content: "```tool\n{\"name\":\"task\",\"args\":{\"instructions\":\"go\",\"agent\":\"cheapie\"}}\n```" } }] });
+    else send({ choices: [{ delta: { content: "done-here" } }] });
+    res.write("data: [DONE]\n\n");
+    res.end();
+  });
+});
+await listen(cheapStub);
+fs.writeFileSync(path.join(cheapData, "auth.json"), JSON.stringify({
+  version: 1,
+  providers: { deepseek: { apiKey: "sk-cheap-test", baseUrl: "http://127.0.0.1:" + cheapStub.address().port + "/v1" } },
+}));
+const cheapRun = await spawnCli(["go", "--model", "deepseek/deepseek-reasoner", "--mode", "manual", "--root", cheapRoot], "", {
+  STAR_CODE_DATA: cheapData,
+  STAR_CODE_AGENTS_DIR: cheapHome,
+});
+cheapStub.close();
+let cheapModelFor = null;
+try { ({ cheapModelFor } = await import("../lib/providers.js")); } catch { /* export may not exist yet */ }
+const cheapPick = typeof cheapModelFor === "function" ? cheapModelFor("deepseek") : null;
+ok("an agent without model: still finishes", cheapRun.status === 0 && /done-here/.test(cheapRun.stdout || ""), String(cheapRun.status));
+ok("the parent keeps its own model", cheapBodies[0] && cheapBodies[0].model === "deepseek-reasoner", cheapBodies[0] && cheapBodies[0].model);
+ok("the child runs on the cheap default when one exists (else the parent model)",
+  cheapBodies[1] && cheapBodies[1].model === (cheapPick || "deepseek-reasoner"),
+  JSON.stringify({ child: cheapBodies[1] && cheapBodies[1].model, cheapPick, reasoner: "deepseek-reasoner" }));
+fs.rmSync(cheapRoot, { recursive: true, force: true });
+fs.rmSync(cheapHome, { recursive: true, force: true });
+fs.rmSync(cheapData, { recursive: true, force: true });
+
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(results.join("\n"));
 const failed = results.filter((r) => r.startsWith("FAIL")).length;

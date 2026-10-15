@@ -143,6 +143,71 @@ export const PROVIDERS = {
   },
 };
 
+/* --------------------------- OpenRouter attribution --------------------------- */
+// OpenRouter shows the requesting app (title + link) from these two headers.
+// They must only ever go to openrouter.ai itself: other providers and proxies
+// never asked for them, and some reject unknown headers. Every request site
+// spreads attributionHeaders(base) in, and the helper is host-checked, so the
+// rule cannot be forgotten at a call site.
+
+const OPENROUTER_ATTRIBUTION = {
+  "X-Title": "Star",
+  "HTTP-Referer": "https://github.com/Star-Code-Prod/Star-Code",
+};
+const OPENROUTER_HOST = /(^|\.)openrouter\.ai$/i;
+
+/** True only for an openrouter.ai host (or subdomain), never a lookalike. */
+export function isOpenRouterHost(baseUrl) {
+  try {
+    return OPENROUTER_HOST.test(new URL(String(baseUrl)).hostname);
+  } catch {
+    // A bare host (no scheme) still gets attributed, but only when the string
+    // really names openrouter.ai; anything else is treated as another host.
+    return /(^|[./])openrouter\.ai([/:]|$)/i.test(String(baseUrl || ""));
+  }
+}
+
+/** Attribution headers for OpenRouter ("Star" -> the repo); {} for every other host. */
+export function attributionHeaders(baseUrl) {
+  return isOpenRouterHost(baseUrl) ? { ...OPENROUTER_ATTRIBUTION } : {};
+}
+
+/* ---------------------------- cheap model picks ---------------------------- */
+// Cheapest sensible catalog entry per provider, for subagent and background
+// work where a flagship model is wasted money. Reasoning models are avoided
+// here (their thinking tokens bill as output) unless nothing else is listed.
+
+const CHEAP_MODEL_ORDER = {
+  openai: ["gpt-4o-mini"],
+  anthropic: ["claude-3-5-haiku-20241022"],
+  deepseek: ["deepseek-chat"],
+  google: ["gemini-2.5-flash"],
+  xai: ["grok-3-mini"],
+  groq: ["llama-3.3-70b-versatile", "qwen-qwq-32b"],
+  mistral: ["codestral-latest"],
+  openrouter: ["deepseek/deepseek-chat-v3"],
+  together: ["meta-llama/Llama-3.3-70B-Instruct-Turbo"],
+  ollama: [],
+  lmstudio: [],
+  vllm: [],
+  custom: [],
+};
+
+/**
+ * Cheapest sensible model for subagent/background work: the first preference
+ * present in the provider's catalog, else its defaultModel; null = unknown
+ * provider. Static catalog only - no network, no async, safe to call anywhere.
+ */
+export function cheapModelFor(providerId) {
+  const entry = PROVIDERS[providerId];
+  if (!entry) return null;
+  const listed = new Set(entry.models || []);
+  for (const id of CHEAP_MODEL_ORDER[providerId] || []) {
+    if (listed.has(id)) return id;
+  }
+  return entry.defaultModel;
+}
+
 /* ------------------------------ model lists ------------------------------ */
 // Every probe's payload normalizes to [{ id, name, contextLength }].
 
@@ -245,16 +310,16 @@ async function probe(entry, base, apiKey, fetchImpl) {
     case "lmstudio": {
       const native = await getJson(fetchImpl, stripV1(base) + "/api/v1/models", bearer(apiKey), ms);
       if (native.ok) return native;
-      return getJson(fetchImpl, base + "/models", bearer(apiKey), ms);
+      return getJson(fetchImpl, base + "/models", { ...bearer(apiKey), ...attributionHeaders(base) }, ms);
     }
     case "vllm": {
       const health = await getJson(fetchImpl, stripV1(base) + "/health", {}, ms);
       if (!health.ok) return health;
-      return getJson(fetchImpl, base + "/models", bearer(apiKey), ms);
+      return getJson(fetchImpl, base + "/models", { ...bearer(apiKey), ...attributionHeaders(base) }, ms);
     }
     case "openai":
     default:
-      return getJson(fetchImpl, base + "/models", bearer(apiKey), ms);
+      return getJson(fetchImpl, base + "/models", { ...bearer(apiKey), ...attributionHeaders(base) }, ms);
   }
 }
 
@@ -376,6 +441,7 @@ export function buildRequest({ provider, apiKey, baseUrl, model, messages, strea
         "Content-Type": "application/json",
         "x-api-key": key,
         "anthropic-version": "2023-06-01",
+        ...attributionHeaders(base),
       },
       body: {
         model: model || cfg.defaultModel,
@@ -391,7 +457,7 @@ export function buildRequest({ provider, apiKey, baseUrl, model, messages, strea
   if (!key && !cfg.noKeyRequired && !isLocal) {
     throw new Error(cfg.label + ": no API key configured. Open Settings.");
   }
-  const headers = { "Content-Type": "application/json" };
+  const headers = { "Content-Type": "application/json", ...attributionHeaders(base) };
   if (key) headers["Authorization"] = "Bearer " + key;
   return {
     provider,

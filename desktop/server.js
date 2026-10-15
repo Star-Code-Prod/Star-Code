@@ -9,11 +9,20 @@ import os from "node:os";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { randomUUID } from "node:crypto";
 import { exec } from "node:child_process";
-import { PROVIDERS, discoverModels, detectLocals } from "./lib/providers.js";
+// Namespace import: cheapModelFor() was added to providers.js alongside this
+// work; destructuring keeps every existing use, and the lookup accepts the
+// function from agent.js too in case it surfaces there.
+import * as providersLib from "./lib/providers.js";
+const { PROVIDERS, discoverModels, detectLocals } = providersLib;
 import { readAuth, writeAuthEntry, removeAuthEntry, resolveKey, mask } from "./lib/auth.js";
 import { listKnowledge, readKnowledgeFile, saveKnowledgeFile, deleteKnowledgeFile, knowledgeDir } from "./lib/knowledge.js";
 import { createToolRunner, readProjectMemory } from "./lib/tools.js";
-import { runAgentTurn, systemPrompt, PERMISSION_MODES } from "./lib/agent.js";
+// Namespace import: chatSystemPrompt() / cheapModelFor() are being added to
+// agent.js alongside this work, and the server must keep booting (and code
+// sessions keep working) whether or not they have landed yet. The chat path
+// checks for them and fails with a clear message when they are missing.
+import * as agentLib from "./lib/agent.js";
+const { runAgentTurn, systemPrompt, PERMISSION_MODES } = agentLib;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VERSION = JSON.parse(fs.readFileSync(path.join(__dirname, "package.json"), "utf8")).version;
@@ -30,30 +39,120 @@ const sessions = new Map();
 // The task tool runs a read-only explorer with fresh context, reusing the
 // provider/model of the last chat request. Dangerous and networked tools are
 // blocked there, so a subagent can never mutate anything or leave the machine.
+// Chat sessions additionally restrict the main runner to CHAT_TOOLS; the same
+// allowlist is inherited by subagents and never widened by a custom agent.
 let subagentCtx = null;
-const SUBAGENT_BLOCKED = new Set(["write_file", "edit_file", "multi_edit", "run_command", "fetch_url", "websearch", "task"]);
+const SUBAGENT_BLOCKED = new Set(["write_file", "edit_file", "multi_edit", "run_command", "download", "fetch_url", "websearch", "task"]);
+const CHAT_TOOLS = ["websearch", "fetch_url", "self_knowledge", "task"];
 
-function makeRunner(r) {
-  return createToolRunner(r, {
-    runSubagent: async ({ instructions }) => {
+/** Cheap model for subagent runs when a provider catalog offers one, else null. */
+function subagentModel(providerId) {
+  try {
+    // cheapModelFor() lives in providers.js; accept a re-export from agent.js
+    // as well, in case it surfaces there.
+    const fn = typeof agentLib.cheapModelFor === "function" ? agentLib.cheapModelFor : providersLib.cheapModelFor;
+    const m = typeof fn === "function" ? fn(providerId) : null;
+    return typeof m === "string" && m.trim() ? m : null;
+  } catch { return null; }
+}
+
+/**
+ * Where a subagent turn runs: the custom agent's `model:` line (with an
+ * optional provider/ prefix, as written in .star-code/agents/*.md), else the
+ * parent provider's cheap model, else the parent's model. An unknown provider
+ * or a malformed value is ignored, never fatal.
+ */
+function subagentTarget(agent) {
+  const parent = subagentCtx;
+  const wanted = agent && typeof agent.model === "string" ? agent.model.trim() : "";
+  if (wanted) {
+    const slash = wanted.indexOf("/");
+    const pid = slash > 0 ? wanted.slice(0, slash) : "";
+    if (pid && PROVIDERS[pid]) {
+      return { provider: pid, model: wanted.slice(slash + 1).trim() || PROVIDERS[pid].defaultModel };
+    }
+    if (!pid) return { provider: parent.provider, model: wanted };
+  }
+  const cheap = subagentModel(parent.provider);
+  return { provider: parent.provider, model: cheap || parent.model };
+}
+
+/**
+ * Allowlist gate applied on top of createToolRunner(root, { allowed }).
+ * lib/tools.js is the primary enforcement; this keeps a restricted runner
+ * restricted even against a tools.js build where the `allowed` option is
+ * missing or ignores the list - a chat session must never fall back to the
+ * full tool set mid-upgrade.
+ */
+function restrictRunner(toolRunner, allowed) {
+  const names = new Set(allowed);
+  const wrapped = {
+    async run(name, args) {
+      if (!names.has(name)) {
+        throw new Error("Tool \"" + name + "\" is not available to this agent. Allowed tools: " + allowed.join(", ") + ".");
+      }
+      return toolRunner.run(name, args);
+    },
+    isDangerous(name) {
+      return toolRunner.isDangerous(name);
+    },
+    root: toolRunner.root,
+    allowed,
+  };
+  // The runner grew optional helpers (schema list for chat loops); keep them
+  // reachable through the gate instead of dropping them.
+  if (typeof toolRunner.toolSchemas === "function") {
+    wrapped.toolSchemas = () => toolRunner.toolSchemas();
+  }
+  return wrapped;
+}
+
+function makeRunner(r, allowed) {
+  const toolRunner = createToolRunner(r, {
+    ...(allowed ? { allowed } : {}),
+    runSubagent: async ({ instructions, agent } = {}) => {
       if (!subagentCtx) return { error: "no model configured yet - answer without a subagent" };
-      const base = createToolRunner(subagentCtx.root);
+      // A custom agent may narrow the explorer further (its own tools) and
+      // pick its own model; the session's allowlist is inherited, not widened.
+      let allowedForSub = null;
+      if (allowed) {
+        allowedForSub = Array.isArray(agent?.tools) && agent.tools.length
+          ? allowed.filter((t) => agent.tools.includes(t))
+          : allowed.slice();
+        if (!allowedForSub.length) return { error: "no tools are available to subagents in this session" };
+      } else if (Array.isArray(agent?.tools) && agent.tools.length) {
+        allowedForSub = agent.tools.slice();
+      }
+      const base = createToolRunner(subagentCtx.root, allowedForSub ? { allowed: allowedForSub } : {});
+      const gated = allowedForSub ? restrictRunner(base, allowedForSub) : base;
       const explorer = {
         run: (name, args) => {
           if (SUBAGENT_BLOCKED.has(name)) throw new Error(name + " is not available to subagents");
-          return base.run(name, args);
+          return gated.run(name, args);
         },
-        isDangerous: base.isDangerous,
-        root: base.root,
+        isDangerous: gated.isDangerous,
+        root: gated.root,
       };
+      const persona = agent && typeof agent.promptText === "string" && agent.promptText.trim()
+        ? agent.promptText.trim().slice(0, 8000) + "\n\n"
+        : "";
       const messages = [
-        { role: "system", content: systemPrompt(subagentCtx.root, "plan") },
+        { role: "system", content: persona + systemPrompt(subagentCtx.root, "plan") },
         { role: "user", content: "Research task - explore and report findings only: " + instructions },
       ];
+      const target = subagentTarget(agent);
+      // A model from a different provider needs that provider's own
+      // credentials; the parent's only apply while the provider is the same.
+      const targetKey = target.provider === subagentCtx.provider
+        ? subagentCtx.apiKey
+        : resolveKey(target.provider, "", PROVIDERS[target.provider].envKeys || []);
+      const targetBase = target.provider === subagentCtx.provider
+        ? subagentCtx.baseUrl
+        : ((readAuth().providers[target.provider] || {}).baseUrl || undefined);
       let text = "";
       await runAgentTurn({
-        provider: subagentCtx.provider, model: subagentCtx.model,
-        apiKey: subagentCtx.apiKey, baseUrl: subagentCtx.baseUrl,
+        provider: target.provider, model: target.model,
+        apiKey: targetKey, baseUrl: targetBase,
         messages, runner: explorer,
         emit: (e) => { if (e.type === "done") text = e.text || text; },
         requestPermission: async () => ({ allowed: false, scope: "once" }),
@@ -62,6 +161,7 @@ function makeRunner(r) {
       return { text };
     },
   });
+  return allowed ? restrictRunner(toolRunner, allowed) : toolRunner;
 }
 let runner = makeRunner(ROOT);
 
@@ -74,6 +174,12 @@ const STORE_DIR = process.env.STAR_CODE_DATA
   : path.join(os.homedir(), ".star-code");
 const STORE_FILE = path.join(STORE_DIR, "sessions.json");
 const MAX_STORED_MESSAGES = 120;
+
+// Session kind: "code" (the classic coding session; the default for every
+// stored session created before kinds existed) or "chat" (the home-directory
+// session with no file tools). Validated to those two values everywhere.
+const SESSION_KINDS = new Set(["chat", "code"]);
+const normalizeKind = (kind) => (SESSION_KINDS.has(kind) ? kind : "code");
 
 // A session with a default title and no real user turn is noise — what a
 // launch probe or an untouched "New session" leaves behind. Never listed,
@@ -90,11 +196,15 @@ function loadStore() {
     if (Array.isArray(raw.sessions)) {
       for (const s of raw.sessions) {
         if (s && s.id) {
+          const kind = normalizeKind(s.kind);
           const loaded = {
             id: s.id,
             title: s.title || "Untitled",
+            kind,
             mode: PERMISSION_MODES.includes(s.mode) ? s.mode : "manual",
-            cwd: s.cwd || ROOT,
+            // Chat sessions always run in the home directory, whatever an old
+            // record carried.
+            cwd: kind === "chat" ? os.homedir() : (s.cwd || ROOT),
             created: s.created || Date.now(),
             updated: s.updated || Date.now(),
             messages: Array.isArray(s.messages) ? s.messages : [],
@@ -120,6 +230,7 @@ function writeStoreNow() {
       .map((s) => ({
         id: s.id,
         title: s.title,
+        kind: s.kind || "code",
         mode: s.mode,
         cwd: s.cwd,
         created: s.created,
@@ -150,6 +261,7 @@ function summarise(s) {
   return {
     id: s.id,
     title: s.title,
+    kind: s.kind,
     mode: s.mode,
     cwd: s.cwd,
     created: s.created,
@@ -158,16 +270,45 @@ function summarise(s) {
   };
 }
 
-function newSession(title) {
+/** The working root of a session: home for chat, its own cwd for code. */
+function sessionRoot(s) {
+  return s.kind === "chat" ? os.homedir() : (s.cwd || ROOT);
+}
+
+/** chatSystemPrompt() with a clear error when agent.js does not export it. */
+function chatSystemContent() {
+  const fn = agentLib.chatSystemPrompt;
+  if (typeof fn !== "function") {
+    throw new Error("chat sessions need chatSystemPrompt() from lib/agent.js - this build does not export it");
+  }
+  const text = String(fn() || "").trim();
+  if (!text) throw new Error("chatSystemPrompt() returned an empty prompt");
+  return text;
+}
+
+/** The system message a session runs with (refreshed on every turn). */
+function sessionSystemContent(s) {
+  return s.kind === "chat" ? chatSystemContent() : systemPrompt(ROOT, s.mode);
+}
+
+function newSession(title, kind) {
   const sid = randomUUID();
+  const k = normalizeKind(kind);
+  // Created before agent.js exports chatSystemPrompt()? Keep the placeholder
+  // empty - every turn rebuilds this message, and the chat path raises a
+  // clear error instead of running without a chat prompt.
+  const system = k === "chat" && typeof agentLib.chatSystemPrompt !== "function"
+    ? ""
+    : sessionSystemContent({ kind: k, mode: "manual" });
   const s = {
     id: sid,
     title: title || "New session",
+    kind: k,
     mode: "manual",
-    cwd: ROOT,
+    cwd: k === "chat" ? os.homedir() : ROOT,
     created: Date.now(),
     updated: Date.now(),
-    messages: [{ role: "system", content: systemPrompt(ROOT, "manual") }],
+    messages: [{ role: "system", content: system }],
     pending: new Map(),
     aborts: new Set(),
     autoAllow: new Set(),
@@ -177,9 +318,19 @@ function newSession(title) {
   return s;
 }
 
-function getSession(id) {
+function getSession(id, kind) {
   if (id && sessions.has(id)) return sessions.get(id);
-  return newSession();
+  return newSession(undefined, kind);
+}
+
+/**
+ * Tool runner for one turn. Chat sessions always build their own runner,
+ * rooted at the home directory and limited to CHAT_TOOLS; code sessions
+ * share the server's default runner unless they carry their own cwd.
+ */
+function sessionRunner(s) {
+  if (s.kind === "chat") return makeRunner(sessionRoot(s), CHAT_TOOLS);
+  return (s.cwd && path.resolve(s.cwd) !== ROOT) ? makeRunner(s.cwd) : runner;
 }
 
 loadStore();
@@ -481,13 +632,16 @@ async function route(req, res) {
       .filter((m) => m.role !== "system")
       .filter((m) => !String(m.content).startsWith("Tool result for "))
       .map((m) => ({ role: m.role, content: m.content }));
-    return sendJSON(res, 200, { id: s.id, title: s.title, mode: s.mode, cwd: s.cwd, messages: visible });
+    return sendJSON(res, 200, { id: s.id, title: s.title, kind: s.kind, mode: s.mode, cwd: s.cwd, messages: visible });
   }
 
   if (req.method === "POST" && url.pathname === "/api/sessions/new") {
-    const { title } = await readBody(req);
-    const s = newSession(title);
-    return sendJSON(res, 200, { id: s.id, title: s.title });
+    const { title, kind } = await readBody(req);
+    if (kind != null && !SESSION_KINDS.has(kind)) {
+      return sendJSON(res, 400, { error: 'kind must be "chat" or "code"' });
+    }
+    const s = newSession(title, kind);
+    return sendJSON(res, 200, { id: s.id, title: s.title, kind: s.kind });
   }
 
   if (req.method === "POST" && url.pathname === "/api/sessions/rename") {
@@ -512,7 +666,7 @@ async function route(req, res) {
 
   if (req.method === "POST" && url.pathname === "/api/chat") {
     const body = await readBody(req);
-    const session = getSession(body.sessionId);
+    const session = getSession(body.sessionId, body.kind);
     const { provider, model, apiKey, baseUrl, message, mode } = body;
     session.mode = PERMISSION_MODES.includes(mode) ? mode : session.mode;
     if (message && session.messages.length <= 1) {
@@ -528,14 +682,15 @@ async function route(req, res) {
     const storedEntry = readAuth().providers[provider] || {};
     const effectiveKey = resolveKey(provider, typeof apiKey === "string" ? apiKey : "", PROVIDERS[provider].envKeys || []);
     const effectiveBaseUrl = (typeof baseUrl === "string" && baseUrl) || storedEntry.baseUrl || undefined;
-    subagentCtx = { root: ROOT, provider, model, apiKey: effectiveKey, baseUrl: effectiveBaseUrl };
+    subagentCtx = { root: sessionRoot(session), provider, model, apiKey: effectiveKey, baseUrl: effectiveBaseUrl };
 
-    // Refresh the system prompt so mode/memory changes take effect.
-    session.messages[0] = { role: "system", content: systemPrompt(ROOT, session.mode) };
+    // Refresh the system prompt so mode/memory changes take effect. Chat
+    // sessions use chatSystemPrompt(); code sessions keep the coding prompt.
+    session.messages[0] = { role: "system", content: sessionSystemContent(session) };
 
     res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" });
     const emit = (evt) => res.write(`data: ${JSON.stringify(evt)}\n\n`);
-    emit({ type: "session", sessionId: session.id, root: ROOT, title: session.title, mode: session.mode });
+    emit({ type: "session", sessionId: session.id, kind: session.kind, root: sessionRoot(session), title: session.title, mode: session.mode });
 
     const requestPermission = (info) =>
       new Promise((resolve) => {
@@ -548,8 +703,9 @@ async function route(req, res) {
     session.aborts.add(controller);
 
     // Each session runs against its own working directory; the server's
-    // current root is only the default for brand-new sessions.
-    const chatRunner = (session.cwd && path.resolve(session.cwd) !== ROOT) ? makeRunner(session.cwd) : runner;
+    // current root is only the default for brand-new sessions. Chat sessions
+    // get a fresh runner limited to CHAT_TOOLS, always rooted at home.
+    const chatRunner = sessionRunner(session);
 
     try {
       await runAgentTurn({
@@ -588,7 +744,7 @@ async function route(req, res) {
     const { sessionId } = await readBody(req);
     if (sessionId && sessions.has(sessionId)) {
       const s = sessions.get(sessionId);
-      s.messages = [{ role: "system", content: systemPrompt(ROOT, s.mode) }];
+      s.messages = [{ role: "system", content: sessionSystemContent(s) }];
       s.title = "New session";
     }
     return sendJSON(res, 200, { ok: true });
@@ -661,7 +817,7 @@ export function getRoot() {
   return ROOT;
 }
 
-export { handler };
+export { handler, makeRunner, sessionSystemContent };
 
 // Run standalone when executed directly (node server.js).
 const invokedDirectly =
