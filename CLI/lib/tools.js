@@ -509,11 +509,15 @@ export function blockedUnverifiedRun(command, root) {
   const seen = new Set();
   for (const tok of tokens) {
     if (tok.length > 500) continue;
+    // Treat both separators as separators on every platform: a Windows-style
+    // ".\\x.exe" reference is still a reference to the downloads folder, and
+    // on Linux path.resolve would otherwise see one long filename.
+    const tokNorm = tok.replace(/\\/g, "/");
     const pathsToTry = [];
-    const abs = path.isAbsolute(tok) ? path.resolve(tok) : path.resolve(root, tok);
+    const abs = path.isAbsolute(tokNorm) ? path.resolve(tokNorm) : path.resolve(root, tokNorm);
     pathsToTry.push(abs);
-    if (/(^|[\\/])downloads([\\/]|$)/i.test(tok) || /\.star-code[\\/]downloads/i.test(tok)) {
-      const base = path.basename(tok.replace(/[\\/]+/g, "/"));
+    if (/(^|[\\/])downloads([\\/]|$)/i.test(tokNorm) || /\.star-code[\\/]downloads/i.test(tokNorm)) {
+      const base = path.basename(tokNorm);
       if (base && base !== "." && base !== "..") pathsToTry.push(path.join(downloadsDir, base));
     }
     for (const cand of pathsToTry) {
