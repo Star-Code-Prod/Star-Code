@@ -1005,11 +1005,7 @@ textarea.inp{line-height:1.6;resize:vertical}
    layout untouched. */
 body.mode-chat .pf-sec,
 body.mode-chat #fileTree,
-body.mode-chat #panes,
-body.mode-chat #btnPanes,
-body.mode-chat #cPanels,
 body.mode-chat #sProj,
-body.mode-chat .shead .acts,
 body.mode-chat #btnOpenFolder,
 body.mode-chat .envl,
 body.mode-chat #bigProj{display:none}
@@ -3265,12 +3261,13 @@ function renderArtifactInto(host, a) {
   });
 }
 
-/** Show the selected artifact: the Preview pane in code mode, a centered
- *  dialog in chat mode (the pane dock is hidden there). */
+/** Show the selected artifact: the Preview pane when the dock is available
+ *  (always in code mode; in chat mode when the user keeps the rail open),
+ *  otherwise the centered dialog. */
 function renderArtifact() {
   const a = artifacts[artifactView.i];
   if (!a) return;
-  if (state.mode === "chat") { openArtifactDialog(); return; }
+  if (state.mode === "chat" && $("panes").classList.contains("hide")) { openArtifactDialog(); return; }
   showPane("preview");
   const group = artifactGroup(artifactView.i);
   $("previewTitle").textContent = artifactName(a) +
@@ -3684,10 +3681,10 @@ function renderMotionArtifact(body, a) {
   }, 2500);
 }
 
-/* ---- artifact dialog (chat mode) ----------------------------------------
-   The pane dock is hidden in chat mode, so the artifact preview opens as a
-   centered dialog instead. Same pattern as the settings dialog: backdrop +
-   card, Esc/backdrop close, Tab stays inside, focus returns to where it was. */
+/* ---- artifact dialog (chat mode, rail hidden) ---------------------------
+   When the chat rail is closed the artifact preview opens as a centered
+   dialog instead. Same pattern as the settings dialog: backdrop + card,
+   Esc/backdrop close, Tab stays inside, focus returns to where it was. */
 let artDlgReturnFocus = null;
 
 function artDlgFocusables() {
