@@ -86,6 +86,9 @@ jobs:
       - name: Star chart generator
         run: node tools/verify-star-chart.mjs
 
+      - name: opencode import
+        run: node tools/verify-import.mjs
+
   # ---------------------------------------------------------------------------
   # Pack the standalone CLI and prove the tarball installs and runs before
   # anything ships. The CLI lives at CLI/, not desktop/, so this job overrides

@@ -830,6 +830,7 @@ textarea.inp{line-height:1.6;resize:vertical}
 .pill.ok{background:color-mix(in srgb,var(--add-fg) 16%,transparent);color:var(--add-fg)}
 .pill.no{background:color-mix(in srgb,var(--del-fg) 16%,transparent);color:var(--del-fg)}
 .pill.warn{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent)}
+.pill.dim{color:var(--dim)}
 .prov{
   display:flex;align-items:center;gap:var(--sp-3);padding:12px 0;border-bottom:1px solid var(--border);
   width:100%;text-align:left;transition:background var(--t-fast) var(--ease);
@@ -853,6 +854,13 @@ textarea.inp{line-height:1.6;resize:vertical}
 .banner svg{flex:none;color:var(--accent)}
 .banner.err{background:color-mix(in srgb,var(--del-fg) 10%,transparent);color:var(--del-fg);border-color:color-mix(in srgb,var(--del-fg) 26%,var(--border))}
 .banner.ok{background:color-mix(in srgb,var(--add-fg) 10%,transparent);color:var(--add-fg);border-color:color-mix(in srgb,var(--add-fg) 26%,var(--border))}
+/* import-from-opencode report (Settings → Providers) */
+.imp-sum{font-size:var(--fs-12);color:var(--muted);margin:0 0 2px}
+.imp-h{font-size:var(--fs-11);color:var(--dim);font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin:10px 0 2px}
+.imp-r{display:flex;align-items:center;gap:9px;padding:3px 0;font-size:var(--fs-12);line-height:1.5}
+.imp-r .imp-id{font-family:var(--font-mono);font-size:var(--fs-11);color:var(--text2);flex:none;max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.imp-r .imp-d{color:var(--dim);font-size:var(--fs-11);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.imp-from{font-size:var(--fs-11);color:var(--dim);margin-top:6px}
 .settings details summary{border-radius:var(--r-xs);padding:2px 4px}
 .settings details summary:hover{color:var(--text2)}
 
@@ -3980,6 +3988,113 @@ function vtPill() {
   return '<span class="pill" style="margin-left:6px">not set</span>';
 }
 
+/* ---- import from opencode: one-shot settings import ---- */
+const IMP_KINDS = [
+  ["keys", "Keys"], ["baseUrl", "Base URLs"], ["model", "Model"], ["agents", "Agents"],
+  ["theme", "Theme"], ["mode", "Mode"], ["skip", "Skipped"],
+];
+let impState = { dir: "", busy: false, error: "", result: null, notes: [] };
+
+/** Action badge for one report row: green imported, muted kept, dim skipped. */
+function impBadge(action) {
+  if (action === "imported") return '<span class="pill ok">imported</span>';
+  if (action === "kept") return '<span class="pill">kept</span>';
+  if (action === "skipped") return '<span class="pill dim">skipped</span>';
+  return `<span class="pill">${esc(action || "?")}</span>`;
+}
+
+/** One { kind, id, action, detail } report entry as a single line. */
+function impRow(e) {
+  const id = e.id == null ? "" : String(e.id);
+  const detail = e.detail == null ? "" : String(e.detail);
+  return `<div class="imp-r"${detail ? ` title="${esc(id)} — ${esc(detail)}"` : ""}>
+    ${impBadge(e.action)}<span class="imp-id">${esc(id)}</span>${detail ? `<span class="imp-d">${esc(detail)}</span>` : ""}
+  </div>`;
+}
+
+/** The report area: count summary, rows grouped in fixed kind order, source path. */
+function importReportHtml(r) {
+  const report = Array.isArray(r.report) ? r.report : [];
+  const found = r.found || {};
+  if (!found.config) {
+    return '<div class="pempty">No opencode config found — checked ~/.config/opencode and the usual locations</div>';
+  }
+  if (!report.length) return '<div class="pempty">Nothing to import — Star already matches this opencode install.</div>';
+  const n = { imported: 0, kept: 0, skipped: 0 };
+  for (const e of report) if (n[e.action] != null) n[e.action]++;
+  const groups = new Map();
+  for (const e of report) {
+    const kind = IMP_KINDS.some(([k]) => k === e.kind) ? e.kind : "other";
+    if (!groups.has(kind)) groups.set(kind, []);
+    groups.get(kind).push(e);
+  }
+  const labels = new Map([...IMP_KINDS, ["other", "Other"]]);
+  let html = `<div class="imp-sum">${n.imported} imported · ${n.kept} kept · ${n.skipped} skipped</div>`;
+  for (const kind of [...IMP_KINDS.map(([k]) => k), "other"]) {
+    const rows = groups.get(kind);
+    if (!rows || !rows.length) continue;
+    html += `<div class="imp-h">${esc(labels.get(kind))}</div>` + rows.map(impRow).join("");
+  }
+  if (typeof found.config === "string") html += `<div class="imp-from">from <span class="mono">${esc(found.config)}</span></div>`;
+  return html;
+}
+
+/** Anything the importer could not do cleanly, shown as error banners. */
+function importProblemsHtml(r) {
+  const list = r && Array.isArray(r.problems) ? r.problems : [];
+  return list.map(p => {
+    const text = typeof p === "string" ? p : (p && (p.message || p.error || p.detail)) || JSON.stringify(p);
+    return `<div class="banner err">${esc(text)}</div>`;
+  }).join("");
+}
+
+/** Import-from-opencode card (Settings → Providers). Renders from impState,
+ *  which the fImpRun handler fills in after POST /api/import/opencode. */
+function importCardHtml() {
+  const imp = impState;
+  return `
+  <div class="card">
+    <div class="ct">Import from opencode</div>
+    <div class="cs">Bring providers, keys, the default model and custom agents from an opencode install into Star. Existing Star settings are never overwritten.</div>
+    ${imp.error ? `<div class="banner err">${esc(imp.error)}</div>` : ""}
+    ${imp.notes.map(x => `<div class="banner ok">${esc(x)}</div>`).join("")}
+    ${imp.result ? importProblemsHtml(imp.result) + importReportHtml(imp.result) : ""}
+    <div class="row" style="border-top:1px solid var(--border);margin-top:12px;padding-top:13px">
+      <div class="rl"><div class="rd" style="margin-top:0">Reads the opencode config on this machine — nothing leaves it. Skipped entries stay untouched.</div></div>
+      <div class="rc">
+        <button class="btn pri sm" id="fImpRun"${imp.busy ? ' aria-busy="true"' : ""}>${imp.busy ? "Importing…" : "Import settings"}</button>
+      </div>
+    </div>
+    <details${imp.dir ? " open" : ""} style="margin-top:14px">
+      <summary style="cursor:pointer;font-size:12.5px;color:var(--muted)">Advanced</summary>
+      <div class="fld" style="margin-top:10px">
+        <label>Config folder</label>
+        <input class="inp mono" id="fImpDir" value="${esc(imp.dir)}" placeholder="auto-detect" autocomplete="off">
+      </div>
+    </details>
+  </div>`;
+}
+
+/** Apply the client-side suggestions an import returned: the permission mode
+ *  and/or the theme, the way Settings itself would. Each applied change is
+ *  toasted once and kept as a note above the report (toasts fade). */
+function applyImportClient(client) {
+  const c = client || {};
+  if (c.defaultMode === "manual" || c.defaultMode === "acceptEdits") {
+    applyMode(c.defaultMode);   // also writes state.defaultMode
+    save();
+    const note = "default mode set to " + ((MODES.find(m => m.id === c.defaultMode) || {}).label || c.defaultMode);
+    impState.notes.push(note);
+    toast(note);
+  }
+  if (c.theme === "dark" || c.theme === "light" || c.theme === "system") {
+    state.theme = c.theme; applyTheme(); save();
+    const note = "theme set to " + c.theme;
+    impState.notes.push(note);
+    toast(note);
+  }
+}
+
 function settingsProviders() {
   if (providerDetailId) return settingsProviderDetail(providerDetailId);
   const q = provFilter.trim().toLowerCase();
@@ -4021,6 +4136,7 @@ function settingsProviders() {
         </div>
       </div>
     </div>
+    ${importCardHtml()}
     <p class="sh" style="margin:0">Keys are stored on this machine in <span class="mono">~/.star-code/auth.json</span> and only ever go to the provider itself.</p>
   </div>`;
 }
@@ -4389,6 +4505,34 @@ function wireSettings() {
     } catch (e) {
       vtState = { error: "Could not clear the key — " + (e && e.message ? e.message : "request failed") + ".", message: "" };
     }
+    renderSettings();
+  });
+
+  /* Import from opencode — one POST; the report is rendered from impState.
+     Errors surface in the card, never as toasts: this runs rarely and the
+     message ("no config found", "bad folder") is worth reading in place. */
+  on("fImpRun", "click", async () => {
+    if (impState.busy) return;   // a second click while the import runs is a no-op
+    const dirEl = $("fImpDir");
+    impState.dir = dirEl ? dirEl.value.trim() : impState.dir;
+    impState.busy = true;
+    impState.error = "";
+    impState.result = null;
+    impState.notes = [];
+    renderSettings();
+    try {
+      const res = await fetch("/api/import/opencode", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(impState.dir ? { dir: impState.dir } : {}),
+      });
+      const j = await res.json().catch(() => null);
+      if (!res.ok || !j || j.ok === false) throw new Error((j && j.error) || "the server rejected the import");
+      impState.result = j;
+      applyImportClient(j.client);
+    } catch (e) {
+      impState.error = "Could not import — " + (e && e.message ? e.message : "request failed") + ".";
+    }
+    impState.busy = false;
     renderSettings();
   });
 

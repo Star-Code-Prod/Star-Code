@@ -112,10 +112,11 @@ Flags:
   --mode <manual|acceptEdits|plan|bypass>    permission mode (default manual)
   --model <provider/model>                   pick provider and model (default: last used)
   --root <dir>                               working directory (default: cwd)
+  --import-opencode                          import settings from a local opencode install, then exit
   --demo [scene]                             render scripted frames (no key, no network)
   --help
 
-Interactive commands: /help /clear /status /model /connect /knowledge /agents /tabs /exit
+Interactive commands: /help /clear /status /model /connect /knowledge /agents /import /tabs /exit
 
 On a real terminal the session runs full screen (tabs are sessions):
   ctrl+t new tab · ctrl+w close tab · ctrl+tab or ctrl+pgup/pgdn cycle tabs · ctrl+1..9 jump
@@ -125,6 +126,7 @@ On a real terminal the session runs full screen (tabs are sessions):
 const argv = process.argv.slice(2);
 const flags = { mode: "manual", model: null, root: null };
 let demo = null;
+let importOpencode = false;
 const prompt = [];
 for (let i = 0; i < argv.length; i++) {
   const a = argv[i];
@@ -132,6 +134,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (a === "--mode") flags.mode = argv[++i];
   else if (a === "--model") flags.model = argv[++i];
   else if (a === "--root") flags.root = argv[++i];
+  else if (a === "--import-opencode") importOpencode = true;
   else if (a === "--demo") demo = (argv[i + 1] && !argv[i + 1].startsWith("-")) ? argv[++i] : "start";
   else prompt.push(a);
 }
@@ -178,8 +181,9 @@ if (flags.model) {
 // never let a catalog default stomp a stored pick: that only happens when the
 // stored provider left the catalog, and the old choice is kept for when it
 // returns. A true first run (no record at all) may save the default. Demo is
-// skipped: scripted frames use no model and stay read-only.
-if (!demo && (modelSource !== "default" || !lastUsed)) {
+// skipped: scripted frames use no model and stay read-only, and
+// --import-opencode (settings only) leaves the record alone too.
+if (!demo && !importOpencode && (modelSource !== "default" || !lastUsed)) {
   writeLastModel(provider, model);
 }
 const storedBase = readAuth().providers[provider]?.baseUrl || "";
@@ -636,6 +640,104 @@ async function runTurn(text) {
   }
 }
 
+/* ---------------------------- opencode import ---------------------------- */
+// /import (and --import-opencode) reads a local opencode install and brings
+// over what carries across: providers, the last model, the theme, the default
+// mode and the custom agents. The core lives in lib/opencode-import.js (the
+// desktop's Settings > Import uses the same one); it is imported lazily so
+// this binary keeps working without it, and its report never carries keys.
+
+/** The report's ink: imported rows green, kept and skipped rows dim (a
+ *  skipped detail is its reason), aligned in columns, then the one-line
+ *  summary and, when the scan suggested one, the default-mode hint. */
+function opencodeReportBlock(scan, applied) {
+  const report = Array.isArray(applied.report) ? applied.report : [];
+  const found = scan && typeof scan.found === "object" && scan.found !== null ? scan.found : {};
+  const rows = report.map((r) => {
+    const item = r && typeof r === "object" ? r : {};
+    const id = item.id == null ? "" : String(item.id).trim();
+    const kind = typeof item.kind === "string" ? item.kind.trim() : "";
+    return {
+      action: typeof item.action === "string" ? item.action : "",
+      who: [kind, id].filter(Boolean).join(" "),
+      detail: typeof item.detail === "string" ? item.detail.replace(/\s+/g, " ").trim() : "",
+    };
+  });
+  const wAction = Math.max(8, ...rows.map((r) => r.action.length));
+  const wWho = Math.max(0, ...rows.map((r) => r.who.length));
+  const lines = rows.map((r) => {
+    const imported = r.action === "imported";
+    const text = "  " + (imported ? "✓" : "·") + " " + r.action.padEnd(wAction) + " " +
+      r.who.padEnd(wWho) + (r.detail ? "  " + r.detail : "");
+    return (imported ? green : dim)(text.trimEnd());
+  });
+
+  const count = (action) => rows.filter((r) => r.action === action).length;
+  const block = [gold("✦") + " " + gold("opencode import")];
+  if (!lines.length) {
+    // A config (or agent dir) was found but carried nothing importable.
+    const where = found.config || found.auth || (Array.isArray(found.agentsDirs) && found.agentsDirs[0]) || "";
+    block.push(dim(where ? "Nothing to import from " + where + "." : "No importable opencode settings found."));
+  } else {
+    block.push(...lines);
+    block.push(dim([count("imported") + " imported", count("kept") + " kept", count("skipped") + " skipped"].join(" · ")));
+  }
+  const mode = applied.client && typeof applied.client.defaultMode === "string"
+    ? applied.client.defaultMode.trim() : "";
+  if (mode) {
+    block.push(dim("opencode permission is ") + gold("'" + mode + "'") +
+      dim(" — Star: set the default mode in ") + gold("/status") + dim(" or settings"));
+  }
+  return block.join("\n");
+}
+
+/** Where scanOpencode() looks when nothing overrides it (or, with
+ *  STAR_CODE_OPENCODE_DIR set, the one directory it checks alone). */
+function opencodeLookedIn() {
+  const envDir = (process.env.STAR_CODE_OPENCODE_DIR || "").trim();
+  if (envDir) return "Looked in " + path.resolve(envDir) + " (STAR_CODE_OPENCODE_DIR; config, agents and auth.json).";
+  return "Looked in ~/.config/opencode, %APPDATA%\\opencode and ~/.opencode (config, agents and auth.json).";
+}
+
+/** Scan + apply + render, or the plain reason there is nothing to show. */
+async function opencodeImportText() {
+  let lib;
+  try {
+    lib = await import("../lib/opencode-import.js");
+  } catch (e) {
+    process.exitCode = 1;
+    return red("error: ") + dim("the opencode import needs lib/opencode-import.js (" + (e.code || e.message) + ")");
+  }
+  let scan, applied;
+  try {
+    scan = lib.scanOpencode();
+    applied = lib.applyImport(scan);
+  } catch (e) {
+    process.exitCode = 1;
+    // Same rule as the server's endpoint: a thrown scan/apply message can
+    // quote config text, so erase anything token-shaped before printing.
+    const msg = String((e && e.message) || e)
+      .replace(/\s+/g, " ")
+      .replace(/\b(?:sk|pk|rk|ghp|gho|glpat|xox[abp])[-_][A-Za-z0-9_-]{4,}\b/g, "[redacted]")
+      .replace(/[A-Za-z0-9+/]{24,}={0,2}/g, "[redacted]")
+      .trim().slice(0, 300);
+    return red("error: ") + (msg || "opencode import failed");
+  }
+  // found is { config, auth, agentsDirs }: all three empty means nothing at
+  // all was there to read (a plain falsy value would be an older shape).
+  const f = scan && scan.found;
+  const nothingFound = !f ||
+    (typeof f === "object" && !f.config && !f.auth && !(Array.isArray(f.agentsDirs) && f.agentsDirs.length));
+  if (nothingFound) {
+    return [
+      gold("✦") + " " + gold("opencode import"),
+      dim("No opencode config found — nothing to import."),
+      dim(opencodeLookedIn()),
+    ].join("\n");
+  }
+  return opencodeReportBlock(scan, applied);
+}
+
 /* --------------------------------- REPL ---------------------------------- */
 const SLASH = [
   ["/clear", "Start a new conversation"],
@@ -644,6 +746,7 @@ const SLASH = [
   ["/connect", "Connect a provider (key)"],
   ["/knowledge", "List the project knowledge files"],
   ["/agents", "List custom agents (.star-code/agents)"],
+  ["/import", "Import settings from opencode"],
   ["/tabs", "List the open tabs (full-screen session)"],
   ["/help", "Show available commands"],
   ["/exit", "Quit Star Code"],
@@ -1644,6 +1747,9 @@ export async function tuiApp(io = {}) {
 
   /* ------------------------------- commands ------------------------------ */
   async function route(t, line) {
+    // The slash popup completes a typed command by appending a space (enter
+    // chooses, enter again runs); trim it so a fully typed /command matches.
+    if (line.startsWith("/")) line = line.trim();
     if (line === "/exit" || line === "/quit") return exitApp(0);
     if (line === "/help") return pushRaw(t, slashList("/"));
     if (line === "/clear") {
@@ -1724,6 +1830,12 @@ export async function tuiApp(io = {}) {
       }
       return pushRaw(t, dim("Add one: ") + gold(".star-code/agents/<name>.md") + dim(" or ") +
         gold("~/.star-code/agents/<name>.md") + dim(" · run one with ") + gold('task agent:"name"'));
+    }
+    if (line === "/import") {
+      // PushRaw alone paints on the next input event; render now so the
+      // report appears the moment the command runs.
+      pushRaw(t, await opencodeImportText());
+      return requestRender();
     }
     if (line.startsWith("/")) return pushRaw(t, slashList(line));
     return startTurn(t, line);
@@ -1913,6 +2025,9 @@ async function repl() {
     let line;
     try { line = TTY ? await liveInput() : await askPrompt(); } catch { break; }
     if (line == null) break;   // stdin closed
+    // Same as the TUI dispatch: the slash popup completes a typed command
+    // with a trailing space, so a hand-typed /status must still match.
+    if (line.startsWith("/")) line = line.trim();
     if (line === "") continue;
     if (line === "/exit" || line === "/quit") break;
     if (line === "/help") { out(slashList("/") + "\n"); continue; }
@@ -1983,6 +2098,7 @@ async function repl() {
         gold("~/.star-code/agents/<name>.md") + dim(" · run one with ") + gold('task agent:"name"') + "\n");
       continue;
     }
+    if (line === "/import") { out((await opencodeImportText()) + "\n"); continue; }
     // Unknown slash line: offer the list instead of sending it to the model.
     if (line.startsWith("/")) { out(slashList(line) + "\n"); continue; }
     await runTurn(line);
@@ -2003,7 +2119,11 @@ const isMain = (() => {
 })();
 
 if (isMain) {
-  if (demo) {
+  if (importOpencode) {
+    // Settings only: no model is resolved against, no turn is run.
+    out((await opencodeImportText()) + "\n");
+    if (rl) rl.close();
+  } else if (demo) {
     ANSI = !("NO_COLOR" in process.env);   // frames are inked for review, unless the user said no colour
     const frame = await demoScene(demo);
     if (frame == null) {

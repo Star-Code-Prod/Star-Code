@@ -18,6 +18,10 @@ import { readAuth, writeAuthEntry, removeAuthEntry, resolveKey, mask } from "./l
 import { readConfig, writeLastModel } from "./lib/config.js";
 import { listKnowledge, readKnowledgeFile, saveKnowledgeFile, deleteKnowledgeFile, knowledgeDir } from "./lib/knowledge.js";
 import { createToolRunner, readProjectMemory } from "./lib/tools.js";
+// Settings import from a local opencode install (Settings > Import). The
+// module owns the whole scan/apply contract; the endpoint below is its only
+// caller, and the report it returns never carries credentials.
+import { scanOpencode, applyImport } from "./lib/opencode-import.js";
 // Namespace import: chatSystemPrompt() / cheapModelFor() are being added to
 // agent.js alongside this work, and the server must keep booting (and code
 // sessions keep working) whether or not they have landed yet. The chat path
@@ -428,6 +432,17 @@ const HELP_TEXT = `**Star Code — commands**
 **Modes** (cycle with Shift+Tab or the mode menu): Manual · Accept edits · Plan · Bypass
 **Input**: \`@\` mention files · \`!\` run a shell command`;
 
+/** A message for a failed opencode import. Scan/apply errors can quote the
+ *  config files they read, so keep the useful part (paths, syntax problems)
+ *  but erase anything token-shaped before it leaves the process. */
+function importErrorText(e) {
+  const raw = String((e && e.message) || e || "").replace(/\s+/g, " ").trim();
+  return raw
+    .replace(/\b(?:sk|pk|rk|ghp|gho|glpat|xox[abp])[-_][A-Za-z0-9_-]{4,}\b/g, "[redacted]")
+    .replace(/[A-Za-z0-9+/]{24,}={0,2}/g, "[redacted]")
+    .slice(0, 300) || "opencode import failed";
+}
+
 async function route(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
@@ -497,6 +512,30 @@ async function route(req, res) {
     if (!model || model.length > 200) return sendJSON(res, 400, { ok: false, error: "invalid model" });
     writeLastModel(provider, model);
     return sendJSON(res, 200, { ok: true });
+  }
+
+  // One-shot settings import from a local opencode install. The optional
+  // `dir` points the scan at that install's config directory; everything
+  // else uses the defaults. Credentials stay where they are.
+  if (req.method === "POST" && url.pathname === "/api/import/opencode") {
+    const body = await readBody(req);
+    if (body.dir != null && (typeof body.dir !== "string" || body.dir.length > 500)) {
+      return sendJSON(res, 400, { ok: false, error: "dir must be a string of at most 500 characters" });
+    }
+    try {
+      const scan = scanOpencode(body.dir ? { dir: body.dir } : {});
+      const applied = applyImport(scan);
+      return sendJSON(res, 200, {
+        ok: true,
+        found: scan.found,
+        report: applied.report,
+        client: applied.client,
+        agentsWritten: applied.agentsWritten,
+        problems: scan.problems,
+      });
+    } catch (e) {
+      return sendJSON(res, 500, { ok: false, error: importErrorText(e) });
+    }
   }
 
   // Store or clear a provider credential (or an auxiliary key such as the
