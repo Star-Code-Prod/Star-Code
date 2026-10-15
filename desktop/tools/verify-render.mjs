@@ -29,7 +29,7 @@ if (stFrom < 0 || stTo < 0) {
 }
 const fns = new Function(
   js.slice(from, to) + js.slice(sbFrom, sbTo) + js.slice(stFrom, stTo) +
-  "; return { esc, hl, md, stripBlocks, parseArtifacts, toolGroupOf, groupToolCounts, fmtCount };"
+  "; return { esc, hl, md, stripBlocks, parseArtifacts, toolGroupOf, groupToolCounts, fmtCount, splitArtifactParts, deckIframeHtml, docIframeHtml, boardIframeHtml };"
 )();
 
 const results = [];
@@ -107,6 +107,28 @@ ok("grouped counts: the top tools inside a group are sorted",
   JSON.stringify(gc[0].top) === JSON.stringify([{ name: "read_file", count: 9 }, { name: "search_files", count: 3 }]));
 ok("grouped counts: empty is calm", fns.groupToolCounts({}).length === 0 && fns.groupToolCounts(null).length === 0);
 ok("fmtCount compacts thousands", fns.fmtCount(999) === "999" && fns.fmtCount(2000) === "2k" && fns.fmtCount(14237) === "14.2k");
+
+/* ---------------------- artifact types: doc/slides/design ---------------------- */
+ok("parseArtifacts accepts the typed artifacts",
+  ["doc", "slides", "design"].every((lang) =>
+    fns.parseArtifacts("```artifact " + lang + "\nbody\n```")[0]?.lang === lang));
+ok("typed artifacts keep their body", fns.parseArtifacts("```artifact slides\n# One\n---\n# Two\n```")[0].code.includes("---"));
+ok("an unknown lang is still ignored", fns.parseArtifacts("```artifact wobble\nx\n```").length === 0);
+
+const parts = fns.splitArtifactParts("# One\nbody one\n---\n# Two\nbody two\n");
+ok("splitArtifactParts splits on rule lines", parts.length === 2 && parts[0].includes("body one") && parts[1].includes("body two"));
+ok("splitArtifactParts drops empties", fns.splitArtifactParts("a\n---\n---\nb").length === 2);
+ok("splitArtifactParts keeps a single part whole", fns.splitArtifactParts("just one").length === 1);
+
+const deck = fns.deckIframeHtml("# Slide A\n\n---\n\n# Slide B\n\n---\n\n# Slide C");
+ok("the deck shell carries every slide", deck.includes("Slide A") && deck.includes("Slide B") && deck.includes("Slide C"));
+ok("the deck shell counts its slides", deck.includes("1 / 3") && deck.includes("ArrowRight"));
+const doc = fns.docIframeHtml("# Doc fixture\n\nSome **prose** here.");
+ok("the doc shell renders markdown", doc.includes("Doc fixture") && doc.includes("<strong>prose</strong>"));
+const board = fns.boardIframeHtml("<h1>Frame A</h1>\n---\n<h1>Frame B</h1>");
+ok("the board shell frames every artboard", board.includes("Frame A") && board.includes("Frame B") && board.includes("Artboard 1") && board.includes("Artboard 2"));
+ok("one-part bodies still render in every shell",
+  fns.deckIframeHtml("solo").includes("1 / 1") && fns.docIframeHtml("solo text").includes("solo text") && fns.boardIframeHtml("solo frame").includes("Artboard 1"));
 
 console.log(results.join("\n"));
 const failed = results.filter((r) => r.startsWith("FAIL")).length;

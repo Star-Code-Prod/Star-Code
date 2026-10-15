@@ -2703,7 +2703,7 @@ function parseArtifacts(s) {
   while ((m = re.exec(src)) !== null) {
     let lang = (m[2] || "html").toLowerCase();
     if (lang === "markdown") lang = "md";
-    if (!["html", "svg", "md", "motion"].includes(lang)) continue;
+    if (!["html", "svg", "md", "motion", "doc", "slides", "design"].includes(lang)) continue;
     const code = m[3].replace(/\n$/, "");
     out.push({
       lang,
@@ -2713,6 +2713,133 @@ function parseArtifacts(s) {
     });
   }
   return out;
+}
+
+/* ---- typed artifact shells: doc, slides, design ---- */
+/** Split an artifact body on lines of three or more dashes: one part per
+ *  slide / artboard. Empty parts are dropped; a plain body is one part. */
+function splitArtifactParts(code) {
+  return String(code || "")
+    .split(/^[ \t]*-{3,}[ \t]*$/m)
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
+/** Shared adaptive palette for the typed shells (artifact = its own world,
+ *  but it should still feel like Star in either theme). */
+const SHELL_CSS = `
+  :root{color-scheme:light dark}
+  *{box-sizing:border-box}
+  body{margin:0;background:light-dark(#faf9f5,#1a1a1a);color:light-dark(#141413,#e9e9e7);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  h1,h2,h3{font-weight:600;letter-spacing:-.01em;line-height:1.25;margin:.6em 0 .4em}
+  h1{font-size:1.7em}h2{font-size:1.35em}h3{font-size:1.12em}
+  p{margin:.5em 0}ul,ol{margin:.5em 0;padding-left:1.4em}li{margin:.2em 0}
+  code,pre{font-family:"JetBrains Mono",Consolas,monospace;font-size:.85em}
+  pre{background:light-dark(#f0eee6,#161616);color:light-dark(#141413,#dcdcd8);padding:12px 14px;border-radius:10px;overflow:auto}
+  code:not(pre code){background:light-dark(#f0eee6,#161616);padding:1px 5px;border-radius:6px}
+  table{border-collapse:collapse;margin:.8em 0;width:100%}
+  th,td{border:1px solid light-dark(#e3e0d3,#2e2e2e);padding:6px 10px;text-align:left}
+  th{background:light-dark(#f0eee6,#212121)}
+  img{max-width:100%}
+  blockquote{margin:.6em 0;padding:.2em 1em;border-left:3px solid light-dark(#e3e0d3,#2e2e2e);color:light-dark(#8a877d,#6b6b67)}
+`;
+
+/** A document artifact: markdown rendered on a page of comfortable width,
+ *  ready to read, print, or copy into anywhere. */
+function docIframeHtml(code) {
+  const title = artifactTitle(code) || "Document";
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
+<style>${SHELL_CSS}
+  body{padding:44px 24px}
+  .doc{max-width:720px;margin:0 auto}
+  .doc h1:first-child{margin-top:0}
+  @media print{body{padding:0}.doc{max-width:none}}
+</style></head><body><article class="doc">${md(code)}</article></body></html>`;
+}
+
+/** A slides artifact: parts split on ---, one 16:9 slide each, presented
+ *  with arrows/space, a counter, and F for fullscreen. */
+function deckIframeHtml(code) {
+  const title = artifactTitle(code) || "Deck";
+  const slides = splitArtifactParts(code);
+  const body = slides.length ? slides : [String(code || "")];
+  const rendered = body.map((s, i) => `<section class="slide${i === 0 ? " on" : ""}">${s}</section>`).join("\n");
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
+<style>${SHELL_CSS}
+  html,body{height:100%;overflow:hidden}
+  body{padding:18px 18px 56px}
+  .slide{display:none;width:100%;max-width:980px;aspect-ratio:16/9;margin:0 auto;padding:48px 56px;
+    background:light-dark(#ffffff,#212121);border:1px solid light-dark(#e3e0d3,#2e2e2e);border-radius:16px;
+    box-shadow:0 10px 30px light-dark(rgba(0,0,0,.07),rgba(0,0,0,.4));overflow:auto}
+  .slide.on{display:block}
+  .slide>*:first-child{margin-top:0}
+  .slide h1{font-size:2.1em}.slide p,.slide li{font-size:1.02em}
+  .bar{position:fixed;left:0;right:0;bottom:0;height:44px;display:flex;align-items:center;gap:10px;
+    justify-content:center;background:light-dark(rgba(250,249,245,.92),rgba(26,26,26,.92));
+    border-top:1px solid light-dark(#e3e0d3,#2e2e2e);font-size:13px}
+  .bar button{width:30px;height:30px;border-radius:999px;border:1px solid light-dark(#d9d6c8,#3a3a3a);
+    background:transparent;color:inherit;font-size:16px;cursor:pointer;line-height:1}
+  .bar button:hover{background:light-dark(#eae7dc,#242424)}
+  .bar .hint{color:light-dark(#8a877d,#6b6b67);margin-left:6px}
+</style></head><body>
+${rendered}
+<div class="bar"><button id="prev" aria-label="Previous slide">‹</button><span id="count">1 / ${body.length}</span><button id="next" aria-label="Next slide">›</button><span class="hint">← → · space · F fullscreen</span></div>
+\x3Cscript>
+(function(){
+  var slides=[].slice.call(document.querySelectorAll('.slide')),i=0,n=slides.length;
+  function show(k){i=Math.max(0,Math.min(n-1,k));for(var j=0;j<n;j++)slides[j].classList.toggle('on',j===i);
+    document.getElementById('count').textContent=(i+1)+' / '+n;}
+  function toggleFs(){if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen();}
+  addEventListener('keydown',function(e){
+    if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){e.preventDefault();show(i+1);}
+    else if(e.key==='ArrowLeft'||e.key==='PageUp'){e.preventDefault();show(i-1);}
+    else if(e.key==='f'||e.key==='F'){toggleFs();}
+  });
+  document.getElementById('next').onclick=function(){show(i+1);};
+  document.getElementById('prev').onclick=function(){show(i-1);};
+})();
+\x3C/script></body></html>`;
+}
+
+/** A design artifact: parts split on ---, one artboard each, laid out on a
+ *  pannable, zoomable canvas (drag, wheel, double-click to reset). */
+function boardIframeHtml(code) {
+  const title = artifactTitle(code) || "Design";
+  const frames = splitArtifactParts(code);
+  const body = frames.length ? frames : [String(code || "")];
+  const rendered = body
+    .map((f, i) => `<figure class="frame"><figcaption>Artboard ${i + 1}</figcaption><div class="sheet">${f}</div></figure>`)
+    .join("\n");
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
+<style>${SHELL_CSS}
+  html,body{height:100%;overflow:hidden}
+  .canvas{position:absolute;inset:0;transform-origin:0 0;padding:40px;display:grid;
+    grid-template-columns:repeat(2,minmax(360px,1fr));gap:36px;align-content:start;cursor:grab}
+  .canvas.drag{cursor:grabbing}
+  .frame{margin:0}
+  figcaption{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:light-dark(#8a877d,#6b6b67);margin:0 0 8px 2px}
+  .sheet{background:light-dark(#ffffff,#212121);border:1px solid light-dark(#e3e0d3,#2e2e2e);
+    border-radius:12px;box-shadow:0 8px 24px light-dark(rgba(0,0,0,.08),rgba(0,0,0,.45));
+    padding:24px;min-height:200px;overflow:hidden}
+  .sheet>*:first-child{margin-top:0}
+  .hintbar{position:fixed;left:0;right:0;bottom:0;height:38px;display:flex;align-items:center;justify-content:center;
+    font-size:12px;color:light-dark(#8a877d,#6b6b67);background:light-dark(rgba(250,249,245,.9),rgba(26,26,26,.9));
+    border-top:1px solid light-dark(#e3e0d3,#2e2e2e)}
+</style></head><body>
+<div class="canvas" id="canvas">${rendered}</div>
+<div class="hintbar">drag to pan · wheel to zoom · double-click to reset</div>
+\x3Cscript>
+(function(){
+  var c=document.getElementById('canvas'),x=0,y=0,s=1,drag=null;
+  function apply(){c.style.transform='translate('+x+'px,'+y+'px) scale('+s+')';}
+  c.addEventListener('mousedown',function(e){drag={x:e.clientX,y:e.clientY};c.classList.add('drag');e.preventDefault();});
+  addEventListener('mousemove',function(e){if(!drag)return;x+=e.clientX-drag.x;y+=e.clientY-drag.y;drag={x:e.clientX,y:e.clientY};apply();});
+  addEventListener('mouseup',function(){drag=null;c.classList.remove('drag');});
+  c.addEventListener('wheel',function(e){e.preventDefault();var k=e.deltaY<0?1.1:0.9;s=Math.max(0.2,Math.min(4,s*k));apply();},{passive:false});
+  c.addEventListener('dblclick',function(){x=0;y=0;s=1;apply();});
+})();
+\x3C/script></body></html>`;
 }
 
 /* ---- artifacts: streaming sync, cards, pane renderer ---- */
@@ -2860,6 +2987,9 @@ async function saveArtifactFile(a, btn) {
 function artifactPageHtml(a) {
   return a.lang === "html" ? a.code
     : a.lang === "svg" ? `<!doctype html><body style="margin:0;display:grid;place-items:center;height:100vh">${a.code}</body>`
+    : a.lang === "doc" ? docIframeHtml(a.code)
+    : a.lang === "slides" ? deckIframeHtml(a.code)
+    : a.lang === "design" ? boardIframeHtml(a.code)
     : a.lang === "motion" ? motionDoc(a.code)
     : `<pre style="font:13px ui-monospace,monospace;padding:24px;white-space:pre-wrap">${esc(a.code)}</pre>`;
 }
@@ -2894,6 +3024,9 @@ function renderArtifactInto(host, a) {
     frame.setAttribute("sandbox", "allow-scripts");
     frame.srcdoc = a.lang === "svg"
       ? `<!doctype html><body style="margin:0;display:grid;place-items:center;height:100vh;background:#fff">${a.code}</body>`
+      : a.lang === "doc" ? docIframeHtml(a.code)
+      : a.lang === "slides" ? deckIframeHtml(a.code)
+      : a.lang === "design" ? boardIframeHtml(a.code)
       : a.code;
     body.appendChild(frame);
   }
@@ -2913,7 +3046,7 @@ function renderArtifactInto(host, a) {
       bridge.openHtml(a.lang === "motion" ? "motion" : "artifact", html);
     } else {
       const type = a.lang === "svg" ? "image/svg+xml" : a.lang === "md" ? "text/markdown" : "text/html";
-      const url = URL.createObjectURL(new Blob([a.lang === "motion" ? html : a.code], { type }));
+      const url = URL.createObjectURL(new Blob([html], { type }));
       window.open(url, "_blank");
     }
   });

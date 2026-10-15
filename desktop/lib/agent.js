@@ -225,7 +225,12 @@ Formats (pick one; never several for the same thing). Emit exactly one fence of 
 - html - one self-contained page: tool, dashboard, sheet, whiteboard, task list, diagram, site.
 - svg - a single standalone SVG image or diagram.
 - md - a formatted document: headings, tables, checklists.
+- doc - a document the user keeps or prints: markdown body, rendered on a readable page.
+- slides - a deck presented in the pane: one slide per part separated by a line of ---, each slide ordinary HTML (h1, p, ul, table). Arrow keys / space move, F is fullscreen.
+- design - artboards on a pan/zoom canvas: one frame per part separated by a line of ---, each frame ordinary HTML. The user drags to pan and wheel-zooms.
 - motion - a canvas animation the user records to video (contract below).
+
+For doc, slides and design the host supplies the styling; use plain headings, paragraphs, lists and tables inside - no page boilerplate, no styles of your own.
 
 Page contract (hand-built pages):
 - Real content, never lorem ipsum; include one detail only this subject would have. A tool opens already filled with a realistic example.
