@@ -248,8 +248,8 @@ body.is-mac.is-electron .brand{margin-left:2px}
 /* ---------------- session column ---------------- */
 .session{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--bg)}
 .shead{
-  height:46px;flex:none;display:flex;align-items:center;gap:9px;padding:0 var(--sp-4);
-  border-bottom:1px solid var(--border);background:var(--bg);
+  height:46px;flex:none;display:flex;align-items:center;gap:9px;padding:0 12px;
+  margin:8px 8px 0;border:1px solid var(--border);border-radius:var(--r-md);background:var(--panel);
 }
 .shead .ico{color:var(--accent);display:flex;flex:none;opacity:.9}
 .shead .ttl{
@@ -468,7 +468,7 @@ body.is-mac.is-electron .brand{margin-left:2px}
 .art-host{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
 /* The preview host fills the pane; everything inside flexes from here. */
 #filePreview{min-height:100%;display:flex;flex-direction:column}
-.aptools{display:flex;align-items:center;gap:7px;padding:6px 10px;border-bottom:1px solid var(--border);background:var(--panel2);flex:none}
+.aptools{display:flex;align-items:center;gap:7px;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--panel2);flex:none}
 .aptools select{width:auto;padding:4px 8px}
 .apbody{flex:1;min-height:0;display:flex;flex-direction:column;overflow:auto}
 .apframe{flex:1;width:100%;min-height:320px;border:0;background:#fff}
@@ -479,7 +479,7 @@ body.is-mac.is-electron .brand{margin-left:2px}
 
 /* ---- motion artifacts: canvas scene → recorded video ---- */
 .mo{display:flex;flex-direction:column;flex:1;min-height:0}
-.mo-bar{display:flex;align-items:center;gap:7px;padding:8px 10px;border-bottom:1px solid var(--border);background:var(--panel2);flex:none;flex-wrap:wrap}
+.mo-bar{display:flex;align-items:center;gap:7px;padding:8px 12px;border-bottom:1px solid var(--border);background:var(--panel2);flex:none;flex-wrap:wrap}
 .mo-bar select{width:auto;padding:4px 8px}
 .mo-bar .mo-scrub{flex:1;min-width:60px;accent-color:var(--accent)}
 .mo-time{font-family:var(--font-mono);font-size:var(--fs-11);color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -700,12 +700,12 @@ body.is-mac.is-electron .brand{margin-left:2px}
    panels it hosts, not a flush bordered column. */
 .panes{
   width:var(--pane-w,420px);flex:none;display:flex;flex-direction:column;
-  margin:8px 8px 8px 0;border:1px solid var(--border);border-radius:var(--r-md);
+  margin:8px;border:1px solid var(--border);border-radius:var(--r-md);
   overflow:hidden;background:var(--panel);box-shadow:var(--shadow-sm);position:relative;
 }
 .panes.hide{display:none}
 .pane-tabs{
-  display:flex;align-items:center;gap:3px;padding:8px;background:transparent;
+  display:flex;align-items:center;gap:3px;padding:10px;background:transparent;
   border-bottom:1px solid var(--border);flex:none;overflow-x:auto;scrollbar-width:none;
 }
 .pane-tabs::-webkit-scrollbar{height:0}
@@ -740,7 +740,7 @@ body.pane-drag .pane-grip{background:color-mix(in srgb,var(--accent) 45%,transpa
 .pane-row{flex:1;min-height:0;display:none;flex-direction:column}
 .pane-row.active{display:flex;animation:fadeIn var(--t-mid) var(--ease)}
 .pane-sub{
-  display:flex;align-items:center;gap:7px;height:38px;padding:0 10px;background:var(--panel2);
+  display:flex;align-items:center;gap:7px;height:38px;padding:0 12px;background:var(--panel2);
   border-bottom:1px solid var(--border);flex:none;font-size:var(--fs-13);color:var(--text2);
 }
 .pane-sub>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
