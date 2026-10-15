@@ -174,6 +174,12 @@ ok("cards are committed with the artifact, not at message end",
 ok("an unfinished fence never leaves the working state up", fnBody("function endAssistant()").includes("pendingArt = null"));
 ok("the thinking block sits above its message, not under it",
   fnBody("function materializeThink()").includes("insertBefore(n, currentMsg)"));
+ok("menu items hand focus back to the composer",
+  fnBody("function closeMenuAndRun(").includes("runMenuItem(") &&
+  js.includes("closeMenuAndRun(b, it.run)") && js.includes("closeMenuAndRun(b, real.run)"));
+ok("the focus hand-back never steals from a dialog",
+  fnBody("function refocusComposerIfIdle(").includes("settings") &&
+  fnBody("function refocusComposerIfIdle(").includes("artDlg"));
 ok("motion autoplays once per player",
   js.includes("let autoPlayed = false") && js.includes("autoPlayed = true") && js.includes('playBtn.textContent = "Pause"'));
 ok("motion pacing keeps the scene's cadence", js.includes("nextAt = Math.max(now, (nextAt || now) + iv)"));

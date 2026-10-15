@@ -1631,6 +1631,41 @@ function applyMode(id) {
   $("bigMode").textContent = m.label;
 }
 function closeMenus() { document.querySelectorAll(".menu").forEach(m => m.remove()); $("ctxMenu").style.display = "none"; }
+
+/** Keyboard focus belongs to the message box. Menu items run AFTER the menu
+ *  closed, and closing hides the focused button: focus falls to <body> and
+ *  typing goes nowhere (deleting a session, pinning one, picking a pane...).
+ *  Hand focus back once the action has run - unless it focused something it
+ *  owns (a dialog's field) or a modal is now up, where the composer would sit
+ *  hidden behind it. */
+function refocusComposerIfIdle() {
+  if ($("settings").classList.contains("on")) return;
+  if ($("artDlg").classList.contains("on")) return;
+  const ae = document.activeElement;
+  if (!ae || ae === document.body) focusComposer();
+}
+
+/** Run a menu item; sync or async, focus comes home when it settles. The
+ *  check is deferred a tick: Chrome moves focus to <body> when the click
+ *  task ends, so an immediate check would still see the dying button. */
+function runMenuItem(run) {
+  const done = () => setTimeout(refocusComposerIfIdle, 0);
+  if (typeof run !== "function") { done(); return; }
+  try {
+    const p = run();
+    if (p && typeof p.then === "function") p.then(done, done);
+    else done();
+  } catch { done(); }
+}
+
+/** Close the menu and run its item. A real mouse press focused the clicked
+ *  button, and hiding the menu would drop that focus to <body> a frame later
+ *  - blur it synchronously first so the hand-back below is deterministic. */
+function closeMenuAndRun(btn, run) {
+  if (btn && document.activeElement === btn) { try { btn.blur(); } catch { /* fine */ } }
+  closeMenus();
+  runMenuItem(run);
+}
 document.addEventListener("click", e => { if (!e.target.closest(".menu") && !e.target.closest("[data-menu]")) closeMenus(); });
 
 function openMenu(anchor, items, opts = {}) {
@@ -1645,7 +1680,7 @@ function openMenu(anchor, items, opts = {}) {
     b.className = "mi" + (it.on ? " on" : "");
     b.innerHTML = (it.ico || "") + `<span>${esc(it.label)}${it.sub ? ` <span class="sub">${esc(it.sub)}</span>` : ""}</span>` +
       (it.on ? '<span class="tick">✓</span>' : (it.k ? `<span class="k">${esc(it.k)}</span>` : ""));
-    b.addEventListener("click", ev => { ev.stopPropagation(); closeMenus(); it.run && it.run(); });
+    b.addEventListener("click", ev => { ev.stopPropagation(); closeMenuAndRun(b, it.run); });
     m.appendChild(b);
   }
   document.body.appendChild(m);
@@ -2541,7 +2576,7 @@ function sessionMenu(anchor, id) {
   ).join("");
   m.querySelectorAll(".mi").forEach((b, i) => {
     const real = items.filter((x) => !x.sep)[i];
-    if (real && real.run) b.addEventListener("click", (e) => { e.stopPropagation(); closeMenus(); real.run(); });
+    if (real && real.run) b.addEventListener("click", (e) => { e.stopPropagation(); closeMenuAndRun(b, real.run); });
   });
 }
 
