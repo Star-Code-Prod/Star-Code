@@ -24,8 +24,10 @@ jobs:
           node-version: 22
       # Regenerate the star chart at deploy time: the daily stars workflow
       # commits it for the README, but a GITHUB_TOKEN push cannot trigger this
-      # workflow, so the site refreshes it itself on every deploy.
+      # workflow, so the site refreshes it itself on every deploy. Non-fatal:
+      # the committed chart is always the fallback.
       - name: Refresh the star chart
+        continue-on-error: true
         run: node desktop/tools/make-star-chart.mjs
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

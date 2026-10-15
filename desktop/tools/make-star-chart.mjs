@@ -102,12 +102,29 @@ function resolveToken() {
 }
 
 async function fetchStars(repo, token, maxPages) {
-  const headers = {
+  // A token is tried first, but Actions' default token is refused (403) on the
+  // stargazers route for some repositories; public repos need no auth at all,
+  // so a 401/403 falls back to an unauthenticated retry (60 requests/hour is
+  // plenty for one page a day).
+  const baseHeaders = {
     accept: "application/vnd.github.star+json",
     "user-agent": "star-code-chart",
   };
-  if (token) headers.authorization = "Bearer " + token;
+  const modes = token ? [{ authorization: "Bearer " + token }, {}] : [{}];
+  let lastError = null;
+  for (const mode of modes) {
+    try {
+      return await fetchStarsWith(repo, { ...baseHeaders, ...mode }, maxPages);
+    } catch (err) {
+      lastError = err;
+      if (mode.authorization === undefined || !/returned (401|403)/.test(err.message)) throw err;
+      console.log("note: the token was refused (401/403) - retrying unauthenticated (public repos need no token)");
+    }
+  }
+  throw lastError;
+}
 
+async function fetchStarsWith(repo, headers, maxPages) {
   const entries = [];
   let capped = false;
   for (let page = 1; page <= maxPages; page++) {
