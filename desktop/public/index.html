@@ -4010,6 +4010,10 @@ function materializeThink() {
   if (!cur || cur.node) return;
   const pid = "think-b-" + (++thinkSeq);
   const n = node("think");
+  // The round's message node opens before its reasoning streams, so a plain
+  // append would park the thinking UNDER the answer it explains: insert the
+  // block directly above the message it belongs to.
+  if (currentMsg && currentMsg.parentNode === $("stream")) $("stream").insertBefore(n, currentMsg);
   thinkMode(n, "peek");
   n.setAttribute("data-live", "");
   n.innerHTML = `

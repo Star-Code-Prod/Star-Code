@@ -172,6 +172,8 @@ ok("syncArtifacts opens on the fence's first line",
 ok("cards are committed with the artifact, not at message end",
   fnBody("function syncArtifacts(").includes("addArtifactCard("));
 ok("an unfinished fence never leaves the working state up", fnBody("function endAssistant()").includes("pendingArt = null"));
+ok("the thinking block sits above its message, not under it",
+  fnBody("function materializeThink()").includes("insertBefore(n, currentMsg)"));
 ok("motion autoplays once per player",
   js.includes("let autoPlayed = false") && js.includes("autoPlayed = true") && js.includes('playBtn.textContent = "Pause"'));
 ok("motion pacing keeps the scene's cadence", js.includes("nextAt = Math.max(now, (nextAt || now) + iv)"));
