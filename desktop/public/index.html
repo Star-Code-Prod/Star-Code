@@ -192,7 +192,7 @@ body.is-mac.is-electron .brand{margin-left:2px}
 .sb-search .clr:hover{background:var(--hover);color:var(--text)}
 .sessions{flex:1;overflow-y:auto;min-height:0;padding:0 var(--sp-2) var(--sp-3)}
 .sess-group{
-  padding:10px 9px 5px;font-size:10.5px;letter-spacing:.05em;color:var(--dim);text-transform:uppercase;
+  padding:10px 9px 5px;font-size:11px;letter-spacing:.05em;color:var(--dim);text-transform:uppercase;
 }
 .sess{
   display:grid;grid-template-columns:16px minmax(0,1fr) auto;grid-template-rows:auto auto;
@@ -209,7 +209,7 @@ body.is-mac.is-electron .brand{margin-left:2px}
 .sess.on .ico{color:var(--accent)}
 .sess .lbl{grid-column:2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.35}
 .sess .meta{
-  grid-column:2;font-size:10.5px;color:var(--dim);line-height:1.3;
+  grid-column:2;font-size:11px;color:var(--dim);line-height:1.3;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 .sess .more{
@@ -534,7 +534,7 @@ body.is-mac.is-electron .brand{margin-left:2px}
 .composer{flex:none;padding:0 var(--sp-6) var(--sp-4);position:relative;background:var(--bg)}
 .cwrap{max-width:var(--col);margin:0 auto;position:relative}
 .cbox{
-  display:flex;align-items:flex-end;gap:10px;padding:11px 13px;border-radius:var(--r-xl);
+  display:flex;align-items:flex-end;gap:8px;padding:8px 10px;border-radius:var(--r-xl);
   background:var(--elev);border:1px solid var(--border2);box-shadow:var(--shadow-md);
   transition:border-color var(--t-mid) var(--ease),box-shadow var(--t-mid) var(--ease);
 }
@@ -544,21 +544,35 @@ body.is-mac.is-electron .brand{margin-left:2px}
 }
 .cbox textarea{
   flex:1;border:0;outline:0;background:transparent;color:var(--text);resize:none;
-  font-size:var(--fs-14);line-height:1.55;min-height:24px;max-height:200px;
+  font-size:var(--fs-14);line-height:24px;min-height:30px;max-height:200px;padding:3px 0;
+  scrollbar-width:none;
 }
+.cbox textarea::-webkit-scrollbar{display:none}
 .cbox textarea::placeholder{color:var(--dim)}
+.cplus{
+  flex:none;width:30px;height:30px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center;
+  color:var(--muted);border:1px solid var(--border2);background:transparent;
+  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease),transform var(--t-fast) var(--ease);
+}
+.cplus:hover{background:var(--panel);color:var(--text);border-color:var(--muted)}
+.cplus:active{transform:scale(.94)}
 .kbdh{
   flex:none;width:30px;height:30px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center;
-  background:var(--accent);color:var(--accent-fg);font-family:var(--font-mono);font-size:var(--fs-13);line-height:1;
-  transition:background var(--t-fast) var(--ease),transform var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
+  background:transparent;color:var(--muted);border:1px solid var(--border2);
+  transition:background var(--t-fast) var(--ease),transform var(--t-fast) var(--ease),color var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease);
 }
-.kbdh:hover{background:var(--accent-h)}
+.kbdh:hover{background:var(--panel);color:var(--text);border-color:var(--muted)}
 .kbdh:active{transform:scale(.94)}
+.kbdh.ready{background:var(--accent);color:var(--accent-fg);border-color:transparent}
+.kbdh.ready:hover{background:var(--accent-h);color:var(--accent-fg)}
+.kbdh .ic-stop{display:none}
 .kbdh.stop{
   background:var(--panel2);color:var(--del-fg);
   border:1px solid color-mix(in srgb,var(--del-fg) 45%,var(--border2));
 }
 .kbdh.stop:hover{background:var(--panel)}
+.kbdh.stop .ic-send{display:none}
+.kbdh.stop .ic-stop{display:block}
 .crow{display:flex;align-items:center;gap:var(--sp-1);margin-top:var(--sp-2);padding:0 2px;flex-wrap:wrap}
 .cbtn{
   display:flex;align-items:center;gap:7px;padding:5px 9px;border-radius:var(--r-sm);
@@ -1162,17 +1176,20 @@ body.mode-chat #bigProj{display:none}
         <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v10M3.5 8.5L8 13l4.5-4.5"/></svg>
       </button>
       <div class="cbox">
+        <button class="cplus" id="cPlus" type="button" title="Attach context (@)" aria-label="Attach context">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M8 3.2v9.6M3.2 8h9.6"/></svg>
+        </button>
         <textarea id="input" rows="1" placeholder="Type / for commands" aria-label="Message Star"></textarea>
-        <button class="kbdh" id="kbdHint" type="button" title="Send" aria-label="Send message">⏎</button>
+        <button class="kbdh" id="kbdHint" type="button" title="Send" aria-label="Send message">
+          <svg class="ic-send" width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13.5V3M3.5 7.5L8 3l4.5 4.5"/></svg>
+          <svg class="ic-stop" width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="3.5" width="9" height="9" rx="2" fill="currentColor"/></svg>
+        </button>
       </div>
       <div class="crow">
         <button class="cbtn" id="cMode">Ask permissions</button>
         <button class="cbtn" id="cAgent" title="Agent persona for this turn">No agent</button>
         <button class="cbtn ico" id="cPanels" title="Add pane" aria-label="Add a pane">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M8 6.2v5.1M5.45 8.75h5.1"/></svg>
-        </button>
-        <button class="cbtn ico" id="cAttach" title="Attach context" aria-label="Attach context">
-          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13.2 7.4l-4.9 4.9a3.3 3.3 0 01-4.67-4.67l5.2-5.2a2.2 2.2 0 013.11 3.11l-5.1 5.1a1.1 1.1 0 01-1.56-1.56l4.7-4.7"/></svg>
         </button>
         <button class="cbtn ico" id="cShell" title="Shell mode" aria-label="Shell mode">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 5.5l3 3-3 3M8.5 12h4.5"/></svg>
@@ -1224,10 +1241,12 @@ body.mode-chat #bigProj{display:none}
       </section>
 
       <section class="pane-row" data-pane="tasks">
+        <div class="pane-sub"><span>Tasks</span></div>
         <div class="pane-b"><div class="pempty" id="tasksEmpty">No tasks yet.</div><div id="tasksList"></div></div>
       </section>
 
       <section class="pane-row" data-pane="plan">
+        <div class="pane-sub"><span>Plan</span></div>
         <div class="pane-b">
           <div class="plan-body" id="planBody">
             <div style="font-weight:600;color:var(--text);margin-bottom:6px">No plan yet.</div>
@@ -1237,6 +1256,7 @@ body.mode-chat #bigProj{display:none}
       </section>
 
       <section class="pane-row" data-pane="terminal">
+        <div class="pane-sub"><span>Terminal</span></div>
         <div class="term" id="term">[shell] ready — commands Star runs appear here</div>
       </section>
 
@@ -1610,7 +1630,13 @@ let mpItems = [];      // flat, selectable rows (keyboard order)
 let mpSel = 0;
 
 async function refreshPickableModels() {
+  // Every provider that can answer gets a live list; the rest keep their
+  // static fallback in the picker. Fetching only the active provider left
+  // connected providers showing stale built-in models.
   const want = new Set([state.current]);
+  for (const p of (meta && meta.providers) || []) {
+    if (p.connected || p.envConfigured) want.add(p.id);
+  }
   try {
     const det = await (await fetch("/api/detect")).json();
     for (const [id, st] of Object.entries(det)) if (st.up) want.add(id);
@@ -2082,7 +2108,7 @@ function sessionRow(s) {
           ? '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M9.6 1.8l4.6 4.6-1.4 1.4-.7-.7-2.6 2.6.3 2.4-1.3 1.3-3.3-3.3-3 3-.9-.9 3-3L1.3 6.4l1.3-1.3 2.4.3L7.6 2.8l-.7-.7z"/></svg>'
           : (s.kind || "code") === "chat"
           ? '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 3.3c3.2 0 5.7 2 5.7 4.5S11.2 12.3 8 12.3c-.5 0-1.1-.1-1.6-.2l-2.9.9.8-2.2c-1.3-.8-2.1-1.9-2.1-3C2.2 5.3 4.8 3.3 8 3.3z"/></svg>'
-          : '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="5"/></svg>'
+          : '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M5.5 4L2 8l3.5 4M10.5 4L14 8l-3.5 4"/></svg>'
       }</span>
       <span class="lbl">${esc(s.title)}</span>
       ${unread ? '<span class="dotnew" title="Unread"></span>' : ""}
@@ -2174,6 +2200,7 @@ async function switchSession(id) {
 function renderTranscript(msgs) {
   $("stream").innerHTML = "";
   currentMsg = null; currentThink = null; toolGroup = null; lastDiff = []; diffs = [];
+  turnThink = null;
   artifacts = []; msgArtifacts = []; msgCards = 0; artifactView = { i: 0, mode: "render" };
   artifactCards = new Map();
   if (!msgs.length) { showLanding(); renderSessions(); return; }
@@ -3351,6 +3378,9 @@ const SPARK_SVG = '<svg class="think-star" viewBox="0 0 24 24" fill="currentColo
 const CHEV_SVG = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 3.5l4.5 4.5L6 12.5"/></svg>';
 const THINK_CHEV = '<svg class="think-chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4.5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 let thinkSeq = 0;
+// The turn's thinking block. Later phases of the SAME turn revive this one in
+// place (no train of collapsed pills); endTurnThink clears it for the next.
+let turnThink = null;
 
 /** Set the mode and keep the pill's aria state truthful. */
 function thinkMode(n, mode) {
@@ -3361,6 +3391,36 @@ function thinkMode(n, mode) {
 
 function startThinking() {
   thinkStart = performance.now();
+  const reviving = turnThink && turnThink.node && turnThink.node.isConnected;
+  if (reviving) {
+    // Later phase of the same turn: reopen this turn's block where it sits.
+    currentThink = turnThink;
+    const n = currentThink.node;
+    thinkMode(n, n.dataset.mode === "open" ? "open" : "peek");
+    n.setAttribute("data-live", "");
+    currentThink.label.textContent = "Thinking…";
+    if (currentThink.text && !currentThink.text.endsWith("\n\n")) currentThink.text += "\n\n";
+    currentThink.panel.textContent = currentThink.text;
+    currentThink.body.scrollTop = currentThink.body.scrollHeight;
+  } else {
+    // Deferred DOM: an empty phase never flashes a pill that removes itself.
+    currentThink = { node: null, text: "", body: null, panel: null, label: null, userScrolled: false };
+    turnThink = currentThink;
+  }
+  clearInterval(thinkTimer);
+  thinkTimer = setInterval(() => {
+    if (!currentThink || !currentThink.label) return;
+    const s = Math.floor((performance.now() - thinkStart) / 1000);
+    currentThink.label.textContent = s > 0 ? "Thinking… " + s + "s" : "Thinking…";
+  }, 250);
+  scrollDown();
+  toolGroup = null;
+}
+
+/** First delta of a phase builds the block (and wires its interactions). */
+function materializeThink() {
+  const cur = currentThink;
+  if (!cur || cur.node) return;
   const pid = "think-b-" + (++thinkSeq);
   const n = node("think");
   thinkMode(n, "peek");
@@ -3374,48 +3434,31 @@ function startThinking() {
     <div class="think-b" id="${pid}" role="region" aria-label="Reasoning" aria-live="off">
       <div class="think-t" data-body></div>
     </div>`;
-
-  const body = n.querySelector(".think-b");
-  const panel = n.querySelector(".think-t");
+  cur.node = n;
+  cur.body = n.querySelector(".think-b");
+  cur.panel = n.querySelector(".think-t");
+  cur.label = n.querySelector(".think-label");
+  if (cur.text) cur.panel.textContent = cur.text;
   const pill = n.querySelector(".think-h");
-
-  currentThink = {
-    node: n,
-    text: "",
-    body: body,
-    panel: panel,
-    label: n.querySelector(".think-label"),
-    userScrolled: false,
-  };
-
   pill.addEventListener("click", () => {
     const live = n.hasAttribute("data-live");
     const open = n.dataset.mode === "open";
     thinkMode(n, open ? (live ? "peek" : "closed") : "open");
-    if (n.dataset.mode === "peek") setTimeout(() => { body.scrollTop = body.scrollHeight; }, 320);
-    if (n.dataset.mode === "open" && currentThink && currentThink.node === n && !currentThink.userScrolled) {
-      body.scrollTop = body.scrollHeight;
+    if (n.dataset.mode === "peek") setTimeout(() => { cur.body.scrollTop = cur.body.scrollHeight; }, 320);
+    if (n.dataset.mode === "open" && currentThink === cur && !cur.userScrolled) {
+      cur.body.scrollTop = cur.body.scrollHeight;
     }
   });
-
-  // "Do not auto-scroll if the person has scrolled up" — only in `open`,
-  // where the panel actually scrolls for the reader.
-  body.addEventListener("scroll", () => {
-    const cur = currentThink && currentThink.node === n ? currentThink : null;
-    const up = body.scrollTop + body.clientHeight < body.scrollHeight - 8;
-    if (cur) cur.userScrolled = up;
+  cur.body.addEventListener("scroll", () => {
+    const up = cur.body.scrollTop + cur.body.clientHeight < cur.body.scrollHeight - 8;
+    cur.userScrolled = up;
   });
-
-  thinkTimer = setInterval(() => {
-    if (!currentThink || currentThink.node !== n) return;
-    const s = Math.floor((performance.now() - thinkStart) / 1000);
-    currentThink.label.textContent = s > 0 ? "Thinking… " + s + "s" : "Thinking…";
-  }, 250);
-  toolGroup = null;
+  scrollDown();
 }
 
 function addThinking(t) {
   if (!currentThink) startThinking();
+  materializeThink();
   const cur = currentThink;
   cur.text += t;
   cur.panel.textContent = cur.text;
@@ -3429,23 +3472,35 @@ function endThinking(ms) {
   thinkTimer = null;
   const cur = currentThink;
   currentThink = null;
+  // A phase with no text never built its DOM: nothing to settle, nothing to
+  // flash. The turn's block (if any) stays as it was for later phases.
+  if (!cur.node) return;
   const n = cur.node;
   const secs = Math.max(0, (ms != null ? ms : performance.now() - thinkStart) / 1000);
 
   // The model skipped reasoning: no text ever arrived, so no block either.
-  if (!cur.text.trim()) { n.remove(); return; }
+  if (!cur.text.trim()) { n.remove(); if (turnThink === cur) turnThink = null; return; }
 
   n.removeAttribute("data-live");
   cur.label.textContent = secs < 1 ? "Thought for a moment" : "Thought for " + Math.max(1, Math.round(secs)) + "s";
   cur.body.scrollTop = cur.body.scrollHeight;
 
-  // autoCollapseThinking on → fold (unless the person opened it); off → the
-  // block simply stays in whatever mode it is in (peek or open).
+  // autoCollapseThinking on → fold (unless the person opened it, or a new
+  // phase went live again in the meantime); off → stay in the current mode.
   if (state.autoCollapseThinking) {
     const keepOpen = n.dataset.mode === "open";
-    setTimeout(() => { if (!keepOpen && n.isConnected) thinkMode(n, "closed"); }, 500);
+    setTimeout(() => { if (!keepOpen && n.isConnected && !n.hasAttribute("data-live")) thinkMode(n, "closed"); }, 500);
   }
   scrollDown();
+}
+
+/** The turn is over (send finished, session changed): the next turn starts a
+ *  fresh thinking block instead of reviving this one. */
+function endTurnThink() {
+  clearInterval(thinkTimer);
+  thinkTimer = null;
+  currentThink = null;
+  turnThink = null;
 }
 
 /* ---- tool summary group ---- */
@@ -3794,6 +3849,7 @@ async function sendToAgent(message) {
     addTool({ name: "error", args: {}, status: "denied", detail: e.message });
   } finally {
     endAssistant(); endThinking(); streaming = false;
+    endTurnThink();
     setWorking(false);
     // the server titles a session from its first message; pull the new title in
     if (wasNew && sessionId) {
@@ -3870,6 +3926,7 @@ async function newSession(opts = {}) {
   artifacts = []; msgArtifacts = []; msgCards = 0; artifactView = { i: 0, mode: "render" };
   artifactCards = new Map();
   currentMsg = null; currentThink = null; toolGroup = null;
+  turnThink = null;
   $("stream").innerHTML = "";
   $("term").innerHTML = '<span class="rt">[shell] ready — commands Star runs appear here</span>';
   $("sTitle").textContent = opts.title || "New session";
@@ -3934,7 +3991,12 @@ function acceptSlash() {
 }
 
 /* ============================ INPUT ============================ */
-function autoGrow(el) { el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, 200) + "px"; }
+function autoGrow(el) {
+  el.style.height = "auto";
+  el.style.height = Math.min(el.scrollHeight, 200) + "px";
+  // The send button reads the composer's emptiness (ghost when idle).
+  if (el === $("input")) $("kbdHint").classList.toggle("ready", el.value.trim() !== "");
+}
 $("input").addEventListener("input", () => {
   autoGrow($("input"));
   const v = $("input").value;
@@ -3950,8 +4012,8 @@ $("input").addEventListener("keydown", e => {
   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
 });
 $("kbdHint").addEventListener("click", () => { if (streaming) abort(); else send(); });
+$("cPlus").addEventListener("click", () => { $("input").value += "@"; $("input").focus(); autoGrow($("input")); });
 $("cShell").addEventListener("click", () => { $("input").value = "! "; $("input").focus(); });
-$("cAttach").addEventListener("click", () => { $("input").value += "@"; $("input").focus(); });
 $("cMore").addEventListener("click", e => {
   e.stopPropagation();
   openMenu($("cMore"), [
