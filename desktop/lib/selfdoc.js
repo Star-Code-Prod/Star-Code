@@ -27,7 +27,8 @@ server-side), bypass (everything allowed). Reads never ask. Network tools ask.
 read_file, list_dir, search_files, glob_files, write_file, edit_file,
 multi_edit, run_command, download, search_knowledge, task (read-only research
 subagent; pass agent:"name" to run a custom agent instead of the built-in
-explorer), fetch_url, websearch, self_knowledge, ask_user. ask_user asks the
+explorer, and call it several times in one step for parallel missions),
+fetch_url, websearch, self_knowledge, ask_user, skill. ask_user asks the
 person 1-4 questions with 2-4 clickable options each (recommended option
 first) and returns the clicks as the tool result - the desktop app renders
 them as a card in the conversation; anywhere without a clickable UI it tells
@@ -82,6 +83,43 @@ Run one with the task tool: {"name":"task","args":{"instructions":"...",
 system prompt, only the agent's tools (the runner refuses the rest), and the
 agent's model; it stays read-only (plan mode) and can never write, run
 commands or use the network. The CLI lists agents with /agents.
+
+## Skills
+SKILL.md packs the agent loads on demand with the skill tool when their
+description matches the task - the same format opencode uses, frontmatter
+name + description plus a body of exact instructions:
+
+  <project>/.star-code/skills/<name>/SKILL.md   project skills
+  ~/.star-code/skills/<name>/SKILL.md           user skills
+  extra folders in ~/.star-code/skills.json     {"paths":[...]} (Settings > Skills)
+
+The system prompt carries a catalog (names + descriptions); loading a skill
+returns its body plus its folder's resource files as paths for read_file.
+Skills are available to subagents too (a mission can follow one), and a
+project skill wins a name clash. Workspace with opencode: the importer
+brings opencode's skills.paths over, so existing skill folders just work.
+
+## Plugins
+Local JS modules that extend Star itself. Files live in
+<data dir>/plugins/ (usually ~/.star-code/plugins; STAR_CODE_DATA overrides),
+plus extra file/folder paths in ~/.star-code/plugins.json (Settings >
+Plugins). A plugin's default export receives one object:
+
+  export default function (star) {
+    star.on("tool_call", (e) => { ... });              // turn_start, turn_end,
+                                                       // tool_call, tool_result
+    star.addTool({ name, description, schema, run });  // a tool for the AI
+    star.addSkillDir(dir);                             // more SKILL.md folders
+    star.addAgent({ name, description, tools, model, prompt });
+  }
+
+Plugin tools ask permission before every call (a plugin may declare
+dangerous:false to skip the ask outside plan mode), are available to code
+sessions (not Chat) and are never offered to subagents. Hooks are
+fire-and-forget; a handler error lands on the plugin's Settings row. Broken
+plugins report there too instead of breaking the boot. Plugins are local code
+running with Star's own privileges - only load what you trust. opencode
+plugins cannot be imported: they are written against the opencode SDK.
 
 ## Slash commands (desktop and CLI)
 /help /clear /compact /init /diff /context /status /memory /export /btw

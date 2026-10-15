@@ -29,6 +29,7 @@ import { sanitizeAgentName } from "./agents.js";
 // MCP servers land in Star's own mcp.json through the same writer Settings
 // uses, so an imported server and a hand-added one are indistinguishable.
 import { readUserMcpServers, writeUserMcpServers } from "./mcp.js";
+import { readSkillsConfig, writeSkillsConfig } from "./skills.js";
 
 /* ------------------------------- constants ------------------------------- */
 
@@ -64,9 +65,8 @@ const PREAMBLE_KEYS = new Set([
 // is still skipped, with the generic reason.
 const SKIP_REASONS = {
   $schema: "editor metadata, nothing to import",
-  plugin: "Star has no plugin system",
-  plugins: "Star has no plugin system",
-  skills: "Star has no skills to import",
+  plugin: "opencode SDK plugins do not run in Star - Star plugins live in plugins/ (Settings -> Plugins)",
+  plugins: "opencode SDK plugins do not run in Star - Star plugins live in plugins/ (Settings -> Plugins)",
   agent: "only agent files are imported, not inline agents",
   keybinds: "Star keybinds are not configurable",
   share: "Star has no share feature",
@@ -75,7 +75,7 @@ const SKIP_REASONS = {
 const SKIP_GENERIC = "Star has no equivalent setting";
 
 // Top-level keys the scan itself consumes; everything else is a skip row.
-const CONSUMED_KEYS = new Set(["model", "small_model", "theme", "permission", "provider", "mcp"]);
+const CONSUMED_KEYS = new Set(["model", "small_model", "theme", "permission", "provider", "mcp", "skills", "plugin", "plugins"]);
 
 const AGENT_FILE_CAP = 200_000; // bytes; same cap as lib/agents.js
 
@@ -579,6 +579,40 @@ export function scanOpencode(opts = {}) {
     }
   }
 
+  /* -------------------------------- skills -------------------------------- */
+  // opencode skills.paths: folders whose subfolders carry SKILL.md files.
+  // They import as Star skill paths (Settings -> Skills); the files stay put.
+  const skillPaths = [];
+  if (config.skills !== undefined) {
+    const raw = config.skills;
+    if (isObj(raw)) {
+      if (Array.isArray(raw.paths)) {
+        for (const p of raw.paths) {
+          const s = str(p);
+          if (s) skillPaths.push(path.resolve(s));
+        }
+      } else if (raw.paths !== undefined) {
+        skipped.push({ what: "skills.paths", why: "not a list of folders" });
+      }
+      for (const key of Object.keys(raw)) {
+        if (key !== "paths") skipped.push({ what: "skills." + key, why: "only skills.paths imports" });
+      }
+    } else {
+      skipped.push({ what: "skills", why: "not an object - expected { paths: [...] }" });
+    }
+  }
+  // opencode plugins are JS written against the opencode SDK and cannot run
+  // in Star; each entry keeps a row so nothing vanishes silently.
+  if (Array.isArray(config.plugin) || Array.isArray(config.plugins)) {
+    const entries = Array.isArray(config.plugin) ? config.plugin : config.plugins;
+    for (const p of entries) {
+      skipped.push({
+        what: "plugin " + JSON.stringify(str(p) || String(p)),
+        why: "opencode SDK plugins do not run in Star - see Settings -> Plugins for Star's own plugin folder",
+      });
+    }
+  }
+
   /* -------------------------------- agents -------------------------------- */
   const agents = [];
   for (const dir of agentsDirs) {
@@ -609,6 +643,7 @@ export function scanOpencode(opts = {}) {
     defaultMode,
     agents,
     mcpServers,
+    skillPaths,
     problems,
     skipped,
   };
@@ -765,6 +800,36 @@ export function applyImport(scan, opts = {}) {
       if (dirty && !writeUserMcpServers(user)) {
         for (const r of report) {
           if (r.kind === "mcp" && r.action === "imported") { r.action = "skipped"; r.detail = "could not write mcp.json"; }
+        }
+      }
+    }
+
+    /* -------------------------------- skills ------------------------------- */
+    // Merge-never-clobber by folder: opencode's skills.paths append to Star's
+    // extra paths (Settings -> Skills); the skill files themselves never move.
+    const skillsIn = Array.isArray(s.skillPaths) ? s.skillPaths : [];
+    if (skillsIn.length) {
+      const current = readSkillsConfig();
+      const have = new Set(current.paths.map((p) => path.resolve(p)));
+      const wanted = [];
+      for (const p of skillsIn) {
+        const abs = path.resolve(String(p));
+        if (!abs) continue;
+        if (have.has(abs)) {
+          report.push({ kind: "skills", id: abs, action: "kept", detail: "already a skill path" });
+        } else {
+          have.add(abs);
+          wanted.push(abs);
+          report.push({ kind: "skills", id: abs, action: "imported", detail: "added as a skill path" });
+        }
+      }
+      if (wanted.length) {
+        try {
+          writeSkillsConfig([...have]);
+        } catch {
+          for (const r of report) {
+            if (r.kind === "skills" && r.action === "imported") { r.action = "skipped"; r.detail = "could not write skills.json"; }
+          }
         }
       }
     }

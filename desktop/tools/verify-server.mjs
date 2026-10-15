@@ -99,6 +99,22 @@ const { startServer, getRoot, bumpSessionStats, flushStore } = await import(path
 // The read-only default tool set, for comparing the explorer's listing.
 const { AGENT_DEFAULT_TOOLS } = await import(pathToFileURL(path.resolve("lib/agents.js")).href);
 
+// Plugin fixtures, written before boot: one healthy plugin (hooks + a tool)
+// and one broken entry. Plugins load from <STAR_CODE_DATA>/plugins at boot.
+const pluginsDir = path.join(dataDir, "plugins");
+fs.mkdirSync(pluginsDir, { recursive: true });
+fs.writeFileSync(path.join(pluginsDir, "verify-plugin.js"), [
+  "import fs from 'node:fs';",
+  "import path from 'node:path';",
+  "export default function (star) {",
+  "  const log = path.join(star.dataDir, 'plug-log.txt');",
+  "  star.on('tool_call', (e) => fs.appendFileSync(log, 'call:' + e.name + '\\n'));",
+  "  star.on('turn_start', () => fs.appendFileSync(log, 'turn:start\\n'));",
+  "  star.addTool({ name: 'plug_echo', description: 'Echo text back', schema: { text: 'string' }, dangerous: false, run: ({ text }) => 'echo:' + text });",
+  "}",
+].join("\n"));
+fs.writeFileSync(path.join(pluginsDir, "verify-broken.js"), "export default function (star) { star.on('nope', () => {}); }\n");
+
 const s = await startServer({ port: 0, silent: true });
 try {
   ok("server binds an ephemeral port", s.port > 0, "port " + s.port);
@@ -347,6 +363,12 @@ try {
       else if (lt.includes("echo ask")) script = { tool: "mcp__verify_stub__echo", args: { text: "from-ask" } };
       else if (lt.includes("echo:from-bypass")) script = { text: "mcp-bypass-ok" };
       else if (lt.includes("echo:from-ask")) script = { text: "mcp-ask-ok" };
+      else if (lt.includes("task probe") && !lt.includes("Tool result for task")) script = { tool: "task", args: { instructions: "find the corpus facts" } };
+      else if (lt.includes("Tool result for task")) script = { text: "task-ok" };
+      else if (lt.includes("find the corpus facts")) script = { text: "sub-found-the-corpus" };
+      else if (lt.includes("skills probe")) script = { text: "skills-ok" };
+      else if (lt.includes("plug echo") && !lt.includes("Tool result for plug_echo")) script = { tool: "plug_echo", args: { text: "plugged" } };
+      else if (lt.includes("Tool result for plug_echo")) script = { text: "plug-ok" };
       else if (lt.includes("ask delay") && !lt.includes("Tool result for ask_user")) {
         await new Promise((r) => setTimeout(r, 400));   // let a second turn start first
         script = { tool: "ask_user", args: { questions: [{ question: "Which color scheme?", header: "Color", options: [{ label: "Blue (Recommended)", description: "calm, cool" }, { label: "Red" }] }] } };
@@ -470,23 +492,23 @@ try {
   const b6 = turnBodies[6] || {};
   ok("a chat persona is intersected with the chat allowlist",
     ev4.some((e) => e.type === "session" && e.agent === "explorer") &&
-    /Allowed tools: self_knowledge/.test(JSON.stringify(b6.messages || [])) && said(ev4, "explorer-ok"));
+    /Allowed tools: self_knowledge, task, skill/.test(JSON.stringify(b6.messages || [])) && said(ev4, "explorer-ok"));
 
   const ev5 = await personaTurn({ sessionId: codeNew.id, kind: "code", message: "plain", agent: "plain", mode: "bypass" });
   const b8 = turnBodies[8] || {};
   ok("a persona without a tools line runs with the read-only default",
-    /Allowed tools: read_file, list_dir, search_files, glob_files, search_knowledge, self_knowledge/.test(JSON.stringify(b8.messages || [])) &&
+    /Allowed tools: read_file, list_dir, search_files, glob_files, search_knowledge, self_knowledge, task, skill/.test(JSON.stringify(b8.messages || [])) &&
     said(ev5, "plain-ok"));
   ok("the refused persona write never reached the disk",
     !fs.existsSync(path.join(process.cwd(), "should-not-land.txt")));
 
-  // An empty intersection (a coding persona on a chat session) keeps its zero
-  // tools - "never wider" also means "never silently widened back" - and the
-  // refusal reads (none), not a dangling dot.
+  // An empty intersection (a coding persona on a chat session) keeps only the
+  // core reach - "never wider" holds for the session's tools, but subagent
+  // missions and skills can never be stripped (the AutoJoin lesson).
   const ev6 = await personaTurn({ sessionId: chatNew.id, kind: "chat", message: "empty", agent: "reviewer" });
   const b10 = turnBodies[10] || {};
-  ok("an empty intersection refuses with (none)",
-    /Allowed tools: \(none\)\./.test(JSON.stringify(b10.messages || [])) && said(ev6, "empty-ok"),
+  ok("an empty intersection keeps core tools only, not (none)",
+    /Allowed tools: task, skill\./.test(JSON.stringify(b10.messages || [])) && said(ev6, "empty-ok"),
     String(((b10.messages || []).find((m) => String(m.content || "").includes("not available")) || {}).content || "").slice(0, 90));
 
   // Plan mode cannot be widened by a persona that owns a write tool.
@@ -506,6 +528,84 @@ try {
     String(b13.messages?.[0]?.content || "").startsWith("You are the shadow persona (project level).\n\n") &&
     b13.model === "project-shadow-model" && said(ev8, "shadow-ok"),
     JSON.stringify([String(b13.messages?.[0]?.content || "").slice(0, 45), b13.model]));
+
+  // The AutoJoin reproduction: a persona on a chat asks for a research
+  // mission and it RUNS - the subagent (own model call, own context) brings
+  // findings back as the tool result instead of "not available to this
+  // agent".
+  {
+    const evTask = await personaTurn({ sessionId: chatNew.id, kind: "chat", message: "task probe", agent: "reviewer" });
+    const taskResult = evTask.find((e) => e.type === "tool_result" && e.name === "task") || {};
+    ok("a persona on a chat can dispatch a research mission",
+      String(taskResult.preview || "").includes("sub-found-the-corpus") && said(evTask, "task-ok") &&
+      !JSON.stringify(evTask).includes("not available to this agent"),
+      String(taskResult.preview || "").slice(0, 120));
+  }
+
+  // Skills: a project SKILL.md folder is listed by the API, a configured
+  // path joins the list, and the catalog rides in a live turn's prompt.
+  {
+    const fixtureDir = path.join(process.cwd(), ".star-code", "skills", "verify-fixture");
+    fs.mkdirSync(fixtureDir, { recursive: true });
+    fs.writeFileSync(path.join(fixtureDir, "SKILL.md"), [
+      "---", "name: verify-fixture", "description: Fixture skill for the suite", "---", "",
+      "# Fixture", "Do the fixture thing.",
+    ].join("\n"));
+    const extraDir = fs.mkdtempSync(path.join(os.tmpdir(), "star-skills-extra-"));
+    fs.mkdirSync(path.join(extraDir, "extra-fixture"), { recursive: true });
+    fs.writeFileSync(path.join(extraDir, "extra-fixture", "SKILL.md"),
+      "---\nname: extra-fixture\ndescription: From a configured path\n---\nExtra body.\n");
+
+    const list1 = await (await fetch(s.url + "/api/skills")).json();
+    ok("the skills API lists project SKILL.md folders",
+      list1.skills.some((x) => x.name === "verify-fixture" && x.origin === "project" && /Fixture skill/.test(x.description)),
+      JSON.stringify(list1.skills.map((x) => x.name)));
+
+    await fetch(s.url + "/api/skills/paths", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paths: [extraDir] }),
+    });
+    const list2 = await (await fetch(s.url + "/api/skills")).json();
+    ok("a configured path joins the skills list",
+      list2.paths.length === 1 && list2.skills.some((x) => x.name === "extra-fixture" && x.origin === "path"));
+    await fetch(s.url + "/api/skills/paths", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paths: [] }),
+    });
+
+    const evSk = await personaTurn({ sessionId: codeNew.id, kind: "code", message: "skills probe" });
+    const bLast = turnBodies[turnBodies.length - 1] || {};
+    const sys = String(bLast.messages?.[0]?.content || "");
+    ok("the skills catalog rides in a live turn's system prompt",
+      /- verify-fixture: Fixture skill/.test(sys) && /Skills available/.test(sys) && said(evSk, "skills-ok"));
+    fs.rmSync(fixtureDir, { recursive: true, force: true });
+    try { fs.rmdirSync(path.join(process.cwd(), ".star-code", "skills")); } catch { /* not empty - fine */ }
+    fs.rmSync(extraDir, { recursive: true, force: true });
+  }
+
+  // Plugins: loaded at boot from the data dir; a declared-safe tool runs
+  // without asking, hooks fire, and a broken entry reports without breaking
+  // the boot.
+  {
+    const plugList = await (await fetch(s.url + "/api/plugins")).json();
+    const good = (plugList.plugins || []).find((p) => p.name === "verify-plugin.js") || {};
+    const bad = (plugList.plugins || []).find((p) => p.name === "verify-broken.js") || {};
+    ok("plugins load at boot with their contributions counted",
+      good.ok === true && good.tools === 1 && good.hooks === 2, JSON.stringify([good, bad]));
+    ok("a broken plugin reports its error instead of taking the boot down",
+      bad.ok === false && /unknown event/.test(String(bad.error)), String(bad.error));
+
+    const evPlug = await personaTurn({ sessionId: codeNew.id, kind: "code", message: "plug echo" });
+    const plugResult = evPlug.find((e) => e.type === "tool_result" && e.name === "plug_echo") || {};
+    ok("a declared-safe plugin tool runs end to end without an ask",
+      String(plugResult.preview || "").includes("echo:plugged") && said(evPlug, "plug-ok") &&
+      !evPlug.some((e) => e.type === "permission_request"),
+      String(plugResult.preview || "").slice(0, 80));
+    await new Promise((r) => setTimeout(r, 400));   // hooks are fire-and-forget
+    const log = fs.readFileSync(path.join(dataDir, "plug-log.txt"), "utf8");
+    ok("plugin hooks see the turn and the tool call",
+      log.includes("turn:start") && log.includes("call:plug_echo"), log.replace(/\n/g, "|").slice(0, 120));
+  }
 
   // MCP tools through a real turn: the manager's stub server is connected
   // (boot), the runner routes the namespaced name to it, and the result comes
@@ -700,7 +800,7 @@ try {
       said(aEvents, "ask-ok") && said(bEvents, "b-done") && !said(bEvents, "ask-ok") && !said(aEvents, "b-done"));
   }
 
-  ok("every scripted persona turn made exactly one model call per step", turnBodies.length === 25, String(turnBodies.length));
+  ok("every scripted persona turn made exactly one model call per step", turnBodies.length === 31, String(turnBodies.length));
   turnStub.close();
   if (turnStub.closeAllConnections) turnStub.closeAllConnections();
 
@@ -716,7 +816,7 @@ try {
 
   const statsLoad = await (await fetch(s.url + "/api/sessions/messages?id=" + codeNew.id)).json();
   ok("a live session's stats ride with its messages", !!statsLoad.stats && typeof statsLoad.stats.calls === "number");
-  ok("model calls are counted", statsLoad.stats.calls === 20, String(statsLoad.stats.calls));
+  ok("model calls are counted", statsLoad.stats.calls === 23, String(statsLoad.stats.calls));
   ok("tool calls are counted per name",
     statsLoad.stats.tools.read_file === 1 && statsLoad.stats.tools.list_dir === 1 && statsLoad.stats.tools.write_file === 2 &&
     statsLoad.stats.tools.ask_user === 2,

@@ -66,7 +66,7 @@ ok("code turns keep the coding prompt",
 // 1c. a chat runner is limited to the chat tools: write_file is refused (and
 // must not touch the disk), while an allowed tool still answers. This asserts
 // against the same runner shape the server uses for a chat turn.
-const chatRunner = makeRunner(os.homedir(), ["websearch", "fetch_url", "self_knowledge", "task", "ask_user"]);
+const chatRunner = makeRunner(os.homedir(), ["websearch", "fetch_url", "self_knowledge", "task", "ask_user", "skill"]);
 const probe = path.join(dir, "chat-must-not-write.txt");
 let refusal = "";
 try { await chatRunner.run("write_file", { path: probe, content: "should never be written" }); }

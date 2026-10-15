@@ -302,14 +302,22 @@ const skipScan = scanWith({
   autoupdate: true,
   somethingElse: 42,
 });
-for (const key of ["$schema", "plugin", "skills", "keybinds", "share", "autoupdate", "somethingElse"]) {
+// plugin and skills are consumed now: plugin entries keep their own honest
+// row (opencode SDK code cannot run in Star), skills.paths imports for real.
+for (const key of ["$schema", "keybinds", "share", "autoupdate", "somethingElse"]) {
   const entry = skippedOf(skipScan, key);
   ok("skip row for " + key, !!entry && typeof entry.why === "string" && entry.why.length > 0);
 }
 ok("the opencode-specific reasons are used", (skippedOf(skipScan, "autoupdate") || {}).why === "Star updates itself in the app");
 ok("mcp is consumed, not skipped", !skipScan.skipped.some((s) => s.what === "mcp") && !!scanWith({ mcp: { a: { command: "npx a" } } }).mcpServers);
 ok("skip reasons never carry key material", skipScan.skipped.every((s) => !/sk-/.test(s.why)));
-ok("the plural plugins key is skipped too", !!skippedOf(scanWith({ plugins: [] }), "plugins"));
+ok("an opencode plugin keeps an honest row, not silence",
+  (skippedOf(skipScan, 'plugin "./plugins/x.js"') || {}).why ===
+    "opencode SDK plugins do not run in Star - see Settings -> Plugins for Star's own plugin folder");
+ok("skills.paths is consumed by the scan",
+  skipScan.skillPaths.length === 1 && path.isAbsolute(skipScan.skillPaths[0]) && !skipScan.skipped.some((s) => s.what === "skills"));
+ok("the plural plugins key keeps honest rows too",
+  /opencode SDK plugins do not run in Star/.test((skippedOf(scanWith({ plugins: ["./p.js"] }), 'plugin "./p.js"') || {}).why || ""));
 
 /* ---------------------------------- agents ------------------------------- */
 const agentDir = mk("agent-dir");
@@ -395,6 +403,7 @@ write(applyDir, "opencode.json", JSON.stringify({
   permission: "allow",
   model: "my-api/deepseek-v4-pro",
   plugin: ["./plugins/x.js"],
+  skills: { paths: [path.join(tmp, "imp-skills")] },
   mcp: {
     "blender-mcp": { type: "local", command: ["uvx", "blender-mcp"], environment: { BLENDER_HOST: "localhost" } },
     "off-one": { command: "npx -y off-server", enabled: false },
@@ -424,7 +433,7 @@ const purityAfter = filesIn(applyDir).join("|");
 ok("scanning writes nothing into the opencode dir", purityBefore === purityAfter);
 
 const r1 = applyImport(applyScan);
-ok("the report covers every item", r1.report.length === 16, String(r1.report.length));
+ok("the report covers every item", r1.report.length === 17, String(r1.report.length));
 ok("run 1: keys and baseUrls are imported",
   (rowOf(r1.report, "key", "openai") || {}).action === "imported" &&
   (rowOf(r1.report, "key", "deepseek") || {}).action === "imported" &&
@@ -456,6 +465,12 @@ ok("run 1: the mcp.json round-trips through lib/mcp.js", (() => {
 ok("run 1: remote mcp servers keep an honest skip row",
   (rowOf(r1.report, "skip", "mcp remote") || {}).detail === "remote MCP does not import yet - Star launches local servers only");
 ok("run 1: a commandless mcp server is skipped", (rowOf(r1.report, "skip", "mcp broken") || {}).detail === "no command to run");
+ok("run 1: skills.paths lands in Star's skills.json",
+  (rowOf(r1.report, "skills", path.resolve(path.join(tmp, "imp-skills"))) || {}).action === "imported" &&
+  JSON.parse(fs.readFileSync(path.join(dataA, "skills.json"), "utf8")).paths.includes(path.resolve(path.join(tmp, "imp-skills"))));
+ok("run 1: the opencode plugin row says why it cannot run",
+  (rowOf(r1.report, "skip", 'plugin "./plugins/x.js"') || {}).action === "skipped" &&
+  /opencode SDK plugins do not run in Star/.test((rowOf(r1.report, "skip", 'plugin "./plugins/x.js"') || {}).detail || ""));
 ok("one skip row per scanned skip, with what and why", (() => {
   const skips = r1.report.filter((r) => r.kind === "skip");
   return skips.length === applyScan.skipped.length && applyScan.skipped.length === 4 &&
@@ -505,6 +520,9 @@ ok("run 2: the kept details say why", (rowOf(r2.report, "key", "deepseek") || {}
   (rowOf(r2.report, "model", "custom/deepseek-v4-pro") || {}).detail === "Star already has a last model" &&
   (rowOf(r2.report, "agent", "helper") || {}).action === "kept");
 ok("run 2: nothing was written", r2.agentsWritten.length === 0);
+ok("run 2: the skill path is kept, not duplicated",
+  (rowOf(r2.report, "skills", path.resolve(path.join(tmp, "imp-skills"))) || {}).action === "kept" &&
+  JSON.parse(fs.readFileSync(path.join(dataA, "skills.json"), "utf8")).paths.length === 1);
 ok("run 2: the stores are byte-identical", fs.readFileSync(authPath()).equals(authBytes) &&
   fs.readFileSync(configPath()).equals(configBytes) && fs.readFileSync(agentOut).equals(agentBytes) &&
   fs.readFileSync(path.join(dataA, "mcp.json")).equals(mcpBytes));

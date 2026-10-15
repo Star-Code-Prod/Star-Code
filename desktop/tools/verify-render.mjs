@@ -403,6 +403,21 @@ ok("answers travel to /api/answer with the session",
   /\.ask-opt\.on\{[^}]*border-color:var\(--accent\)/.test(html.replace(/\s+/g, "")));
 ok("ask_user gets its own tool-row words", js.includes('ask_user: ["Ask", "Asked"]'));
 
+/* ----------------------------- skills: UI ------------------------------- */
+ok("skills have a settings section",
+  js.includes("function settingsSkills(") && js.includes("loadSkills()") &&
+  js.includes('fetch("/api/skills/paths"') && html.includes('data-s="skills"') &&
+  js.includes("settingsSection === \"skills\""));
+ok("the skill tool has words and a read group",
+  js.includes('skill: ["Study", "Studied"]') && js.includes('skill: "loading a skill"') &&
+  fns.toolGroupOf("skill") === "read");
+
+/* ---------------------------- plugins: UI -------------------------------- */
+ok("plugins have a settings section with a reload",
+  js.includes("function settingsPlugins(") && js.includes("loadPluginsData()") &&
+  js.includes('fetch("/api/plugins/reload"') && js.includes('fetch("/api/plugins/paths"') &&
+  html.includes('data-s="plugins"') && js.includes("settingsSection === \"plugins\""));
+
 console.log(results.join("\n"));
 const failed = results.filter((r) => r.startsWith("FAIL")).length;
 console.log("\n" + (results.length - failed) + "/" + results.length + " checks passed" +

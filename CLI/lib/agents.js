@@ -192,8 +192,13 @@ export function listAgentsWithProblems(root) {
 
   scan(userAgentsDir(), "user");
   scan(path.join(String(root ?? "."), ".star-code", "agents"), "project");
+  const listed = [...byName.values()];
+  // Plugin agents ride along unless a file of the same name already ran.
+  for (const pa of pluginAgents) {
+    if (!byName.has(pa.name) && pa.name !== BUILTIN_EXPLORER.name) listed.push(pa);
+  }
   return {
-    agents: [...byName.values()].sort((a, b) => a.name.localeCompare(b.name)),
+    agents: listed.sort((a, b) => a.name.localeCompare(b.name)),
     problems,
   };
 }
@@ -203,13 +208,28 @@ export function listAgents(root) {
   return listAgentsWithProblems(root).agents;
 }
 
+/* Plugin-registered agents (lib/plugins.js): in-memory, beside the files.
+   A file (or the builtin explorer) always wins a name clash. */
+const pluginAgents = [];
+
+export function addPluginAgent(agent) {
+  if (agent && agent.name && !pluginAgents.some((a) => a.name === agent.name)) pluginAgents.push(agent);
+}
+
+export function clearPluginAgents() {
+  pluginAgents.length = 0;
+}
+
 /** One agent by name (the lookup name is sanitised the same way), or null.
  *  The builtin explorer answers to its own name unless a file claims it first,
  *  so "explorer" means the same agent in the task tool, the desktop personas
- *  and the /agents listings. */
+ *  and the /agents listings. Plugin agents resolve last, after files and the
+ *  builtin. */
 export function getAgent(root, name) {
   const wanted = sanitizeAgentName(name);
   if (!wanted) return null;
   return listAgents(root).find((a) => a.name === wanted)
-    || (wanted === BUILTIN_EXPLORER.name ? BUILTIN_EXPLORER : null);
+    || (wanted === BUILTIN_EXPLORER.name ? BUILTIN_EXPLORER : null)
+    || pluginAgents.find((a) => a.name === wanted)
+    || null;
 }

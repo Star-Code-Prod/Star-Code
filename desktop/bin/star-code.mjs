@@ -21,6 +21,7 @@ import { readAuth, resolveKey, mask } from "../lib/auth.js";
 import { readConfig, writeLastModel, readCliSessions, writeCliSessions } from "../lib/config.js";
 import { createToolRunner } from "../lib/tools.js";
 import { runAgentTurn, systemPrompt, resetSystemPromptCache } from "../lib/agent.js";
+import { pluginManager } from "../lib/plugins.js";
 import { listAgentsWithProblems, BUILTIN_EXPLORER } from "../lib/agents.js";
 import { createMcpManager } from "../lib/mcp.js";
 
@@ -491,10 +492,25 @@ function mcp() {
 function onMcpChange() {
   resetSystemPromptCache();
   if (!mcpPromptReady) return;
-  messages[0] = { role: "system", content: systemPrompt(root, flags.mode, mcp().toolList()) };
+  messages[0] = { role: "system", content: systemPrompt(root, flags.mode, promptTools()) };
 }
 
-const messages = [{ role: "system", content: systemPrompt(root, flags.mode, mcp().toolList()) }];
+// Plugins load once at start (a broken one reports in the banner, never
+// throws); their tools ride in the prompt beside the MCP ones.
+const pluginReports = await pluginManager.load({ version: VERSION });
+if (pluginReports.some((p) => !p.ok)) {
+  for (const p of pluginReports) {
+    if (!p.ok) console.error("  plugin " + p.name + " failed: " + p.error);
+  }
+}
+resetSystemPromptCache();
+
+/** The dynamic tools (MCP + plugins) the prompt lists this run. */
+function promptTools() {
+  return mcp().toolList().concat(pluginManager.toolList());
+}
+
+const messages = [{ role: "system", content: systemPrompt(root, flags.mode, promptTools()) }];
 mcpPromptReady = true;
 const SUBAGENT_BLOCKED = new Set(["write_file", "edit_file", "multi_edit", "run_command", "download", "fetch_url", "websearch", "task"]);
 
@@ -520,6 +536,7 @@ function subagentModel(agent) {
 
 const runner = createToolRunner(root, {
   mcp: mcp(),
+  plugins: pluginManager,
   runSubagent: async ({ instructions, agent }) => {
     // A custom agent narrows the child runner to its own tools and runs the
     // turn on its prompt and model; with no agent this is today's explorer.
@@ -647,7 +664,7 @@ async function requestPermission({ name, args }) {
 
 async function runTurn(text) {
   messages.push({ role: "user", content: text });
-  messages[0] = { role: "system", content: systemPrompt(root, flags.mode, mcp().toolList()) };
+  messages[0] = { role: "system", content: systemPrompt(root, flags.mode, promptTools()) };
   try {
     await runAgentTurn({
       provider, model, apiKey: currentKey(), baseUrl: effectiveBase(), messages, runner,
@@ -1086,7 +1103,7 @@ export function newSession(rec = null) {
     .slice(-ITEM_CAP);
   return {
     title: typeof rec?.title === "string" && rec.title ? rec.title : "new session",
-    messages: [{ role: "system", content: systemPrompt(root, flags.mode, mcp().toolList()) }, ...msgs],
+    messages: [{ role: "system", content: systemPrompt(root, flags.mode, promptTools()) }, ...msgs],
     items,
     input: "", queue: [], scroll: 0,
     stream: false, turnStarted: 0, controller: null, autoAllow: new Set(),
@@ -1766,7 +1783,7 @@ export async function tuiApp(io = {}) {
     if (t.title === "new session" && !t.items.some((i) => i.k === "user")) t.title = titleForMessage(text);
     pushItem(t, { k: "user", t: text });
     t.messages.push({ role: "user", content: text });
-    t.messages[0] = { role: "system", content: systemPrompt(root, flags.mode, mcp().toolList()) };
+    t.messages[0] = { role: "system", content: systemPrompt(root, flags.mode, promptTools()) };
     t.stream = true;
     t.turnStarted = Date.now();
     t.turnRaw = "";

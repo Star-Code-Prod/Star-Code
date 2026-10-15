@@ -34,8 +34,11 @@ setting you change — including a model running on your own machine.
 
 | | |
 |---|---|
-| **15 real tools** | `read_file` `list_dir` `search_files` `glob_files` `write_file` `edit_file` `multi_edit` `run_command` `download` `search_knowledge` `task` `fetch_url` `websearch` `self_knowledge` `ask_user` |
+| **16 real tools** | `read_file` `list_dir` `search_files` `glob_files` `write_file` `edit_file` `multi_edit` `run_command` `download` `search_knowledge` `task` `fetch_url` `websearch` `self_knowledge` `ask_user` `skill` |
 | **Clickable questions** | `ask_user` asks 1-4 questions with 2-4 options each — the card renders in the conversation, the recommended option first, and a click is the answer (several questions pick, then Submit) |
+| **Subagent missions** | `task` runs read-only research subagents with fresh context; several missions in one step run in parallel, and personas can never lose them |
+| **Skills** | SKILL.md packs (the opencode format) from `.star-code/skills/`, `~/.star-code/skills/` or extra paths — the prompt carries the catalog, the `skill` tool loads one on demand, subagents can follow them too |
+| **Plugins** | Local JS modules in `~/.star-code/plugins` — event hooks (turn/tool), custom tools the agent can call (permission-first), extra skill folders and agents. Broken plugins report in Settings instead of breaking the boot |
 | **Artifacts** | ` ```artifact ` html/svg/md blocks render in a sandboxed preview pane with version history |
 | **Knowledge** | Markdown notes in `.star-code/knowledge` — indexed in the prompt, searchable by the agent |
 | **Custom agents** | Markdown personas in `.star-code/agents/` — the `task` tool runs them as read-only subagents, and the composer's agent chip (or `/agents`) runs one as the turn's persona: its prompt, its tools and its model |
@@ -162,6 +165,43 @@ Servers live in `~/.star-code/mcp.json` (a project may add its own in
 install brings its servers along — remote (`url`) servers are listed as
 skipped until Star speaks that transport. In the CLI, `/mcp` shows the
 servers, their state and their tools.
+
+## Skills
+
+Skill packs are folders with a `SKILL.md` — frontmatter `name` and
+`description`, a body of exact instructions — the same shape opencode uses.
+Star reads `<project>/.star-code/skills/`, `~/.star-code/skills/`, plugin
+folders and any extra paths from **Settings → Skills** (kept in
+`~/.star-code/skills.json`). The system prompt carries the catalog, the
+`skill` tool loads one on demand and returns its body plus its folder's
+resource files, and subagents can load skills too. Importing an opencode
+install brings its `skills.paths` along, so existing skill collections (a
+modding toolkit, a writing workflow) just work.
+
+## Plugins
+
+Plugins are local JS modules that extend Star itself. Put a `.js`/`.mjs`
+file into `~/.star-code/plugins/`, or point at files and folders from
+**Settings → Plugins** (kept in `~/.star-code/plugins.json`). A plugin's
+default export receives one object:
+
+```js
+export default function (star) {
+  star.on("tool_call", (e) => { /* turn_start, turn_end, tool_call, tool_result */ });
+  star.addTool({ name: "my_tool", description: "…", schema: { q: "string" }, run: ({ q }) => "…" });
+  star.addSkillDir("C:\\my-skills");
+  star.addAgent({ name: "my-agent", description: "…", prompt: "…" });
+}
+```
+
+Plugin tools ask permission before every call (a plugin may declare
+`dangerous: false` to skip the ask outside plan mode), are available to code
+sessions — not Chat — and are never offered to subagents. Hooks are
+fire-and-forget; a handler error lands on the plugin's Settings row, and a
+broken plugin reports there instead of breaking the boot. Plugins are local
+code running with Star's own privileges: only load what you trust. opencode
+plugins are written against the opencode SDK and cannot be imported — the
+importer says so per entry.
 
 ## Star Code CLI
 
@@ -295,7 +335,7 @@ server that owns the tools.
 │  browser)          │  HTTP    │  ├─ lib/agent.js         │
 └────────────────────┘          │  │   agent loop, modes   │
                                 │  ├─ lib/tools.js         │
-                                │  │  15 tools, real I/O   │
+                                │  │  16 tools, real I/O   │
                                 │  └─ lib/providers.js     │
                                 │      5 provider adapters │
                                 └──────────────────────────┘
@@ -310,7 +350,7 @@ star-code/
 ├── lib/
 │   ├── auth.js            credential store (auth.json), masking, resolution
 │   ├── providers.js       provider catalog, model discovery, streaming
-│   ├── tools.js           the 15 tools
+│   ├── tools.js           the 16 tools
 │   └── agent.js           agent loop, permission modes, reasoning, usage
 ├── public/index.html      the entire UI (no build step, no framework)
 ├── electron/

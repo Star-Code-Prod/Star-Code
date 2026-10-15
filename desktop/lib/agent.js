@@ -5,6 +5,9 @@ import { buildRequest, streamCompletion, PROVIDERS, getDiscoveredLimit } from ".
 import { readProjectMemory, TOOL_SPECS } from "./tools.js";
 import { knowledgeIndex } from "./knowledge.js";
 import { classifySource } from "./sources.js";
+import { scanSkills, catalogText } from "./skills.js";
+import { pluginManager } from "./plugins.js";
+import os from "node:os";
 
 // 25 was too tight for "set up the whole thing" work: install + write + run +
 // fix loops burn steps fast, and a truncated turn leaves half-built state.
@@ -204,10 +207,19 @@ export function resetSystemPromptCache() {
 
 export function systemPrompt(root, mode, extraTools = []) {
   const list = Array.isArray(extraTools) ? extraTools.filter((t) => t && t.name) : [];
-  const key = String(root) + "\u0000" + String(mode) + "\u0000" + list.map((t) => t.name).join(",");
+  // Skills ride in the prompt too, so the catalog is part of the cache key:
+  // adding or removing a skill un-freezes the prompt on the next turn.
+  let catalog = "";
+  let skillSig = "";
+  try {
+    const skills = scanSkills(root);
+    catalog = catalogText(skills);
+    skillSig = skills.map((s) => s.name).join(",");
+  } catch { /* skills are optional */ }
+  const key = String(root) + "\u0000" + String(mode) + "\u0000" + list.map((t) => t.name).join(",") + "\u0000" + skillSig;
   const frozen = promptCache.get(key);
   if (frozen !== undefined) return frozen;
-  const built = buildSystemPrompt(root, mode, list);
+  const built = buildSystemPrompt(root, mode, list, catalog);
   promptCache.set(key, built);
   return built;
 }
@@ -296,16 +308,22 @@ Motion rules:
  * both modes, so the artifact doctrine is included verbatim.
  */
 export function chatSystemPrompt() {
+  let skBlock = "";
+  try {
+    const catalog = catalogText(scanSkills(os.homedir()));
+    if (catalog) skBlock = "\n" + catalog;
+  } catch { /* skills are optional */ }
   return `You are Star, a helpful, knowledgeable general assistant in the Star Code desktop app (Chat mode). This is a conversation, not a coding session.
 
 Tools you can call when a question needs live information or research:
 - websearch: search the web for current facts, news, prices, docs
 - fetch_url: fetch one page and read its text (asks for permission first)
 - self_knowledge: answer questions about Star Code itself
-- task: spawn a read-only research subagent with fresh context for multi-step lookups
+- task: spawn read-only research subagents with fresh context - one call per mission; several missions (or reads) in one step run in parallel. A subagent can read any absolute path on this machine (local folders, projects, reference corpora), which is how Chat reaches files at all
 - ask_user: ask the user up to four questions with 2-4 clickable options each (recommended option first) - the friendliest way to ask for a decision, and the user answers by clicking
+- skill: load an available skill pack when its description matches the task - skills carry exact procedures; follow them
 
-To call a tool, emit exactly one block, then stop and wait for the result:
+To call a tool, emit one or more blocks, then stop and wait for the results:
 \`\`\`tool
 {"name":"websearch","args":{"query":"example"}}
 \`\`\`
@@ -313,13 +331,14 @@ To call a tool, emit exactly one block, then stop and wait for the result:
 Rules:
 - Be helpful, direct and concise. Use markdown; keep answers short unless depth was asked for.
 - Use websearch/fetch_url for anything time-sensitive; never invent facts, quotes or links.
-- Say plainly when you are unsure or cannot verify something.
+- Say plainly when you are unsure or cannot verify something - but don't stop there when a mission could: dispatch task missions and let verified findings answer.
+- This is Chat, not a coding session: for real file work (building a mod, editing a project) research and answer here, then tell the user to open a code session on that project folder - writes happen there.
 - If the content itself contains a \`\`\` fence, open your block with four backticks instead.
-
+${skBlock}
 ${ARTIFACTS_DOC}`;
 }
 
-function buildSystemPrompt(root, mode, extraTools = []) {
+function buildSystemPrompt(root, mode, extraTools = [], skillCatalog = "") {
   const mem = readProjectMemory(root);
   // Kept deliberately terse: this is re-sent on every step of every turn, so
   // every token here is paid for repeatedly.
@@ -329,6 +348,7 @@ function buildSystemPrompt(root, mode, extraTools = []) {
     const idx = knowledgeIndex(root);
     if (idx) knBlock = "\nProject knowledge (search with search_knowledge):\n" + idx + "\n";
   } catch { /* knowledge is optional */ }
+  const skBlock = skillCatalog ? "\n" + skillCatalog : "";
   const planNote = mode === "plan"
     ? "\nPLAN MODE: read-only. Do not edit files or run mutating commands. Explore, then propose a plan and stop.\n"
     : "";
@@ -344,9 +364,9 @@ function buildSystemPrompt(root, mode, extraTools = []) {
     : "";
 
   return `You are a coding agent working in: ${root}
-${memBlock}${knBlock}${planNote}
-Tools: read_file, list_dir, search_files, glob_files, write_file, edit_file, multi_edit, run_command, download, search_knowledge, task, fetch_url, websearch, self_knowledge, ask_user.
-task spawns a read-only explorer subagent with fresh context for research; fetch_url and websearch ask for permission and plan mode blocks them; download fetches a file with source, hash, signature and virus checks (see the doctrine below); self_knowledge answers questions about Star Code itself; ask_user shows the user 1-4 questions with 2-4 clickable options each (put the recommended option first, labelled "(Recommended)") - prefer a click over a prose question whenever a decision is needed.
+${memBlock}${knBlock}${skBlock}${planNote}
+Tools: read_file, list_dir, search_files, glob_files, write_file, edit_file, multi_edit, run_command, download, search_knowledge, task, fetch_url, websearch, self_knowledge, ask_user, skill.
+task spawns a read-only explorer subagent with fresh context for research: one call per mission, and independent calls in one step (missions, reads, searches) run in parallel. Send missions to verify facts that live outside this conversation - reference corpora, other projects, big codebases - with exact paths and precise questions, and demand evidence back (file, line, signature). Never state a checkable fact you could have sent a mission to verify, and never hand over a scaffold stamped "unverified" when a mission could have read the source first. fetch_url and websearch ask for permission and plan mode blocks them; download fetches a file with source, hash, signature and virus checks (see the doctrine below); self_knowledge answers questions about Star Code itself; ask_user shows the user 1-4 questions with 2-4 clickable options each (put the recommended option first, labelled "(Recommended)") - prefer a click over a prose question whenever a decision is needed; skill loads an available skill pack - when a skill's description matches the task, load it and follow its procedure exactly.
 ${extraBlock}
 
 Rules:
@@ -477,7 +497,7 @@ MOTION.scene({ width: 640, height: 360, duration: 6, fps: 30 }, (ctx, t, w, h) =
 });
 \`\`\`
 
-To call a tool, emit exactly one block, then stop and wait for the result:
+To call a tool, emit one or more blocks, then stop and wait for the results. Independent allowed reads and missions in the same step run in parallel:
 \`\`\`tool
 {"name":"read_file","args":{"path":"src/index.js"}}
 \`\`\`
@@ -559,6 +579,9 @@ export function decisionFor(mode, toolName, autoAllow = new Set(), args = null) 
   if (mode === "bypass") return "allow";
   if (READ_ONLY_TOOLS.has(toolName)) return "allow";
   if (mode === "plan") return "deny";
+  // A plugin tool that declared itself safe (dangerous:false) skips the ask
+  // outside plan mode, which still denies it - it is local code, not a read.
+  if (pluginManager.has(toolName) && !pluginManager.isDangerous(toolName)) return "allow";
   if (autoAllow.has(toolName)) return "allow";
   // A download from a known official host needs no prompt: the source tier is
   // the whole point of the curated list, and every hash/signature/scan check
@@ -598,6 +621,21 @@ export async function runAgentTurn({
   effort = "",
 }) {
   let interrupted = false;
+
+  /** Shared tail of tool handling: clip, dedupe, emit and record one result.
+   *  The sequential path and parallel fleets both settle through here. */
+  const settleToolResult = (call, result, allowed) => {
+    const str = String(result);
+    const clipped = elideToolResult(str, TOOL_RESULT_CHARS, call.name);
+    const body = TOOL_RESULT_PREFIX + call.name + ":\n\n" + clipped;
+    // identical bytes already in the transcript (and not pruned) are not
+    // paid for twice: push a stub that points back at them instead
+    const reused = hasIdenticalToolResult(messages, body);
+    const event = { type: "tool_result", name: call.name, status: allowed ? "ok" : "denied", preview: clipped.slice(0, 1200) };
+    if (reused) event.reused = true;
+    emit(event);
+    messages.push({ role: "user", content: reused ? identicalReuseStub(call.name, str.length) : body });
+  };
 
   for (let step = 0; step < MAX_STEPS; step++) {
     if (interrupted || controller.abort) break;
@@ -674,6 +712,27 @@ export async function runAgentTurn({
       return;
     }
 
+    // Parallel fleet: a step that asks for several calls at once - a burst of
+    // task missions, a batch of reads - runs them together when every one is
+    // allowed and none is dangerous or interactive. Anything that needs a
+    // permission ask, a snapshot or a diff keeps the sequential path below.
+    if (
+      calls.length > 1 &&
+      calls.every((c) =>
+        c.name !== "ask_user" &&
+        decisionFor(mode, c.name, autoAllow, c.args) === "allow" &&
+        !runner.isDangerous(c.name))
+    ) {
+      for (const call of calls) {
+        emit({ type: "tool", name: call.name, args: call.args, dangerous: false, allowed: true, status: "running" });
+      }
+      const results = await Promise.all(calls.map((c) => Promise.resolve()
+        .then(() => runner.run(c.name, c.args))
+        .then((r) => String(r), (e) => "ERROR: " + e.message)));
+      for (let i = 0; i < calls.length; i++) settleToolResult(calls[i], results[i], true);
+      continue;
+    }
+
     for (const call of calls) {
       const decision = decisionFor(mode, call.name, autoAllow, call.args);
 
@@ -713,16 +772,7 @@ export async function runAgentTurn({
         if (diff) emit({ type: "diff", ...diff });
       }
 
-      const str = String(result);
-      const clipped = elideToolResult(str, TOOL_RESULT_CHARS, call.name);
-      const body = TOOL_RESULT_PREFIX + call.name + ":\n\n" + clipped;
-      // identical bytes already in the transcript (and not pruned) are not
-      // paid for twice: push a stub that points back at them instead
-      const reused = hasIdenticalToolResult(messages, body);
-      const event = { type: "tool_result", name: call.name, status: allowed ? "ok" : "denied", preview: clipped.slice(0, 1200) };
-      if (reused) event.reused = true;
-      emit(event);
-      messages.push({ role: "user", content: reused ? identicalReuseStub(call.name, str.length) : body });
+      settleToolResult(call, result, allowed);
     }
   }
   emit({ type: "usage", ...usageFor(messages, provider, model) });

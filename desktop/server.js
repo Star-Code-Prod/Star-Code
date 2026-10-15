@@ -30,6 +30,8 @@ import { scanOpencode, applyImport } from "./lib/opencode-import.js";
 // JSON-RPC to server commands the user configures. Tools surface as
 // mcp__<server>__<tool> and always ask for permission.
 import { createMcpManager, readMcpConfig } from "./lib/mcp.js";
+import { scanSkills, readSkillsConfig, writeSkillsConfig } from "./lib/skills.js";
+import { pluginManager, readPluginsConfig, writePluginsConfig, userPluginsDir } from "./lib/plugins.js";
 // Namespace import: chatSystemPrompt() / cheapModelFor() are being added to
 // agent.js alongside this work, and the server must keep booting (and code
 // sessions keep working) whether or not they have landed yet. The chat path
@@ -60,7 +62,7 @@ let subagentCtx = null;
 // turn for its session falls back to prose.
 const askTurns = new Map();
 const SUBAGENT_BLOCKED = new Set(["write_file", "edit_file", "multi_edit", "run_command", "download", "fetch_url", "websearch", "task"]);
-const CHAT_TOOLS = ["websearch", "fetch_url", "self_knowledge", "task", "ask_user"];
+const CHAT_TOOLS = ["websearch", "fetch_url", "self_knowledge", "task", "ask_user", "skill"];
 
 /* --------------------------------- mcp ----------------------------------- */
 // The shared MCP manager: connects enabled servers at boot, exposes their
@@ -138,6 +140,7 @@ function makeRunner(r, allowed, session = null) {
   const toolRunner = createToolRunner(r, {
     ...(allowed ? { allowed } : {}),
     mcp: mcpManager,
+    plugins: pluginManager,
     askUser: async (questions) => {
       // Render clickable options in the conversation that asked and wait for
       // the clicks. Keyed by session, so two background turns never cross
@@ -364,7 +367,7 @@ function chatSystemContent() {
 
 /** The system message a session runs with (refreshed on every turn). */
 function sessionSystemContent(s) {
-  return s.kind === "chat" ? chatSystemContent() : systemPrompt(ROOT, s.mode, mcpManager.toolList());
+  return s.kind === "chat" ? chatSystemContent() : systemPrompt(ROOT, s.mode, mcpManager.toolList().concat(pluginManager.toolList()));
 }
 
 function newSession(title, kind) {
@@ -433,12 +436,22 @@ function agentPersonaPrefix(agent) {
  * allowlist (CHAT_TOOLS for chat, none for code) still applies on top: the
  * effective list is the intersection, never wider than the session.
  */
+/**
+ * The capabilities a persona can never strip: subagent missions and skill
+ * loading stay reachable however narrow an agent's tools line is. A tools
+ * line narrows what the session permits, but research reach is core - the
+ * AutoJoin lesson: a Puck-modder persona in a chat collapsed to
+ * self_knowledge alone and could not read the corpus at all.
+ */
+const CORE_AGENT_TOOLS = ["task", "skill"];
+
 function agentAllowedTools(agent, sessionTools) {
   const agentTools = agent.tools === null
     ? null
     : Array.isArray(agent.tools) ? agent.tools : [...AGENT_DEFAULT_TOOLS];
-  if (agentTools && sessionTools) return sessionTools.filter((t) => agentTools.includes(t));
-  if (agentTools) return agentTools.slice();
+  const withCore = (list) => list.concat(CORE_AGENT_TOOLS.filter((t) => !list.includes(t)));
+  if (agentTools && sessionTools) return withCore(sessionTools.filter((t) => agentTools.includes(t)));
+  if (agentTools) return withCore(agentTools.slice());
   return sessionTools ? sessionTools.slice() : null;
 }
 
@@ -800,6 +813,42 @@ async function route(req, res) {
     return sendJSON(res, 200, await mcpManager.test(name));
   }
 
+  /* -------------------------------- skills -------------------------------- */
+  // Settings > Skills: what the skill tool can load, and where it looks.
+  if (req.method === "GET" && url.pathname === "/api/skills") {
+    const skills = scanSkills(ROOT).map((s) => ({
+      name: s.name, description: s.description, dir: s.dir, origin: s.origin,
+    }));
+    return sendJSON(res, 200, { ok: true, skills, paths: readSkillsConfig().paths });
+  }
+  if (req.method === "POST" && url.pathname === "/api/skills/paths") {
+    const body = await readBody(req);
+    const paths = Array.isArray(body.paths) ? body.paths : [];
+    const saved = writeSkillsConfig(paths);
+    return sendJSON(res, 200, { ok: true, paths: saved.paths });
+  }
+
+  /* -------------------------------- plugins ------------------------------- */
+  // Settings > Plugins: load reports, configured extra paths, the folder.
+  if (req.method === "GET" && url.pathname === "/api/plugins") {
+    return sendJSON(res, 200, {
+      ok: true,
+      plugins: pluginManager.status(),
+      paths: readPluginsConfig().paths,
+      dir: userPluginsDir(),
+    });
+  }
+  if (req.method === "POST" && url.pathname === "/api/plugins/paths") {
+    const body = await readBody(req);
+    const saved = writePluginsConfig(Array.isArray(body.paths) ? body.paths : []);
+    const plugins = await pluginManager.load({ version: VERSION });
+    return sendJSON(res, 200, { ok: true, paths: saved.paths, plugins });
+  }
+  if (req.method === "POST" && url.pathname === "/api/plugins/reload") {
+    const plugins = await pluginManager.load({ version: VERSION });
+    return sendJSON(res, 200, { ok: true, plugins });
+  }
+
   /* --------------------------------- changelog --------------------------------- */
   // What's new: CHANGELOG.md parsed once per boot. Newest entry first.
   if (req.method === "GET" && url.pathname === "/api/changelog") {
@@ -1013,9 +1062,20 @@ async function route(req, res) {
     persist();
     const emit = (evt) => {
       bumpSessionStats(session, evt);
+      // Plugin hooks ride the event stream: every path (fleets included)
+      // passes through emit, so nothing needs a second call site.
+      if (evt.type === "tool") {
+        pluginManager.fire("tool_call", { sessionId: session.id, name: evt.name, args: evt.args || {}, allowed: evt.allowed !== false });
+      } else if (evt.type === "tool_result") {
+        pluginManager.fire("tool_result", { sessionId: session.id, name: evt.name, status: evt.status || "ok", preview: String(evt.preview || "").slice(0, 500) });
+      }
       res.write(`data: ${JSON.stringify(evt)}\n\n`);
     };
     emit({ type: "session", sessionId: session.id, kind: session.kind, root: sessionRoot(session), title: session.title, mode: session.mode, agent: selectedAgent ? selectedAgent.name : null });
+    pluginManager.fire("turn_start", {
+      sessionId: session.id, kind: session.kind, root: sessionRoot(session),
+      agent: selectedAgent ? selectedAgent.name : null,
+    });
 
     const requestPermission = (info) =>
       new Promise((resolve) => {
@@ -1051,6 +1111,7 @@ async function route(req, res) {
     session.updated = Date.now();
     session.activeTurn = 0;
     askTurns.delete(session.id);
+    pluginManager.fire("turn_end", { sessionId: session.id, kind: session.kind, aborted: !!controller.abort });
     persist();
     session.aborts.delete(controller);
     return res.end();
@@ -1126,6 +1187,9 @@ export async function startServer({ port = PORT, root, silent = false } = {}) {
     mcpManager.setRoot(ROOT);
     // Stored sessions are history, not scratch: keep them across boots.
   }
+  // Plugins load before the port opens: the first turn already sees their
+  // tools. A broken plugin reports on its Settings row, never throws here.
+  await pluginManager.load({ version: VERSION });
   await new Promise((resolve, reject) => {
     server.once("error", reject);
     server.listen(port, "127.0.0.1", resolve);

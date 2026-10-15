@@ -19,7 +19,7 @@ const { PROVIDERS, normalizeModels, filterChatModels, isReasoning, discoverModel
   await import(pathToFileURL(path.resolve("lib/providers.js")).href);
 const { decisionFor, systemPrompt, resetSystemPromptCache, chatSystemPrompt, pruneOldToolResults, manageHistory,
   estimateTokens, hasIdenticalToolResult, identicalReuseStub, TOOL_RESULT_PREFIX,
-  parseAssistantContent, parseDsmlCalls } =
+  parseAssistantContent, parseDsmlCalls, runAgentTurn } =
   await import(pathToFileURL(path.resolve("lib/agent.js")).href);
 
 const results = [];
@@ -464,6 +464,200 @@ ok("multi_edit is dangerous", mr.isDangerous("multi_edit") === true);
   let askErr = "";
   try { await mr.run("ask_user", { questions: [{ question: "Pick", options: [{ label: "only" }] }] }); } catch (e) { askErr = e.message; }
   ok("a malformed ask errors cleanly", /1-4 questions/.test(askErr), askErr);
+}
+
+/* ------------------- subagents: reach, fleets, doctrine ------------------- */
+{
+  const sp = systemPrompt(process.cwd(), "manual");
+  ok("the coding prompt teaches missions, parallelism and verification",
+    sp.includes("run in parallel") && sp.includes("reference corpora") &&
+    sp.includes('never hand over a scaffold stamped "unverified"') && sp.includes("one or more blocks"));
+  const cp = chatSystemPrompt();
+  ok("the chat prompt teaches missions as the local-filesystem reach",
+    cp.includes("read any absolute path") && cp.includes("run in parallel") &&
+    cp.includes("open a code session") && cp.includes("one or more blocks"));
+
+  // Independent missions in one step run together: a stub model asks for two
+  // task calls in a single message; each mission sleeps 400ms. Sequential
+  // handling would take 800ms+; the fleet should land near one mission.
+  const fleetSrv = http.createServer((req, res) => {
+    let body = "";
+    req.on("data", (c) => { body += c; });
+    req.on("end", () => {
+      let parsed = {};
+      try { parsed = JSON.parse(body || "{}"); } catch { /* fine */ }
+      const last = [...(parsed.messages || [])].reverse().find((m) => m.role === "user") || {};
+      const lt = String(last.content || "");
+      res.writeHead(200, { "Content-Type": "text/event-stream" });
+      const send = (o) => res.write("data: " + JSON.stringify(o) + "\n\n");
+      if (lt.includes("Tool result for task")) {
+        send({ choices: [{ delta: { content: "both-missions-done" } }] });
+      } else {
+        const call = (n) => "```tool\n" + JSON.stringify({ name: "task", args: { instructions: "mission " + n } }) + "\n```";
+        send({ choices: [{ delta: { content: call(1) + "\n" + call(2) } }] });
+      }
+      res.write("data: [DONE]\n\n");
+      res.end();
+    });
+  });
+  await new Promise((r) => fleetSrv.listen(0, "127.0.0.1", r));
+  const fleetBase = "http://127.0.0.1:" + fleetSrv.address().port + "/v1";
+  const slow = createToolRunner(med, {
+    runSubagent: async ({ instructions }) => {
+      await new Promise((r) => setTimeout(r, 400));
+      return { text: "seen " + instructions };
+    },
+  });
+  const fleetMsgs = [{ role: "system", content: "sys" }, { role: "user", content: "go" }];
+  const fleetEvents = [];
+  const t0 = Date.now();
+  await runAgentTurn({
+    provider: "custom", model: "fleet-model", apiKey: "k", baseUrl: fleetBase,
+    messages: fleetMsgs, runner: slow, emit: (e) => fleetEvents.push(e),
+    requestPermission: async () => ({ allowed: false }), mode: "manual",
+  });
+  const fleetMs = Date.now() - t0;
+  const fleetResults = fleetEvents.filter((e) => e.type === "tool_result");
+  ok("independent missions in one step run in parallel", fleetMs < 750,
+    fleetMs + "ms for two 400ms missions");
+  ok("fleet results settle in call order",
+    fleetResults.length === 2 && /mission 1/.test(fleetResults[0].preview) && /mission 2/.test(fleetResults[1].preview),
+    JSON.stringify(fleetResults.map((e) => e.preview.slice(0, 12))));
+  ok("the fleet turn finishes with the model's closing text",
+    fleetEvents.some((e) => e.type === "done" && String(e.text || "").includes("both-missions-done")));
+  fleetSrv.close();
+}
+
+/* ----------------------------- skills: SKILL.md ---------------------------- */
+{
+  const { scanSkills, catalogText, loadSkill, readSkillsConfig, writeSkillsConfig } =
+    await import(pathToFileURL(path.resolve("lib/skills.js")).href);
+
+  const sroot = fs.mkdtempSync(path.join(os.tmpdir(), "star-skills-"));
+  const mk = (base, name, text) => {
+    const d = path.join(base, name);
+    fs.mkdirSync(d, { recursive: true });
+    fs.writeFileSync(path.join(d, "SKILL.md"), text);
+    return d;
+  };
+  mk(path.join(sroot, ".star-code", "skills"), "deploy", [
+    "---",
+    "name: deploy",
+    "description: \"Ship it: build, sign, upload, verify\"",
+    "---",
+    "",
+    "# Deploy",
+    "Step one.",
+  ].join("\n"));
+  const plainDir = mk(path.join(sroot, ".star-code", "skills"), "plain", [
+    "No frontmatter here.",
+    "Second line of the description path.",
+  ].join("\n"));
+  fs.writeFileSync(path.join(plainDir, "notes.md"), "not a skill");
+  // A same-named user-level skill must lose to the project one.
+  mk(path.join(dir, "skills"), "deploy", ["---", "name: deploy", "description: user level", "---", "USER"].join("\n"));
+
+  const found = scanSkills(sroot);
+  ok("skills scan finds every SKILL.md folder",
+    found.length === 2 && found.some((s) => s.name === "deploy") && found.some((s) => s.name === "plain"),
+    JSON.stringify(found.map((s) => s.name)));
+  const dep = found.find((s) => s.name === "deploy");
+  ok("frontmatter drives name and description",
+    dep.origin === "project" && dep.description === "Ship it: build, sign, upload, verify",
+    JSON.stringify(dep && dep.description));
+  const pl = found.find((s) => s.name === "plain");
+  ok("missing frontmatter falls back to folder name and first line",
+    pl.description === "No frontmatter here.", pl && pl.description);
+  ok("the project skill wins the duplicate name", dep.description !== "user level");
+
+  const cat = catalogText(found);
+  ok("the catalog lists skills for the prompt",
+    /- deploy: Ship it/.test(cat) && cat.includes("load one with the skill tool"));
+
+  const loaded = await createToolRunner(sroot).run("skill", { name: "deploy" });
+  ok("the skill tool returns the body", loaded.includes("# Deploy") && loaded.includes("Step one."), loaded.slice(0, 80));
+  fs.writeFileSync(path.join(path.dirname(dep.file), "checklist.md"), "- one\n- two\n");
+  const loaded2 = await createToolRunner(sroot).run("skill", { name: "deploy" });
+  ok("resource files come back as read_file-able absolute paths",
+    loaded2.includes(path.join(path.dirname(dep.file), "checklist.md")));
+  let skillErr = "";
+  try { await createToolRunner(sroot).run("skill", { name: "ghost" }); } catch (e) { skillErr = e.message; }
+  ok("an unknown skill names what exists", /unknown skill/.test(skillErr) && /deploy/.test(skillErr), skillErr);
+
+  ok("the catalog rides in the coding prompt", systemPrompt(sroot, "manual").includes("- deploy: Ship it"));
+  ok("the catalog rides in the chat prompt", chatSystemPrompt().includes("- deploy:"));
+
+  fs.rmSync(path.join(dir, "skills", "deploy"), { recursive: true, force: true });
+  writeSkillsConfig([path.join(sroot, ".star-code", "skills")]);
+  ok("skill paths round-trip through skills.json",
+    readSkillsConfig().paths.length === 1);
+  const viaPath = scanSkills(path.join(sroot, "elsewhere"));
+  ok("a configured path alone still finds its skills",
+    viaPath.some((s) => s.name === "deploy") && viaPath.find((s) => s.name === "deploy").origin === "path",
+    JSON.stringify(viaPath.map((s) => [s.name, s.origin])));
+  writeSkillsConfig([]);
+}
+
+/* -------------------------------- plugins -------------------------------- */
+{
+  const { pluginManager } = await import(pathToFileURL(path.resolve("lib/plugins.js")).href);
+  const { getAgent } = await import(pathToFileURL(path.resolve("lib/agents.js")).href);
+  const pdir = fs.mkdtempSync(path.join(os.tmpdir(), "star-plugins-"));
+  const plugDir = path.join(dir, "plugins");
+  fs.mkdirSync(plugDir, { recursive: true });
+  const pskillDir = path.join(pdir, "pskill");
+  fs.mkdirSync(path.join(pskillDir, "plug-skill"), { recursive: true });
+  fs.writeFileSync(path.join(pskillDir, "plug-skill", "SKILL.md"),
+    "---\nname: plug-skill\ndescription: from a plugin\n---\nBody.\n");
+  fs.writeFileSync(path.join(plugDir, "good.js"), [
+    "export default function (star) {",
+    "  star.on('tool_call', () => {});",
+    "  star.addTool({ name: 'plug_echo', description: 'Echo text back', schema: { text: 'string' }, dangerous: false, run: ({ text }) => 'echo:' + text });",
+    "  star.addTool({ name: 'plug_risky', description: 'No danger flag', run: () => 'ran' });",
+    "  star.addSkillDir(" + JSON.stringify(pskillDir) + ");",
+    "  star.addAgent({ name: 'plug-agent', description: 'Plugin agent', prompt: 'You are the plugin agent.' });",
+    "}",
+  ].join("\n"));
+  fs.writeFileSync(path.join(plugDir, "broken.js"), "export default function (star) { star.addTool({ name: 'write_file', run: () => 1 }); }\n");
+  fs.writeFileSync(path.join(plugDir, "crash.js"), "throw new Error('boom at import');\n");
+
+  const pstat = await pluginManager.load({ version: "test" });
+  const good = pstat.find((s) => s.name === "good.js") || {};
+  const broken = pstat.find((s) => s.name === "broken.js") || {};
+  const crash = pstat.find((s) => s.name === "crash.js") || {};
+  ok("plugins load, broken ones land on their row",
+    pstat.length === 3 && good.ok === true && broken.ok === false && crash.ok === false &&
+    /built-in/.test(String(broken.error)) && /boom/.test(String(crash.error)),
+    JSON.stringify(pstat.map((s) => [s.name, s.ok])));
+  ok("contributions are counted", good.tools === 2 && good.hooks === 1 && good.skillDirs === 1 && good.agents === 1);
+
+  const prun = createToolRunner(pdir, { plugins: pluginManager });
+  ok("a plugin tool runs through a session runner",
+    (await prun.run("plug_echo", { text: "hi" })) === "echo:hi");
+  ok("plugin tools default to dangerous, a declaration clears it",
+    prun.isDangerous("plug_risky") === true && prun.isDangerous("plug_echo") === false);
+  ok("a declared-safe tool skips the ask outside plan mode",
+    decisionFor("manual", "plug_echo", new Set()) === "allow" &&
+    decisionFor("acceptEdits", "plug_echo", new Set()) === "allow" &&
+    decisionFor("plan", "plug_echo", new Set()) === "deny" &&
+    decisionFor("manual", "plug_risky", new Set()) === "ask");
+  let noHook = "";
+  try { await createToolRunner(pdir).run("plug_echo", { text: "x" }); } catch (e) { noHook = e.message; }
+  ok("without the plugin hook a runner never touches plugin code", /Unknown tool/.test(noHook), noHook);
+  const schemas = prun.toolSchemas().map((t) => t.function.name);
+  ok("plugin tools ride in the schema list", schemas.includes("plug_echo") && schemas.includes("plug_risky"));
+
+  ok("plugin skill dirs join the catalog", systemPrompt(pdir, "manual").includes("- plug-skill: from a plugin"));
+  ok("plugin agents resolve; files and the builtin win",
+    (getAgent(pdir, "plug-agent") || {}).promptText === "You are the plugin agent." &&
+    (getAgent(pdir, "explorer") || {}).name === "explorer");
+
+  await new Promise((r) => setTimeout(r, 50));
+  fs.rmSync(plugDir, { recursive: true, force: true });
+  await pluginManager.load({});
+  ok("removing the files and reloading clears contributions",
+    pluginManager.status().length === 0 && getAgent(pdir, "plug-agent") === null &&
+    !systemPrompt(pdir, "manual").includes("- plug-skill"));
 }
 
 // fetch_url against a local server (no external network)

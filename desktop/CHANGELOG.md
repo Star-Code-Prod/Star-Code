@@ -1,5 +1,11 @@
 # What's new in Star
 
+## 1.15.0 — 2026-10-16
+- Agents can actually use subagents now - everywhere. A persona (or Chat) that narrowed its tools used to lose the task tool entirely: ask your Puck modder in Chat to research the corpus and its own research call was refused with "not available to this agent". Subagent missions and skills can never be stripped again, and the prompt now insists on research-first: dispatch missions for facts that live outside the conversation, demand file/line evidence, and never hand over a scaffold stamped "unverified" when a mission could read the source.
+- Missions run in parallel. Ask for several task calls (or reads) in one step and independent allowed calls run together, coming back in order - a two-job corpus hunt is one wait, not two.
+- Skills: SKILL.md packs, the opencode shape. Star reads .star-code/skills and ~/.star-code/skills plus extra paths in Settings > Skills, the prompt carries the catalog, and the skill tool loads a pack's instructions and resource files on demand. Subagents can follow them too, and importing an opencode install brings your skills.paths over - a modding toolkit's skills work in Star as-is.
+- Plugins: local JS modules that extend Star itself. Drop a file in ~/.star-code/plugins or point at one from Settings > Plugins: it can hook turn and tool events, add tools the agent calls (permission first, never inside subagents), add skill folders, even register agents. A broken plugin reports on its row instead of breaking the boot; opencode SDK plugins cannot run here and the importer says so per entry.
+
 ## 1.14.0 — 2026-10-16
 - Star can ask you questions you answer with a click. When a choice is really yours - colors, names, which direction - it shows its questions in the chat as cards with 2-4 options each, the recommended one first, and clicking an option IS the answer. Several questions (or pick-more-than-one) collect up and Submit sends them all; Skip declines and Star carries on.
 - While a question waits, the turn simply pauses: the work line reads "asking a question" and everything else keeps running - switch chats, start another session, and the card appears in the conversation that asked, never the other one. Chat mode gets questions too.

@@ -16,6 +16,7 @@ import { selfKnowledge } from "./selfdoc.js";
 import { classifySource } from "./sources.js";
 import { reputationReport } from "./reputation.js";
 import { getAgent, listAgents } from "./agents.js";
+import { loadSkill } from "./skills.js";
 
 export const TOOL_SPECS = [
   {
@@ -92,7 +93,7 @@ export const TOOL_SPECS = [
   },
   {
     name: "task",
-    description: "Run a read-only research subagent with fresh context: give it a research question, get its findings back without polluting this conversation. Pass agent to use a custom agent defined in .star-code/agents or ~/.star-code/agents (name from its frontmatter); omit it for the built-in explorer.",
+    description: "Run a read-only research subagent with fresh context: give it a research question, get its findings back without polluting this conversation. The explorer can read any absolute path (reference corpora, other projects); call it several times in one step to run missions in parallel. Pass agent to use a custom agent defined in .star-code/agents or ~/.star-code/agents (name from its frontmatter); omit it for the built-in explorer.",
     dangerous: false,
     schema: { instructions: "string", agent: "string?" },
   },
@@ -107,6 +108,12 @@ export const TOOL_SPECS = [
     description: "Ask the user 1-4 questions with clickable options instead of asking in prose. Each question: a short header, the question text and 2-4 options (label + one-line description); put the recommended option first and add '(Recommended)' to its label. Set multiSelect when several answers may apply. Use it when you genuinely need a decision; never for things you can choose yourself.",
     dangerous: false,
     schema: { questions: "array" },
+  },
+  {
+    name: "skill",
+    description: "Load a skill - a SKILL.md pack of exact instructions for a specialized task - when a skill in the catalog matches what you are doing. Returns the full instructions plus its resource files; follow the procedure, reading resources with read_file when it points at them.",
+    dangerous: false,
+    schema: { name: "string" },
   },
 ];
 
@@ -743,6 +750,10 @@ export function createToolRunner(root, opts = {}) {
   // An MCP manager hook (lib/mcp.js): routes `mcp__server__tool` names to the
   // live stdio servers. Without it those names stay unavailable, never half-work.
   const mcp = opts.mcp || null;
+  // A plugin manager hook (lib/plugins.js): plugin-registered tools run
+  // through it. Main turns pass it; subagents never do, so research runs
+  // never touch plugin code.
+  const plugins = opts.plugins || null;
   // A UI hook for ask_user: resolves with the clicked answers, or null where
   // nobody can click (CLI, subagents) - the tool then says to ask in prose.
   const askUser = typeof opts.askUser === "function" ? opts.askUser : null;
@@ -1250,11 +1261,19 @@ export function createToolRunner(root, opts = {}) {
     read_file, list_dir, search_files, glob_files, write_file, edit_file, run_command, download,
     search_knowledge: ({ query }) => searchKnowledge(root, query),
     fetch_url, websearch, multi_edit, task, ask_user,
+    skill: ({ name }) => loadSkill(root, name),
     self_knowledge: ({ topic }) => selfKnowledge(topic),
   };
 
   return {
     async run(name, args) {
+      if (plugins && plugins.has(name)) {
+        if (allowedSet && !allowedSet.has(name)) {
+          throw new Error("Tool \"" + name + "\" is not available to this agent. Allowed tools: " +
+            (allowed.length ? allowed.join(", ") : "(none)") + ".");
+        }
+        return await plugins.call(name, args || {});
+      }
       if (String(name).startsWith("mcp__")) {
         if (allowedSet && !allowedSet.has(name)) {
           throw new Error("Tool \"" + name + "\" is not available to this agent. Allowed tools: " +
@@ -1275,6 +1294,7 @@ export function createToolRunner(root, opts = {}) {
       return await fn(args || {});
     },
     isDangerous(name) {
+      if (plugins && plugins.has(name)) return plugins.isDangerous(name); // plugin tools ask by default
       if (String(name).startsWith("mcp__")) return true; // a server tool acts outside Star's sandbox: always ask
       return !!TOOL_SPECS.find((t) => t.name === name)?.dangerous;
     },
@@ -1284,12 +1304,20 @@ export function createToolRunner(root, opts = {}) {
     /** The OpenAI tool schemas this runner may actually call. */
     toolSchemas() {
       const base = toolSchemasOpenAI(allowed);
-      if (!mcp) return base;
-      // MCP tools have no static spec: advertise exactly what is connected
-      // (and allowed, when the agent is restricted).
-      const extra = mcp.toolList()
-        .filter((t) => !allowedSet || allowedSet.has(t.name))
-        .map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: { type: "object", properties: {}, additionalProperties: true } } }));
+      if (!mcp && !plugins) return base;
+      // MCP and plugin tools have no static spec: advertise exactly what is
+      // connected (and allowed, when the agent is restricted).
+      const extra = [];
+      if (mcp) {
+        extra.push(...mcp.toolList()
+          .filter((t) => !allowedSet || allowedSet.has(t.name))
+          .map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: { type: "object", properties: {}, additionalProperties: true } } })));
+      }
+      if (plugins) {
+        extra.push(...plugins.toolList()
+          .filter((t) => !allowedSet || allowedSet.has(t.name))
+          .map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: schemaToJson(t.schema || {}) } })));
+      }
       return base.concat(extra);
     },
   };
@@ -1327,7 +1355,7 @@ export function toolSchemasOpenAI(allowed) {
   }));
 }
 
-function schemaToJson(schema) {
+export function schemaToJson(schema) {
   const props = {};
   const required = [];
   for (const [k, v] of Object.entries(schema)) {

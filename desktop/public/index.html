@@ -1661,6 +1661,14 @@ body.mode-chat #bigProj{display:none}
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 1.8v4.4M10 1.8v4.4"/><path d="M4 6.2h8v1.9a4 4 0 0 1-8 0z"/><path d="M8 12v2.2"/></svg>
           MCP
         </button>
+        <button data-s="skills">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.2l1.7 3.4 3.8.5-2.8 2.7.7 3.8L8 10.8l-3.4 1.8.7-3.8L2.5 6.1l3.8-.5z"/></svg>
+          Skills
+        </button>
+        <button data-s="plugins">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6.4 2.4h3.2v3.2h3.2v3.2h-3.2v3.2H6.4v-3.2H3.2V5.6h3.2z"/></svg>
+          Plugins
+        </button>
         <button data-s="keys">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><rect x="1.5" y="4" width="13" height="8" rx="2"/><path d="M4.5 7h2M8 7h3.5M4.5 9.5h5"/></svg>
           Shortcuts
@@ -1845,7 +1853,7 @@ const ICONS = {
   multi_edit: ["Edit", "Edited"], run_command: ["Run", "Ran"],
   fetch_url: ["Fetch", "Fetched"], websearch: ["Web", "Searched web"],
   task: ["Explore", "Explored"], self_knowledge: ["Learn", "Learned"],
-  ask_user: ["Ask", "Asked"],
+  ask_user: ["Ask", "Asked"], skill: ["Study", "Studied"],
   search_knowledge: ["Knowledge", "Searched knowledge"], error: ["Error", "Error"],
 };
 
@@ -5586,7 +5594,7 @@ function toolGroupOf(name) {
   if (name === "websearch" || name === "fetch_url" || name === "download") return "web";
   if (name === "task") return "agent";
   if (name === "read_file" || name === "list_dir" || name === "search_files" || name === "glob_files" ||
-      name === "search_knowledge" || name === "self_knowledge") return "read";
+      name === "search_knowledge" || name === "self_knowledge" || name === "skill") return "read";
   return "other";
 }
 /** {name: count} -> [{ group, count, top: [{ name, count }] }], busiest first. */
@@ -5968,7 +5976,7 @@ const ACTIVITY_VERBS = {
   multi_edit: "editing files", run_command: "running a command", download: "downloading",
   fetch_url: "fetching a page", websearch: "searching the web", search_knowledge: "checking the notes",
   self_knowledge: "checking the Star docs", task: "exploring", error: "recovering",
-  ask_user: "asking a question",
+  ask_user: "asking a question", skill: "loading a skill",
 };
 function activityForTool(name) {
   const n = String(name || "");
@@ -6166,6 +6174,8 @@ function renderSettings() {
   else if (settingsSection === "session") host.innerHTML = settingsSession();
   else if (settingsSection === "knowledge") host.innerHTML = settingsKnowledge();
   else if (settingsSection === "mcp") host.innerHTML = settingsMcp();
+  else if (settingsSection === "skills") host.innerHTML = settingsSkills();
+  else if (settingsSection === "plugins") host.innerHTML = settingsPlugins();
   else if (settingsSection === "keys") host.innerHTML = settingsKeys();
   else host.innerHTML = settingsAbout();
   wireSettings();
@@ -6201,6 +6211,16 @@ function renderSettings() {
     if (warm) setTimeout(() => {
       if (settingsSection === "mcp" && $("settings").classList.contains("on")) { mcpLoadedAt = 0; settingsAutoRender(); }
     }, 1600);
+  }
+  if (settingsSection === "skills") {
+    loadSkills().then(changed => {
+      if (changed && settingsSection === "skills" && $("settings").classList.contains("on")) settingsAutoRender();
+    });
+  }
+  if (settingsSection === "plugins") {
+    loadPluginsData().then(changed => {
+      if (changed && settingsSection === "plugins" && $("settings").classList.contains("on")) settingsAutoRender();
+    });
   }
 }
 
@@ -6679,8 +6699,109 @@ function settingsMcp() {
   </div>`;
 }
 
-function settingsKeys() {
+/* ---- skills settings ---- */
+let skillList = [];
+let skillsPaths = [];
+let skillsLoadedAt = 0;
+
+/** Fetch the skills list at most every 3s; returns true when it re-rendered. */
+async function loadSkills() {
+  if (Date.now() - skillsLoadedAt < 3000) return false;
+  try {
+    const data = await (await fetch("/api/skills")).json();
+    skillList = data.skills || [];
+    skillsPaths = data.paths || [];
+  } catch { /* keep the last list */ }
+  skillsLoadedAt = Date.now();
+  return true;
+}
+
+function skillOriginPill(origin) {
+  const map = { project: ["ok", "project"], user: ["dim", "user"], plugin: ["warn", "plugin"], path: ["dim", "path"] };
+  const [cls, label] = map[origin] || ["dim", origin];
+  return `<span class="pill ${cls}" style="margin-left:6px">${esc(label)}</span>`;
+}
+
+function settingsSkills() {
   return `
+  <div class="sect">
+    <h2 class="h">Skills</h2>
+    <p class="sh">SKILL.md packs the agent loads with the <span class="mono">skill</span> tool when their description matches the task. Star reads <span class="mono">~/.star-code/skills/&lt;name&gt;/SKILL.md</span>, the project's <span class="mono">.star-code/skills/</span>, plugin-provided folders and the extra paths below - the same format opencode uses, so its skill folders work as-is.</p>
+    <div class="card">
+      <div class="ct">Available skills</div>
+      <div class="cs">${skillList.length ? skillList.length + " skill" + (skillList.length === 1 ? "" : "s") + " the agent can load" : "No skills yet. Put a folder with a SKILL.md into one of the paths below."}</div>
+      ${skillList.map(s => `<div class="row">
+        <div class="rl">
+          <div class="rt">${esc(s.name)}${skillOriginPill(s.origin)}</div>
+          <div class="rd">${esc((s.description || "").slice(0, 220))}</div>
+          <div class="rd" style="font-family:var(--font-mono);word-break:break-all">${esc(s.dir)}</div>
+        </div>
+      </div>`).join("")}
+    </div>
+    <div class="card">
+      <div class="ct">Extra paths</div>
+      <div class="cs">Folders whose subfolders carry SKILL.md files, like opencode's skills.paths. The opencode importer adds its paths here.</div>
+      ${skillsPaths.map(p => `<div class="row">
+        <div class="rl"><div class="rd" style="font-family:var(--font-mono);word-break:break-all">${esc(p)}</div></div>
+        <div class="rc"><button class="btn sm dgr" data-skillpathdel="${esc(p)}">Remove</button></div>
+      </div>`).join("")}
+      <div class="fld"><label>Add a path</label><input class="inp" id="fSkillPath" placeholder="Documents\\skills" autocomplete="off"></div>
+      <button class="btn pri sm" id="fSkillPathAdd">Add path</button>
+    </div>
+  </div>`;
+}
+
+/* ---- plugins settings ---- */
+let pluginRows = [];
+let pluginPaths = [];
+let pluginsDir = "";
+let pluginsLoadedAt = 0;
+
+async function loadPluginsData() {
+  if (Date.now() - pluginsLoadedAt < 3000) return false;
+  try {
+    const data = await (await fetch("/api/plugins")).json();
+    pluginRows = data.plugins || [];
+    pluginPaths = data.paths || [];
+    pluginsDir = data.dir || "";
+  } catch { /* keep the last list */ }
+  pluginsLoadedAt = Date.now();
+  return true;
+}
+
+function settingsPlugins() {
+  return `
+  <div class="sect">
+    <h2 class="h">Plugins</h2>
+    <p class="sh">Local JS modules that extend Star: event hooks (turn and tool events) and custom tools the agent can call. Put files in <span class="mono">${esc(pluginsDir || "~/.star-code/plugins")}</span> or point at files and folders below. Plugin tools ask permission before every call, are available to code sessions (not Chat) and never run inside subagents. Plugins are local code running with Star's own privileges - only load what you trust.</p>
+    <div class="card">
+      <div class="ct">Loaded plugins</div>
+      <div class="cs">${pluginRows.length ? pluginRows.length + " entr" + (pluginRows.length === 1 ? "y" : "ies") + " - reloaded on save and at every boot" : "None yet. Drop a .js file into the plugins folder, or add a path below."}</div>
+      ${pluginRows.map(p => `<div class="row">
+        <div class="rl">
+          <div class="rt">${esc(p.name)}${p.ok ? '<span class="pill ok" style="margin-left:6px">Loaded</span>' : '<span class="pill no" style="margin-left:6px">Failed</span>'}</div>
+          <div class="rd" style="font-family:var(--font-mono);word-break:break-all">${esc(p.source)}</div>
+          ${p.ok ? `<div class="rd">${p.tools} tool${p.tools === 1 ? "" : "s"} · ${p.hooks} hook${p.hooks === 1 ? "" : "s"}${p.skillDirs ? " · " + p.skillDirs + " skill folder" + (p.skillDirs === 1 ? "" : "s") : ""}${p.agents ? " · " + p.agents + " agent" + (p.agents === 1 ? "" : "s") : ""}</div>` : ""}
+          ${p.error ? `<div class="rd" style="color:var(--del-fg)">${esc(p.error)}</div>` : ""}
+          ${p.lastError ? `<div class="rd" style="color:var(--del-fg)">last hook error: ${esc(p.lastError)}</div>` : ""}
+        </div>
+      </div>`).join("")}
+      <button class="btn sm" id="fPluginReload" style="margin-top:10px">Reload plugins</button>
+    </div>
+    <div class="card">
+      <div class="ct">Extra paths</div>
+      <div class="cs">A plugin file (.js/.mjs) or a folder with package.json main or index.js.</div>
+      ${pluginPaths.map(p => `<div class="row">
+        <div class="rl"><div class="rd" style="font-family:var(--font-mono);word-break:break-all">${esc(p)}</div></div>
+        <div class="rc"><button class="btn sm dgr" data-pluginpathdel="${esc(p)}">Remove</button></div>
+      </div>`).join("")}
+      <div class="fld"><label>Add a path</label><input class="inp" id="fPluginPath" placeholder="Documents\\my-plugin.js" autocomplete="off"></div>
+      <button class="btn pri sm" id="fPluginPathAdd">Add path</button>
+    </div>
+  </div>`;
+}
+
+function settingsKeys() {  return `
   <div class="sect">
     <h2 class="h">Shortcuts</h2>
     <p class="sh">Mirrors the shortcuts in the desktop app.</p>
@@ -6976,6 +7097,61 @@ function wireSettings() {
     toast("Added " + name);
     await mcpRefresh();
   });
+  const skillsRefresh = async () => { skillsLoadedAt = 0; await loadSkills(); renderSettings(); };
+  on("fSkillPathAdd", "click", async () => {
+    const p = $("fSkillPath") ? $("fSkillPath").value.trim() : "";
+    if (!p) { toast("Enter a folder path"); return; }
+    try {
+      await fetch("/api/skills/paths", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paths: [...skillsPaths, p] }),
+      });
+      toast("Added skill path");
+    } catch { toast("Could not save the path"); }
+    await skillsRefresh();
+  });
+  document.querySelectorAll("[data-skillpathdel]").forEach(el => el.addEventListener("click", async () => {
+    const p = el.dataset.skillpathdel;
+    try {
+      await fetch("/api/skills/paths", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paths: skillsPaths.filter(x => x !== p) }),
+      });
+      toast("Removed skill path");
+    } catch { toast("Could not update the paths"); }
+    await skillsRefresh();
+  }));
+  const pluginsRefresh = async () => { pluginsLoadedAt = 0; await loadPluginsData(); renderSettings(); };
+  on("fPluginReload", "click", async () => {
+    try {
+      await fetch("/api/plugins/reload", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      toast("Plugins reloaded");
+    } catch { toast("Could not reload plugins"); }
+    await pluginsRefresh();
+  });
+  on("fPluginPathAdd", "click", async () => {
+    const p = $("fPluginPath") ? $("fPluginPath").value.trim() : "";
+    if (!p) { toast("Enter a file or folder path"); return; }
+    try {
+      await fetch("/api/plugins/paths", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paths: [...pluginPaths, p] }),
+      });
+      toast("Added plugin path");
+    } catch { toast("Could not save the path"); }
+    await pluginsRefresh();
+  });
+  document.querySelectorAll("[data-pluginpathdel]").forEach(el => el.addEventListener("click", async () => {
+    const p = el.dataset.pluginpathdel;
+    try {
+      await fetch("/api/plugins/paths", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paths: pluginPaths.filter(x => x !== p) }),
+      });
+      toast("Removed plugin path");
+    } catch { toast("Could not update the paths"); }
+    await pluginsRefresh();
+  }));
   on("fThink", "click", e => { state.showThinking = !state.showThinking; save(); e.target.classList.toggle("on", state.showThinking); });
   on("fCollapse", "click", e => { state.autoCollapseThinking = !state.autoCollapseThinking; save(); e.target.classList.toggle("on", state.autoCollapseThinking); });
 
