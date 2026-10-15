@@ -710,6 +710,9 @@ export function blockedDownloadCommand(command) {
 export function createToolRunner(root, opts = {}) {
   const resolve = (p) => (path.isAbsolute(p) ? path.normalize(p) : path.resolve(root, p || "."));
   const runSubagent = opts.runSubagent || null;
+  // An MCP manager hook (lib/mcp.js): routes `mcp__server__tool` names to the
+  // live stdio servers. Without it those names stay unavailable, never half-work.
+  const mcp = opts.mcp || null;
   // A custom agent may restrict which tools exist at all: `allowed` is the
   // union of names the runner will accept, null/undefined = every tool. The
   // refusal and the filtered schemas are the same list, so a restricted
@@ -1201,6 +1204,17 @@ export function createToolRunner(root, opts = {}) {
 
   return {
     async run(name, args) {
+      if (String(name).startsWith("mcp__")) {
+        if (allowedSet && !allowedSet.has(name)) {
+          throw new Error("Tool \"" + name + "\" is not available to this agent. Allowed tools: " +
+            (allowed.length ? allowed.join(", ") : "(none)") + ".");
+        }
+        if (!mcp || !mcp.has(name)) {
+          throw new Error("Tool \"" + name + "\" is not available to this agent." +
+            (allowed ? " Allowed tools: " + (allowed.length ? allowed.join(", ") : "(none)") + "." : ""));
+        }
+        return await mcp.call(name, args || {});
+      }
       const fn = impl[name];
       if (!fn) throw new Error("Unknown tool: " + name);
       if (allowedSet && !allowedSet.has(name)) {
@@ -1210,6 +1224,7 @@ export function createToolRunner(root, opts = {}) {
       return await fn(args || {});
     },
     isDangerous(name) {
+      if (String(name).startsWith("mcp__")) return true; // a server tool acts outside Star's sandbox: always ask
       return !!TOOL_SPECS.find((t) => t.name === name)?.dangerous;
     },
     root,
@@ -1217,7 +1232,14 @@ export function createToolRunner(root, opts = {}) {
     allowed,
     /** The OpenAI tool schemas this runner may actually call. */
     toolSchemas() {
-      return toolSchemasOpenAI(allowed);
+      const base = toolSchemasOpenAI(allowed);
+      if (!mcp) return base;
+      // MCP tools have no static spec: advertise exactly what is connected
+      // (and allowed, when the agent is restricted).
+      const extra = mcp.toolList()
+        .filter((t) => !allowedSet || allowedSet.has(t.name))
+        .map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: { type: "object", properties: {}, additionalProperties: true } } }));
+      return base.concat(extra);
     },
   };
 }

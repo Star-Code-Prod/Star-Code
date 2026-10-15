@@ -26,6 +26,9 @@ import { PROVIDERS } from "./providers.js";
 import { readAuth, writeAuthEntry } from "./auth.js";
 import { readConfig, writeLastModel } from "./config.js";
 import { sanitizeAgentName } from "./agents.js";
+// MCP servers land in Star's own mcp.json through the same writer Settings
+// uses, so an imported server and a hand-added one are indistinguishable.
+import { readUserMcpServers, writeUserMcpServers } from "./mcp.js";
 
 /* ------------------------------- constants ------------------------------- */
 
@@ -64,7 +67,6 @@ const SKIP_REASONS = {
   plugin: "Star has no plugin system",
   plugins: "Star has no plugin system",
   skills: "Star has no skills to import",
-  mcp: "Star has no MCP servers",
   agent: "only agent files are imported, not inline agents",
   keybinds: "Star keybinds are not configurable",
   share: "Star has no share feature",
@@ -73,7 +75,7 @@ const SKIP_REASONS = {
 const SKIP_GENERIC = "Star has no equivalent setting";
 
 // Top-level keys the scan itself consumes; everything else is a skip row.
-const CONSUMED_KEYS = new Set(["model", "small_model", "theme", "permission", "provider"]);
+const CONSUMED_KEYS = new Set(["model", "small_model", "theme", "permission", "provider", "mcp"]);
 
 const AGENT_FILE_CAP = 200_000; // bytes; same cap as lib/agents.js
 
@@ -549,6 +551,34 @@ export function scanOpencode(opts = {}) {
     skipped.push({ what: key, why: SKIP_REASONS[key] || SKIP_GENERIC });
   }
 
+  /* --------------------------------- mcp --------------------------------- */
+  // opencode's `mcp` block: local stdio servers import verbatim. Remote
+  // (url) servers need a transport Star does not speak yet, so they keep a
+  // skip row with the honest reason instead of vanishing.
+  const mcpServers = [];
+  if (isObj(config.mcp)) {
+    for (const [name, cfg] of Object.entries(config.mcp)) {
+      const id = str(name);
+      if (!id) continue;
+      if (!isObj(cfg)) { skipped.push({ what: "mcp " + id, why: "not an object, nothing to import" }); continue; }
+      if (str(cfg.type).toLowerCase() === "remote" || str(cfg.url)) {
+        skipped.push({ what: "mcp " + id, why: "remote MCP does not import yet - Star launches local servers only" });
+        continue;
+      }
+      let command = [];
+      if (Array.isArray(cfg.command)) command = cfg.command.map((x) => String(x)).filter((x) => x.trim());
+      else if (typeof cfg.command === "string" && cfg.command.trim()) command = cfg.command.trim().split(/\s+/);
+      if (!command.length) { skipped.push({ what: "mcp " + id, why: "no command to run" }); continue; }
+      const environment = {};
+      if (isObj(cfg.environment)) {
+        for (const [k, v] of Object.entries(cfg.environment)) {
+          if (str(k)) environment[str(k)] = String(v);
+        }
+      }
+      mcpServers.push({ name: id, command, environment, enabled: cfg.enabled !== false });
+    }
+  }
+
   /* -------------------------------- agents -------------------------------- */
   const agents = [];
   for (const dir of agentsDirs) {
@@ -578,6 +608,7 @@ export function scanOpencode(opts = {}) {
     theme,
     defaultMode,
     agents,
+    mcpServers,
     problems,
     skipped,
   };
@@ -705,6 +736,36 @@ export function applyImport(scan, opts = {}) {
         report.push({ kind: "agent", id: slug, action: "imported", detail: "written to agents/" + slug + ".md" });
       } catch {
         report.push({ kind: "agent", id: slug, action: "skipped", detail: "could not write the agent file" });
+      }
+    }
+
+    /* --------------------------------- mcp -------------------------------- */
+    // Merge-never-clobber, by server name: an existing entry of the same name
+    // is kept untouched, everything else is added. One write for the batch.
+    const mcpIn = Array.isArray(s.mcpServers) ? s.mcpServers : [];
+    if (mcpIn.length) {
+      const user = readUserMcpServers();
+      let dirty = false;
+      for (const sv of mcpIn) {
+        if (!isObj(sv)) continue;
+        const id = str(sv.name);
+        if (!id) continue;
+        if (user[id]) {
+          report.push({ kind: "mcp", id, action: "kept", detail: "a server with this name already exists" });
+          continue;
+        }
+        user[id] = {
+          command: Array.isArray(sv.command) ? sv.command.map(String) : [],
+          environment: isObj(sv.environment) ? sv.environment : {},
+          enabled: sv.enabled !== false,
+        };
+        dirty = true;
+        report.push({ kind: "mcp", id, action: "imported", detail: "added to mcp.json" });
+      }
+      if (dirty && !writeUserMcpServers(user)) {
+        for (const r of report) {
+          if (r.kind === "mcp" && r.action === "imported") { r.action = "skipped"; r.detail = "could not write mcp.json"; }
+        }
       }
     }
 

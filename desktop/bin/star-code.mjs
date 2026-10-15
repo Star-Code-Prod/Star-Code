@@ -20,8 +20,9 @@ import * as providers from "../lib/providers.js";
 import { readAuth, resolveKey, mask } from "../lib/auth.js";
 import { readConfig, writeLastModel, readCliSessions, writeCliSessions } from "../lib/config.js";
 import { createToolRunner } from "../lib/tools.js";
-import { runAgentTurn, systemPrompt } from "../lib/agent.js";
+import { runAgentTurn, systemPrompt, resetSystemPromptCache } from "../lib/agent.js";
 import { listAgentsWithProblems, BUILTIN_EXPLORER } from "../lib/agents.js";
+import { createMcpManager } from "../lib/mcp.js";
 
 const { PROVIDERS } = providers;
 
@@ -116,7 +117,7 @@ Flags:
   --demo [scene]                             render scripted frames (no key, no network)
   --help
 
-Interactive commands: /help /clear /status /model /connect /knowledge /agents /import /tabs /exit
+Interactive commands: /help /clear /status /model /connect /knowledge /agents /mcp /import /tabs /exit
 
 On a real terminal the session runs full screen (tabs are sessions):
   ctrl+t new tab · ctrl+w close tab · ctrl+tab or ctrl+pgup/pgdn cycle tabs · ctrl+1..9 jump
@@ -477,7 +478,24 @@ const emit = (evt) => {
 };
 
 /* ------------------------------ conversation ----------------------------- */
-const messages = [{ role: "system", content: systemPrompt(root, flags.mode) }];
+/* ---------------------------------- mcp ---------------------------------- */
+// One manager per CLI run, created on first use: enabled local MCP servers
+// connect in the background and their tools ride in the system prompt. A
+// state change drops the prompt cache and rebuilds the session's prompt.
+let mcpManager = null;
+let mcpPromptReady = false;   // false until `messages` exists (boot fire is a no-op)
+function mcp() {
+  if (!mcpManager) mcpManager = createMcpManager({ root, onChange: onMcpChange });
+  return mcpManager;
+}
+function onMcpChange() {
+  resetSystemPromptCache();
+  if (!mcpPromptReady) return;
+  messages[0] = { role: "system", content: systemPrompt(root, flags.mode, mcp().toolList()) };
+}
+
+const messages = [{ role: "system", content: systemPrompt(root, flags.mode, mcp().toolList()) }];
+mcpPromptReady = true;
 const SUBAGENT_BLOCKED = new Set(["write_file", "edit_file", "multi_edit", "run_command", "download", "fetch_url", "websearch", "task"]);
 
 /** Which provider/model a subagent turn runs on: the agent's `model:` line,
@@ -501,6 +519,7 @@ function subagentModel(agent) {
 }
 
 const runner = createToolRunner(root, {
+  mcp: mcp(),
   runSubagent: async ({ instructions, agent }) => {
     // A custom agent narrows the child runner to its own tools and runs the
     // turn on its prompt and model; with no agent this is today's explorer.
@@ -628,7 +647,7 @@ async function requestPermission({ name, args }) {
 
 async function runTurn(text) {
   messages.push({ role: "user", content: text });
-  messages[0] = { role: "system", content: systemPrompt(root, flags.mode) };
+  messages[0] = { role: "system", content: systemPrompt(root, flags.mode, mcp().toolList()) };
   try {
     await runAgentTurn({
       provider, model, apiKey: currentKey(), baseUrl: effectiveBase(), messages, runner,
@@ -738,6 +757,42 @@ async function opencodeImportText() {
   return opencodeReportBlock(scan, applied);
 }
 
+/* ---------------------------------- mcp ---------------------------------- */
+/** `/mcp`: configured servers, their live state and tools. Boot connects run
+ *  in the background; give them a moment, never the full handshake timeout. */
+async function mcpSettled() {
+  const m = mcp();
+  await Promise.race([m.ready(), new Promise((r) => setTimeout(r, 1500))]);
+  return m.list();
+}
+const MCP_HINT = "No MCP servers configured. Add one in Settings > MCP (desktop) or in ~/.star-code/mcp.json.";
+
+async function mcpText() {
+  const list = await mcpSettled();
+  if (!list.length) return dim(MCP_HINT);
+  return list.map((s) => {
+    const mark = s.state === "ready" ? green("ready") : s.state === "down" ? red("down") : dim(s.state);
+    const head = gold(s.name) + dim(" · ") + mark + dim(" · " + s.command);
+    const tools = s.tools.length ? dim("  " + s.tools.map((t) => t.name).join(", ")) : "";
+    const err = s.error ? red("  " + s.error) : "";
+    return [head, tools, err].filter(Boolean).join("\n");
+  }).join("\n");
+}
+
+async function mcpBox(t) {
+  const list = await mcpSettled();
+  if (!list.length) return pushRaw(t, dim(MCP_HINT));
+  const rows = [];
+  for (const s of list) {
+    rows.push({ segs: [{ t: s.name, c: "gold" }, { t: "  · " + s.state, c: s.state === "ready" ? "green" : s.state === "down" ? "red" : "dim" }] });
+    rows.push({ segs: [{ t: "    " + s.command, c: "dim" }] });
+    if (s.tools.length) rows.push({ segs: [{ t: "    tools: " + s.tools.map((x) => x.name).join(", "), c: "dim" }] });
+    if (s.error) rows.push({ segs: [{ t: "    " + s.error, c: "dim" }] });
+  }
+  pushRaw(t, box(rows));
+  return requestRender();
+}
+
 /* --------------------------------- REPL ---------------------------------- */
 const SLASH = [
   ["/clear", "Start a new conversation"],
@@ -746,6 +801,7 @@ const SLASH = [
   ["/connect", "Connect a provider (key)"],
   ["/knowledge", "List the project knowledge files"],
   ["/agents", "List custom agents (.star-code/agents)"],
+  ["/mcp", "List MCP servers and their tools"],
   ["/import", "Import settings from opencode"],
   ["/tabs", "List the open tabs (full-screen session)"],
   ["/help", "Show available commands"],
@@ -1030,7 +1086,7 @@ export function newSession(rec = null) {
     .slice(-ITEM_CAP);
   return {
     title: typeof rec?.title === "string" && rec.title ? rec.title : "new session",
-    messages: [{ role: "system", content: systemPrompt(root, flags.mode) }, ...msgs],
+    messages: [{ role: "system", content: systemPrompt(root, flags.mode, mcp().toolList()) }, ...msgs],
     items,
     input: "", queue: [], scroll: 0,
     stream: false, turnStarted: 0, controller: null, autoAllow: new Set(),
@@ -1710,7 +1766,7 @@ export async function tuiApp(io = {}) {
     if (t.title === "new session" && !t.items.some((i) => i.k === "user")) t.title = titleForMessage(text);
     pushItem(t, { k: "user", t: text });
     t.messages.push({ role: "user", content: text });
-    t.messages[0] = { role: "system", content: systemPrompt(root, flags.mode) };
+    t.messages[0] = { role: "system", content: systemPrompt(root, flags.mode, mcp().toolList()) };
     t.stream = true;
     t.turnStarted = Date.now();
     t.turnRaw = "";
@@ -1831,6 +1887,7 @@ export async function tuiApp(io = {}) {
       return pushRaw(t, dim("Add one: ") + gold(".star-code/agents/<name>.md") + dim(" or ") +
         gold("~/.star-code/agents/<name>.md") + dim(" · run one with ") + gold('task agent:"name"'));
     }
+    if (line === "/mcp") return mcpBox(t);
     if (line === "/import") {
       // PushRaw alone paints on the next input event; render now so the
       // report appears the moment the command runs.
@@ -2098,6 +2155,7 @@ async function repl() {
         gold("~/.star-code/agents/<name>.md") + dim(" · run one with ") + gold('task agent:"name"') + "\n");
       continue;
     }
+    if (line === "/mcp") { out((await mcpText()) + "\n"); continue; }
     if (line === "/import") { out((await opencodeImportText()) + "\n"); continue; }
     // Unknown slash line: offer the list instead of sending it to the model.
     if (line.startsWith("/")) { out(slashList(line) + "\n"); continue; }

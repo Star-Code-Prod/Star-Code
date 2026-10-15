@@ -1382,6 +1382,10 @@ body.mode-chat #bigProj{display:none}
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 2.5h7.5a2 2 0 012 2v9H5a2 2 0 01-2-2z"/><path d="M3 11.5a2 2 0 012-2h7.5"/></svg>
           Knowledge
         </button>
+        <button data-s="mcp">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 1.8v4.4M10 1.8v4.4"/><path d="M4 6.2h8v1.9a4 4 0 0 1-8 0z"/><path d="M8 12v2.2"/></svg>
+          MCP
+        </button>
         <button data-s="keys">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><rect x="1.5" y="4" width="13" height="8" rx="2"/><path d="M4.5 7h2M8 7h3.5M4.5 9.5h5"/></svg>
           Shortcuts
@@ -4639,6 +4643,7 @@ function renderSettings() {
   else if (settingsSection === "appearance") host.innerHTML = settingsAppearance();
   else if (settingsSection === "session") host.innerHTML = settingsSession();
   else if (settingsSection === "knowledge") host.innerHTML = settingsKnowledge();
+  else if (settingsSection === "mcp") host.innerHTML = settingsMcp();
   else if (settingsSection === "keys") host.innerHTML = settingsKeys();
   else host.innerHTML = settingsAbout();
   wireSettings();
@@ -4663,6 +4668,17 @@ function renderSettings() {
     loadKnowledge().then(changed => {
       if (changed && settingsSection === "knowledge" && $("settings").classList.contains("on")) settingsAutoRender();
     });
+  }
+  if (settingsSection === "mcp") {
+    const warm = mcpServers.some(s => s.state === "starting");
+    loadMcp().then(changed => {
+      if (changed && settingsSection === "mcp" && $("settings").classList.contains("on")) settingsAutoRender();
+    });
+    // A server that is still coming up checks itself again; once every state
+    // has settled this stops on its own.
+    if (warm) setTimeout(() => {
+      if (settingsSection === "mcp" && $("settings").classList.contains("on")) { mcpLoadedAt = 0; settingsAutoRender(); }
+    }, 1600);
   }
 }
 
@@ -5084,6 +5100,63 @@ function settingsKnowledge() {
   </div>`;
 }
 
+/* ---- mcp settings ---- */
+let mcpServers = [];
+let mcpLoadedAt = 0;
+let mcpTests = {};      // server name -> { ok, tools?, error? } | "running"
+
+/** Fetch the server list at most every 3s; returns true when it re-rendered. */
+async function loadMcp() {
+  if (Date.now() - mcpLoadedAt < 3000) return false;
+  try { mcpServers = (await (await fetch("/api/mcp")).json()).servers || []; } catch { /* keep the last list */ }
+  mcpLoadedAt = Date.now();
+  return true;
+}
+
+function mcpPill(s) {
+  const map = { ready: ["ok", "Ready"], starting: ["warn", "Starting"], down: ["no", "Down"], off: ["dim", "Off"] };
+  const [cls, label] = map[s.state] || ["dim", s.state];
+  return `<span class="pill ${cls}" style="margin-left:6px">${esc(label)}</span>`;
+}
+
+function settingsMcp() {
+  return `
+  <div class="sect">
+    <h2 class="h">MCP servers</h2>
+    <p class="sh">Local Model Context Protocol servers Star starts for this machine. Their tools reach the agent as <span class="mono">mcp__server__tool</span>, every call asking permission first. Saved to <span class="mono">~/.star-code/mcp.json</span>; a project can add its own in <span class="mono">.star-code/mcp.json</span>.</p>
+    <div class="card">
+      <div class="ct">Servers</div>
+      <div class="cs">${mcpServers.length ? mcpServers.length + " configured" : "No servers yet. Add one below - for example uvx for a Python server or npx for a Node one."}</div>
+      ${mcpServers.map(s => {
+        const t = mcpTests[s.name];
+        return `<div class="row">
+        <div class="rl">
+          <div class="rt">${esc(s.name)}${mcpPill(s)}</div>
+          <div class="rd" style="font-family:var(--font-mono);word-break:break-all">${esc(s.command)}</div>
+          ${s.state === "ready" && s.tools.length ? `<div class="rd">${s.tools.length} tool${s.tools.length === 1 ? "" : "s"}: ${esc(s.tools.slice(0, 6).map(x => x.name).join(", "))}${s.tools.length > 6 ? ", …" : ""}</div>` : ""}
+          ${s.error ? `<div class="rd" style="color:var(--del-fg)">${esc(s.error)}</div>` : ""}
+          ${t === "running" ? `<div class="rd">Testing…</div>`
+            : t && t.ok ? `<div class="rd">Test OK - ${t.tools.length} tool${t.tools.length === 1 ? "" : "s"}.</div>`
+            : t ? `<div class="rd" style="color:var(--del-fg)">${esc(t.error || "test failed")}</div>` : ""}
+        </div>
+        <div class="rc">
+          <button class="btn sm" data-mcptest="${esc(s.name)}">Test</button>
+          <button class="btn sm" data-mcptoggle="${esc(s.name)}" data-on="${s.enabled ? "1" : "0"}">${s.enabled ? "Disable" : "Enable"}</button>
+          <button class="btn sm dgr" data-mcpdel="${esc(s.name)}">Remove</button>
+        </div>
+      </div>`; }).join("")}
+    </div>
+    <div class="card">
+      <div class="ct">Add a server</div>
+      <div class="cs">The command Star runs; the rest of the line is its arguments. Environment entries apply to that process only.</div>
+      <div class="fld"><label>Name</label><input class="inp" id="fMcpName" placeholder="fetch" autocomplete="off"></div>
+      <div class="fld"><label>Command</label><input class="inp" id="fMcpCmd" placeholder="uvx mcp-server-fetch" autocomplete="off"></div>
+      <div class="fld"><label>Environment - optional, one KEY=value per line</label><textarea class="inp" id="fMcpEnv" rows="2" placeholder="API_KEY=…"></textarea></div>
+      <button class="btn pri sm" id="fMcpAdd">Add server</button>
+    </div>
+  </div>`;
+}
+
 function settingsKeys() {
   return `
   <div class="sect">
@@ -5331,6 +5404,54 @@ function wireSettings() {
     })).json();
     if (r.ok) { toast("Saved " + r.name); kLoadedAt = 0; await loadKnowledge(); renderSettings(); }
     else toast(r.error || "Could not save");
+  });
+  const mcpRefresh = async () => { mcpLoadedAt = 0; await loadMcp(); renderSettings(); };
+  document.querySelectorAll("[data-mcptest]").forEach(el => el.addEventListener("click", async () => {
+    const name = el.dataset.mcptest;
+    mcpTests[name] = "running";
+    renderSettings();
+    try {
+      const r = await (await fetch("/api/mcp/test", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }),
+      })).json();
+      mcpTests[name] = r.ok ? { ok: true, tools: r.tools || [] } : { ok: false, error: r.error || "test failed" };
+    } catch (e) { mcpTests[name] = { ok: false, error: e.message }; }
+    await mcpRefresh();
+  }));
+  document.querySelectorAll("[data-mcptoggle]").forEach(el => el.addEventListener("click", async () => {
+    const name = el.dataset.mcptoggle;
+    const want = el.dataset.on !== "1";
+    try {
+      await fetch("/api/mcp", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, enabled: want }),
+      });
+      toast((want ? "Enabled " : "Disabled ") + name);
+    } catch { toast("Could not update " + name); }
+    await mcpRefresh();
+  }));
+  document.querySelectorAll("[data-mcpdel]").forEach(el => el.addEventListener("click", async () => {
+    const name = el.dataset.mcpdel;
+    if (!confirm("Remove the MCP server " + name + "?")) return;
+    try { await fetch("/api/mcp?name=" + encodeURIComponent(name), { method: "DELETE" }); } catch { /* the refresh tells the truth */ }
+    delete mcpTests[name];
+    await mcpRefresh();
+  }));
+  on("fMcpAdd", "click", async () => {
+    const name = $("fMcpName") ? $("fMcpName").value.trim() : "";
+    const cmd = $("fMcpCmd") ? $("fMcpCmd").value.trim() : "";
+    if (!name || !cmd) { toast("A name and a command are required"); return; }
+    const environment = {};
+    ($("fMcpEnv") ? $("fMcpEnv").value : "").split("\n").map(l => l.trim()).filter(Boolean).forEach(l => {
+      const i = l.indexOf("=");
+      if (i > 0) environment[l.slice(0, i).trim()] = l.slice(i + 1).trim();
+    });
+    const r = await (await fetch("/api/mcp", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, command: cmd, environment }),
+    })).json();
+    if (!r.ok) { toast(r.error || "Could not save the server"); return; }
+    toast("Added " + name);
+    await mcpRefresh();
   });
   on("fThink", "click", e => { state.showThinking = !state.showThinking; save(); e.target.classList.toggle("on", state.showThinking); });
   on("fCollapse", "click", e => { state.autoCollapseThinking = !state.autoCollapseThinking; save(); e.target.classList.toggle("on", state.autoCollapseThinking); });

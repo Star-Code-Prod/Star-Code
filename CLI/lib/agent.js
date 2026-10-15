@@ -202,11 +202,12 @@ export function resetSystemPromptCache() {
   promptCache.clear();
 }
 
-export function systemPrompt(root, mode) {
-  const key = String(root) + "\u0000" + String(mode);
+export function systemPrompt(root, mode, extraTools = []) {
+  const list = Array.isArray(extraTools) ? extraTools.filter((t) => t && t.name) : [];
+  const key = String(root) + "\u0000" + String(mode) + "\u0000" + list.map((t) => t.name).join(",");
   const frozen = promptCache.get(key);
   if (frozen !== undefined) return frozen;
-  const built = buildSystemPrompt(root, mode);
+  const built = buildSystemPrompt(root, mode, list);
   promptCache.set(key, built);
   return built;
 }
@@ -286,7 +287,7 @@ Rules:
 ${ARTIFACTS_DOC}`;
 }
 
-function buildSystemPrompt(root, mode) {
+function buildSystemPrompt(root, mode, extraTools = []) {
   const mem = readProjectMemory(root);
   // Kept deliberately terse: this is re-sent on every step of every turn, so
   // every token here is paid for repeatedly.
@@ -299,11 +300,19 @@ function buildSystemPrompt(root, mode) {
   const planNote = mode === "plan"
     ? "\nPLAN MODE: read-only. Do not edit files or run mutating commands. Explore, then propose a plan and stop.\n"
     : "";
+  // Tools from connected local MCP servers: names, one line each. Every call
+  // goes through the normal permission ask (they count as dangerous).
+  const extra = (Array.isArray(extraTools) ? extraTools : []).slice(0, 40);
+  const extraBlock = extra.length
+    ? "\nMCP tools (from connected local MCP servers; each call asks for permission first):\n" +
+      extra.map((t) => "- " + t.name + (t.description ? " - " + String(t.description).replace(/\s+/g, " ").slice(0, 140) : "")).join("\n") + "\n"
+    : "";
 
   return `You are a coding agent working in: ${root}
 ${memBlock}${knBlock}${planNote}
 Tools: read_file, list_dir, search_files, glob_files, write_file, edit_file, multi_edit, run_command, download, search_knowledge, task, fetch_url, websearch, self_knowledge.
 task spawns a read-only explorer subagent with fresh context for research; fetch_url and websearch ask for permission and plan mode blocks them; download fetches a file with source, hash, signature and virus checks (see the doctrine below); self_knowledge answers questions about Star Code itself.
+${extraBlock}
 
 Rules:
 - Read a file before editing it; never guess file contents.

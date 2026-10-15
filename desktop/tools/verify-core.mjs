@@ -131,6 +131,10 @@ ok("acceptEdits commands ask", decisionFor("acceptEdits", "run_command", empty) 
 ok("acceptEdits commands honour the allowlist", decisionFor("acceptEdits", "run_command", new Set(["run_command"])) === "allow");
 ok("plan allows knowledge search", decisionFor("plan", "search_knowledge", empty) === "allow");
 ok("manual allows knowledge search without asking", decisionFor("manual", "search_knowledge", empty) === "allow");
+ok("mcp tools are not read-only", decisionFor("manual", "mcp__stub__echo", empty) === "ask");
+ok("plan denies mcp tools", decisionFor("plan", "mcp__stub__echo", empty) === "deny");
+ok("bypass allows mcp tools", decisionFor("bypass", "mcp__stub__echo", empty) === "allow");
+ok("acceptEdits keeps asking for mcp tools", decisionFor("acceptEdits", "mcp__stub__echo", empty) === "ask");
 
 /* --------------------- OpenRouter attribution headers --------------------- */
 const at = attributionHeaders("https://openrouter.ai/api/v1");
@@ -285,6 +289,19 @@ ok("doctrine names the four formats", ["html", "svg", "md", "motion"].every((f) 
 resetSystemPromptCache();
 const p3 = systemPrompt(frozenRoot, "manual");
 ok("resetSystemPromptCache rebuilds from disk", p3 !== p1 && p3.includes("CHANGED mid-session"));
+
+/* ------------------------------- mcp tool list ------------------------------- */
+// Connected MCP servers ride in the prompt as a namespaced tool list; the
+// list is part of the freeze key, and no block appears when nothing is up.
+const mcpTools = [
+  { name: "mcp__stub__echo", description: "Echo text back" },
+  { name: "mcp__blender_mcp__get_scene_info", description: "Scene info" },
+];
+const p4 = systemPrompt(frozenRoot, "manual", mcpTools);
+ok("connected mcp tools join the prompt", p4.includes("mcp__stub__echo") && p4.includes("MCP tools"));
+ok("mcp lines carry descriptions", p4.includes("- mcp__stub__echo - Echo text back"));
+ok("no mcp block when nothing is connected", !systemPrompt(frozenRoot, "plan").includes("MCP tools"));
+ok("the tool list is part of the freeze key", systemPrompt(frozenRoot, "manual", []) !== p4);
 fs.rmSync(frozenRoot, { recursive: true, force: true });
 
 /* ------------------------------ knowledge ------------------------------ */

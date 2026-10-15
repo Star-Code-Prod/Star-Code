@@ -26,12 +26,16 @@ import { listAgentsWithProblems, getAgent, AGENT_DEFAULT_TOOLS, BUILTIN_EXPLORER
 // module owns the whole scan/apply contract; the endpoint below is its only
 // caller, and the report it returns never carries credentials.
 import { scanOpencode, applyImport } from "./lib/opencode-import.js";
+// Local MCP servers (Settings > MCP): one manager per process, speaking stdio
+// JSON-RPC to server commands the user configures. Tools surface as
+// mcp__<server>__<tool> and always ask for permission.
+import { createMcpManager, readMcpConfig } from "./lib/mcp.js";
 // Namespace import: chatSystemPrompt() / cheapModelFor() are being added to
 // agent.js alongside this work, and the server must keep booting (and code
 // sessions keep working) whether or not they have landed yet. The chat path
 // checks for them and fails with a clear message when they are missing.
 import * as agentLib from "./lib/agent.js";
-const { runAgentTurn, systemPrompt, PERMISSION_MODES } = agentLib;
+const { runAgentTurn, systemPrompt, PERMISSION_MODES, resetSystemPromptCache } = agentLib;
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VERSION = JSON.parse(fs.readFileSync(path.join(__dirname, "package.json"), "utf8")).version;
@@ -53,6 +57,12 @@ const sessions = new Map();
 let subagentCtx = null;
 const SUBAGENT_BLOCKED = new Set(["write_file", "edit_file", "multi_edit", "run_command", "download", "fetch_url", "websearch", "task"]);
 const CHAT_TOOLS = ["websearch", "fetch_url", "self_knowledge", "task"];
+
+/* --------------------------------- mcp ----------------------------------- */
+// The shared MCP manager: connects enabled servers at boot, exposes their
+// tools to runners, and drops the prompt cache on every state change so the
+// tool list in the system prompt can never go stale.
+const mcpManager = createMcpManager({ root: ROOT, onChange: () => resetSystemPromptCache() });
 
 /** Cheap model for subagent runs when a provider catalog offers one, else null. */
 function subagentModel(providerId) {
@@ -120,6 +130,7 @@ function restrictRunner(toolRunner, allowed) {
 function makeRunner(r, allowed) {
   const toolRunner = createToolRunner(r, {
     ...(allowed ? { allowed } : {}),
+    mcp: mcpManager,
     runSubagent: async ({ instructions, agent } = {}) => {
       if (!subagentCtx) return { error: "no model configured yet - answer without a subagent" };
       // A custom agent may narrow the explorer further (its own tools) and
@@ -332,7 +343,7 @@ function chatSystemContent() {
 
 /** The system message a session runs with (refreshed on every turn). */
 function sessionSystemContent(s) {
-  return s.kind === "chat" ? chatSystemContent() : systemPrompt(ROOT, s.mode);
+  return s.kind === "chat" ? chatSystemContent() : systemPrompt(ROOT, s.mode, mcpManager.toolList());
 }
 
 function newSession(title, kind) {
@@ -723,6 +734,50 @@ async function route(req, res) {
     return sendJSON(res, 200, out);
   }
 
+  /* --------------------------------- mcp --------------------------------- */
+  // Settings > MCP speaks to these. The listing doubles as the status board
+  // (off/starting/ready/down + last error + tools per server).
+  if (req.method === "GET" && url.pathname === "/api/mcp") {
+    return sendJSON(res, 200, { ok: true, servers: mcpManager.list() });
+  }
+  if (req.method === "POST" && url.pathname === "/api/mcp") {
+    const body = await readBody(req);
+    const name = String(body.name || "").trim();
+    if (!name) return sendJSON(res, 400, { ok: false, error: "a name is required" });
+    const existing = readMcpConfig(ROOT).servers[name] || null;
+    if (!existing && body.command === undefined) {
+      return sendJSON(res, 400, { ok: false, error: "a command is required for a new server" });
+    }
+    const command = Array.isArray(body.command)
+      ? body.command.map(String).filter((x) => x.trim())
+      : typeof body.command === "string" && body.command.trim()
+        ? body.command.trim().split(/\s+/)
+        : (existing ? existing.command : []);
+    if (!command.length) return sendJSON(res, 400, { ok: false, error: "a command is required" });
+    const environment = body.environment && typeof body.environment === "object"
+      ? body.environment
+      : (existing ? existing.environment : {});
+    const enabled = typeof body.enabled === "boolean" ? body.enabled : (existing ? existing.enabled : true);
+    const okWrite = mcpManager.upsert(name, { command, environment, enabled });
+    if (!okWrite) return sendJSON(res, 500, { ok: false, error: "could not write the MCP config" });
+    return sendJSON(res, 200, { ok: true, name });
+  }
+  if (req.method === "DELETE" && url.pathname === "/api/mcp") {
+    const name = String(url.searchParams.get("name") || "").trim();
+    if (!name) return sendJSON(res, 400, { ok: false, error: "a name is required" });
+    if (!readMcpConfig(ROOT).servers[name]) return sendJSON(res, 400, { ok: false, error: "unknown server" });
+    const okWrite = mcpManager.remove(name);
+    if (!okWrite) return sendJSON(res, 500, { ok: false, error: "could not write the MCP config" });
+    return sendJSON(res, 200, { ok: true });
+  }
+  if (req.method === "POST" && url.pathname === "/api/mcp/test") {
+    const body = await readBody(req);
+    const name = String(body.name || "").trim();
+    if (!name) return sendJSON(res, 400, { ok: false, error: "a name is required" });
+    if (!readMcpConfig(ROOT).servers[name]) return sendJSON(res, 400, { ok: false, error: "unknown server" });
+    return sendJSON(res, 200, await mcpManager.test(name));
+  }
+
   /* ----------------------------- knowledge ----------------------------- */
   if (req.method === "GET" && url.pathname === "/api/knowledge") {
     return sendJSON(res, 200, { files: listKnowledge(ROOT), dir: knowledgeDir(ROOT) });
@@ -797,6 +852,7 @@ async function route(req, res) {
     const { root } = await readBody(req);
     if (root && fs.existsSync(root) && fs.statSync(root).isDirectory()) {
       ROOT = path.resolve(root);
+      mcpManager.setRoot(ROOT);
       runner = makeRunner(ROOT);
       // Existing sessions keep their own cwd - never clear them here.
       return sendJSON(res, 200, { ok: true, root: ROOT });
@@ -1002,6 +1058,7 @@ process.on("unhandledRejection", (e) => {
 export async function startServer({ port = PORT, root, silent = false } = {}) {
   if (root) {
     ROOT = path.resolve(root);
+    mcpManager.setRoot(ROOT);
     runner = makeRunner(ROOT);
     // Stored sessions are history, not scratch: keep them across boots.
   }
@@ -1022,6 +1079,8 @@ export async function startServer({ port = PORT, root, silent = false } = {}) {
       // Flush anything the debounce is holding, so a quick quit never
       // loses the last session's changes.
       flushStore();
+      // MCP children must not outlive the server they talk to.
+      mcpManager.shutdown().catch(() => {});
       // Drop keep-alive sockets first. Without this, fetch()'s pooled
       // connections keep handles open and Node can trip
       // "Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)"
@@ -1035,6 +1094,7 @@ export async function startServer({ port = PORT, root, silent = false } = {}) {
 /** Change the working directory the agent operates on. */
 export function setRoot(newRoot) {
   ROOT = path.resolve(newRoot);
+  mcpManager.setRoot(ROOT);
   runner = makeRunner(ROOT);
   // Sessions keep their own cwd; history survives a root change.
   return ROOT;

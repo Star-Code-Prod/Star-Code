@@ -9,8 +9,10 @@
 Star Code is the harness, not the model: bring your own (DeepSeek, OpenAI,
 Anthropic, Ollama, or any OpenAI-compatible endpoint) and it reads, searches,
 edits, and runs commands in your project — asking before it touches anything.
-The desktop app is **Star**; the terminal CLI is **Star Code**. Both share the
-same agent, web UI and credential store — and the CLI needs no server at all.
+Local MCP servers plug in too: their tools join the agent under the same
+permission prompts. The desktop app is **Star**; the terminal CLI is **Star
+Code**. Both share the same agent, web UI and credential store — and the CLI
+needs no server at all.
 
 ## Layout
 

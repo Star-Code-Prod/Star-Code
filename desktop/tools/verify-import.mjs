@@ -25,6 +25,7 @@ const { scanOpencode, applyImport } = await load("../lib/opencode-import.js");
 const { readAuth, writeAuthEntry, authPath } = await load("../lib/auth.js");
 const { readConfig, writeLastModel, configPath } = await load("../lib/config.js");
 const { listAgents } = await load("../lib/agents.js");
+const { readMcpConfig } = await load("../lib/mcp.js");
 
 /* ------------------------------- helpers ------------------------------- */
 const mk = (name) => { const d = path.join(tmp, name); fs.mkdirSync(d, { recursive: true }); return d; };
@@ -296,18 +297,17 @@ const skipScan = scanWith({
   $schema: "https://opencode.ai/config.json",
   plugin: ["./plugins/x.js"],
   skills: { paths: ["/tmp/skills"] },
-  mcp: { "blender-mcp": { type: "local" } },
   keybinds: { leader: "ctrl+x" },
   share: "manual",
   autoupdate: true,
   somethingElse: 42,
 });
-for (const key of ["$schema", "plugin", "skills", "mcp", "keybinds", "share", "autoupdate", "somethingElse"]) {
+for (const key of ["$schema", "plugin", "skills", "keybinds", "share", "autoupdate", "somethingElse"]) {
   const entry = skippedOf(skipScan, key);
   ok("skip row for " + key, !!entry && typeof entry.why === "string" && entry.why.length > 0);
 }
-ok("the opencode-specific reasons are used", (skippedOf(skipScan, "mcp") || {}).why === "Star has no MCP servers" &&
-  (skippedOf(skipScan, "autoupdate") || {}).why === "Star updates itself in the app");
+ok("the opencode-specific reasons are used", (skippedOf(skipScan, "autoupdate") || {}).why === "Star updates itself in the app");
+ok("mcp is consumed, not skipped", !skipScan.skipped.some((s) => s.what === "mcp") && !!scanWith({ mcp: { a: { command: "npx a" } } }).mcpServers);
 ok("skip reasons never carry key material", skipScan.skipped.every((s) => !/sk-/.test(s.why)));
 ok("the plural plugins key is skipped too", !!skippedOf(scanWith({ plugins: [] }), "plugins"));
 
@@ -395,7 +395,12 @@ write(applyDir, "opencode.json", JSON.stringify({
   permission: "allow",
   model: "my-api/deepseek-v4-pro",
   plugin: ["./plugins/x.js"],
-  mcp: { something: {} },
+  mcp: {
+    "blender-mcp": { type: "local", command: ["uvx", "blender-mcp"], environment: { BLENDER_HOST: "localhost" } },
+    "off-one": { command: "npx -y off-server", enabled: false },
+    remote: { type: "remote", url: "https://example.com/mcp" },
+    broken: { type: "local" },
+  },
   provider: {
     deepseek: { options: { apiKey: KEY_D, baseURL: "https://proxy.example/v1" } },
     "my-api": {
@@ -419,7 +424,7 @@ const purityAfter = filesIn(applyDir).join("|");
 ok("scanning writes nothing into the opencode dir", purityBefore === purityAfter);
 
 const r1 = applyImport(applyScan);
-ok("the report covers every item", r1.report.length === 13, String(r1.report.length));
+ok("the report covers every item", r1.report.length === 16, String(r1.report.length));
 ok("run 1: keys and baseUrls are imported",
   (rowOf(r1.report, "key", "openai") || {}).action === "imported" &&
   (rowOf(r1.report, "key", "deepseek") || {}).action === "imported" &&
@@ -436,9 +441,24 @@ ok("the allow->acceptEdits detail never mentions bypass", (() => {
   return row && /Accept edits/.test(row.detail) && !/bypass/i.test(row.detail);
 })());
 ok("client carries theme and defaultMode", r1.client.theme === "dark" && r1.client.defaultMode === "acceptEdits");
+ok("run 1: local mcp servers are imported",
+  (rowOf(r1.report, "mcp", "blender-mcp") || {}).action === "imported" &&
+  (rowOf(r1.report, "mcp", "off-one") || {}).action === "imported");
+ok("run 1: the disabled flag survives", (() => {
+  const cfg = readMcpConfig(path.join(tmp, "empty-project")).servers;
+  return cfg["off-one"] && cfg["off-one"].enabled === false;
+})());
+ok("run 1: the mcp.json round-trips through lib/mcp.js", (() => {
+  const cfg = readMcpConfig(path.join(tmp, "empty-project")).servers;
+  const b = cfg["blender-mcp"] || null;
+  return !!b && b.command.join(" ") === "uvx blender-mcp" && b.environment.BLENDER_HOST === "localhost" && b.enabled === true;
+})());
+ok("run 1: remote mcp servers keep an honest skip row",
+  (rowOf(r1.report, "skip", "mcp remote") || {}).detail === "remote MCP does not import yet - Star launches local servers only");
+ok("run 1: a commandless mcp server is skipped", (rowOf(r1.report, "skip", "mcp broken") || {}).detail === "no command to run");
 ok("one skip row per scanned skip, with what and why", (() => {
   const skips = r1.report.filter((r) => r.kind === "skip");
-  return skips.length === applyScan.skipped.length && applyScan.skipped.length === 3 &&
+  return skips.length === applyScan.skipped.length && applyScan.skipped.length === 4 &&
     applyScan.skipped.every((s) => skips.some((r) => r.id === s.what && r.detail === s.why && r.action === "skipped"));
 })());
 ok("nothing was kept on the first run", r1.report.every((r) => r.action !== "kept"));
@@ -472,16 +492,22 @@ ok("no key-like material anywhere in the report", !/sk-/.test(blob) && !/\u2022/
 const authBytes = fs.readFileSync(authPath());
 const configBytes = fs.readFileSync(configPath());
 const agentBytes = fs.readFileSync(agentOut);
+const mcpBytes = fs.readFileSync(path.join(dataA, "mcp.json"));
 const r2 = applyImport(applyScan);
 const storable = r2.report.filter((r) => ["key", "baseUrl", "model", "agent"].includes(r.kind));
 ok("run 2: everything storable is kept", storable.length === 8 && storable.every((r) => r.action === "kept"), String(storable.length));
+ok("run 2: mcp servers are kept, never rewritten",
+  (rowOf(r2.report, "mcp", "blender-mcp") || {}).action === "kept" &&
+  (rowOf(r2.report, "mcp", "blender-mcp") || {}).detail === "a server with this name already exists" &&
+  (rowOf(r2.report, "mcp", "off-one") || {}).action === "kept");
 ok("run 2: the kept details say why", (rowOf(r2.report, "key", "deepseek") || {}).detail === "Star already has a key" &&
   (rowOf(r2.report, "baseUrl", "deepseek") || {}).detail === "Star already has a baseUrl" &&
   (rowOf(r2.report, "model", "custom/deepseek-v4-pro") || {}).detail === "Star already has a last model" &&
   (rowOf(r2.report, "agent", "helper") || {}).action === "kept");
 ok("run 2: nothing was written", r2.agentsWritten.length === 0);
 ok("run 2: the stores are byte-identical", fs.readFileSync(authPath()).equals(authBytes) &&
-  fs.readFileSync(configPath()).equals(configBytes) && fs.readFileSync(agentOut).equals(agentBytes));
+  fs.readFileSync(configPath()).equals(configBytes) && fs.readFileSync(agentOut).equals(agentBytes) &&
+  fs.readFileSync(path.join(dataA, "mcp.json")).equals(mcpBytes));
 ok("run 2: the client is unchanged", r2.client.theme === "dark" && r2.client.defaultMode === "acceptEdits");
 
 /* ------------------------- pre-seeded store + dataDir -------------------- */

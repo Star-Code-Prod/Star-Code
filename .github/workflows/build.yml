@@ -92,6 +92,9 @@ jobs:
       - name: opencode import
         run: node tools/verify-import.mjs
 
+      - name: MCP client (local stdio servers)
+        run: node tools/verify-mcp.mjs
+
   # ---------------------------------------------------------------------------
   # Pack the standalone CLI and prove the tarball installs and runs before
   # anything ships. The CLI lives at CLI/, not desktop/, so this job overrides

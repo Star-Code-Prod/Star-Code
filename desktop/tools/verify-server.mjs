@@ -13,6 +13,12 @@ const ok = (label, pass, extra = "") =>
 // Throwaway data dir so credential checks never touch real state.
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-server-"));
 process.env.STAR_CODE_DATA = dataDir;
+// One MCP server (the real stub) rides along so /api/mcp has something live
+// to report the moment the module boots and connects it.
+fs.writeFileSync(path.join(dataDir, "mcp.json"), JSON.stringify({
+  version: 1,
+  servers: { "verify-stub": { command: [process.execPath, path.resolve("tools/mcp-stub-server.mjs")], environment: {}, enabled: true } },
+}));
 // A legacy store record written before the server boots: it has no stats
 // field, so loading it proves old sessions come back with the zero shape.
 fs.writeFileSync(path.join(dataDir, "sessions.json"), JSON.stringify({
@@ -331,7 +337,17 @@ try {
       turnBodies.push(parsed);
       res.writeHead(200, { "Content-Type": "text/event-stream" });
       const send = (obj) => res.write("data: " + JSON.stringify(obj) + "\n\n");
-      const script = [
+      // The MCP turns answer by what they see, never by slot number: the user
+      // message asks for an echo, the tool result carries it back, the closing
+      // text ends the turn. A background compaction call cannot steal them.
+      const last = [...(parsed.messages || [])].reverse().find((m) => m.role === "user") || {};
+      const lt = String(last.content || "");
+      let script = null;
+      if (lt.includes("echo bypass")) script = { tool: "mcp__verify_stub__echo", args: { text: "from-bypass" } };
+      else if (lt.includes("echo ask")) script = { tool: "mcp__verify_stub__echo", args: { text: "from-ask" } };
+      else if (lt.includes("echo:from-bypass")) script = { text: "mcp-bypass-ok" };
+      else if (lt.includes("echo:from-ask")) script = { text: "mcp-ask-ok" };
+      if (!script) script = [
         { tool: "read_file", args: { path: "package.json" } },  // reviewer: allowed
         { tool: "list_dir", args: { path: "." } },              // reviewer: refused
         { text: "persona-ok" },
@@ -367,6 +383,45 @@ try {
     }).filter(Boolean);
   }
   const said = (events, marker) => events.some((e) => e.type === "delta" && String(e.text || "").includes(marker));
+
+  /** A turn read as a live SSE stream so a permission request can be answered
+   *  while it waits; returns every event once the stream ends. */
+  async function turnWithPermission(body, answer) {
+    const res = await fetch(s.url + "/api/chat", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: "custom", model: "base-model", apiKey: "k", baseUrl: turnBase, mode: "manual", ...body }),
+    });
+    const events = [];
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    let answered = false;
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, i).trim();
+        buf = buf.slice(i + 1);
+        if (!line.startsWith("data:")) continue;
+        const payload = line.slice(5).trim();
+        if (!payload || payload === "[DONE]") continue;
+        let ev = null;
+        try { ev = JSON.parse(payload); } catch { continue; }
+        events.push(ev);
+        if (ev.type === "permission_request" && !answered) {
+          answered = true;
+          const a = typeof answer === "function" ? answer(ev) : answer;
+          fetch(s.url + "/api/permission", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId: body.sessionId, id: ev.id, ...a }),
+          });
+        }
+      }
+    }
+    return events;
+  }
 
   const ev1 = await personaTurn({ sessionId: codeNew.id, kind: "code", message: "hello", agent: "reviewer" });
   const b0 = turnBodies[0] || {}, b1 = turnBodies[1] || {}, b2 = turnBodies[2] || {};
@@ -437,7 +492,35 @@ try {
     String(b13.messages?.[0]?.content || "").startsWith("You are the shadow persona (project level).\n\n") &&
     b13.model === "project-shadow-model" && said(ev8, "shadow-ok"),
     JSON.stringify([String(b13.messages?.[0]?.content || "").slice(0, 45), b13.model]));
-  ok("every scripted persona turn made exactly one model call per step", turnBodies.length === 14, String(turnBodies.length));
+
+  // MCP tools through a real turn: the manager's stub server is connected
+  // (boot), the runner routes the namespaced name to it, and the result comes
+  // back into the loop. Bypass skips the ask; manual asks with the namespaced
+  // name and dangerous set, and the answer runs the tool.
+  for (let i = 0; i < 50; i++) {
+    const list = (await (await fetch(s.url + "/api/mcp")).json()).servers || [];
+    if (list.some((x) => x.name === "verify-stub" && x.state === "ready")) break;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  const evBypass = await personaTurn({ sessionId: codeNew.id, kind: "code", message: "echo bypass", mode: "bypass" });
+  ok("an mcp tool runs in bypass mode end to end",
+    evBypass.some((e) => e.type === "tool" && e.name === "mcp__verify_stub__echo" && e.allowed === true) &&
+    evBypass.some((e) => e.type === "tool_result" && e.name === "mcp__verify_stub__echo" && String(e.preview || "").includes("echo:from-bypass")) &&
+    said(evBypass, "mcp-bypass-ok"),
+    evBypass.map((e) => e.type + (e.name ? "(" + e.name + ")" : "") + (e.type === "tool_result" ? ":" + String(e.preview || "").slice(0, 40) : "")).join(" | ") +
+    " || last=" + String([...(turnBodies[turnBodies.length - 1]?.messages || [])].reverse().find((m) => m.role === "user")?.content || "").slice(0, 90));
+
+  const evAsk = await turnWithPermission({ sessionId: codeNew.id, kind: "code", message: "echo ask" }, { allowed: true, scope: "once" });
+  const permEv = evAsk.find((e) => e.type === "permission_request") || {};
+  ok("an mcp tool asks with its namespaced name",
+    permEv.name === "mcp__verify_stub__echo" && permEv.dangerous === true,
+    JSON.stringify(permEv).slice(0, 120));
+  ok("allowing runs the stub and the turn finishes",
+    evAsk.some((e) => e.type === "tool" && e.name === "mcp__verify_stub__echo" && e.allowed === true) &&
+    evAsk.some((e) => e.type === "tool_result" && String(e.preview || "").includes("echo:from-ask")) &&
+    said(evAsk, "mcp-ask-ok"));
+
+  ok("every scripted persona turn made exactly one model call per step", turnBodies.length === 18, String(turnBodies.length));
   turnStub.close();
   if (turnStub.closeAllConnections) turnStub.closeAllConnections();
 
@@ -453,9 +536,12 @@ try {
 
   const statsLoad = await (await fetch(s.url + "/api/sessions/messages?id=" + codeNew.id)).json();
   ok("a live session's stats ride with its messages", !!statsLoad.stats && typeof statsLoad.stats.calls === "number");
-  ok("model calls are counted", statsLoad.stats.calls === 10, String(statsLoad.stats.calls));
+  ok("model calls are counted", statsLoad.stats.calls === 14, String(statsLoad.stats.calls));
   ok("tool calls are counted per name",
     statsLoad.stats.tools.read_file === 1 && statsLoad.stats.tools.list_dir === 1 && statsLoad.stats.tools.write_file === 2,
+    JSON.stringify(statsLoad.stats.tools));
+  ok("mcp tool calls join the same counts",
+    statsLoad.stats.tools.mcp__verify_stub__echo === 2,
     JSON.stringify(statsLoad.stats.tools));
   ok("free compaction is counted when old turns get summarised",
     statsLoad.stats.compact.passes >= 1 && statsLoad.stats.compact.charsSaved > 0,
@@ -497,6 +583,43 @@ try {
     fs.rmdirSync(path.join(process.cwd(), ".star-code", "knowledge"));
     fs.rmdirSync(path.join(process.cwd(), ".star-code"));
   } catch { /* not empty or absent - fine */ }
+
+  /* --------------------------------- mcp --------------------------------- */
+  // The stub server was seeded before boot: the manager should have connected
+  // it in the background, so poll briefly like the UI does.
+  let mcpServers = [];
+  for (let i = 0; i < 50; i++) {
+    mcpServers = (await (await fetch(s.url + "/api/mcp")).json()).servers || [];
+    if (mcpServers.length && mcpServers[0].state === "ready") break;
+    await new Promise((r) => setTimeout(r, 100));
+  }
+  ok("GET /api/mcp lists the seeded server ready",
+    mcpServers.length === 1 && mcpServers[0].name === "verify-stub" && mcpServers[0].state === "ready",
+    JSON.stringify(mcpServers.map((x) => x.name + ":" + x.state)));
+  ok("the listing carries tools", Array.isArray(mcpServers[0] && mcpServers[0].tools) && mcpServers[0].tools.some((t) => t.name === "echo"));
+  ok("the listing carries the command, never the environment", typeof mcpServers[0].command === "string" && !("environment" in mcpServers[0]));
+  const mcpTestGhost = await fetch(s.url + "/api/mcp/test", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "ghost" }),
+  });
+  ok("testing an unknown server is a 400", mcpTestGhost.status === 400);
+  const mcpTest = await (await fetch(s.url + "/api/mcp/test", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "verify-stub" }),
+  })).json();
+  ok("POST /api/mcp/test reports the tools", mcpTest.ok === true && mcpTest.tools.some((t) => t.name === "echo"));
+  ok("POST /api/mcp without a name is a 400", (await fetch(s.url + "/api/mcp", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ command: "x" }),
+  })).status === 400);
+  const mcpAdd = await (await fetch(s.url + "/api/mcp", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name: "second", command: "definitely-not-a-real-binary-xyz", enabled: false }),
+  })).json();
+  ok("POST /api/mcp adds a server", mcpAdd.ok === true);
+  const mcpList2 = (await (await fetch(s.url + "/api/mcp")).json()).servers || [];
+  ok("the new server is listed disabled", mcpList2.some((x) => x.name === "second" && x.state === "off"));
+  ok("the user config round-trips",
+    JSON.parse(fs.readFileSync(path.join(dataDir, "mcp.json"), "utf8")).servers.second.command[0] === "definitely-not-a-real-binary-xyz");
+  ok("DELETE /api/mcp removes", (await (await fetch(s.url + "/api/mcp?name=second", { method: "DELETE" })).json()).ok === true);
+  ok("DELETE of an unknown name is a 400", (await fetch(s.url + "/api/mcp?name=ghost", { method: "DELETE" })).status === 400);
 
   const bad = await fetch(s.url + "/api/nope");
   ok("unknown route 404s", bad.status === 404);

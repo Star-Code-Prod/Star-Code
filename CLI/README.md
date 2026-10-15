@@ -52,7 +52,7 @@ star-code --model openai/gpt-4o --mode plan  # flags: --mode, --model, --root
 | `--mode <manual\|acceptEdits\|plan\|bypass>` | Permission mode — default `manual` ("Ask permissions") |
 | `--model <provider/model>` | Pick the provider and model, e.g. `--model deepseek/deepseek-chat` |
 | `--root <dir>` | Working directory — defaults to the current folder |
-| `--import-opencode` | Import settings from a local opencode install (providers, keys, model, theme, agents), then exit |
+| `--import-opencode` | Import settings from a local opencode install (providers, keys, model, theme, agents, MCP servers), then exit |
 | `--demo [scene]` | Render scripted frames of the interactive UI (`start`, `slash`, `model`, `files`, `permission`) — no key, no network |
 | `--help` | Show the usage text |
 
@@ -68,7 +68,8 @@ In an interactive session:
 | `/model` | List providers, or switch with `/model <provider/model>` |
 | `/connect <provider>` | Store an API key for a provider |
 | `/agents` | List the custom agents — the builtin `explorer` plus `.star-code/agents/*.md` |
-| `/import` | Import settings (providers, keys, model, theme, agents) from a local opencode install |
+| `/mcp` | List the configured MCP servers, their state and their tools |
+| `/import` | Import settings (providers, keys, model, theme, agents, MCP servers) from a local opencode install |
 | `/knowledge` | List the project's knowledge files |
 | `/exit` | Quit |
 

@@ -38,6 +38,7 @@ setting you change — including a model running on your own machine.
 | **Artifacts** | ` ```artifact ` html/svg/md blocks render in a sandboxed preview pane with version history |
 | **Knowledge** | Markdown notes in `.star-code/knowledge` — indexed in the prompt, searchable by the agent |
 | **Custom agents** | Markdown personas in `.star-code/agents/` — the `task` tool runs them as read-only subagents, and the composer's agent chip (or `/agents`) runs one as the turn's persona: its prompt, its tools and its model |
+| **MCP servers** | Local Model Context Protocol servers in Settings → MCP — Star starts them, their tools join the agent as `mcp__server__tool`, and every call asks permission first |
 | **Permission modes** | Ask permissions · Accept edits · Plan (read-only) · Bypass |
 | **Diff review** | Syntax-highlighted inline diffs, plus a Changes pane |
 | **Reasoning view** | Live thinking block with a timer, auto-collapses when the answer starts |
@@ -143,6 +144,24 @@ names (`agent: "reviewer"`), so one file can be both a subagent and a persona.
 Broken files are skipped — the picker counts them, and the CLI's `/agents`
 names the reason for each.
 
+## MCP servers
+
+Star speaks the Model Context Protocol to **local** servers — the same kind
+opencode configures. Open **Settings → MCP**, add a command (for example
+`uvx mcp-server-fetch` or `npx -y @modelcontextprotocol/server-memory`), and
+Star launches it, handshakes over stdio JSON-RPC and lists its tools. They
+reach the agent as `mcp__server__tool` beside the built-in tools, every call
+asking permission first; plan mode blocks them, bypass allows them. Servers
+come up at boot, are tested with the **Test** button, and are killed after
+15 idle minutes.
+
+Servers live in `~/.star-code/mcp.json` (a project may add its own in
+`.star-code/mcp.json`, which wins by name). The file accepts both Star's
+`servers` key and opencode's `mcp` key verbatim, so importing an opencode
+install brings its servers along — remote (`url`) servers are listed as
+skipped until Star speaks that transport. In the CLI, `/mcp` shows the
+servers, their state and their tools.
+
 ## Star Code CLI
 
 Everything the desktop app does to your project, without the window:
@@ -154,10 +173,11 @@ star-code                                    # interactive session
 star-code --model openai/gpt-4o --mode plan  # flags: --mode, --model, --root
 ```
 
-Interactive mode has `/help`, `/model`, `/connect`, `/knowledge`, `/clear`,
-`/status` and `/exit`; permissions prompt inline (`y` once, `n` no, `a` for the
-session). It runs the same agent loop, tools, credential store and knowledge
-folder as the desktop app — no server, no extra dependencies.
+Interactive mode has `/help`, `/model`, `/connect`, `/knowledge`, `/agents`,
+`/mcp`, `/clear`, `/status` and `/exit`; permissions prompt inline (`y` once,
+`n` no, `a` for the session). It runs the same agent loop, tools, credential
+store and knowledge folder as the desktop app — no server, no extra
+dependencies.
 
 ## Permission modes
 
