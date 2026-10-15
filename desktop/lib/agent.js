@@ -331,12 +331,15 @@ function buildSystemPrompt(root, mode, extraTools = []) {
   const planNote = mode === "plan"
     ? "\nPLAN MODE: read-only. Do not edit files or run mutating commands. Explore, then propose a plan and stop.\n"
     : "";
-  // Tools from connected local MCP servers: names, one line each. Every call
-  // goes through the normal permission ask (they count as dangerous).
+  // Tools from connected local MCP servers: one line each with their
+  // parameters in parentheses, so the model can actually construct a call.
+  // Every call goes through the normal permission ask (they count as
+  // dangerous), and the call shape is the ordinary fenced tool block.
   const extra = (Array.isArray(extraTools) ? extraTools : []).slice(0, 40);
   const extraBlock = extra.length
-    ? "\nMCP tools (from connected local MCP servers; each call asks for permission first):\n" +
-      extra.map((t) => "- " + t.name + (t.description ? " - " + String(t.description).replace(/\s+/g, " ").slice(0, 140) : "")).join("\n") + "\n"
+    ? "\nMCP tools (from connected local MCP servers; call them exactly like the built-in tools, with the same \`\`\`tool block and their full name, arguments following the listed parameters; each call asks for permission first):\n" +
+      extra.map((t) => "- " + t.name + (t.params ? "(" + t.params + ")" : "") +
+        (t.description ? " - " + String(t.description).replace(/\s+/g, " ").slice(0, 140) : "")).join("\n") + "\n"
     : "";
 
   return `You are a coding agent working in: ${root}

@@ -14,7 +14,7 @@ const send = (obj) => {
 };
 
 const TOOLS = [
-  { name: "echo", description: "Echo text back", inputSchema: { type: "object", properties: { text: { type: "string" } } } },
+  { name: "echo", description: "Echo text back", inputSchema: { type: "object", properties: { text: { type: "string" }, mode: { type: "string", enum: ["plain", "loud"] } }, required: ["text"] } },
   { name: "slow", description: "A tool that may never answer", inputSchema: { type: "object", properties: {} } },
 ];
 

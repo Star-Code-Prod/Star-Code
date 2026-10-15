@@ -1,5 +1,8 @@
 # What's new in Star
 
+## 1.13.3 — 2026-10-15
+- The AI actually knows how to use MCP tools now. Star used to tell it only their names and descriptions, so it guessed the arguments and calls failed - the prompt now lists each tool's parameters (mcp__server__tool(text:string, mode?:enum) - what it does), teaches the exact call shape, and every live turn carries that list.
+
 ## 1.13.2 — 2026-10-15
 - The AI can update a single motion now. Scenes name themselves (a `// Title: Ride` line, a `title:` option, or their first on-screen words), so a revision lands as a new version of the SAME motion - one card, a v1/v2 picker, and your comments and pins stay attached - instead of appearing as a second artifact. The pane also switches to the fresh version instantly on quick updates, which it sometimes missed before.
 

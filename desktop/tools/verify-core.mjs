@@ -367,12 +367,14 @@ ok("resetSystemPromptCache rebuilds from disk", p3 !== p1 && p3.includes("CHANGE
 // Connected MCP servers ride in the prompt as a namespaced tool list; the
 // list is part of the freeze key, and no block appears when nothing is up.
 const mcpTools = [
-  { name: "mcp__stub__echo", description: "Echo text back" },
-  { name: "mcp__blender_mcp__get_scene_info", description: "Scene info" },
+  { name: "mcp__stub__echo", description: "Echo text back", params: "text:string" },
+  { name: "mcp__blender_mcp__get_scene_info", description: "Scene info", params: "" },
 ];
 const p4 = systemPrompt(frozenRoot, "manual", mcpTools);
 ok("connected mcp tools join the prompt", p4.includes("mcp__stub__echo") && p4.includes("MCP tools"));
-ok("mcp lines carry descriptions", p4.includes("- mcp__stub__echo - Echo text back"));
+ok("mcp lines carry descriptions", p4.includes("- mcp__stub__echo(text:string) - Echo text back"));
+ok("mcp lines carry their parameters", p4.includes("mcp__stub__echo(text:string)") && p4.includes("mcp__blender_mcp__get_scene_info - Scene info"));
+ok("the prompt teaches the call shape", p4.includes("call them exactly like the built-in tools") && p4.includes("their full name"));
 ok("no mcp block when nothing is connected", !systemPrompt(frozenRoot, "plan").includes("MCP tools"));
 ok("the tool list is part of the freeze key", systemPrompt(frozenRoot, "manual", []) !== p4);
 fs.rmSync(frozenRoot, { recursive: true, force: true });

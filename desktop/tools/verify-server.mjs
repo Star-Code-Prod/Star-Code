@@ -431,6 +431,8 @@ try {
     ev1.some((e) => e.type === "session" && e.agent === "reviewer"));
   ok("the persona sits in front of the base system prompt",
     sys0.startsWith("You are the reviewer persona.\n\n") && /coding agent working in/.test(sys0), sys0.slice(0, 110));
+  ok("the live prompt lists mcp tools with their parameters",
+    sys0.includes("mcp__verify_stub__echo(text:string, mode?:enum)"), sys0.slice(sys0.indexOf("MCP tools"), sys0.indexOf("MCP tools") + 180));
   ok("the persona's model line switches the turn", b0.model === "agent-model-x", String(b0.model));
   ok("a tool inside the persona's list runs",
     JSON.stringify(b1.messages || []).includes("star-code"));

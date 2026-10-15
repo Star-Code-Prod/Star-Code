@@ -40,6 +40,26 @@ const short = (e) => {
   return m.length > 160 ? m.slice(0, 157) + "..." : m;
 };
 
+/** An MCP inputSchema as one compact hint: "text:string, mode?:enum". The
+ *  model reads these in the system prompt; without them it has to guess
+ *  argument names and the calls fail before the server ever sees them. */
+export function compactParams(schema) {
+  const props = schema && typeof schema === "object" && schema.properties && typeof schema.properties === "object"
+    ? schema.properties : null;
+  if (!props) return "";
+  const req = new Set(Array.isArray(schema.required) ? schema.required.map(String) : []);
+  const parts = [];
+  for (const [key, def] of Object.entries(props).slice(0, 12)) {
+    let t = def && typeof def === "object" && def.type ? def.type : "";
+    if (Array.isArray(t)) t = t.join("|");
+    // An enum is more informative than its base type: "mode?:enum" tells the
+    // model the allowed values matter.
+    if (def && typeof def === "object" && Array.isArray(def.enum) && def.enum.length) t = "enum";
+    parts.push(key + (req.has(key) ? ":" : "?:") + (t || "any"));
+  }
+  return parts.join(", ");
+}
+
 /* --------------------------------- config ------------------------------- */
 
 function dataDir() {
@@ -249,7 +269,13 @@ export function createMcpManager({ root, onChange, callTimeoutMs = CALL_TIMEOUT_
         })
         .then((res) => {
           rec.tools = (res && Array.isArray(res.tools) ? res.tools : [])
-            .map((t) => ({ name: slug(t && t.name), description: short(t && t.description || "") }))
+            .map((t) => ({
+              name: slug(t && t.name),
+              description: short(t && t.description || ""),
+              // The model cannot CALL a tool it cannot argue: keep the schema
+              // (as a compact parameter hint) with the tool, not just its name.
+              params: compactParams(t && t.inputSchema),
+            }))
             .filter((t) => t.name);
           rec.state = "ready";
           rec.error = "";
@@ -303,7 +329,7 @@ export function createMcpManager({ root, onChange, callTimeoutMs = CALL_TIMEOUT_
       enabled: !!rec.cfg.enabled,
       state: rec.cfg.enabled ? rec.state : "off",
       error: rec.error || "",
-      tools: rec.tools.map((t) => ({ name: t.name, description: t.description })),
+      tools: rec.tools.map((t) => ({ name: t.name, description: t.description, params: t.params || "" })),
     }));
   }
 
@@ -325,7 +351,7 @@ export function createMcpManager({ root, onChange, callTimeoutMs = CALL_TIMEOUT_
     const out = [];
     for (const rec of servers.values()) {
       if (rec.state !== "ready") continue;
-      for (const t of rec.tools) out.push({ name: mcpToolName(rec.name, t.name), description: t.description });
+      for (const t of rec.tools) out.push({ name: mcpToolName(rec.name, t.name), description: t.description, params: t.params || "" });
     }
     return out;
   }

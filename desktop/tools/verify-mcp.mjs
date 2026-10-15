@@ -18,7 +18,7 @@ process.env.STAR_CODE_DATA = tmp;
 const root = path.join(tmp, "project");
 fs.mkdirSync(root, { recursive: true });
 
-const { mcpToolName, readMcpConfig, writeUserMcpServers, createMcpManager } =
+const { mcpToolName, readMcpConfig, writeUserMcpServers, createMcpManager, compactParams } =
   await import(pathToFileURL(path.resolve("lib/mcp.js")).href);
 
 const STUB = path.resolve("tools/mcp-stub-server.mjs");
@@ -26,6 +26,13 @@ const stubCmd = [process.execPath, STUB];
 
 /* ------------------------------ pure bits ------------------------------ */
 ok("tool names are namespaced", mcpToolName("Blender MCP", "get scene-info") === "mcp__blender_mcp__get_scene_info");
+// The prompt needs arguments, not just names - without them the model guesses
+// and every call fails before the server sees it.
+ok("a schema becomes a compact parameter hint",
+  compactParams({ type: "object", properties: { text: { type: "string" } }, required: ["text"] }) === "text:string");
+ok("optional and enum parameters read right",
+  compactParams({ properties: { n: { type: "number" }, mode: { type: "string", enum: ["a"] }, tags: { type: ["string", "null"] } }, required: ["n"] }) === "n:number, mode?:enum, tags?:string|null");
+ok("a schema-less tool has no parameters to show", compactParams(undefined) === "" && compactParams({ type: "object" }) === "");
 
 /* ---------------------------- config merge ----------------------------- */
 writeUserMcpServers({ fromuser: { command: stubCmd, environment: {}, enabled: false } });
@@ -59,6 +66,11 @@ await withManager({ stub: { command: stubCmd, environment: {} } }, async (mgr) =
   ok("the configured server is listed", l.length === 1 && l[0].name === "stub");
   ok("enabled server connects at boot", l[0].state === "ready" && l[0].tools.some((t) => t.name === "echo"), JSON.stringify(l[0].state));
   ok("toolList carries namespaced names", mgr.toolList().some((t) => t.name === "mcp__stub__echo"), JSON.stringify(mgr.toolList().map((t) => t.name)));
+  ok("toolList carries the parameters too",
+    (mgr.toolList().find((t) => t.name === "mcp__stub__echo") || {}).params === "text:string, mode?:enum",
+    JSON.stringify(mgr.toolList().find((t) => t.name === "mcp__stub__echo")));
+  ok("the listing carries the parameters too",
+    (mgr.list()[0].tools.find((t) => t.name === "echo") || {}).params === "text:string, mode?:enum");
   ok("has() knows the namespaced names", mgr.has("mcp__stub__echo") && !mgr.has("mcp__stub__nope"));
   const out = await mgr.call("mcp__stub__echo", { text: "hi" });
   ok("a tool call returns text", out === "echo:hi", out);
