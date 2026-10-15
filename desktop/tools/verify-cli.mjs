@@ -721,6 +721,7 @@ const waitFor = async (what, fn, ms = 8000) => {
 };
 
 const appHits = [];
+let heldFirstTurn = null;   // the first turn is held open until the test releases it
 const appStub = http.createServer((req, res) => {
   if (req.method !== "POST" || !req.url.endsWith("/chat/completions")) { res.writeHead(404); res.end(); return; }
   let body = "";
@@ -737,7 +738,9 @@ const appStub = http.createServer((req, res) => {
       : appHits.length === 3 ? Array.from({ length: 40 }, (_, i) => "line-mark-" + String(i + 1).padStart(2, "0")).join("\n")
       : "stub-four";
     send({ choices: [{ delta: { content } }] });
-    if (appHits.length === 1) setTimeout(finished, 400);   // still streaming while the next line is typed
+    // The first turn stays open until the test releases it, so "typing while
+    // streaming" is asserted without racing a timer.
+    if (appHits.length === 1) heldFirstTurn = finished;
     else finished();
   });
 });
@@ -761,6 +764,7 @@ await waitFor("the queue reaches the status line", () => lastFrame().includes("1
 ok("typing during a stream queues the message instead of sending it",
   appHits.length === 1 && lastFrame().includes("1 queued") && lastFrame().includes("queued (1)"),
   "hits=" + appHits.length + " hint=" + JSON.stringify((lastFrame().match(/streaming[^│]*/) || [""])[0].trim()));
+if (heldFirstTurn) heldFirstTurn();
 await waitFor("the queued message sends when the turn ends", () => appHits.length === 2);
 ok("the queued message only goes after the running turn",
   appHits.length >= 2 && appHits[1].some((m) => m.role === "user" && m.content === "queued while streaming"),
