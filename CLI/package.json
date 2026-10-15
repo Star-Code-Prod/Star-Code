@@ -1,6 +1,6 @@
 {
   "name": "star-code-cli",
-  "version": "1.5.3",
+  "version": "1.5.4",
   "description": "Star Code in the terminal — the same agent loop, tools and credential store as the desktop app, in one-shot or interactive mode. No server, no runtime dependencies.",
   "keywords": [
     "ai",
