@@ -35,7 +35,7 @@ if (twFrom < 0 || twTo < 0) {
 }
 const fns = new Function(
   js.slice(from, to) + js.slice(sbFrom, sbTo) + js.slice(stFrom, stTo) + js.slice(twFrom, twTo) +
-  "; return { esc, hl, md, stripBlocks, parseArtifacts, pendingFence, toolGroupOf, groupToolCounts, fmtCount, splitArtifactParts, deckIframeHtml, docIframeHtml, boardIframeHtml, motionTextSlots, motionApplyTexts, motionSetDuration, motionNoteMessage };"
+  "; return { esc, hl, md, stripBlocks, parseArtifacts, pendingFence, artifactTitle, toolGroupOf, groupToolCounts, fmtCount, splitArtifactParts, deckIframeHtml, docIframeHtml, boardIframeHtml, motionTextSlots, motionApplyTexts, motionSetDuration, motionNoteMessage };"
 )();
 
 const results = [];
@@ -276,6 +276,9 @@ ok("the rail drag floats the whole card while dragging",
 ok("the placeholder walks so nothing teleports",
   fnBody("function wirePaneDynamics(").includes("body.insertBefore(drag.fl.ph, before)") &&
   fnBody("function wireSessionDrag(").includes("box.insertBefore(drag.fl.ph, before)"));
+ok("a fresh artifact version shows itself immediately",
+  fnBody("function syncArtifacts(").includes("const newCards = arts.length > msgCards") &&
+  fnBody("function syncArtifacts(").includes("newCards || justFinished || !streaming"));
 ok("sessions reorder by dragging in the sidebar",
   js.includes("function wireSessionDrag(") && js.includes("state.sessionOrder = [...new Set(order)]") &&
   fnBody("function renderSessions(").includes("state.sessionOrder") && js.includes("suppressRowClick"));
@@ -332,6 +335,18 @@ const twDupes = fns.motionTextSlots('const T = "Same";\nctx.fillText(T, 0, 0);\n
 ok("the same variable drawn twice is one editable slot", twDupes.length === 1);
 const twTmpl = fns.motionTextSlots('ctx.fillText(`TOTAL ${70+14}`, 0, 0);');
 ok("a template literal is found whole", twTmpl.length === 1 && twTmpl[0].value === "TOTAL ${70+14}");
+
+/* ------ motion identity: a revision updates the SAME motion, not a second ------ */
+ok("a motion scene names itself from a Title comment",
+  fns.artifactTitle("// Title: Ride\nMOTION.scene({}, draw);") === "Ride");
+ok("the MOTION.scene title option names it too",
+  fns.artifactTitle('MOTION.scene({ title: "Night Ride", width: 100 }, draw);') === "Night Ride");
+ok("an html <title> still wins over everything",
+  fns.artifactTitle('<html><head><title>Deck</title></head>// Title: Ride') === "Deck");
+ok("a nameless motion falls back to its first drawn words",
+  fns.artifactTitle("MOTION.scene({}, (ctx)=>{ ctx.fillText('GOAL LIGHT', 0, 0); });") === "GOAL LIGHT");
+ok("html without a title stays unnamed even with fillText",
+  fns.artifactTitle("<div>ctx.fillText('x', 0, 0)</div>") === "");
 const twCode = "ctx.fillText('Hello', 10, 10); ctx.fillText(\"Two\", 20, 20);";
 const tw3 = fns.motionApplyTexts(twCode, ["Hi there", 'Say "cheese"']);
 ok("editing a word rewrites exactly that literal",

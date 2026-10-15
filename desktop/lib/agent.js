@@ -285,6 +285,7 @@ Motion rules:
 - Keep the duration modest: 3-10 seconds unless the user asked for a specific length.
 - Compose it like a shot, not a screensaver: a hook in the first second, one focal motion with supporting easing, staggered secondary motion for rhythm, a deliberate hold at the end. Ease (easeOutCubic, easeInOutQuad, smoothstep) - linear is only for loops, never for camera or character motion.
 - Words the user may want to change (labels, titles, captions) must be plain string literals in ctx.fillText("…", x, y) calls: the app's Tweaks panel lists those literals so the user can edit them without touching code. Keep each label whole - no concatenation, no per-character drawing.
+- Name every scene (start the code with a comment line \`// Title: Short Name\`, or pass \`title: "Short Name"\` in the MOTION.scene options) and KEEP that name through every revision: the name is what makes an update land as a new version of the same motion - with its comments and pins still attached - instead of a second artifact beside it.
 - The user records the animation from the Preview pane, and the recording is saved into the project's artifacts/ folder. Do not write video files yourself; after delivering the scene, say recording is available in-app.
 - Chore list: for "animate X" / "make a video" requests, verify the scene renders (the user can record it) instead of claiming a video file was produced.`;
 

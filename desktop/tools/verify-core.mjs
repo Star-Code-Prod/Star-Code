@@ -351,6 +351,9 @@ ok("motion words stay plain literals so Tweaks can edit them",
 ok("motion composition is choreographed, not linear",
   p1.includes("hook in the first second") && p1.includes("staggered secondary motion") &&
   p1.includes("linear is only for loops"));
+ok("motion scenes carry a kept name so revisions version together",
+  p1.includes("// Title: Short Name") && p1.includes("KEEP that name through every revision") &&
+  p1.includes("new version of the same motion"));
 ok("size guidance sets the expected scale",
   p1.includes("200-600 lines") && p1.includes("8-14 slides") && p1.includes("2-6 frames"));
 ok("the prompt stays within a sane budget", p1.length < 60000, String(p1.length));

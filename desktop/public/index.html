@@ -3630,13 +3630,31 @@ function stripBlocks(s) {
   return out.replace(/\n{3,}/g, "\n\n").replace(/\s+$/, "");
 }
 
-/** The artifact's human name: its <title>, at most four words. */
+/** The artifact's human name: its <title>, at most four words. Motion scenes
+ *  are scripts with no <title>, so a `// Title: Name` first line or a
+ *  `title: "Name"` option names them - and a scene that keeps that name
+ *  through revisions lands as a new VERSION of the same motion instead of a
+ *  second artifact. A nameless motion falls back to its first drawn words. */
 function artifactTitle(code) {
-  const m = String(code || "").match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-  if (!m) return "";
-  const text = m[1].replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-  if (!text) return "";
-  return text.split(" ").slice(0, 4).join(" ").replace(/[|:·—-]+$/, "").trim();
+  const src = String(code || "");
+  const clean = (text) => {
+    const t = String(text || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    if (!t) return "";
+    return t.split(" ").slice(0, 4).join(" ").replace(/[|:·—-]+$/, "").trim();
+  };
+  const m = src.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  if (m) return clean(m[1]);
+  const c = src.match(/^\s*\/\/\s*Title\s*:\s*(.+)$/im);
+  if (c) return clean(c[1]);
+  const o = src.match(/\btitle\s*:\s*["'`]([^"'`]{1,60})["'`]/);
+  if (o) return clean(o[1]);
+  // Motion only: the first on-screen words are a stable name across small
+  // revisions, and will not group unrelated html tools together.
+  if (src.includes("MOTION.scene")) {
+    const slots = motionTextSlots(src);
+    if (slots.length) return clean(slots[0].value);
+  }
+  return "";
 }
 
 /** One-line description: the first sentence of the prose that immediately
@@ -3859,8 +3877,11 @@ function syncArtifacts(raw, streaming) {
       }
     } else pendingArt = null;
   }
-  // Cards land with the artifact, not at the end of the whole message.
-  if (arts.length > msgCards) {
+  // Cards land with the artifact, not at the end of the whole message; a
+  // freshly committed card/version must also show itself right away - the
+  // throttle below only paces plain streaming, never a real update.
+  const newCards = arts.length > msgCards;
+  if (newCards) {
     for (let k = msgCards; k < arts.length; k++) addArtifactCard(artifacts.length - arts.length + k);
     msgCards = arts.length;
   }
@@ -3874,7 +3895,7 @@ function syncArtifacts(raw, streaming) {
     // the motion panel, the playback state and the picked spot mid-edit.
     const lastA = artifacts[artifacts.length - 1];
     const sig = artifacts.length + ":" + ((lastA && lastA.code) || "").length;
-    if (justFinished || !streaming || (now - lastArtRender > 450 && sig !== lastArtSignature)) {
+    if (newCards || justFinished || !streaming || (now - lastArtRender > 450 && sig !== lastArtSignature)) {
       lastArtRender = now;
       lastArtSignature = sig;
       renderArtifact();
