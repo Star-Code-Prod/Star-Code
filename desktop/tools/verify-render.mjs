@@ -242,6 +242,10 @@ ok("the sidebar resizes by dragging its right-edge grip",
 ok("motion autoplays once per player",
   js.includes("let autoPlayed = false") && js.includes("autoPlayed = true") && js.includes('playBtn.textContent = "Pause"'));
 ok("motion pacing keeps the scene's cadence", js.includes("nextAt = Math.max(now, (nextAt || now) + iv)"));
+ok("the scrub never fights an active drag",
+  js.includes("let scrubbing = false") && js.includes("!st.recording && !scrubbing"));
+ok("a standalone motion doc plays itself",
+  js.includes("window.parent === window") && js.includes("if (standalone) setTimeout"));
 ok("the cursor roams the pane, not its own box", /@keyframes caret\{\s*0%\{left:16%;top:40%\}/.test(html.replace(/\n/g, "")));
 ok("reduced motion stills the working state", /prefers-reduced-motion:reduce\)\{\s*\.apwork-cursor\{animation:none/.test(html.replace(/\s+/g, "")));
 

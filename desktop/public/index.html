@@ -3790,6 +3790,10 @@ canvas{max-width:100%;max-height:100%;display:block}
   var draw = null, cur = 0, playing = false, raf = 0, base = 0, started = 0;
   var rec = null, chunks = [], stream = null, recTimer = 0, recActive = false;
   var lastPost = 0, visPlay = false, nextAt = 0;
+  // Opened in a browser tab (Open in browser / a saved file) there is no host
+  // to send motion-play: the doc detects that and plays itself on ready.
+  var standalone = false;
+  try { standalone = window.parent === window; } catch (e) { standalone = true; }
 
   function post(msg, transfer) { try { parent.postMessage(msg, "*", transfer || []); } catch (e) {} }
   function sizeCanvas(scale) {
@@ -3932,6 +3936,8 @@ canvas{max-width:100%;max-height:100%;display:block}
       sizeCanvas(1);
       render(0);
       post({ type: "motion-ready", duration: cfg.duration, fps: cfg.fps, width: cfg.width, height: cfg.height });
+      // Nothing will ever ask a standalone page to play - start it here.
+      if (standalone) setTimeout(function () { play(); }, 60);
     }
   };
 })();
@@ -4004,6 +4010,15 @@ function renderMotionArtifact(body, a) {
     playBtn.textContent = st.playing ? "Pause" : "Play";
     send({ type: st.playing ? "motion-play" : "motion-pause" });
   });
+  // While the person drags the scrub, the playback's progress updates must
+  // NOT write back into it: Chrome fights a range input whose value changes
+  // mid-drag and the thumb snaps away, which is what made moving
+  // forward/backward "sometimes not work". Pointer events cover mouse, pen
+  // and touch; the flag is also honored in recv's progress branch below.
+  let scrubbing = false;
+  scrub.addEventListener("pointerdown", () => { scrubbing = true; });
+  window.addEventListener("pointerup", () => { scrubbing = false; });
+  window.addEventListener("pointercancel", () => { scrubbing = false; });
   scrub.addEventListener("input", () => {
     if (st.recording || !st.ready) return;
     send({ type: "motion-seek", t: Number(scrub.value) });
@@ -4102,7 +4117,7 @@ function renderMotionArtifact(body, a) {
     }
     if (m.type === "motion-progress") {
       st.t = Math.max(0, Number(m.t) || 0);
-      if (!st.recording) scrub.value = String(st.t);
+      if (!st.recording && !scrubbing) scrub.value = String(st.t);
       showTime();
       return;
     }

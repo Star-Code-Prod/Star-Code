@@ -1,5 +1,9 @@
 # What's new in Star
 
+## 1.9.4 — 2026-10-15
+- Motion scrubbing is reliable: dragging the bar no longer fights the playback, so moving forward and backward always lands where you drop it.
+- "Open in browser" motion files now play by themselves in the browser tab instead of sitting on a still frame.
+
 ## 1.9.3 — 2026-10-15
 - Every pane in the right rail has its own X, so closing one card is a single click.
 - Drag a card's header to reorder the rail - the order sticks between restarts.
