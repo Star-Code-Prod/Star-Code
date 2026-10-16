@@ -1,5 +1,8 @@
 # What's new in Star
 
+## 1.18.1 — 2026-10-16
+- The titlebar is just the three icons you use: toggle sidebar, settings and toggle panes now sit in the strip itself (icons only - settings got its own button up there), the "Star 1.x.y" label is gone, and a small gap keeps air between the titlebar and everything below it.
+
 ## 1.18.0 — 2026-10-16
 - Motion films have sound now. Scenes can synthesize music and effects (tone, noise, kick/snare/hat, note, chord - with sweeps, ambience beds and total silence as an effect), and Record writes a video file with that audio muxed in. A Sound toggle sits in the player; muting only silences the preview, the recording always keeps its sound. Everything is generated on the page - no files, nothing to download.
 - Star learned how the viral Claude civilization films are made, and the motion doctrine now teaches it: beat maps first, one act per era with its own palette, ONE evolving motif across the whole film, designed transitions with a sound hit on each, camera dollies and parallax, lights (glow, shafts, fog, flicker, day/night) and resolve-at-the-end pacing. Narrative films run 30-120 seconds now; loops stay short.

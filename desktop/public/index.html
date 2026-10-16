@@ -106,21 +106,16 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
 
 /* ============================ TITLE BAR ============================ */
 .titlebar{
-  height:46px;flex:none;display:flex;align-items:center;gap:var(--sp-2);padding:0 var(--sp-4);
+  height:46px;flex:none;display:flex;align-items:center;gap:var(--sp-2);padding:0 var(--sp-3);
   background:var(--bg);border-bottom:1px solid var(--border);position:relative;z-index:5;
+  margin-bottom:6px;   /* the small gap between the titlebar and everything else */
 }
-.brand{display:flex;align-items:center;gap:var(--sp-2);flex:none;margin-right:var(--sp-1)}
-.brand svg{display:block;border-radius:var(--r-xs)}
-.brand .nm{font-size:var(--fs-125);color:var(--muted);letter-spacing:-.01em;white-space:nowrap}
 /* Electron: the OS draws the frame, so our chrome must drag and drop */
 body.is-electron{-webkit-app-region:no-drag}
 body.is-electron .titlebar{-webkit-app-region:drag;padding-right:150px}
 body.is-electron .titlebar button,
-body.is-electron .titlebar .tb-text,
-body.is-electron .titlebar .brand,
 body.is-electron .titlebar .seg{ -webkit-app-region:no-drag}
 body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
-body.is-mac.is-electron .brand{margin-left:2px}
 .tb-btn{
   width:30px;height:30px;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;
   color:var(--muted);transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
@@ -133,13 +128,6 @@ body.is-mac.is-electron .brand{margin-left:2px}
 }
 .tb-text:hover{background:var(--panel);color:var(--text)}
 .tb-text.on{background:var(--panel);color:var(--text)}
-/* The app row under the titlebar: its buttons, and the gap that separates
-   the titlebar strip from everything below it. */
-.appbar{
-  height:40px;flex:none;display:flex;align-items:center;gap:6px;
-  padding:7px 12px 0;margin-bottom:6px;
-}
-html[data-embed] .appbar{display:none}
 .tb-sep{width:1px;height:18px;background:var(--border);flex:none;margin:0 var(--sp-1)}
 
 /* ============================ SHELL ============================ */
@@ -1336,33 +1324,19 @@ body.mode-chat #bigProj{display:none}
 <body>
 
 <!-- ==================== TITLE BAR ==================== -->
+<!-- No brand text: the titlebar is a drag strip carrying the three icon
+     controls (sidebar, settings, panes) and the OS window controls. A small
+     margin below keeps air between it and everything else. -->
 <div class="titlebar">
-  <span class="brand">
-    <svg width="20" height="20" viewBox="0 0 512 512" aria-hidden="true">
-      <defs>
-        <linearGradient id="bt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a1a1a"/><stop offset="1" stop-color="#141414"/></linearGradient>
-        <linearGradient id="bcs" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f7f7f5"/><stop offset="1" stop-color="#b9b9b5"/></linearGradient>
-        <linearGradient id="bs" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e9e9e7"/></linearGradient>
-      </defs>
-      <rect width="512" height="512" rx="112" fill="url(#bt)"/>
-      <path d="M178 172 L298 256 L178 340" fill="none" stroke="url(#bcs)" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
-      <rect x="178" y="386" width="120" height="24" rx="9" fill="#8c8c88" opacity="0.38"/>
-      <path d="M366 154c5 33 20 48 53 53-33 5-48 20-53 53-5-33-20-48-53-53 33-5 48-20 53-53z" fill="url(#bs)"/>
-    </svg>
-    <span class="nm" id="brandVer">Star</span>
-  </span>
-  <span class="spacer"></span>
-</div>
-
-<!-- App controls live UNDER the titlebar - the titlebar itself stays a clean
-     drag strip (brand left, OS window controls right). -->
-<div class="appbar">
   <button class="tb-btn" id="btnSidebar" title="Toggle sidebar" aria-label="Toggle sidebar">
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M5.6 2.5v11"/></svg>
   </button>
+  <button class="tb-btn" id="btnTitleSettings" title="Settings" aria-label="Settings">
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12.79 6.98L14.55 7.2A6.6 6.6 0 0 1 14.55 8.8L12.79 9.02A4.9 4.9 0 0 1 12.11 10.67L13.2 12.06A6.6 6.6 0 0 1 12.06 13.2L10.67 12.11A4.9 4.9 0 0 1 9.02 12.79L8.8 14.55A6.6 6.6 0 0 1 7.2 14.55L6.98 12.79A4.9 4.9 0 0 1 5.33 12.11L3.94 13.2A6.6 6.6 0 0 1 2.8 12.06L3.89 10.67A4.9 4.9 0 0 1 3.21 9.02L1.45 8.8A6.6 6.6 0 0 1 1.45 7.2L3.21 6.98A4.9 4.9 0 0 1 3.89 5.33L2.8 3.94A6.6 6.6 0 0 1 3.94 2.8L5.33 3.89A4.9 4.9 0 0 1 6.98 3.21L7.2 1.45A6.6 6.6 0 0 1 8.8 1.45L9.02 3.21A4.9 4.9 0 0 1 10.67 3.89L12.06 2.8A6.6 6.6 0 0 1 13.2 3.94L12.11 5.33A4.9 4.9 0 0 1 12.79 6.98Z"/><circle cx="8" cy="8" r="2"/></svg>
+  </button>
   <span class="spacer"></span>
-  <button class="tb-text" id="btnPanes" title="Toggle panes">
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><rect x="1.5" y="2.5" width="5.6" height="11" rx="1.8"/><rect x="8.9" y="2.5" width="5.6" height="11" rx="1.8"/></svg>
+  <button class="tb-btn" id="btnPanes" title="Toggle panes" aria-label="Toggle panes">
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="5.6" height="11" rx="1.8"/><rect x="8.9" y="2.5" width="5.6" height="11" rx="1.8"/></svg>
   </button>
 </div>
 
@@ -1934,7 +1908,6 @@ const bridge = (typeof window !== "undefined" && window.desktop && window.deskto
       if (info.platform === "darwin") document.body.classList.add("is-mac");
       if (info.appVersion) {
         appVersion = info.appVersion;
-        $("brandVer").textContent = "Star " + info.appVersion;
       }
       if (info.root) state.root = info.root;
     } catch {}
@@ -7961,6 +7934,7 @@ $("btnOpenFolder").addEventListener("click", async () => {
   toast("Set the working directory here");
 });
 $("btnSettings2").addEventListener("click", openSettings);
+$("btnTitleSettings").addEventListener("click", openSettings);
 $("btnMore").addEventListener("click", e => {
   e.stopPropagation();
   openMenu($("btnMore"), [

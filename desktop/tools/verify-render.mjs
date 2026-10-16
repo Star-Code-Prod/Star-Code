@@ -439,12 +439,15 @@ ok("the usage pane exists and the ring opens it",
 ok("a context limit override rides with every request",
   js.includes("contextLimit: Number(p.contextLimit) > 0 ? Number(p.contextLimit) : undefined") &&
   js.includes('id="fCtx"') && js.includes('on("fSaveCtx"'));
-ok("the titlebar is a clean strip and the buttons live under it",
+ok("the titlebar carries the three icon buttons and no brand text",
+  !html.includes('id="brandVer"') && !html.includes('class="appbar"') &&
   !html.includes('id="btnSearch"') && js.includes("function focusSessionSearch(") &&
-  html.includes('class="appbar"') &&
-  html.indexOf('class="appbar"') > html.indexOf('class="titlebar"') &&
-  html.indexOf('id="btnSidebar"') > html.indexOf('class="appbar"') &&
-  /\.appbar\{[^}]*margin-bottom:6px/.test(html.replace(/\s+/g, "")));
+  html.indexOf('id="btnSidebar"') > html.indexOf('class="titlebar"') &&
+  html.indexOf('id="btnTitleSettings"') > html.indexOf('class="titlebar"') &&
+  html.indexOf('id="btnPanes"') > html.indexOf('class="titlebar"') &&
+  html.indexOf('id="btnSidebar"') < html.indexOf('class="updatebar"') &&
+  js.includes('$("btnTitleSettings").addEventListener("click", openSettings)') &&
+  /\.titlebar\{[^}]*margin-bottom:6px/.test(html.replace(/\s+/g, "")));
 ok("fullscreen sits below the titlebar strip",
   /body\.preview-full \.pane-row\[data-pane="preview"\]\{[^}]*inset:46px 0 0 0/.test(html.replace(/\s+/g, " ")));
 ok("the folded thinking pill carries a gist",
