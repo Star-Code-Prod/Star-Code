@@ -1392,10 +1392,6 @@ body.mode-chat #bigProj{display:none}
           </button>
         </div>
       </div>
-      <button class="sb-link" id="btnSettings2">
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12.79 6.98L14.55 7.2A6.6 6.6 0 0 1 14.55 8.8L12.79 9.02A4.9 4.9 0 0 1 12.11 10.67L13.2 12.06A6.6 6.6 0 0 1 12.06 13.2L10.67 12.11A4.9 4.9 0 0 1 9.02 12.79L8.8 14.55A6.6 6.6 0 0 1 7.2 14.55L6.98 12.79A4.9 4.9 0 0 1 5.33 12.11L3.94 13.2A6.6 6.6 0 0 1 2.8 12.06L3.89 10.67A4.9 4.9 0 0 1 3.21 9.02L1.45 8.8A6.6 6.6 0 0 1 1.45 7.2L3.21 6.98A4.9 4.9 0 0 1 3.89 5.33L2.8 3.94A6.6 6.6 0 0 1 3.94 2.8L5.33 3.89A4.9 4.9 0 0 1 6.98 3.21L7.2 1.45A6.6 6.6 0 0 1 8.8 1.45L9.02 3.21A4.9 4.9 0 0 1 10.67 3.89L12.06 2.8A6.6 6.6 0 0 1 13.2 3.94L12.11 5.33A4.9 4.9 0 0 1 12.79 6.98Z"/><circle cx="8" cy="8" r="2"/></svg>
-        Settings
-      </button>
       <button class="sb-link" id="btnMore">
         <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="3.5" r="1.2"/><circle cx="8" cy="8" r="1.2"/><circle cx="8" cy="12.5" r="1.2"/></svg>
         More
@@ -3347,7 +3343,7 @@ async function switchSession(id) {
     $("sTitle").textContent = j.title || "Untitled";
     $("sProj").textContent = (j.cwd || state.root || "").split(/[\\/]/).filter(Boolean).pop() || "";
     applyMode(j.mode || "manual");
-    renderTranscript(j.messages || []);
+    renderTranscript(j.messages || [], j.ui || []);
     // Stats survive reloads: hydrate from the store, then keep folding events.
     hydrateSessStats(j.stats);
     if (j.stats && j.stats.lastContext) { lastUsage = { ...j.stats.lastContext }; renderRing(); }
@@ -3379,8 +3375,38 @@ async function switchSession(id) {
   }
 }
 
-/** Rebuild the transcript from stored messages, stripping control blocks. */
-function renderTranscript(msgs) {
+/** Pull the control blocks (```tool JSON fences, the last ```todo checklist)
+ *  out of a stored assistant message: the rebuild replays tool rows and the
+ *  checklist from them. The server's parser reads the same fences plus DSML;
+ *  DSML-heavy turns keep their prose and results, just no replay rows. */
+function parseStoredControls(content) {
+  const src = String(content || "");
+  const calls = [];
+  const toolRe = /```tool\s*([\s\S]*?)```/g;
+  let m;
+  while ((m = toolRe.exec(src)) !== null) {
+    try {
+      const obj = JSON.parse(m[1].trim());
+      if (obj && obj.name) calls.push({ name: obj.name, args: obj.args || {} });
+    } catch {}
+  }
+  let todos = null;
+  const todoRe = /```todo\s*([\s\S]*?)```/g;
+  while ((m = todoRe.exec(src)) !== null) {
+    try {
+      const parsed = JSON.parse(m[1].trim());
+      if (Array.isArray(parsed)) todos = parsed;
+    } catch {}
+  }
+  return { calls, todos };
+}
+
+/** Rebuild the transcript from stored messages, stripping control blocks.
+ *  Tool rows replay from the call blocks + flagged tool-result messages, and
+ *  the persisted UI log re-renders the cards that were never model messages:
+ *  thinking, questions (settled with their answers), suggestions and
+ *  permission verdicts. */
+function renderTranscript(msgs, ui) {
   $("stream").innerHTML = "";
   currentMsg = null; currentThink = null; toolGroup = null; lastDiff = []; diffs = [];
   if (thinkFlush) { cancelAnimationFrame(thinkFlush); thinkFlush = 0; }
@@ -3388,10 +3414,24 @@ function renderTranscript(msgs) {
   answerDirty = false;
   artifacts = []; msgArtifacts = []; msgCards = 0; artifactView = { i: 0, mode: "render" };
   artifactCards = new Map();
-  if (!msgs.length) { showLanding(); renderSessions(); return; }
+  const entries = Array.isArray(ui) ? ui : [];
+  let ei = 0;
+  // Entries were recorded with `after` = visible-message count at emit time:
+  // render them right before the message at that index, trailing ones last.
+  const flushUi = (upto) => {
+    while (ei < entries.length && (Number(entries[ei].after) || 0) <= upto) {
+      renderUiEntry(entries[ei]);
+      ei++;
+    }
+  };
+  if (!msgs.length && !entries.length) { showLanding(); renderSessions(); return; }
   showChat();
-  for (const m of msgs) {
+  for (let i = 0; i < msgs.length; i++) {
+    flushUi(i);
+    const m = msgs[i];
+    if (m.tool) { replayToolResult(m.content); continue; }
     if (m.role === "user") { addUser(m.content); continue; }
+    const parsed = parseStoredControls(m.content);
     const clean = stripBlocks(m.content);
     if (clean.trim()) {
       startAssistant();
@@ -3400,13 +3440,65 @@ function renderTranscript(msgs) {
       wireCopy(currentMsg);
       endAssistant();
     }
+    // Tool rows follow their round's prose, exactly like the live stream.
+    for (const call of parsed.calls) addTool({ name: call.name, args: call.args, status: "running" });
+    if (parsed.todos) renderTodos(parsed.todos);
     for (const a of parseArtifacts(m.content)) {
       artifacts.push({ lang: a.lang, code: a.code, title: a.title, desc: a.desc });
       addArtifactCard(artifacts.length - 1);
     }
   }
+  flushUi(msgs.length);
   scrollDown(true);
   renderSessions();
+}
+
+/** A stored tool result settles the matching replay row (denied reads as denied). */
+function replayToolResult(content) {
+  const m = /^Tool result for ([^:]+):([\s\S]*)$/.exec(String(content || ""));
+  if (!m) return;
+  const body = m[2].replace(/^\s*\n+/, "");
+  finishTool(/^DENIED/.test(body) ? "denied" : "ok", body);
+}
+
+/** One persisted UI-log entry -> its card. */
+function renderUiEntry(e) {
+  if (!e || typeof e !== "object") return;
+  if (e.type === "thinking") {
+    const secs = Math.max(0, (Number(e.ms) || 0) / 1000);
+    const gist = thinkingGist(e.text || "");
+    const pid = "think-b-" + (++thinkSeq);
+    // The live card folds once settled; a person who turned that off sees
+    // restored cards open too.
+    const mode = state.autoCollapseThinking && state.verbosity !== "verbose" ? "closed" : "open";
+    const n = node("think");
+    thinkMode(n, mode);
+    n.innerHTML = `
+      <button class="think-h" type="button" aria-expanded="${mode !== "closed"}" aria-controls="${pid}">
+        ${SPARK_SVG}
+        <span class="think-label">${secs < 1 ? "Thought for a moment" : "Thought for " + Math.max(1, Math.round(secs)) + "s"}${gist ? " · " + esc(gist) : ""}</span>
+        ${THINK_CHEV}
+      </button>
+      <div class="think-b" id="${pid}" role="region" aria-label="Reasoning" aria-live="off" style="display:${mode === "closed" ? "none" : ""}"><div class="think-t">${esc(e.text || "")}</div></div>`;
+    n.querySelector(".think-h").addEventListener("click", () => thinkMode(n, n.dataset.mode === "open" ? "closed" : "open"));
+    return;
+  }
+  if (e.type === "question") return renderAsk({ id: e.id, questions: e.questions }, { historical: true, answers: e.answers });
+  if (e.type === "suggestion") return renderSuggest({ id: e.id, title: e.title, description: e.description }, { historical: true });
+  if (e.type === "permission") {
+    const v = e.verdict || null;
+    const label = v ? (v.allowed ? (v.scope === "session" ? "Allowed for session" : "Allowed once") : "Denied") : "No answer recorded";
+    const kind = e.name === "run_command" ? "run a command" : String(e.name || "").includes("download") ? "download a file" : "edit a file";
+    const n = node("perm");
+    n.classList.add("answered");
+    n.innerHTML = `
+      <div class="ph">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.8l5 2.2v4.2c0 3-2.1 5.4-5 6-2.9-.6-5-3-5-6V4z"/></svg>
+        Star wanted to ${kind}
+      </div>
+      <div class="pb">${esc(String((e.args && (e.args.command || e.args.path || e.args.url)) || e.ask || ""))}</div>
+      <div class="pa"><span class="pill ${v && v.allowed ? "ok" : v ? "no" : "dim"}">${esc(label)}</span></div>`;
+  }
 }
 
 function sessionMenu(anchor, id) {
@@ -6148,7 +6240,7 @@ function renderDiffPane() {
 /** ask_user: the model's questions as clickable options in the transcript.
  *  One simple question answers on the first click; several questions (or any
  *  multiSelect) pick, then Submit sends them all. Skip = the user declined. */
-function renderAsk(evt) {
+function renderAsk(evt, opts = {}) {
   const qs = Array.isArray(evt.questions) ? evt.questions : [];
   if (!qs.length) return;
   const n = node("askcard");
@@ -6193,6 +6285,27 @@ function renderAsk(evt) {
     return done;
   };
   const mark = (qi) => n.querySelectorAll(`[data-q="${qi}"] .ask-opt`).forEach((x, xi) => x.classList.toggle("on", picks[qi].has(xi)));
+  // Historical replay: the card is rebuilt from the persisted UI log, so it
+  // shows what was answered (or that nothing was) without ever posting again.
+  if (opts.historical) {
+    const answers = opts.answers;
+    qs.forEach((q, qi) => {
+      const labels = Array.isArray(answers) && Array.isArray(answers[qi]) ? answers[qi] : [];
+      labels.forEach((label) => {
+        const oi = (q.options || []).findIndex((o) => o.label === label);
+        if (oi >= 0) picks[qi].add(oi);
+      });
+      mark(qi);
+    });
+    n.classList.add("done");
+    n.querySelectorAll("button").forEach((b) => { b.disabled = true; });
+    const histNote = n.querySelector("[data-note]");
+    if (histNote) histNote.textContent = answers == null
+      ? "No answer recorded (the turn was interrupted)."
+      : (answers.some((a) => Array.isArray(a) && a.length) ? "Answered" : "Skipped.");
+    scrollDownSoon();
+    return;
+  }
   const send = (final) => {
     if (n.classList.contains("done")) return;
     n.classList.add("done");
@@ -6227,12 +6340,11 @@ function renderAsk(evt) {
   syncSend();
   scrollDownSoon();
 }
-
 /** suggest_session: Star proposes moving an unrelated request into its own
  *  session (title + description, like a mini brief). Start opens a fresh
  *  session and begins it with the description; Do it here keeps the work in
  *  this thread. */
-function renderSuggest(evt) {
+function renderSuggest(evt, opts = {}) {
   const n = node("askcard suggest");
   n.dataset.sg = evt.id;
   n.innerHTML = `
@@ -6253,6 +6365,11 @@ function renderSuggest(evt) {
     n.querySelectorAll("button").forEach((b) => { b.disabled = true; });
     if (note) note.textContent = text;
   };
+  if (opts.historical) {
+    settle("Offered earlier in this conversation.");
+    scrollDownSoon();
+    return;
+  }
   n.querySelector("[data-here]").addEventListener("click", () => settle("Staying here - Star continues in this session."));
   n.querySelector("[data-start]").addEventListener("click", async () => {
     settle("Starting…");
@@ -8201,7 +8318,6 @@ $("btnNew").addEventListener("click", () => {
   if (innerWidth <= 820) toggleSidebar(false);
   newSession();
 });
-$("btnSettings2").addEventListener("click", openSettings);
 $("btnTitleSettings").addEventListener("click", openSettings);
 $("btnMore").addEventListener("click", e => {
   e.stopPropagation();

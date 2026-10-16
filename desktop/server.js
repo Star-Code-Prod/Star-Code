@@ -151,6 +151,7 @@ function makeRunner(r, allowed, session = null) {
       return new Promise((resolve) => {
         const id = randomUUID();
         session.asks.set(id, resolve);
+        pushUi(session, { type: "question", after: uiAfter(session), id, questions, answers: null });
         turn({ type: "question", id, questions });
       });
     },
@@ -177,6 +178,7 @@ function makeRunner(r, allowed, session = null) {
       const turn = session ? askTurns.get(session.id) : null;
       if (!turn) return "(no live turn - offer the new session in prose)";
       const id = randomUUID();
+      pushUi(session, { type: "suggestion", after: uiAfter(session), id, title, description });
       turn({ type: "session_suggestion", id, title, description });
       return "Offered the user a new session card: \"" + title + "\". If they start it, the description becomes the first message there. Keep helping in this session; do not repeat the offer.";
     },
@@ -311,6 +313,7 @@ function loadStore() {
             stats: normalizeStats(s.stats),
             pending: new Map(),
             asks: new Map(),
+            uiLog: Array.isArray(s.uiLog) ? s.uiLog : [],
             aborts: new Set(),
             autoAllow: new Set(),
           };
@@ -329,17 +332,28 @@ function writeStoreNow() {
       .filter((s) => !isEmptyUntitled(s))
       .sort((a, b) => b.updated - a.updated)
       .slice(0, 50)
-      .map((s) => ({
-        id: s.id,
-        title: s.title,
-        kind: s.kind || "code",
-        mode: s.mode,
-        cwd: s.cwd,
-        created: s.created,
-        updated: s.updated,
-        messages: s.messages.slice(-MAX_STORED_MESSAGES),
-        stats: s.stats || emptyStats(),
-      }));
+      .map((s) => {
+        // The UI log anchors count visible messages; when the message cap
+        // drops old turns, rebase the anchors so cards still land right.
+        const messages = s.messages.slice(-MAX_STORED_MESSAGES);
+        const shift = s.messages.length - messages.length;
+        const uiLog = (Array.isArray(s.uiLog) ? s.uiLog : [])
+          .filter((e) => (Number(e.after) || 0) >= shift)
+          .map((e) => ({ ...e, after: Math.max(0, (Number(e.after) || 0) - shift) }))
+          .slice(-200);
+        return {
+          id: s.id,
+          title: s.title,
+          kind: s.kind || "code",
+          mode: s.mode,
+          cwd: s.cwd,
+          created: s.created,
+          updated: s.updated,
+          messages,
+          uiLog,
+          stats: s.stats || emptyStats(),
+        };
+      });
     // Atomic: write a temp file, then rename, so a crash or a second
     // instance can never leave a half-written store behind.
     const tmp = STORE_FILE + ".tmp";
@@ -357,6 +371,22 @@ function persist() {
 export function flushStore() {
   clearTimeout(saveTimer);
   writeStoreNow();
+}
+
+/** The messages a client transcript shows, MINUS the system prompt: tool
+ *  results stay (flagged) because the rebuild replays tool rows and ask-card
+ *  answers from them, and the UI log's anchors count exactly these. */
+function uiAfter(session) {
+  return session.messages.filter((m) => m.role !== "system").length;
+}
+/** The persisted UI log: thinking cards, question cards, suggestion cards and
+ *  permission verdicts, each anchored to the message count it appeared after.
+ *  Capped (entries and thinking text) so a long-lived session cannot grow the
+ *  store without bound. */
+function pushUi(session, entry) {
+  if (!Array.isArray(session.uiLog)) session.uiLog = [];
+  session.uiLog.push(entry);
+  if (session.uiLog.length > 200) session.uiLog.splice(0, session.uiLog.length - 200);
 }
 
 function summarise(s) {
@@ -424,6 +454,7 @@ function newSession(title, kind) {
     stats: emptyStats(),
     pending: new Map(),
     asks: new Map(),
+    uiLog: [],
     aborts: new Set(),
     autoAllow: new Set(),
   };
@@ -1048,13 +1079,20 @@ async function route(req, res) {
   if (req.method === "GET" && url.pathname === "/api/sessions/messages") {
     const s = sessions.get(url.searchParams.get("id"));
     if (!s) return sendJSON(res, 404, { error: "no such session" });
-    // The client only needs the visible conversation: no system prompt, and
-    // tool-result turns are noise in a transcript.
+    // The client rebuilds the transcript from this: no system prompt; tool
+    // results stay (flagged) so tool rows and ask-card answers replay, and
+    // `ui` carries the cards that were never model messages (thinking,
+    // questions, suggestions, permission verdicts), anchored by count.
     const visible = s.messages
       .filter((m) => m.role !== "system")
-      .filter((m) => !String(m.content).startsWith("Tool result for "))
-      .map((m) => ({ role: m.role, content: m.content }));
-    return sendJSON(res, 200, { id: s.id, title: s.title, kind: s.kind, mode: s.mode, cwd: s.cwd, messages: visible, stats: s.stats, pending: !!s.activeTurn });
+      .map((m) => String(m.content).startsWith("Tool result for ")
+        ? { role: "user", content: m.content, tool: true }
+        : { role: m.role, content: m.content });
+    return sendJSON(res, 200, {
+      id: s.id, title: s.title, kind: s.kind, mode: s.mode, cwd: s.cwd,
+      messages: visible, ui: Array.isArray(s.uiLog) ? s.uiLog : [],
+      stats: s.stats, pending: !!s.activeTurn,
+    });
   }
 
   if (req.method === "POST" && url.pathname === "/api/sessions/new") {
@@ -1167,6 +1205,14 @@ async function route(req, res) {
       } else if (evt.type === "tool_result") {
         pluginManager.fire("tool_result", { sessionId: session.id, name: evt.name, status: evt.status || "ok", preview: String(evt.preview || "").slice(0, 500) });
       }
+      // The UI log mirrors what the client draws beyond prose: reasoning
+      // phases end up as thinking cards again after a reload.
+      if (evt.type === "thinking_start") thinkAcc = "";
+      else if (evt.type === "thinking_delta") thinkAcc += String(evt.text || "");
+      else if (evt.type === "thinking_end") {
+        if (thinkAcc.trim()) pushUi(session, { type: "thinking", after: uiAfter(session), ms: Number(evt.ms) || 0, text: thinkAcc.slice(0, 2500) });
+        thinkAcc = "";
+      }
       res.write(`data: ${JSON.stringify(evt)}\n\n`);
     };
     emit({ type: "session", sessionId: session.id, kind: session.kind, root: sessionRoot(session), title: session.title, mode: session.mode, agent: selectedAgent ? selectedAgent.name : null });
@@ -1179,12 +1225,14 @@ async function route(req, res) {
       new Promise((resolve) => {
         const id = randomUUID();
         session.pending.set(id, resolve);
+        pushUi(session, { type: "permission", after: uiAfter(session), id, name: info.name, args: info.args, ask: info.ask || "", verdict: null });
         emit({ type: "permission_request", id, ...info });
       });
 
     const controller = { abort: false };
     session.aborts.add(controller);
     askTurns.set(session.id, emit);
+    let thinkAcc = "";
 
     // Each session runs against its own working directory; the server's
     // current root is only the default for brand-new sessions. Chat sessions
@@ -1222,7 +1270,11 @@ async function route(req, res) {
     const resolver = session?.pending.get(id);
     if (resolver) {
       session.pending.delete(id);
-      resolver({ allowed: !!allowed, scope: scope === "session" ? "session" : "once" });
+      const verdict = { allowed: !!allowed, scope: scope === "session" ? "session" : "once" };
+      // The persisted card keeps its verdict, so a rebuilt transcript shows it settled.
+      const pe = [...(session.uiLog || [])].reverse().find((e) => e.type === "permission" && e.id === id);
+      if (pe) { pe.verdict = verdict; persist(); }
+      resolver(verdict);
       return sendJSON(res, 200, { ok: true });
     }
     return sendJSON(res, 404, { error: "no such pending permission" });
@@ -1235,7 +1287,11 @@ async function route(req, res) {
     const resolver = session?.asks.get(id);
     if (resolver) {
       session.asks.delete(id);
-      resolver(Array.isArray(answers) ? answers : []);
+      const list = Array.isArray(answers) ? answers : [];
+      // The persisted card keeps its answer, so a rebuilt transcript shows it settled.
+      const qe = [...(session.uiLog || [])].reverse().find((e) => e.type === "question" && e.id === id);
+      if (qe) { qe.answers = list; persist(); }
+      resolver(list);
       return sendJSON(res, 200, { ok: true });
     }
     return sendJSON(res, 404, { error: "no such pending question" });

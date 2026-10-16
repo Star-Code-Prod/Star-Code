@@ -397,6 +397,7 @@ try {
         script = { text: "steer-done" };
       }
       else if (lt.includes("after steer")) script = { text: "after-steer-ok" };
+      else if (lt.includes("think probe")) script = { thinking: "Let me think about the corpus first, then answer.", text: "think-done" };
       if (!script) script = [
         { tool: "read_file", args: { path: "package.json" } },  // reviewer: allowed
         { tool: "list_dir", args: { path: "." } },              // reviewer: refused
@@ -414,7 +415,10 @@ try {
         { text: "shadow-ok" },                                  // shadow on code: project file
       ][turnBodies.length - 1] || { text: "(unexpected model call #" + turnBodies.length + ")" };
       if (script.tool) send({ choices: [{ delta: { content: "```tool\n" + JSON.stringify({ name: script.tool, args: script.args }) + "\n```" } }] });
-      else send({ choices: [{ delta: { content: script.text } }] });
+      else {
+        if (script.thinking) send({ choices: [{ delta: { reasoning_content: script.thinking } }] });
+        send({ choices: [{ delta: { content: script.text } }] });
+      }
       res.write("data: [DONE]\n\n");
       res.end();
     });
@@ -906,7 +910,27 @@ try {
     ok("steering with no turn running is refused", idleSteer.ok === false, JSON.stringify(idleSteer));
   }
 
-  ok("every scripted persona turn made exactly one model call per step", turnBodies.length === 41, String(turnBodies.length));
+  // The UI log: cards the client draws beyond prose survive reloads. Thinking
+  // phases, question answers, permission verdicts and flagged tool results
+  // all live in the session store now.
+  {
+    const evT = await personaTurn({ sessionId: codeNew.id, kind: "code", message: "think probe" });
+    ok("the think probe turn runs", said(evT, "think-done"));
+    const dump = await (await fetch(s.url + "/api/sessions/messages?id=" + codeNew.id)).json();
+    const ui = dump.ui || [];
+    ok("thinking is persisted for the rebuild",
+      ui.some((e) => e.type === "thinking" && /corpus first/.test(String(e.text || ""))),
+      JSON.stringify(ui.filter((e) => e.type === "thinking").map((e) => String(e.text).slice(0, 30))));
+    ok("the question card keeps its answers",
+      ui.some((e) => e.type === "question" && Array.isArray(e.answers) && e.answers.some((a) => a && a[0] === "Blue (Recommended)")),
+      JSON.stringify(ui.filter((e) => e.type === "question").map((e) => e.answers)));
+    ok("the permission card keeps its verdict",
+      ui.some((e) => e.type === "permission" && e.verdict && e.verdict.allowed === true));
+    ok("tool results stay in the payload, flagged for the rebuild",
+      (dump.messages || []).some((m) => m.tool === true && String(m.content).startsWith("Tool result for ")));
+  }
+
+  ok("every scripted persona turn made exactly one model call per step", turnBodies.length === 42, String(turnBodies.length));
   turnStub.close();
   if (turnStub.closeAllConnections) turnStub.closeAllConnections();
 
@@ -922,7 +946,7 @@ try {
 
   const statsLoad = await (await fetch(s.url + "/api/sessions/messages?id=" + codeNew.id)).json();
   ok("a live session's stats ride with its messages", !!statsLoad.stats && typeof statsLoad.stats.calls === "number");
-  ok("model calls are counted", statsLoad.stats.calls === 33, String(statsLoad.stats.calls));
+  ok("model calls are counted", statsLoad.stats.calls === 34, String(statsLoad.stats.calls));
   ok("tool calls are counted per name",
     statsLoad.stats.tools.read_file === 4 && statsLoad.stats.tools.list_dir === 1 && statsLoad.stats.tools.write_file === 2 &&
     statsLoad.stats.tools.ask_user === 2 && statsLoad.stats.tools.use_folder === 1 && statsLoad.stats.tools.plug_echo === 1 &&
@@ -952,6 +976,15 @@ try {
   flushStore();
   const storeRaw = fs.readFileSync(path.join(dataDir, "sessions.json"), "utf8");
   ok("stats persist with the session", /"read_file"/.test(storeRaw) && /"tools"/.test(storeRaw));
+  // The UI log must survive the store round trip - a rebuild after an app
+  // restart reads it from disk, not from memory.
+  const storedNew = (JSON.parse(storeRaw).sessions || []).find((x) => x.id === codeNew.id) || {};
+  ok("the UI log persists with the session",
+    Array.isArray(storedNew.uiLog) && storedNew.uiLog.length > 0 &&
+    storedNew.uiLog.some((e) => e.type === "question" && Array.isArray(e.answers)) &&
+    storedNew.uiLog.some((e) => e.type === "thinking" && String(e.text || "").length > 0) &&
+    storedNew.uiLog.some((e) => e.type === "permission" && e.verdict && e.verdict.allowed === true),
+    JSON.stringify((storedNew.uiLog || []).map((e) => e.type)));
 
   // knowledge round-trip (writes into the repo root, cleaned up after)
   const kPost = await (await fetch(s.url + "/api/knowledge", {

@@ -1,5 +1,10 @@
 # What's new in Star
 
+## 1.21.0 — 2026-10-16
+- Cards no longer vanish when you switch sessions or close the app. Question cards come back answered (your picks still marked, footer saying "Answered"), thinking cards come back with their gist and full reasoning behind the toggle, suggestion cards come back with how they were settled, and permission cards come back with their verdict (allowed once / for session / denied). It is all stored in the session, so reopening Star shows the conversation you actually had.
+- Tool rows come back too. A reloaded session now replays every tool call that ran - name, arguments, result preview - instead of collapsing the past to prose, and the todo checklist (waiting, working, done) is restored from the last checklist Star wrote.
+- The Settings button is gone from the sidebar - it lives in the titlebar only, next to the sidebar and panes toggles.
+
 ## 1.20.1 — 2026-10-16
 - The Changes card header reads like a file tab now: the file name (scene.js) stands out, the folders before it are trimmed from the front (…\dragon-house) instead of spilling a full C:\Users\... path across the row, and the +adds/−removes counts sit on one clean line that never wraps. A zero side stays hidden, so "+3" no longer comes with a dangling "−0".
 

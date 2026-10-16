@@ -480,6 +480,13 @@ ok("the changes header shows a file name, not a raw path",
   js.includes('dels > 0 ? ` <b>−${dels}</b>`') &&
   /\.dc-h\.p\.base\{[^}]*color:var\(--text\)/.test(html.replace(/\s+/g, "")) &&
   /\.dc-h\.s\{[^}]*white-space:nowrap/.test(html.replace(/\s+/g, "")));
+ok("cards survive session reloads via the persisted UI log",
+  js.includes("function renderTranscript(msgs, ui)") && js.includes("function renderUiEntry(") &&
+  js.includes("function replayToolResult(") && js.includes("function parseStoredControls(") &&
+  js.includes("const flushUi = (upto)") &&
+  js.includes("{ historical: true, answers: e.answers }") &&
+  js.includes("function renderAsk(evt, opts = {})") && js.includes("function renderSuggest(evt, opts = {})") &&
+  js.includes("renderTranscript(j.messages || [], j.ui || [])"));
 
 /* --------------------- motion sound + film doctrine ---------------------- */
 ok("the motion runtime synthesizes sound and muxes it into recordings",
@@ -506,7 +513,8 @@ ok("the + opens the composer menu and the arrow is gone",
   js.includes('{ label: "New session"'));
 ok("the sidebar no longer carries a project picker",
   !html.includes('id="btnOpenFolder"') && !js.includes("btnOpenFolder") &&
-  js.includes('$("btnSettings2").addEventListener("click", openSettings)'));
+  !html.includes('id="btnSettings2"') && !js.includes("btnSettings2") &&
+  js.includes('$("btnTitleSettings").addEventListener("click", openSettings)'));
 ok("attach file picks through the bridge or a file input",
   js.includes("async function attachPick(") && js.includes("bridge.pickFile") &&
   js.includes('inp.type = "file"') && js.includes("[attached file") &&
