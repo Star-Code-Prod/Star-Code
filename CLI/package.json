@@ -27,7 +27,6 @@
   },
   "files": [
     "bin",
-    "lib",
-    "README.md"
+    "lib"
   ]
 }

@@ -1,5 +1,5 @@
 // Check README placeholders, links, and image paths.
-// Runs from desktop/: checks desktop/README.md and the repo-root README.
+// Runs from desktop/: the project keeps exactly one README, at the repo root.
 import fs from "node:fs";
 import path from "node:path";
 
@@ -14,7 +14,13 @@ const isExternal = (u) => {
 
 let broken = 0;
 
-const files = ["README.md", "../README.md"].filter((f) => fs.existsSync(f));
+const files = ["../README.md"].filter((f) => fs.existsSync(f));
+// One README, at the root: sub-READMEs drift, and three of them all lie a
+// little differently. The suite fails if one comes back.
+if (fs.existsSync("README.md") || fs.existsSync("../CLI/README.md")) {
+  console.log("FAIL: extra README present (desktop/ or CLI/README.md) - the root README is the only one");
+  broken++;
+}
 for (const file of files) {
   const t = fs.readFileSync(file, "utf8");
   const base = path.dirname(path.resolve(file));
