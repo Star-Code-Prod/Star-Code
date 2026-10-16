@@ -365,8 +365,8 @@ function buildSystemPrompt(root, mode, extraTools = [], skillCatalog = "") {
 
   return `You are a coding agent working in: ${root}
 ${memBlock}${knBlock}${skBlock}${planNote}
-Tools: read_file, list_dir, search_files, glob_files, write_file, edit_file, multi_edit, run_command, download, search_knowledge, task, fetch_url, websearch, self_knowledge, ask_user, skill.
-task spawns a read-only explorer subagent with fresh context for research: one call per mission, and independent calls in one step (missions, reads, searches) run in parallel. Send missions to verify facts that live outside this conversation - reference corpora, other projects, big codebases - with exact paths and precise questions, and demand evidence back (file, line, signature). Never state a checkable fact you could have sent a mission to verify, and never hand over a scaffold stamped "unverified" when a mission could have read the source first. fetch_url and websearch ask for permission and plan mode blocks them; download fetches a file with source, hash, signature and virus checks (see the doctrine below); self_knowledge answers questions about Star Code itself; ask_user shows the user 1-4 questions with 2-4 clickable options each (put the recommended option first, labelled "(Recommended)") - prefer a click over a prose question whenever a decision is needed; skill loads an available skill pack - when a skill's description matches the task, load it and follow its procedure exactly.
+Tools: read_file, list_dir, search_files, glob_files, write_file, edit_file, multi_edit, run_command, download, search_knowledge, task, fetch_url, websearch, self_knowledge, ask_user, skill, use_folder.
+task spawns a read-only explorer subagent with fresh context for research: one call per mission, and independent calls in one step (missions, reads, searches) run in parallel. Send missions to verify facts that live outside this conversation - reference corpora, other projects, big codebases - with exact paths and precise questions, and demand evidence back (file, line, signature). Never state a checkable fact you could have sent a mission to verify, and never hand over a scaffold stamped "unverified" when a mission could have read the source first. fetch_url and websearch ask for permission and plan mode blocks them; download fetches a file with source, hash, signature and virus checks (see the doctrine below); self_knowledge answers questions about Star Code itself; ask_user shows the user 1-4 questions with 2-4 clickable options each (put the recommended option first, labelled "(Recommended)") - prefer a click over a prose question whenever a decision is needed; skill loads an available skill pack - when a skill's description matches the task, load it and follow its procedure exactly; use_folder sets this session's working folder when the user names one in chat - adopt it the moment they say it (never tell them to pick a project; they type the folder, you bind it).
 ${extraBlock}
 
 Rules:
@@ -515,8 +515,17 @@ Never place a tool block inside an explanatory code fence.`;
  *  the model speaks; the markup itself never reaches the visible transcript
  *  (stripBlocks hides it in the UI, and parseAssistantContent drops it from
  *  the cleaned text). */
+/** Collapse proxy-rewritten DSML delimiters (<| |DSML| |tool_calls>) to the
+ *  canonical form so parsing and stripping survive spaced variants: a local
+ *  proxy that rewrites special tokens inserts spaces, and the exact-match
+ *  regexes below would otherwise leak the raw markup into the transcript and
+ *  never run the call. */
+export function normalizeDsml(s) {
+  return String(s || "").replace(/<\s*(\/?)\s*(?:\|\s*)+D\s*S\s*M\s*L\s*(?:\|\s*)+/gi, "<$1|DSML|");
+}
+
 export function parseDsmlCalls(content) {
-  const src = String(content || "");
+  const src = normalizeDsml(content);
   const calls = [];
   const invRe = /<\|DSML\|invoke\s+name="([^"]+)"\s*>([\s\S]*?)<\/\|DSML\|invoke>/g;
   let m;
@@ -536,11 +545,16 @@ export function parseDsmlCalls(content) {
         args[key] = raw;
       }
     }
-    calls.push({ name, args });
+    // A model that wraps the whole argument object in one "args" parameter
+    // (the fenced dialect's shape; DeepSeek V4 emits it): unwrap so the tool
+    // receives real arguments, not {args: {...}} with every field missing.
+    const sole = Object.keys(args).length === 1 && args.args && typeof args.args === "object" && !Array.isArray(args.args)
+      ? args.args
+      : args;
+    calls.push({ name, args: sole });
   }
   return calls;
 }
-
 /** The DSML markup, wrapper first (a still-streaming opener swallows the
  *  tail), then any standalone invoke, then stray tags the model left behind.
  *  Each pass matches its OWN closer - a generic closer would stop at the
@@ -550,6 +564,7 @@ const DSML_INVOKE_RE = /<\|DSML\|invoke\b[\s\S]*?(?:<\/\|DSML\|invoke>|$)/g;
 const DSML_TAG_RE = /<\/?\|DSML\|[^>]*>/g;
 
 export function parseAssistantContent(content) {
+  content = normalizeDsml(content);
   const calls = [];
   const toolRe = /```tool\s*([\s\S]*?)```/g;
   let m;

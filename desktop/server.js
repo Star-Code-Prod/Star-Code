@@ -154,6 +154,22 @@ function makeRunner(r, allowed, session = null) {
         turn({ type: "question", id, questions });
       });
     },
+    useFolder: async (abs) => {
+      // The user names the folder in the chat; the session binds to it. The
+      // server-wide root follows too (single-window model: the file tree,
+      // file previews and the terminal all track the folder being worked in).
+      if (!session) return "(this environment cannot switch folders - set the working directory instead)";
+      const was = sessionRoot(session);
+      session.cwd = abs;
+      ROOT = abs;
+      mcpManager.setRoot(ROOT);
+      session.updated = Date.now();
+      persist();
+      const turn = askTurns.get(session.id);
+      if (turn) turn({ type: "cwd", cwd: abs });
+      return "Working folder set to " + abs + (was === abs ? "" : " (was " + was + ")") +
+        ". Later turns root there - relative paths, the file tree and commands all follow. For the rest of this turn, prefer absolute paths under it.";
+    },
     runSubagent: async ({ instructions, agent } = {}) => {
       if (!subagentCtx) return { error: "no model configured yet - answer without a subagent" };
       // A custom agent may narrow the explorer further (its own tools) and
@@ -365,9 +381,11 @@ function chatSystemContent() {
   return text;
 }
 
-/** The system message a session runs with (refreshed on every turn). */
+/** The system message a session runs with (refreshed on every turn). The
+ *  prompt names the SESSION's folder, not just the server default, so a
+ *  session bound with use_folder tells the model the right place. */
 function sessionSystemContent(s) {
-  return s.kind === "chat" ? chatSystemContent() : systemPrompt(ROOT, s.mode, mcpManager.toolList().concat(pluginManager.toolList()));
+  return s.kind === "chat" ? chatSystemContent() : systemPrompt(sessionRoot(s), s.mode, mcpManager.toolList().concat(pluginManager.toolList()));
 }
 
 function newSession(title, kind) {
@@ -445,11 +463,23 @@ function agentPersonaPrefix(agent) {
  */
 const CORE_AGENT_TOOLS = ["task", "skill"];
 
+/**
+ * Core reach that only code sessions carry: the folder the user names in
+ * chat becomes the session's working folder. Chat stays conversation-first
+ * (its rule says to open a code session for real file work), so this never
+ * joins a chat turn's tools.
+ */
+const CORE_CODE_TOOLS = ["use_folder"];
+
 function agentAllowedTools(agent, sessionTools) {
   const agentTools = agent.tools === null
     ? null
     : Array.isArray(agent.tools) ? agent.tools : [...AGENT_DEFAULT_TOOLS];
-  const withCore = (list) => list.concat(CORE_AGENT_TOOLS.filter((t) => !list.includes(t)));
+  const codeExtra = CORE_CODE_TOOLS.filter((t) => !sessionTools || sessionTools.includes(t));
+  const withCore = (list) => list.concat(
+    CORE_AGENT_TOOLS.filter((t) => !list.includes(t)),
+    codeExtra.filter((t) => !list.includes(t)),
+  );
   if (agentTools && sessionTools) return withCore(sessionTools.filter((t) => agentTools.includes(t)));
   if (agentTools) return withCore(agentTools.slice());
   return sessionTools ? sessionTools.slice() : null;
@@ -986,6 +1016,26 @@ async function route(req, res) {
     }
     const s = newSession(title, kind);
     return sendJSON(res, 200, { id: s.id, title: s.title, kind: s.kind });
+  }
+
+  // The folder chip in the chat header types a path here; use_folder reaches
+  // the same place through the agent. Both bind the session and the
+  // server-wide root (tree, previews, terminal).
+  if (req.method === "POST" && url.pathname === "/api/sessions/cwd") {
+    const { sessionId: sid, cwd } = await readBody(req);
+    const session = sessions.get(sid);
+    if (!session) return sendJSON(res, 404, { ok: false, error: "no such session" });
+    const abs = path.resolve(String(cwd || "").trim());
+    let stat = null;
+    try { stat = fs.statSync(abs); } catch { return sendJSON(res, 400, { ok: false, error: "folder not found: " + abs }); }
+    if (!stat.isDirectory()) return sendJSON(res, 400, { ok: false, error: "not a folder: " + abs });
+    session.cwd = abs;
+    ROOT = abs;
+    mcpManager.setRoot(ROOT);
+    session.messages[0] = { role: "system", content: sessionSystemContent(session) };
+    session.updated = Date.now();
+    persist();
+    return sendJSON(res, 200, { ok: true, cwd: abs });
   }
 
   if (req.method === "POST" && url.pathname === "/api/sessions/rename") {

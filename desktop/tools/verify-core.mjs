@@ -161,6 +161,27 @@ line "two"</|DSML|parameter>
 
   const fenced = parseAssistantContent('```tool\n{"name":"read_file","args":{"path":"x"}}\n```');
   ok("the fenced dialect still works", fenced.calls.length === 1 && fenced.calls[0].name === "read_file");
+
+  // The spaced variant: a local proxy rewrites the special-token delimiters
+  // with spaces, and Star used to both leak the markup to the screen and
+  // never run the call. Normalization must make it parse AND vanish.
+  const spaced = '<| |DSML| |tool_calls>\n' +
+    '<| |DSML| |invoke name="run_command">\n' +
+    '<| |DSML| |parameter name="args" string="false">{"command": "node --version"}</| |DSML| |parameter>\n' +
+    '</| |DSML| |invoke>\n' +
+    '</| |DSML| |calls>';
+  const spacedParsed = parseAssistantContent("Ready to run the checks.\n\n" + spaced);
+  ok("spaced DSML parses as a real call",
+    spacedParsed.calls.length === 1 && spacedParsed.calls[0].name === "run_command" &&
+    spacedParsed.calls[0].args.command === "node --version",
+    JSON.stringify(spacedParsed.calls));
+  ok("a lone args parameter unwraps to real arguments",
+    spacedParsed.calls[0].args.args === undefined && spacedParsed.calls[0].args.command === "node --version");
+  ok("spaced DSML never reaches the visible text",
+    spacedParsed.text === "Ready to run the checks." && !spacedParsed.text.includes("DSML"),
+    JSON.stringify(spacedParsed.text));
+  ok("spaced DSML still strips when only parseDsmlCalls runs",
+    parseDsmlCalls(spaced).length === 1 && parseDsmlCalls(spaced)[0].name === "run_command");
 }
 ok("mcp tools are not read-only", decisionFor("manual", "mcp__stub__echo", empty) === "ask");
 ok("plan denies mcp tools", decisionFor("plan", "mcp__stub__echo", empty) === "deny");
@@ -658,6 +679,31 @@ ok("multi_edit is dangerous", mr.isDangerous("multi_edit") === true);
   ok("removing the files and reloading clears contributions",
     pluginManager.status().length === 0 && getAgent(pdir, "plug-agent") === null &&
     !systemPrompt(pdir, "manual").includes("- plug-skill"));
+}
+
+/* ------------------------------ use_folder ------------------------------- */
+{
+  const uroot = fs.mkdtempSync(path.join(os.tmpdir(), "star-usefolder-"));
+  const bound = [];
+  const ur = createToolRunner(med, { useFolder: async (p) => { bound.push(p); return "bound:" + p; } });
+  const ufOut = await ur.run("use_folder", { path: uroot });
+  ok("use_folder resolves the path and reaches the hook",
+    ufOut === "bound:" + path.resolve(uroot) && bound.length === 1, ufOut);
+  let ufErr = "";
+  try { await ur.run("use_folder", { path: path.join(uroot, "nope") }); } catch (e) { ufErr = e.message; }
+  ok("use_folder refuses a missing folder", /not found/.test(ufErr), ufErr);
+  let ufFileErr = "";
+  const probeFile = path.join(uroot, "a.txt");
+  fs.writeFileSync(probeFile, "x");
+  try { await ur.run("use_folder", { path: probeFile }); } catch (e) { ufFileErr = e.message; }
+  ok("use_folder refuses a file", /not a folder/.test(ufFileErr), ufFileErr);
+  const ufNoHook = await createToolRunner(med).run("use_folder", { path: uroot });
+  ok("without the hook use_folder says so", /cannot switch folders/.test(ufNoHook), ufNoHook);
+  ok("use_folder needs no permission in any mode",
+    decisionFor("manual", "use_folder", empty) === "allow" && decisionFor("plan", "use_folder", empty) === "allow");
+  ok("the prompt teaches use_folder",
+    systemPrompt(process.cwd(), "manual").includes("use_folder sets this session's working folder") &&
+    !chatSystemPrompt().includes("use_folder"));
 }
 
 // fetch_url against a local server (no external network)

@@ -62,6 +62,9 @@ ok("chat turns use chatSystemPrompt()",
    sessionSystemContent({ kind: "chat", mode: "manual" }) === chatSystemPrompt());
 ok("code turns keep the coding prompt",
    sessionSystemContent({ kind: "code", mode: "manual" }) === systemPrompt(process.cwd(), "manual"));
+ok("the prompt names the session's own folder, not just the default",
+   sessionSystemContent({ kind: "code", mode: "manual", cwd: path.join(dir, "proj") })
+     .includes("working in: " + path.join(dir, "proj")));
 
 // 1c. a chat runner is limited to the chat tools: write_file is refused (and
 // must not touch the disk), while an allowed tool still answers. This asserts

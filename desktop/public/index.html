@@ -261,8 +261,16 @@ body.is-mac.is-electron .brand{margin-left:2px}
 }
 .shead .proj{
   font-size:var(--fs-11);color:var(--muted);background:var(--chip);padding:3px 8px;border-radius:var(--r-full);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;flex:none;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px;flex:none;cursor:text;
+  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
 }
+.shead .proj:hover{background:var(--hover);color:var(--text2)}
+.shead .proj.editing{max-width:420px;padding:0;background:transparent}
+.shead .proj .proj-inp{
+  width:380px;max-width:40vw;font-family:var(--font-mono);font-size:var(--fs-11);color:var(--text);
+  background:var(--elev);border:1px solid var(--border2);border-radius:var(--r-full);padding:4px 10px;outline:none;
+}
+.shead .proj .proj-inp:focus{border-color:var(--accent)}
 .shead .acts{display:flex;align-items:center;gap:2px;flex:none}
 .hbtn{
   width:28px;height:28px;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;color:var(--muted);
@@ -881,6 +889,14 @@ body.is-mac.is-electron .brand{margin-left:2px}
   overflow:hidden;background:var(--panel);box-shadow:var(--shadow-sm);position:relative;
 }
 .panes.hide{display:none}
+/* Preview fullscreen: the preview row covers the window (below dialogs and
+   menus, above everything else). Esc or the header button exits; closing the
+   pane exits too. */
+body.preview-full .pane-row[data-pane="preview"]{
+  position:fixed;inset:0;z-index:60;margin:0;border:none;border-radius:0;background:var(--bg);
+}
+body.preview-full .pane-row[data-pane="preview"] .pane-grip-b{display:none}
+body.preview-full .pane-row[data-pane="preview"] .pane-sub{padding:9px 14px}
 .pane-tabs{
   display:flex;align-items:center;gap:3px;padding:10px;background:transparent;
   border-bottom:1px solid var(--border);flex:none;overflow-x:auto;scrollbar-width:none;
@@ -1559,7 +1575,7 @@ body.mode-chat #bigProj{display:none}
     <div class="pane-body" id="paneBody">
 
       <section class="pane-row" data-pane="preview">
-        <div class="pane-sub"><span id="previewTitle">Preview</span><span class="spacer"></span><button class="pane-x" data-panex="preview" title="Close Preview" aria-label="Close Preview"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
+        <div class="pane-sub"><span id="previewTitle">Preview</span><span class="spacer"></span><button class="pane-x" data-panefull="preview" title="Fullscreen (Esc to exit)" aria-label="Fullscreen preview"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.2 2.5H2.5v3.7M9.8 2.5h3.7v3.7M6.2 13.5H2.5V9.8M9.8 13.5h3.7V9.8"/></svg></button><button class="pane-x" data-panex="preview" title="Close Preview" aria-label="Close Preview"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
         <div class="pane-b"><div class="pempty" id="previewEmpty">Not running<br><span style="font-size:11.5px">Start a dev server, open an artifact, or click a file — previews appear here.</span></div><div id="filePreview" style="display:none"></div></div>
         <div class="pane-grip-b" data-panegrip="preview" title="Drag to resize · double-click to reset" aria-hidden="true"></div>
       </section>
@@ -2514,12 +2530,19 @@ function syncMotionVisibility() {
 }
 
 function closePaneTab(id) {
+  if (id === "preview") previewFull(false);
   paneOpen.delete(id);
   if (activePane === id) activePane = [...paneOpen][0] || null;
   applyActivePane();
   renderPaneTabs();
   persistPanes();
   if (!paneOpen.size) document.body.classList.remove("pane-open");
+}
+
+/* Preview fullscreen: the pane covers the window; Esc, the header button or
+   closing the pane exits. Transient - not persisted with the rail. */
+function previewFull(on) {
+  document.body.classList.toggle("preview-full", !!on);
 }
 
 /** Add (or focus) a pane; the change is remembered with the session's rail. */
@@ -2623,6 +2646,55 @@ $("sTitle").addEventListener("dblclick", () => {
   if (s) renameDialog(s.id, s.title);
 });
 
+/* The folder chip IS the project control: click it and type the path right
+   here in the chat header - no picker, no settings trip. The agent reaches
+   the same place with the use_folder tool when the user names a folder in a
+   message. A fresh session with no id is created first so the folder binds
+   to it. */
+$("sProj").addEventListener("click", () => {
+  const el = $("sProj");
+  if (el.dataset.editing === "1") return;
+  const cur = String(state.root || "");
+  el.dataset.editing = "1";
+  el.classList.add("editing");
+  el.innerHTML = `<input class="proj-inp" id="sProjInp" value="${esc(cur)}" spellcheck="false" autocomplete="off" aria-label="Working folder path">`;
+  const inp = $("sProjInp");
+  inp.focus();
+  try { inp.setSelectionRange(cur.length, cur.length); } catch { /* fine */ }
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    el.dataset.editing = "";
+    el.classList.remove("editing");
+    updateChrome();
+  };
+  const commit = async () => {
+    const v = inp.value.trim();
+    if (!v) { close(); return; }
+    close();
+    if (!sessionId) await newSession();
+    let r = null;
+    try {
+      r = await (await fetch("/api/sessions/cwd", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, cwd: v }),
+      })).json();
+    } catch { /* toast below */ }
+    if (r && r.ok) {
+      state.root = r.cwd; save(); updateChrome(); loadTree();
+      toast("Working folder: " + (String(r.cwd).split(/[\\/]/).filter(Boolean).pop() || r.cwd));
+    } else {
+      toast((r && r.error) || "Could not set the folder");
+    }
+  };
+  inp.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); commit(); }
+    else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); }
+  });
+  inp.addEventListener("blur", () => setTimeout(() => { if (!closed) close(); }, 120));
+});
+
 /* ---- files / activity panel ---- */
 const ACT_ART_LANGS = { html: "HTML", doc: "Doc", slides: "Slides", design: "Design", svg: "SVG", md: "MD", motion: "Motion" };
 function renderActPanel() {
@@ -2677,8 +2749,15 @@ $("hbFiles").addEventListener("click", (e) => { e.stopPropagation(); toggleActPa
 $("actClose").addEventListener("click", () => toggleActPanel(false));
 
 /* ---- right rail resize ---- */
+function paneWMax() {
+  // The rail may take up to 60% of the window (it can be wider than the
+  // chat); the rest always keeps room for the sidebar and the chat column.
+  return Math.max(320, Math.min(Math.round(innerWidth * 0.6), innerWidth - 340));
+}
 function applyPaneW() {
-  if (state.paneW) document.documentElement.style.setProperty("--pane-w", state.paneW + "px");
+  if (!state.paneW) return;
+  const w = Math.max(300, Math.min(paneWMax(), state.paneW));
+  document.documentElement.style.setProperty("--pane-w", w + "px");
 }
 /** The rail's pane order: the user's dragged order first (only ids that still
  *  exist), then every remaining pane in its built-in position. */
@@ -2846,8 +2925,7 @@ function endFloatDrag(el, fl) {
   });
   grip.addEventListener("pointermove", (e) => {
     if (!drag) return;
-    const max = Math.max(320, Math.min(760, innerWidth - 460));
-    const w = Math.max(300, Math.min(max, drag.w + (drag.x - e.clientX)));
+    const w = Math.max(300, Math.min(paneWMax(), drag.w + (drag.x - e.clientX)));
     state.paneW = Math.round(w);
     applyPaneW();
   });
@@ -2855,6 +2933,9 @@ function endFloatDrag(el, fl) {
   grip.addEventListener("pointerup", stop);
   grip.addEventListener("pointercancel", stop);
 })();
+document.querySelectorAll("[data-panefull]").forEach(b => b.addEventListener("click", () => {
+  previewFull(!document.body.classList.contains("preview-full"));
+}));
 $("hbDiff").addEventListener("click", () => showPane("diff"));
 $("hbBrowser").addEventListener("click", () => showPane("preview"));
 $("btnPanes").addEventListener("click", () => {
@@ -3664,12 +3745,16 @@ function stripBlocks(s) {
   out = out.replace(/^`{3,}(?:tool|todo)\b[\s\S]*?^`{3,}[ \t]*$/gm, "");
   out = out.replace(/^(`{3,})artifact\b[\s\S]*$/m, "");
   out = out.replace(/^`{3,}(?:tool|todo)\b[\s\S]*$/m, "");
-  // DeepSeek's native tool markup (<|DSML|…>) never belongs on screen: drop
-  // the tool_calls wrapper, a still-streaming opener's tail, standalone
-  // invokes, and any stray tags. Each pass matches its own closer.
+  // DeepSeek's native tool markup (<|DSML|…>) never belongs on screen. A
+  // proxy may rewrite the delimiters with spaces (<| |DSML| |tool_calls>), so
+  // normalize first, then drop the tool_calls wrapper, a still-streaming
+  // opener's tail, standalone invokes, any stray tags, and a trailing
+  // half-arrived opener.
+  out = out.replace(/<\s*(\/?)\s*(?:\|\s*)+D\s*S\s*M\s*L\s*(?:\|\s*)+/gi, "<$1|DSML|");
   out = out.replace(/<\|DSML\|tool_calls\b[\s\S]*?(?:<\/\|DSML\|tool_calls>|$)/g, "");
   out = out.replace(/<\|DSML\|invoke\b[\s\S]*?(?:<\/\|DSML\|invoke>|$)/g, "");
   out = out.replace(/<\/?\|DSML\|[^>]*>/g, "");
+  out = out.replace(/<\|DSML\|[^>]*$/, "");
   // Collapse the blank gap the removal leaves behind, and never end on blank
   // lines: a trailing "\n\n" renders as an empty paragraph, which parks the
   // streaming caret (and its blinking bar) on a line of its own.
@@ -5803,6 +5888,14 @@ function handle(evt) {
     case "thinking_end": if (state.showThinking && state.verbosity !== "minimal") endThinking(evt.ms); break;
     case "todos": renderTodos(evt.todos); break;
     case "question": renderAsk(evt); break;
+    case "cwd":
+      // use_folder (the agent) bound the session to a new folder: the chip,
+      // the file tree and the whole workspace follow immediately.
+      if (evt.cwd) {
+        state.root = evt.cwd; save(); updateChrome(); loadTree();
+        toast("Working folder: " + (String(evt.cwd).split(/[\\/]/).filter(Boolean).pop() || evt.cwd));
+      }
+      break;
     case "permission_request": askPermission(evt); break;
     case "tool": sessStats.tools[evt.name] = (sessStats.tools[evt.name] || 0) + 1; setActivity(activityForTool(evt.name)); addTool({ name: evt.name, args: evt.args, status: evt.allowed === false ? "denied" : "running", detail: "" }); break;
     case "tool_result": setActivity("thinking"); finishTool(evt.status, evt.preview); break;
@@ -6077,6 +6170,7 @@ document.addEventListener("keydown", e => {
     else if ($("newDlg").classList.contains("on")) closeWhatsNew();
     else if ($("artDlg").classList.contains("on")) closeArtifactDialog();
     else if ($("settings").classList.contains("on")) closeSettings();
+    else if (document.body.classList.contains("preview-full")) previewFull(false);
     else if (document.body.classList.contains("sb-over")) toggleSidebar(false);
     else if (document.body.classList.contains("pane-open")) document.body.classList.remove("pane-open");
     else if (isStreaming(sessionId)) abort();

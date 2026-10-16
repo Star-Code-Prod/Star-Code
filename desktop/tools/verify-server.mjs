@@ -115,6 +115,10 @@ fs.writeFileSync(path.join(pluginsDir, "verify-plugin.js"), [
 ].join("\n"));
 fs.writeFileSync(path.join(pluginsDir, "verify-broken.js"), "export default function (star) { star.on('nope', () => {}); }\n");
 
+// The folder a use_folder turn will bind to; the stub's branches read it at
+// call time.
+let folderFixturePath = "";
+
 const s = await startServer({ port: 0, silent: true });
 try {
   ok("server binds an ephemeral port", s.port > 0, "port " + s.port);
@@ -369,6 +373,11 @@ try {
       else if (lt.includes("skills probe")) script = { text: "skills-ok" };
       else if (lt.includes("plug echo") && !lt.includes("Tool result for plug_echo")) script = { tool: "plug_echo", args: { text: "plugged" } };
       else if (lt.includes("Tool result for plug_echo")) script = { text: "plug-ok" };
+      else if (lt.includes("folder probe") && !lt.includes("Tool result for use_folder")) script = { tool: "use_folder", args: { path: folderFixturePath } };
+      else if (lt.includes("Tool result for use_folder")) script = { tool: "read_file", args: { path: folderFixturePath + path.sep + "MARKER.txt" } };
+      else if (lt.includes("after folder")) script = { tool: "read_file", args: { path: "MARKER2.txt" } };
+      else if (lt.includes("MARKER-123")) script = { text: "folder-ok" };
+      else if (lt.includes("MARKER-789")) script = { text: "after-ok" };
       else if (lt.includes("ask delay") && !lt.includes("Tool result for ask_user")) {
         await new Promise((r) => setTimeout(r, 400));   // let a second turn start first
         script = { tool: "ask_user", args: { questions: [{ question: "Which color scheme?", header: "Color", options: [{ label: "Blue (Recommended)", description: "calm, cool" }, { label: "Red" }] }] } };
@@ -497,7 +506,7 @@ try {
   const ev5 = await personaTurn({ sessionId: codeNew.id, kind: "code", message: "plain", agent: "plain", mode: "bypass" });
   const b8 = turnBodies[8] || {};
   ok("a persona without a tools line runs with the read-only default",
-    /Allowed tools: read_file, list_dir, search_files, glob_files, search_knowledge, self_knowledge, task, skill/.test(JSON.stringify(b8.messages || [])) &&
+    /Allowed tools: read_file, list_dir, search_files, glob_files, search_knowledge, self_knowledge, task, skill, use_folder/.test(JSON.stringify(b8.messages || [])) &&
     said(ev5, "plain-ok"));
   ok("the refused persona write never reached the disk",
     !fs.existsSync(path.join(process.cwd(), "should-not-land.txt")));
@@ -605,6 +614,38 @@ try {
     const log = fs.readFileSync(path.join(dataDir, "plug-log.txt"), "utf8");
     ok("plugin hooks see the turn and the tool call",
       log.includes("turn:start") && log.includes("call:plug_echo"), log.replace(/\n/g, "|").slice(0, 120));
+  }
+
+  // use_folder: the user names the folder in chat, the session binds to it -
+  // the chip event fires, the listing updates, the next turn roots there (a
+  // relative read proves it) and the prompt names the folder the user gave.
+  {
+    folderFixturePath = fs.mkdtempSync(path.join(os.tmpdir(), "star-folder-"));
+    fs.writeFileSync(path.join(folderFixturePath, "MARKER.txt"), "MARKER-123 found me\n");
+    fs.writeFileSync(path.join(folderFixturePath, "MARKER2.txt"), "MARKER-789 followed\n");
+
+    const evF = await personaTurn({ sessionId: codeNew.id, kind: "code", message: "folder probe" });
+    const useResult = evF.find((e) => e.type === "tool_result" && e.name === "use_folder") || {};
+    const cwdEv = evF.find((e) => e.type === "cwd") || {};
+    ok("use_folder binds the session and tells the client",
+      /Working folder set to/.test(String(useResult.preview || "")) && cwdEv.cwd === folderFixturePath,
+      String(useResult.preview || "").slice(0, 100));
+    const absRead = evF.find((e) => e.type === "tool_result" && e.name === "read_file" && String(e.preview || "").includes("MARKER-123")) || {};
+    ok("the folder's files are readable right away (absolute path)",
+      !!absRead && said(evF, "folder-ok"));
+
+    const listF = await (await fetch(s.url + "/api/sessions")).json();
+    const rowF = (listF.sessions || []).find((x) => x.id === codeNew.id) || {};
+    ok("the session listing carries the new folder", rowF.cwd === folderFixturePath, String(rowF.cwd));
+
+    const evAfter = await personaTurn({ sessionId: codeNew.id, kind: "code", message: "after folder" });
+    const relRead = evAfter.find((e) => e.type === "tool_result" && e.name === "read_file" && String(e.preview || "").includes("MARKER-789")) || {};
+    ok("the next turn roots there - a relative read lands in the new folder",
+      !!relRead && said(evAfter, "after-ok"));
+    const bAfter = turnBodies[turnBodies.length - 1] || {};
+    ok("the next turn's prompt names the folder the user gave",
+      String(bAfter.messages?.[0]?.content || "").includes("working in: " + folderFixturePath),
+      String(bAfter.messages?.[0]?.content || "").slice(0, 90));
   }
 
   // MCP tools through a real turn: the manager's stub server is connected
@@ -800,7 +841,7 @@ try {
       said(aEvents, "ask-ok") && said(bEvents, "b-done") && !said(bEvents, "ask-ok") && !said(aEvents, "b-done"));
   }
 
-  ok("every scripted persona turn made exactly one model call per step", turnBodies.length === 31, String(turnBodies.length));
+  ok("every scripted persona turn made exactly one model call per step", turnBodies.length === 36, String(turnBodies.length));
   turnStub.close();
   if (turnStub.closeAllConnections) turnStub.closeAllConnections();
 
@@ -816,10 +857,10 @@ try {
 
   const statsLoad = await (await fetch(s.url + "/api/sessions/messages?id=" + codeNew.id)).json();
   ok("a live session's stats ride with its messages", !!statsLoad.stats && typeof statsLoad.stats.calls === "number");
-  ok("model calls are counted", statsLoad.stats.calls === 23, String(statsLoad.stats.calls));
+  ok("model calls are counted", statsLoad.stats.calls === 28, String(statsLoad.stats.calls));
   ok("tool calls are counted per name",
-    statsLoad.stats.tools.read_file === 1 && statsLoad.stats.tools.list_dir === 1 && statsLoad.stats.tools.write_file === 2 &&
-    statsLoad.stats.tools.ask_user === 2,
+    statsLoad.stats.tools.read_file === 3 && statsLoad.stats.tools.list_dir === 1 && statsLoad.stats.tools.write_file === 2 &&
+    statsLoad.stats.tools.ask_user === 2 && statsLoad.stats.tools.use_folder === 1 && statsLoad.stats.tools.plug_echo === 1,
     JSON.stringify(statsLoad.stats.tools));
   ok("mcp tool calls join the same counts",
     statsLoad.stats.tools.mcp__verify_stub__echo === 3,

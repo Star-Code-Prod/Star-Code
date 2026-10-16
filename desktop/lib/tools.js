@@ -115,6 +115,12 @@ export const TOOL_SPECS = [
     dangerous: false,
     schema: { name: "string" },
   },
+  {
+    name: "use_folder",
+    description: "Set the working folder for this session to an existing absolute directory - call it when the user names where to work (they type the folder in the chat; there is no project picker to wait for). Later turns root there (relative paths, the file tree, commands); for the rest of THIS turn prefer absolute paths under the new folder.",
+    dangerous: false,
+    schema: { path: "string" },
+  },
 ];
 
 /** Ask questions, clamped to something a clickable card can render: 1-4
@@ -757,6 +763,9 @@ export function createToolRunner(root, opts = {}) {
   // A UI hook for ask_user: resolves with the clicked answers, or null where
   // nobody can click (CLI, subagents) - the tool then says to ask in prose.
   const askUser = typeof opts.askUser === "function" ? opts.askUser : null;
+  // A per-session folder switch (lib/server): binds the session to a folder
+  // the user named in chat. Without it the tool says so instead of lying.
+  const useFolder = typeof opts.useFolder === "function" ? opts.useFolder : null;
   // A custom agent may restrict which tools exist at all: `allowed` is the
   // union of names the runner will accept, null/undefined = every tool. The
   // refusal and the filtered schemas are the same list, so a restricted
@@ -1257,10 +1266,24 @@ export function createToolRunner(root, opts = {}) {
     }).join("\n");
   }
 
+  async function use_folder({ path: p }) {
+    const wanted = String(p || "").trim();
+    if (!wanted) throw new Error("use_folder needs a path");
+    if (!fssync.existsSync(wanted)) throw new Error("folder not found: " + wanted);
+    try {
+      if (!fssync.statSync(wanted).isDirectory()) throw new Error("not a folder: " + wanted);
+    } catch (e) {
+      if (/not a folder/.test(e.message)) throw e;
+      throw new Error("folder not readable: " + wanted);
+    }
+    if (!useFolder) return "(this environment cannot switch folders - ask the user to set the working directory instead)";
+    return await useFolder(path.resolve(wanted));
+  }
+
   const impl = {
     read_file, list_dir, search_files, glob_files, write_file, edit_file, run_command, download,
     search_knowledge: ({ query }) => searchKnowledge(root, query),
-    fetch_url, websearch, multi_edit, task, ask_user,
+    fetch_url, websearch, multi_edit, task, ask_user, use_folder,
     skill: ({ name }) => loadSkill(root, name),
     self_knowledge: ({ topic }) => selfKnowledge(topic),
   };

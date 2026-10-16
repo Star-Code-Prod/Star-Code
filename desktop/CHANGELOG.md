@@ -1,5 +1,12 @@
 # What's new in Star
 
+## 1.16.0 — 2026-10-16
+- The leaked DeepSeek tool markup is fixed properly this time. When a local proxy rewrites the <|DSML|> markers with spaces (<| |DSML| |tool_calls>), Star now reads them anyway: the call actually runs (no more silent "command must be a string" failures) and the raw markup never appears in the chat, streaming or settled.
+- If the model wraps its whole call in one "args" JSON parameter, Star unwraps it, so the tool receives real arguments instead of a nested blob it ignores.
+- Code mode does not make you pick a project anymore. Click the folder chip in the chat header and type the path right there, or just say where to work in a message - Star binds it with the new use_folder tool. The file tree, the terminal and every following turn work in that folder, and the prompt names it, so "work on C:\Users\you\Documents\MyProject" is all it takes. Chat stays conversation-first.
+- The right rail can stretch to 60% of the window now - wider than the chat when you need the files to breathe.
+- Preview has a fullscreen mode: the expand button in its header, Esc to leave.
+
 ## 1.15.0 — 2026-10-16
 - Agents can actually use subagents now - everywhere. A persona (or Chat) that narrowed its tools used to lose the task tool entirely: ask your Puck modder in Chat to research the corpus and its own research call was refused with "not available to this agent". Subagent missions and skills can never be stripped again, and the prompt now insists on research-first: dispatch missions for facts that live outside the conversation, demand file/line evidence, and never hand over a scaffold stamped "unverified" when a mission could read the source.
 - Missions run in parallel. Ask for several task calls (or reads) in one step and independent allowed calls run together, coming back in order - a two-job corpus hunt is one wait, not two.

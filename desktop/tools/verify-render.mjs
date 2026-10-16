@@ -418,6 +418,21 @@ ok("plugins have a settings section with a reload",
   js.includes('fetch("/api/plugins/reload"') && js.includes('fetch("/api/plugins/paths"') &&
   html.includes('data-s="plugins"') && js.includes("settingsSection === \"plugins\""));
 
+/* ------------------ spaced DSML, rail width, fullscreen, chip -------------- */
+ok("spaced DSML strips from the visible transcript",
+  fns.stripBlocks('<| |DSML| |tool_calls>\n<| |DSML| |invoke name="x">\n</| |DSML| |invoke>\n</| |DSML| |calls>') === "" &&
+  !fns.stripBlocks("Done.\n<| |DSML| |tool_c").includes("DSML"));
+ok("the rail can take 60% of the window",
+  js.includes("innerWidth * 0.6") && js.includes("function paneWMax(") &&
+  /\.panes\{[^}]*width:var\(--pane-w/.test(html.replace(/\s+/g, "")));
+ok("the preview has a fullscreen mode",
+  html.includes('data-panefull="preview"') && html.includes("preview-full") &&
+  js.includes("function previewFull(") && js.includes("previewFull(false)") &&
+  js.includes('classList.contains("preview-full")'));
+ok("the folder chip types the path right in the chat header",
+  js.includes('id="sProjInp"') && js.includes('"/api/sessions/cwd"') && js.includes('case "cwd":') &&
+  html.replace(/\s+/g, "").includes(".shead.proj.proj-inp{"));
+
 console.log(results.join("\n"));
 const failed = results.filter((r) => r.startsWith("FAIL")).length;
 console.log("\n" + (results.length - failed) + "/" + results.length + " checks passed" +
