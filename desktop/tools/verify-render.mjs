@@ -384,6 +384,11 @@ ok("motion autoplays once per player",
 ok("motion pacing keeps the scene's cadence", js.includes("nextAt = Math.max(now, (nextAt || now) + iv)"));
 ok("the scrub never fights an active drag",
   js.includes("let scrubbing = false") && js.includes("!st.recording && !scrubbing"));
+ok("dragging the scrub pauses the playback and arrows step frames",
+  js.includes("if (st.playing) {") && js.includes('send({ type: "motion-pause" });') &&
+  js.includes("const stepBy = (dir, big)") && js.includes("step: stepBy") &&
+  js.includes('m.step(e.key === "ArrowRight" ? 1 : -1, e.shiftKey)') &&
+  js.includes("← → step a frame"));
 ok("a standalone motion doc plays itself",
   js.includes("window.parent === window") && js.includes("if (standalone) setTimeout"));
 ok("the cursor roams the pane, not its own box", /@keyframes caret\{\s*0%\{left:16%;top:40%\}/.test(html.replace(/\n/g, "")));

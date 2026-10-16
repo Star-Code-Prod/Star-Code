@@ -1,5 +1,9 @@
 # What's new in Star
 
+## 1.19.1 — 2026-10-16
+- Moving through a motion actually works now, both ways. Dragging the scrub used to fight the running playback - the clock kept advancing under your thumb, so going backwards barely landed. Touching the scrub now pauses the playback first, so the picture lands exactly where you drop it and stays there.
+- Arrow keys step the motion: left/right move one frame at a time, Shift+arrow moves a full second - the status line says so. Stepping while it plays pauses first, so reviewing a moment is precise.
+
 ## 1.19.0 — 2026-10-16
 - The sidebar sorts itself now: a session waiting on you - a question card or a permission prompt - climbs into a "Needs input" group at the top with a warning mark and "Waiting for your answer"; live turns sit under "Working"; everything else is "Completed". It moves on its own as you answer, in the foreground or in a background session.
 - Star can suggest a new session. When your request clearly starts a different task ("add cart thumbnail dimensions" in a session about grid layout), it offers a small card - a real title, a one-sentence description, "Do it here" or "Start new session" - and Start opens a fresh session that begins with that description.

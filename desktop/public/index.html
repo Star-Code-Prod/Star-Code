@@ -4416,6 +4416,20 @@ window.addEventListener("message", (ev) => {
   m.recv(ev.data || {});
 });
 
+// Arrow keys step the visible motion player: one frame per press, one second
+// with Shift. Typing anywhere (input, textarea, contenteditable) keeps the
+// arrows for the caret, and an invisible player (another pane on top) ignores
+// them.
+window.addEventListener("keydown", (e) => {
+  const t = e.target;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+  if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+  const m = motionCtx;
+  if (!m || typeof m.step !== "function" || (m.visible && !m.visible())) return;
+  e.preventDefault();
+  m.step(e.key === "ArrowRight" ? 1 : -1, e.shiftKey);
+});
+
 /** Stable file name: motion-<vN>-<yyyymmdd-hhmm>, no spaces. */
 function motionStamp() {
   const d = new Date(), p = (n) => String(n).padStart(2, "0");
@@ -5255,11 +5269,18 @@ function renderMotionArtifact(body, a) {  const idx = artifactView.i;
   });
   // While the person drags the scrub, the playback's progress updates must
   // NOT write back into it: Chrome fights a range input whose value changes
-  // mid-drag and the thumb snaps away, which is what made moving
-  // forward/backward "sometimes not work". Pointer events cover mouse, pen
-  // and touch; the flag is also honored in recv's progress branch below.
+  // mid-drag and the thumb snaps away. And the PLAYBACK itself must pause -
+  // otherwise the clock keeps advancing under the thumb and dragging back
+  // fights the animation (the "can't go forwards and backwards" report).
   let scrubbing = false;
-  scrub.addEventListener("pointerdown", () => { scrubbing = true; });
+  scrub.addEventListener("pointerdown", () => {
+    scrubbing = true;
+    if (st.playing) {
+      st.playing = false;
+      playBtn.textContent = "Play";
+      send({ type: "motion-pause" });
+    }
+  });
   window.addEventListener("pointerup", () => { scrubbing = false; });
   window.addEventListener("pointercancel", () => { scrubbing = false; });
   scrub.addEventListener("input", () => {
@@ -5271,6 +5292,23 @@ function renderMotionArtifact(body, a) {  const idx = artifactView.i;
     showTime();
     send({ type: "motion-seek", t: st.t });
   });
+
+  /** Arrow keys: step one frame (Shift: one second) and hold the picture
+   *  still - stepping while the playback runs would just drift away. */
+  const stepBy = (dir, big) => {
+    if (!st.ready || st.recording) return;
+    if (st.playing) {
+      st.playing = false;
+      playBtn.textContent = "Play";
+      send({ type: "motion-pause" });
+    }
+    const stepSec = big ? 1 : 1 / (st.fps || 30);
+    st.t = Math.max(0, Math.min(st.duration, st.t + dir * stepSec));
+    scrub.value = String(st.t);
+    setFill(st.t);
+    showTime();
+    send({ type: "motion-seek", t: st.t });
+  };
   recBtn.addEventListener("click", () => {
     if (!st.ready) return;
     if (st.recording) { send({ type: "motion-stop" }); return; }   // stop early
@@ -5361,7 +5399,8 @@ function renderMotionArtifact(body, a) {  const idx = artifactView.i;
         stage.style.flex = "none";
         stage.style.maxHeight = "100%";
       }
-      setStatus("Scene " + st.sceneW + "×" + st.sceneH + " · " + fmt(st.duration) + " · " + (Number(m.fps) || 30) + "fps. Playing — Record renders a video file.", false);
+      setStatus("Scene " + st.sceneW + "×" + st.sceneH + " · " + fmt(st.duration) + " · " + (Number(m.fps) || 30) + "fps · ← → step a frame (Shift: 1s). Playing — Record renders a video file.", false);
+      st.fps = Number(m.fps) || 30;
       showTime();
       // A motion artifact is a moving picture: it plays the moment it lands.
       // Pause stays pause; this fires once, on the first ready of this player.
@@ -5392,7 +5431,10 @@ function renderMotionArtifact(body, a) {  const idx = artifactView.i;
     }
   };
 
-  motionCtx = { frame: frame, recv: recv };
+  motionCtx = { frame: frame, recv: recv, step: stepBy, visible: () => {
+    const s = body.querySelector(".mo-stage");
+    return !!s && s.offsetParent !== null;
+  } };
 
   // A slow or broken scene should say so instead of sitting on "Waiting…".
   setTimeout(() => {
