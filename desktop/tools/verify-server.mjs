@@ -13,11 +13,24 @@ const ok = (label, pass, extra = "") =>
 // Throwaway data dir so credential checks never touch real state.
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-server-"));
 process.env.STAR_CODE_DATA = dataDir;
+// A port that is certainly closed: bind with nothing listening on it. It
+// plays "Blender is not running" for the bridge below.
+const netMod = await import("node:net");
+const portHolder = netMod.createServer();
+await new Promise((r) => portHolder.listen(0, "127.0.0.1", r));
+const closedBlenderPort = portHolder.address().port;
+await new Promise((r) => portHolder.close(r));
 // One MCP server (the real stub) rides along so /api/mcp has something live
-// to report the moment the module boots and connects it.
+// to report the moment the module boots and connects it. A second server is
+// a Blender bridge whose app socket is closed: the bridge connects and
+// answers tools/list, but Blender itself is not running - the exact state
+// where the model once reached for execute_blender_code to read a text file.
 fs.writeFileSync(path.join(dataDir, "mcp.json"), JSON.stringify({
   version: 1,
-  servers: { "verify-stub": { command: [process.execPath, path.resolve("tools/mcp-stub-server.mjs")], environment: {}, enabled: true } },
+  servers: {
+    "verify-stub": { command: [process.execPath, path.resolve("tools/mcp-stub-server.mjs")], environment: {}, enabled: true },
+    "Blender MCP": { command: [process.execPath, path.resolve("tools/mcp-stub-server.mjs")], environment: { BLENDER_PORT: String(closedBlenderPort) }, enabled: true },
+  },
 }));
 // A legacy store record written before the server boots: it has no stats
 // field, so loading it proves old sessions come back with the zero shape.
@@ -397,7 +410,14 @@ try {
         script = { text: "steer-done" };
       }
       else if (lt.includes("after steer")) script = { text: "after-steer-ok" };
-      else if (lt.includes("think probe")) script = { thinking: "Let me think about the corpus first, then answer.", text: "think-done" };
+      else if (lt.includes("think probe")) script = {
+        thinking: [
+          "Let me think about the corpus first, then answer.\n<| |DSML| |calls>\n<| |DSML| |inv",
+          'oke name="read_file">\n<| |DSML| |parameter name="args" string="false">{"path":"a.txt"}</| |DSML| |parameter>\n</| |DSML| |inv',
+          "oke>\n</| |DSML| |calls>\nThen answer.",
+        ],
+        text: "think-done",
+      };
       if (!script) script = [
         { tool: "read_file", args: { path: "package.json" } },  // reviewer: allowed
         { tool: "list_dir", args: { path: "." } },              // reviewer: refused
@@ -416,7 +436,13 @@ try {
       ][turnBodies.length - 1] || { text: "(unexpected model call #" + turnBodies.length + ")" };
       if (script.tool) send({ choices: [{ delta: { content: "```tool\n" + JSON.stringify({ name: script.tool, args: script.args }) + "\n```" } }] });
       else {
-        if (script.thinking) send({ choices: [{ delta: { reasoning_content: script.thinking } }] });
+        if (script.thinking) {
+          // an array streams several reasoning chunks, so tests can split a
+          // DSML opener across delta boundaries
+          for (const t of Array.isArray(script.thinking) ? script.thinking : [script.thinking]) {
+            send({ choices: [{ delta: { reasoning_content: t } }] });
+          }
+        }
         send({ choices: [{ delta: { content: script.text } }] });
       }
       res.write("data: [DONE]\n\n");
@@ -696,12 +722,13 @@ try {
     " || last=" + String([...(turnBodies[turnBodies.length - 1]?.messages || [])].reverse().find((m) => m.role === "user")?.content || "").slice(0, 90));
 
   // Blender live view: the frame endpoint finds the screenshot-capable tool
-  // on a ready server and hands the image back as a data URL.
+  // on a ready server and hands the image back as a data URL. A server named
+  // for Blender wins the pick (that is the one fronting the app).
   {
     const frame = await (await fetch(s.url + "/api/blender/frame")).json();
     ok("the blender frame endpoint returns the stub's image",
       frame.ok === true && String(frame.dataUrl || "").startsWith("data:image/png;base64,") &&
-      frame.via === "mcp__verify_stub__screenshot" &&
+      frame.via === "mcp__blender_mcp__screenshot" &&
       /viewport 320x240/.test(String(frame.text || "")),
       JSON.stringify({ ok: frame.ok, via: frame.via, tried: frame.tried, hint: String(frame.hint || "").slice(0, 80) }));
   }
@@ -916,10 +943,18 @@ try {
   {
     const evT = await personaTurn({ sessionId: codeNew.id, kind: "code", message: "think probe" });
     ok("the think probe turn runs", said(evT, "think-done"));
+    // The stub streams its reasoning with a DSML call split mid-token across
+    // chunks (the proxy dialect that leaked into thinking cards): not one
+    // byte of markup may survive into the SSE deltas the card renders.
+    const thinkDeltas = evT.filter((e) => e.type === "thinking_delta").map((e) => String(e.text || ""));
+    ok("reasoning deltas never carry tool markup",
+      thinkDeltas.length > 0 && !thinkDeltas.some((t) => /DSML|invoke|parameter/.test(t)) &&
+      thinkDeltas.join("").includes("corpus first") && thinkDeltas.join("").includes("Then answer."),
+      JSON.stringify(thinkDeltas.map((t) => t.slice(0, 30))));
     const dump = await (await fetch(s.url + "/api/sessions/messages?id=" + codeNew.id)).json();
     const ui = dump.ui || [];
     ok("thinking is persisted for the rebuild",
-      ui.some((e) => e.type === "thinking" && /corpus first/.test(String(e.text || ""))),
+      ui.some((e) => e.type === "thinking" && /corpus first/.test(String(e.text || "")) && !/DSML|invoke|parameter/.test(String(e.text || ""))),
       JSON.stringify(ui.filter((e) => e.type === "thinking").map((e) => String(e.text).slice(0, 30))));
     ok("the question card keeps its answers",
       ui.some((e) => e.type === "question" && Array.isArray(e.answers) && e.answers.some((a) => a && a[0] === "Blue (Recommended)")),
@@ -928,6 +963,17 @@ try {
       ui.some((e) => e.type === "permission" && e.verdict && e.verdict.allowed === true));
     ok("tool results stay in the payload, flagged for the rebuild",
       (dump.messages || []).some((m) => m.tool === true && String(m.content).startsWith("Tool result for ")));
+  }
+
+  // The user's report: with a Blender bridge up but Blender itself closed, the
+  // model was offered execute_blender_code and used Blender's Python to read a
+  // text file. The system prompt must not list a closed app's tools (a live
+  // Blender brings them back - pinned in verify-mcp against a real socket).
+  {
+    const sys = String(((turnBodies[turnBodies.length - 1] || {}).messages || [])[0]?.content || "");
+    ok("a bridge to a closed Blender never advertises its tools",
+      sys.length > 0 && !/blender/i.test(sys) && sys.includes("mcp__verify_stub__echo"),
+      JSON.stringify((sys.match(/mcp__\w+/g) || []).slice(0, 6)) + " blender:" + /blender/i.test(sys));
   }
 
   ok("every scripted persona turn made exactly one model call per step", turnBodies.length === 42, String(turnBodies.length));
@@ -1014,11 +1060,13 @@ try {
     if (mcpServers.length && mcpServers[0].state === "ready") break;
     await new Promise((r) => setTimeout(r, 100));
   }
-  ok("GET /api/mcp lists the seeded server ready",
-    mcpServers.length === 1 && mcpServers[0].name === "verify-stub" && mcpServers[0].state === "ready",
+  const stubRec = mcpServers.find((x) => x.name === "verify-stub") || {};
+  ok("GET /api/mcp lists the seeded servers ready",
+    mcpServers.length === 2 && stubRec.state === "ready" &&
+    mcpServers.some((x) => x.name === "Blender MCP" && x.state === "ready"),
     JSON.stringify(mcpServers.map((x) => x.name + ":" + x.state)));
-  ok("the listing carries tools", Array.isArray(mcpServers[0] && mcpServers[0].tools) && mcpServers[0].tools.some((t) => t.name === "echo"));
-  ok("the listing carries the command, never the environment", typeof mcpServers[0].command === "string" && !("environment" in mcpServers[0]));
+  ok("the listing carries tools", Array.isArray(stubRec.tools) && stubRec.tools.some((t) => t.name === "echo"));
+  ok("the listing carries the command, never the environment", typeof stubRec.command === "string" && !("environment" in stubRec));
   const mcpTestGhost = await fetch(s.url + "/api/mcp/test", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "ghost" }),
   });

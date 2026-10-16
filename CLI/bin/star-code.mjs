@@ -510,6 +510,9 @@ function promptTools() {
   return mcp().toolList().concat(pluginManager.toolList());
 }
 
+// Probe bridge availability once before the first prompt: a Blender server
+// running while Blender itself is closed must not advertise its tools.
+await mcp().refreshAux().catch(() => {});
 const messages = [{ role: "system", content: systemPrompt(root, flags.mode, promptTools()) }];
 mcpPromptReady = true;
 const SUBAGENT_BLOCKED = new Set(["write_file", "edit_file", "multi_edit", "run_command", "download", "fetch_url", "websearch", "task"]);

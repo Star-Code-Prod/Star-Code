@@ -1184,6 +1184,9 @@ async function route(req, res) {
     // Refresh the system prompt so mode/memory changes take effect. Chat
     // sessions use chatSystemPrompt(); code sessions keep the coding prompt.
     // A selected agent's persona sits in front of that base for this turn.
+    // Bridge availability is re-probed first: a Blender server that is
+    // running while Blender is closed must not advertise its tools.
+    await mcpManager.refreshAux();
     session.messages[0] = {
       role: "system",
       content: agentPersonaPrefix(selectedAgent) + sessionSystemContent(session),

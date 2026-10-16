@@ -487,6 +487,8 @@ ok("cards survive session reloads via the persisted UI log",
   js.includes("{ historical: true, answers: e.answers }") &&
   js.includes("function renderAsk(evt, opts = {})") && js.includes("function renderSuggest(evt, opts = {})") &&
   js.includes("renderTranscript(j.messages || [], j.ui || [])"));
+ok("restored thinking is scrubbed of stored markup",
+  js.includes("const body = stripBlocks(String(e.text || \"\"))") && js.includes("const gist = thinkingGist(body)"));
 
 /* --------------------- motion sound + film doctrine ---------------------- */
 ok("the motion runtime synthesizes sound and muxes it into recordings",

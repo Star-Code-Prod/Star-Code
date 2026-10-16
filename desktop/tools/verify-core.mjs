@@ -19,7 +19,8 @@ const { PROVIDERS, normalizeModels, filterChatModels, isReasoning, discoverModel
   await import(pathToFileURL(path.resolve("lib/providers.js")).href);
 const { decisionFor, systemPrompt, resetSystemPromptCache, chatSystemPrompt, pruneOldToolResults, manageHistory,
   estimateTokens, hasIdenticalToolResult, identicalReuseStub, TOOL_RESULT_PREFIX,
-  parseAssistantContent, parseDsmlCalls, runAgentTurn, contextLimit } =
+  parseAssistantContent, parseDsmlCalls, runAgentTurn, contextLimit,
+  scrubReasoning, holdBackPartialOpener } =
   await import(pathToFileURL(path.resolve("lib/agent.js")).href);
 
 const results = [];
@@ -182,6 +183,37 @@ line "two"</|DSML|parameter>
     JSON.stringify(spacedParsed.text));
   ok("spaced DSML still strips when only parseDsmlCalls runs",
     parseDsmlCalls(spaced).length === 1 && parseDsmlCalls(spaced)[0].name === "run_command");
+}
+
+/* ------------- reasoning scrubbing (the thinking card shows prose) ------------- */
+// A proxy routes raw DSML through reasoning_content: the thinking card used to
+// render the markup verbatim. The reasoning path gets the same treatment as
+// content - normalize, drop whole blocks and stray tags, trim the seams - and
+// a delta boundary that falls inside a still-incomplete opener holds the tail
+// back so no fragment ever streams through.
+{
+  const reasoning = "Let me read the leagues first. <| |DSML| |calls>\n" +
+    '<| |DSML| |invoke name="read_file">\n' +
+    '<| |DSML| |parameter name="args" string="false">{"path": "C:\\\\League.txt"}</| |DSML| |parameter>\n' +
+    "</| |DSML| |invoke>\n" +
+    "</| |DSML| |calls>\nThen I will summarise.";
+  const scrubbed = scrubReasoning(reasoning);
+  ok("reasoning shows prose, never DSML markup",
+    !/DSML|invoke|parameter/.test(scrubbed) &&
+    scrubbed.includes("Let me read the leagues first.") && scrubbed.includes("Then I will summarise."),
+    JSON.stringify(scrubbed.slice(0, 80)));
+  ok("a partial opener is held back at delta boundaries",
+    holdBackPartialOpener("reading <| |DSM") === "reading " &&
+    holdBackPartialOpener("reading <") === "reading " &&
+    holdBackPartialOpener("reading <|") === "reading " &&
+    holdBackPartialOpener("a < b") === "a < b" &&
+    holdBackPartialOpener("a <b> tag") === "a <b> tag" &&
+    holdBackPartialOpener("plain prose") === "plain prose");
+  ok("a fence-shaped reasoning call is scrubbed too",
+    scrubReasoning('thinking\n```tool\n{"name":"read_file","args":{"path":"a"}}\n```\ndone') === "thinking\n\ndone",
+    JSON.stringify(scrubReasoning('thinking\n```tool\n{"name":"read_file","args":{"path":"a"}}\n```\ndone')));
+  ok("an operable trailing opener is dropped, not shown",
+    scrubReasoning("checking <|DSML|inv").includes("checking") && !scrubReasoning("checking <|DSML|inv").includes("DSML"));
 }
 ok("mcp tools are not read-only", decisionFor("manual", "mcp__stub__echo", empty) === "ask");
 ok("plan denies mcp tools", decisionFor("plan", "mcp__stub__echo", empty) === "deny");
@@ -748,8 +780,22 @@ ok("multi_edit is dangerous", mr.isDangerous("multi_edit") === true);
   ok("the doctrine teaches turn recaps",
     spd.includes("How to close a turn") && chatSystemPrompt().includes("close with a compact recap"));
   ok("the blender doctrine rides in only with blender tools",
-    !spd.includes("Blender is connected") &&
-    systemPrompt(process.cwd(), "manual", [{ name: "mcp__blender__look", description: "screenshot" }]).includes("Blender is connected"));
+    !spd.includes("Blender is running") &&
+    systemPrompt(process.cwd(), "manual", [{ name: "mcp__blender__look", description: "screenshot" }]).includes("Blender is running with its bridge"));
+  // The model once reached for Blender's Python to read a text file (the
+  // bridge was up, Blender was closed, and nothing drew a line). The doctrine
+  // now draws it: these tools are for 3D work, and a closed Blender is a
+  // reason to stop - never a nudge to try harder.
+  const blendSp = systemPrompt(process.cwd(), "manual", [
+    { name: "mcp__blender_mcp__execute_blender_code", description: "Run Python in Blender", params: "code:string" },
+  ]);
+  ok("blender tools are scoped to 3D work",
+    blendSp.includes("3D scenes only") &&
+    blendSp.includes("never use Blender's Python to read files, run shell commands") &&
+    blendSp.includes("if a call reports Blender is closed, stop using it"));
+  ok("the MCP block says when to reach for its tools",
+    blendSp.includes("Reach for one of these only when the job is about the app or service it fronts") &&
+    systemPrompt(process.cwd(), "plan", [{ name: "mcp__stub__echo", description: "echo" }]).includes("Reach for one of these only when the job is about the app or service it fronts"));
 }
 
 // fetch_url against a local server (no external network)

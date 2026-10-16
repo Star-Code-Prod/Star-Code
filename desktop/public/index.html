@@ -3466,7 +3466,10 @@ function renderUiEntry(e) {
   if (!e || typeof e !== "object") return;
   if (e.type === "thinking") {
     const secs = Math.max(0, (Number(e.ms) || 0) / 1000);
-    const gist = thinkingGist(e.text || "");
+    // Old sessions stored reasoning before the server scrubbed it: run the
+    // stored text through the same strip the rest of the transcript uses.
+    const body = stripBlocks(String(e.text || ""));
+    const gist = thinkingGist(body);
     const pid = "think-b-" + (++thinkSeq);
     // The live card folds once settled; a person who turned that off sees
     // restored cards open too.
@@ -3479,7 +3482,7 @@ function renderUiEntry(e) {
         <span class="think-label">${secs < 1 ? "Thought for a moment" : "Thought for " + Math.max(1, Math.round(secs)) + "s"}${gist ? " · " + esc(gist) : ""}</span>
         ${THINK_CHEV}
       </button>
-      <div class="think-b" id="${pid}" role="region" aria-label="Reasoning" aria-live="off" style="display:${mode === "closed" ? "none" : ""}"><div class="think-t">${esc(e.text || "")}</div></div>`;
+      <div class="think-b" id="${pid}" role="region" aria-label="Reasoning" aria-live="off" style="display:${mode === "closed" ? "none" : ""}"><div class="think-t">${esc(body)}</div></div>`;
     n.querySelector(".think-h").addEventListener("click", () => thinkMode(n, n.dataset.mode === "open" ? "closed" : "open"));
     return;
   }

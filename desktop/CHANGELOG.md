@@ -1,5 +1,9 @@
 # What's new in Star
 
+## 1.21.1 — 2026-10-16
+- Thinking cards stay prose. When a proxy routes the model's tool calls through the reasoning channel, the raw tool markup (`<|DSML|invoke …>` XML, even split mid-token across stream chunks) used to render inside the thinking card. Star now scrubs reasoning the same way it scrubs the answer: whole call blocks, stray tags and fence-shaped calls are dropped before anything reaches the card - live, and when a session is rebuilt from storage.
+- Blender's tools appear only when Blender is actually running. A Blender bridge answers even when Blender itself is closed, which is how Star ended up offering "execute Python in Blender" for jobs it was never meant for - like reading a text file. The app's own socket is probed before every turn: nothing listening means the tools stay out of the model's list (and come back the moment Blender is up). The doctrine now draws the line too - Blender scripting is for 3D scenes only, never for reading files or running shell commands, and a closed Blender is a reason to stop, not to retry.
+
 ## 1.21.0 — 2026-10-16
 - Cards no longer vanish when you switch sessions or close the app. Question cards come back answered (your picks still marked, footer saying "Answered"), thinking cards come back with their gist and full reasoning behind the toggle, suggestion cards come back with how they were settled, and permission cards come back with their verdict (allowed once / for session / denied). It is all stored in the session, so reopening Star shows the conversation you actually had.
 - Tool rows come back too. A reloaded session now replays every tool call that ran - name, arguments, result preview - instead of collapsing the past to prose, and the todo checklist (waiting, working, done) is restored from the last checklist Star wrote.

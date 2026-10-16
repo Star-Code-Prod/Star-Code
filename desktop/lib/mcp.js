@@ -11,6 +11,7 @@
 // child; errors carry only a truncated stderr tail.
 import { spawn } from "node:child_process";
 import fs from "node:fs";
+import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 
@@ -58,6 +59,35 @@ export function compactParams(schema) {
     parts.push(key + (req.has(key) ? ":" : "?:") + (t || "any"));
   }
   return parts.join(", ");
+}
+
+/* ------------------------- external-app bridges -------------------------- */
+// A bridge process (the Blender MCP server) answers tools/list even when the
+// app it fronts is closed, so "connected" alone would lie and the model would
+// reach for those tools for the wrong jobs ("read this file through Blender's
+// Python"). Availability is probed directly: the bridge's socket to the app.
+// The standard bridge listens on 127.0.0.1:9876; BLENDER_HOST/BLENDER_PORT in
+// the server's environment override it.
+
+const PROBE_TTL_MS = 15_000;      // a fresh answer is trusted for this long
+const PROBE_STALE_MS = 90_000;    // older than this: back to "unknown"
+const PROBE_TIMEOUT_MS = 700;
+
+/** The app socket a bridge fronts, or null when this is not a bridge to a
+ *  local app we know how to probe. Pure so tests can pin the shapes. */
+export function blenderTarget(name, cfg) {
+  const cmd = ((cfg && cfg.command) || []).join(" ");
+  const isBlender = /blender/i.test(String(name || "")) || /blender/i.test(cmd);
+  if (!isBlender) return null;
+  const env = (cfg && cfg.environment) || {};
+  const host = String(env.BLENDER_HOST || env.BLENDER_IP || "127.0.0.1").trim() || "127.0.0.1";
+  let port = Number(env.BLENDER_PORT || env.BLENDER_PORT_NUMBER || 0);
+  if (!(port > 0 && port < 65536)) {
+    const m = /--port[= ](\d{2,5})\b/.exec(cmd);
+    port = m ? Number(m[1]) : 9876;
+  }
+  if (!(port > 0 && port < 65536)) port = 9876;
+  return { host, port };
 }
 
 /* --------------------------------- config ------------------------------- */
@@ -347,10 +377,64 @@ export function createMcpManager({ root, onChange, callTimeoutMs = CALL_TIMEOUT_
     return !!rec && rec.cfg.enabled && rec.tools.some((t) => t.name === p.tool);
   }
 
+  /* Bridge availability: probed against the app's own socket, cached, and
+   * refreshed on demand. Unknown or stale never hides anything - only a
+   * fresh "closed" answer does. */
+  const probes = new Map();   // server name -> { at, up }
+
+  function probeApp(name, host, port) {
+    return new Promise((resolve) => {
+      const sock = net.connect({ host, port });
+      let settled = false;
+      const done = (up) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        try { sock.destroy(); } catch {}
+        probes.set(name, { at: Date.now(), up });
+        resolve(up);
+      };
+      const timer = setTimeout(() => done(false), PROBE_TIMEOUT_MS);
+      sock.once("connect", () => done(true));
+      sock.once("error", () => done(false));
+    });
+  }
+
+  /** Refresh every bridge's app availability (cheap, TTL-cached). Turns call
+   *  this before the prompt is built so the tool list tells the truth. */
+  async function refreshAux({ force = false } = {}) {
+    const now = Date.now();
+    const tasks = [];
+    for (const rec of servers.values()) {
+      if (rec.state !== "ready" || !rec.cfg.enabled) continue;
+      const target = blenderTarget(rec.name, rec.cfg);
+      if (!target) continue;
+      const last = probes.get(rec.name);
+      if (!force && last && now - last.at < PROBE_TTL_MS) continue;
+      tasks.push(probeApp(rec.name, target.host, target.port));
+    }
+    await Promise.all(tasks);
+  }
+
+  /** Fresh probe says the app is closed: its tools are dead weight. */
+  function appClosed(rec, now) {
+    if (!blenderTarget(rec.name, rec.cfg)) return false;
+    const p = probes.get(rec.name);
+    return !!p && now - p.at < PROBE_STALE_MS && p.up === false;
+  }
+
   function toolList() {
+    // Keep the answer fresh for the next call without blocking this one.
+    for (const rec of servers.values()) {
+      if (rec.state !== "ready" || !blenderTarget(rec.name, rec.cfg)) continue;
+      const p = probes.get(rec.name);
+      if (!p || Date.now() - p.at >= PROBE_TTL_MS) { refreshAux().catch(() => {}); break; }
+    }
     const out = [];
     for (const rec of servers.values()) {
       if (rec.state !== "ready") continue;
+      // A bridge to a closed app lists tools that cannot work: hide them.
+      if (appClosed(rec, Date.now())) continue;
       for (const t of rec.tools) out.push({ name: mcpToolName(rec.name, t.name), description: t.description, params: t.params || "" });
     }
     return out;
@@ -498,5 +582,5 @@ export function createMcpManager({ root, onChange, callTimeoutMs = CALL_TIMEOUT_
   // A hard exit must not leave stub processes behind (Windows especially).
   process.once("exit", () => { for (const rec of servers.values()) closeRec(rec); });
 
-  return { ready, list, toolList, has, call, callRaw, test, upsert, remove, setRoot, shutdown };
+  return { ready, list, toolList, has, call, callRaw, test, upsert, remove, setRoot, shutdown, refreshAux };
 }

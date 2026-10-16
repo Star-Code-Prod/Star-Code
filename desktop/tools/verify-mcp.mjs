@@ -163,6 +163,45 @@ await withManager({ "two-part": { command: stubCmd, environment: {} } }, async (
   ok("a slugged call runs the tool", out === "echo:slug", out);
 });
 
+/* ------------------------ bridge availability ------------------------ */
+// A Blender bridge answers tools/list while Blender itself is closed, and the
+// model then reaches for it for jobs it was never meant for ("read this file
+// through Blender's Python"). The tools must disappear when the app's own
+// socket refuses connections - and come back the moment it accepts them.
+{
+  const { blenderTarget } = await import(pathToFileURL(path.resolve("lib/mcp.js")).href);
+  ok("blender target: default port",
+    JSON.stringify(blenderTarget("Blender MCP", { command: ["uvx", "blender-mcp"] })) === JSON.stringify({ host: "127.0.0.1", port: 9876 }));
+  ok("blender target: env overrides host and port",
+    JSON.stringify(blenderTarget("x", { command: ["uvx", "blender-mcp"], environment: { BLENDER_PORT: "8123", BLENDER_HOST: "192.168.1.9" } })) === JSON.stringify({ host: "192.168.1.9", port: 8123 }));
+  ok("blender target: --port argument honored",
+    JSON.stringify(blenderTarget("Blender Bridge", { command: ["node", "bridge.mjs", "--port", "9999"] })) === JSON.stringify({ host: "127.0.0.1", port: 9999 }));
+  ok("non-blender servers have no target", blenderTarget("verify-stub", { command: ["node", "stub.mjs"] }) === null);
+
+  const net = await import("node:net");
+  // A port that is certainly closed: bind, note it, release it.
+  const holder = net.createServer();
+  await new Promise((r) => holder.listen(0, "127.0.0.1", r));
+  const freePort = holder.address().port;
+  await new Promise((r) => holder.close(r));
+
+  await withManager({ "Blender MCP": { command: stubCmd, environment: { BLENDER_PORT: String(freePort) } } }, async (mgr) => {
+    await mgr.refreshAux({ force: true });
+    ok("a closed Blender hides its tools",
+      !mgr.toolList().some((t) => /blender/i.test(t.name)),
+      JSON.stringify(mgr.toolList().map((t) => t.name)));
+    // Blender "opens": a listener on the app socket brings the tools back.
+    const fakeBlender = net.createServer();
+    await new Promise((r) => fakeBlender.listen(freePort, "127.0.0.1", r));
+    try {
+      await mgr.refreshAux({ force: true });
+      ok("a running Blender brings them back", mgr.toolList().some((t) => /mcp__blender_mcp__/.test(t.name)));
+    } finally {
+      await new Promise((r) => fakeBlender.close(r));
+    }
+  });
+}
+
 /* ------------------------------- report -------------------------------- */
 try { fs.rmSync(tmp, { recursive: true, force: true }); } catch { /* children may linger on Windows */ }
 console.log(results.join("\n"));

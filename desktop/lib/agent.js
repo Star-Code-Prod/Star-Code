@@ -416,12 +416,15 @@ function buildSystemPrompt(root, mode, extraTools = [], skillCatalog = "") {
   const extraBlock = extra.length
     ? "\nMCP tools (from connected local MCP servers; call them exactly like the built-in tools, with the same \`\`\`tool block and their full name, arguments following the listed parameters; each call asks for permission first):\n" +
       extra.map((t) => "- " + t.name + (t.params ? "(" + t.params + ")" : "") +
-        (t.description ? " - " + String(t.description).replace(/\s+/g, " ").slice(0, 140) : "")).join("\n") + "\n"
+        (t.description ? " - " + String(t.description).replace(/\s+/g, " ").slice(0, 140) : "")).join("\n") +
+      "\nReach for one of these only when the job is about the app or service it fronts; for reading files, searching, editing and running commands use the built-in tools, which are faster and cheaper.\n"
     : "";
-  // Blender craft: when a blender-ish server is connected the agent is the
-  // hands and the Preview pane is the user's eyes - iterate on the visual.
+  // Blender craft: when a blender-ish server is live the agent is the hands
+  // and the Preview pane is the user's eyes - iterate on the visual. The
+  // tools only appear here when Blender itself answered its socket; a closed
+  // Blender hides them (server.js refreshes availability per turn).
   const blenderLine = extra.some((t) => /blender/i.test(t.name || ""))
-    ? "\nBlender is connected: script it through its tools and build models like a craftsman. Look at the viewport (the screenshot tool) after each meaningful step so the user sees progress live in the Preview pane - you cannot read the image back, so verify geometry by inspecting the scene (get scene info, bounding boxes, vertex counts) and state what you checked. Work silhouette first, then structure, then materials and lighting; fix what the scene facts say is wrong, then move on. Name and keep objects (LowerBody, Roof_Plane), keep the scene clean, and only call a model done when the numbers and the render story agree.\n"
+    ? "\nBlender is running with its bridge: script it through its tools and build models like a craftsman. Look at the viewport (the screenshot tool) after each meaningful step so the user sees progress live in the Preview pane - you cannot read the image back, so verify geometry by inspecting the scene (get scene info, bounding boxes, vertex counts) and state what you checked. Work silhouette first, then structure, then materials and lighting; fix what the scene facts say is wrong, then move on. Name and keep objects (LowerBody, Roof_Plane), keep the scene clean, and only call a model done when the numbers and the render story agree. These tools are for 3D scenes only - never use Blender's Python to read files, run shell commands or do any chore the built-in tools already do, and if a call reports Blender is closed, stop using it and say so.\n"
     : "";
 
   return `You are a coding agent working in: ${root}
@@ -654,6 +657,50 @@ export function parseAssistantContent(content) {
   return { text, calls, todos };
 }
 
+/** Reasoning streams can carry the same tool-call markup the content path
+ *  strips: a local proxy routes raw DSML through reasoning_content, and some
+ *  models think in ```tool fences. The thinking card must show prose, not
+ *  XML. Normalize the delimiters, drop whole blocks (complete or still
+ *  streaming), stray tags and a trailing half-arrived opener, then tidy the
+ *  seams the removal leaves. */
+export function scrubReasoning(text) {
+  let out = normalizeDsml(text);
+  out = out.replace(/^(`{3,})(?:tool|todo)\b[\s\S]*?^\1[ \t]*$/gm, "");
+  out = out.replace(/^`{3,}(?:tool|todo)\b[\s\S]*$/m, "");
+  out = out.replace(/<\|DSML\|tool_calls\b[\s\S]*?(?:<\/\|DSML\|tool_calls>|$)/g, "");
+  // the proxy-shortened wrapper some streams carry: <|DSML|calls> ... </|DSML|calls>
+  out = out.replace(/<\|DSML\|calls\b[\s\S]*?(?:<\/\|DSML\|calls>|$)/g, "");
+  out = out.replace(/<\|DSML\|invoke\b[\s\S]*?(?:<\/\|DSML\|invoke>|$)/g, "");
+  out = out.replace(/<\|DSML\|parameter\b[^>]*>/g, "");
+  out = out.replace(/<\/?\|DSML\|[^>]*>/g, "");
+  out = out.replace(/<\|DSML\|[^>]*$/, "");
+  return out.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n");
+}
+
+/** The emitted prefix of a scrubbed reasoning block must never end in a
+ *  fragment that could still grow into DSML markup: a delta boundary can fall
+ *  anywhere, even inside "<|DSML|…". Hold such a tail back; the next delta
+ *  re-scrubs the whole accumulation, so a held fragment resolves the moment
+ *  it is decidable - markup is dropped, prose is released. */
+export function holdBackPartialOpener(s) {
+  const str = String(s || "");
+  const idx = str.lastIndexOf("<");
+  if (idx < 0) return str;
+  const tail = str.slice(idx);
+  if (tail.length > 40 || tail.includes(">")) return str;
+  const rest = tail.slice(1).replace(/^\s+/, "");
+  if (rest === "") return str.slice(0, idx);   // a bare "<" can still grow
+  // After an optional D-S-M-L chain the tail must look like the inside of a
+  // DSML opener ("| |inv", "DSML|calls", "DS") - and it must actually start
+  // with a pipe or carry the D-chain, so prose like "a < b" passes straight
+  // through untouched.
+  const afterD = rest.replace(/^D\s*(?:S\s*(?:M\s*(?:L\s*)?)?)?/i, "");
+  const hadD = afterD !== rest;
+  const hadPipe = /^\|/.test(rest);
+  const plausible = /^[\|\sa-z_]*$/i.test(hadD ? afterD : rest);
+  return plausible && (hadD || hadPipe) ? str.slice(0, idx) : str;
+}
+
 export function decisionFor(mode, toolName, autoAllow = new Set(), args = null) {
   if (mode === "bypass") return "allow";
   if (READ_ONLY_TOOLS.has(toolName)) return "allow";
@@ -730,6 +777,16 @@ export async function runAgentTurn({
     emit({ type: "assistant_start" });
     let full = "";
     let thinkingStarted = 0; // ms timestamp of the current reasoning block, 0 = not reasoning
+    let thinkRaw = "", thinkSent = 0;
+    /** End the open reasoning block: release whatever the hold-back kept (a
+     *  fragment that turned out to be prose dies here; unresolved markup is
+     *  dropped by scrubReasoning), then tell the UI to settle the card. */
+    const closeThinking = () => {
+      const rest = scrubReasoning(thinkRaw);
+      if (rest.length > thinkSent) emit({ type: "thinking_delta", text: rest.slice(thinkSent) });
+      emit({ type: "thinking_end", ms: Date.now() - thinkingStarted });
+      thinkingStarted = 0;
+    };
 
     try {
       for await (const chunk of streamCompletion(req)) {
@@ -742,35 +799,37 @@ export async function runAgentTurn({
           // was never sent, leaving an orphan with no timer.
           if (!thinkingStarted) {
             thinkingStarted = Date.now();
+            thinkRaw = "";
+            thinkSent = 0;
             emit({ type: "thinking_start" });
           }
-          emit({ type: "thinking_delta", text: chunk.thinking });
+          // The visible card gets scrubbed reasoning: tool-call markup that
+          // rides the reasoning channel (proxies route DSML through it) must
+          // never reach the UI, and a delta boundary may fall inside a
+          // still-incomplete opener - hold that tail back until decidable.
+          thinkRaw += chunk.thinking;
+          const clean = holdBackPartialOpener(scrubReasoning(thinkRaw));
+          if (clean.length > thinkSent) {
+            emit({ type: "thinking_delta", text: clean.slice(thinkSent) });
+            thinkSent = clean.length;
+          }
         }
 
         if (chunk.text) {
-          if (thinkingStarted) {
-            emit({ type: "thinking_end", ms: Date.now() - thinkingStarted });
-            thinkingStarted = 0;
-          }
+          if (thinkingStarted) closeThinking();
           full += chunk.text;
           emit({ type: "delta", text: chunk.text });
         }
       }
     } catch (e) {
-      if (thinkingStarted) {
-        emit({ type: "thinking_end", ms: Date.now() - thinkingStarted });
-        thinkingStarted = 0;
-      }
+      if (thinkingStarted) closeThinking();
       emit({ type: "error", message: e.message });
       emit({ type: "done", text: "" });
       return;
     }
 
     // close a block that was still open when the stream ended
-    if (thinkingStarted) {
-      emit({ type: "thinking_end", ms: Date.now() - thinkingStarted });
-      thinkingStarted = 0;
-    }
+    if (thinkingStarted) closeThinking();
     emit({ type: "assistant_end" });
 
     if (interrupted || controller.abort) {
