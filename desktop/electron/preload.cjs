@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld("desktop", {
   isElectron: true,
   info: () => ipcRenderer.invoke("desktop:info"),
   pickFolder: () => ipcRenderer.invoke("desktop:pick-folder"),
+  pickFile: () => ipcRenderer.invoke("desktop:pick-file"),
   setRoot: (p) => ipcRenderer.invoke("desktop:set-root", p),
   reveal: (p) => ipcRenderer.invoke("desktop:reveal", p),
   openExternal: (u) => ipcRenderer.invoke("desktop:open-external", u),

@@ -462,6 +462,31 @@ ok("the motion runtime synthesizes sound and muxes it into recordings",
   js.includes("if (typeof o.sound === \"function\")"));
 ok("the motion player carries a sound toggle",
   html.includes('id="moSound"') && js.includes("state.motionSound") && js.includes("motionSound: true"));
+
+/* -------------- sidebar auto-sort, suggestions, + menu, attach ------------ */
+ok("the sidebar sorts itself into Needs input / Working / Completed",
+  js.includes("needsInputOf") && js.includes("workingOf") && js.includes('"Needs input"') &&
+  js.includes('"Working"') && js.includes('"Completed"') &&
+  js.includes("liveInput.add(sid)") && js.includes("liveInput.delete(sessionId)"));
+ok("the suggestion card can start the session",
+  js.includes("function renderSuggest(") && js.includes('case "session_suggestion": renderSuggest(evt);') &&
+  js.includes('"[data-start]")') && js.includes("sendToAgent(msg)") && js.includes('"[data-here]")'));
+ok("the + opens the composer menu and the arrow is gone",
+  !html.includes('id="cMore"') && js.includes('$("cPlus").addEventListener("click"') &&
+  js.includes('{ label: "Side chat"') && js.includes('{ label: "Attach file"') &&
+  js.includes('{ label: "Run shell command"') && js.includes('{ label: "Export conversation"') &&
+  js.includes('{ label: "New session"'));
+ok("attach file picks through the bridge or a file input",
+  js.includes("async function attachPick(") && js.includes("bridge.pickFile") &&
+  js.includes('inp.type = "file"') && js.includes("[attached file") &&
+  /\.attachchip\{/.test(html.replace(/\s+/g, "")));
+{
+  const preloadSrc = fs.readFileSync("electron/preload.cjs", "utf8");
+  const mainSrc = fs.readFileSync("electron/main.cjs", "utf8");
+  ok("the desktop shell carries the attach picker",
+    mainSrc.includes('"desktop:pick-file"') && preloadSrc.includes("pickFile: () =>") &&
+    /Images and videos/.test(mainSrc) && /"mp4"/.test(mainSrc));
+}
 ok("the rail can take 60% of the window",
   js.includes("innerWidth * 0.6") && js.includes("function paneWMax(") &&
   /\.panes\{[^}]*width:var\(--pane-w/.test(html.replace(/\s+/g, "")));

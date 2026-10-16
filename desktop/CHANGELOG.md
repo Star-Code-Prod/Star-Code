@@ -1,5 +1,10 @@
 # What's new in Star
 
+## 1.19.0 — 2026-10-16
+- The sidebar sorts itself now: a session waiting on you - a question card or a permission prompt - climbs into a "Needs input" group at the top with a warning mark and "Waiting for your answer"; live turns sit under "Working"; everything else is "Completed". It moves on its own as you answer, in the foreground or in a background session.
+- Star can suggest a new session. When your request clearly starts a different task ("add cart thumbnail dimensions" in a session about grid layout), it offers a small card - a real title, a one-sentence description, "Do it here" or "Start new session" - and Start opens a fresh session that begins with that description.
+- The + in the composer is the menu now: side chat (opens a second chat beside this one), attach file, run shell command, export conversation, new session. The old chevron arrow is gone. Attach file opens your file explorer filtered to images and videos (anything else is one click away) and the picked path rides into the message as [attached file: …] - readable text files, directly usable images/videos.
+
 ## 1.18.1 — 2026-10-16
 - The titlebar is just the three icons you use: toggle sidebar, settings and toggle panes now sit in the strip itself (icons only - settings got its own button up there), the "Star 1.x.y" label is gone, and a small gap keeps air between the titlebar and everything below it.
 

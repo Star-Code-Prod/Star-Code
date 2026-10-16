@@ -376,6 +376,8 @@ try {
       else if (lt.includes("folder probe") && !lt.includes("Tool result for use_folder")) script = { tool: "use_folder", args: { path: folderFixturePath } };
       else if (lt.includes("Tool result for use_folder")) script = { tool: "read_file", args: { path: folderFixturePath + path.sep + "MARKER.txt" } };
       else if (lt.includes("after folder")) script = { tool: "read_file", args: { path: "MARKER2.txt" } };
+      else if (lt.includes("suggest probe") && !lt.includes("Tool result for suggest_session")) script = { tool: "suggest_session", args: { title: "Add cart thumbnails", description: "CartLineItem and MiniCart render product images without dimensions - reserve space with an aspect-ratio fallback." } };
+      else if (lt.includes("Tool result for suggest_session")) script = { text: "suggest-ok" };
       else if (lt.includes("MARKER-123")) script = { text: "folder-ok" };
       else if (lt.includes("MARKER-789")) script = { text: "after-ok" };
       else if (lt.includes("ask delay") && !lt.includes("Tool result for ask_user")) {
@@ -509,7 +511,7 @@ try {
   const ev5 = await personaTurn({ sessionId: codeNew.id, kind: "code", message: "plain", agent: "plain", mode: "bypass" });
   const b8 = turnBodies[8] || {};
   ok("a persona without a tools line runs with the read-only default",
-    /Allowed tools: read_file, list_dir, search_files, glob_files, search_knowledge, self_knowledge, task, skill, use_folder/.test(JSON.stringify(b8.messages || [])) &&
+    /Allowed tools: read_file, list_dir, search_files, glob_files, search_knowledge, self_knowledge, task, skill, suggest_session, use_folder/.test(JSON.stringify(b8.messages || [])) &&
     said(ev5, "plain-ok"));
   ok("the refused persona write never reached the disk",
     !fs.existsSync(path.join(process.cwd(), "should-not-land.txt")));
@@ -520,7 +522,7 @@ try {
   const ev6 = await personaTurn({ sessionId: chatNew.id, kind: "chat", message: "empty", agent: "reviewer" });
   const b10 = turnBodies[10] || {};
   ok("an empty intersection keeps core tools only, not (none)",
-    /Allowed tools: task, skill\./.test(JSON.stringify(b10.messages || [])) && said(ev6, "empty-ok"),
+    /Allowed tools: task, skill, suggest_session\./.test(JSON.stringify(b10.messages || [])) && said(ev6, "empty-ok"),
     String(((b10.messages || []).find((m) => String(m.content || "").includes("not available")) || {}).content || "").slice(0, 90));
 
   // Plan mode cannot be widened by a persona that owns a write tool.
@@ -648,6 +650,23 @@ try {
     ok("the next turn's prompt names the folder the user gave",
       String(bAfter.messages?.[0]?.content || "").includes("working in: " + folderFixturePath),
       String(bAfter.messages?.[0]?.content || "").slice(0, 90));
+  }
+
+  // suggest_session: the model's offer reaches the client as a card event
+  // (title + description) and the turn keeps going afterwards.
+  {
+    const evS = await personaTurn({ sessionId: codeNew.id, kind: "code", message: "suggest probe" });
+    const sug = evS.find((e) => e.type === "session_suggestion") || {};
+    const sugRes = evS.find((e) => e.type === "tool_result" && e.name === "suggest_session") || {};
+    ok("suggest_session offers a card and the turn continues",
+      sug.title === "Add cart thumbnails" && /CartLineItem and MiniCart/.test(String(sug.description || "")) &&
+      /Offered the user a new session card/.test(String(sugRes.preview || "")) && said(evS, "suggest-ok"),
+      JSON.stringify({ title: sug.title, res: String(sugRes.preview || "").slice(0, 60) }));
+    const listS = await (await fetch(s.url + "/api/sessions")).json();
+    const rowS = (listS.sessions || []).find((x) => x.id === codeNew.id) || {};
+    ok("the listing carries the sidebar auto-sort fields",
+      typeof rowS.activeTurn === "number" && typeof rowS.needsInput === "boolean" && rowS.needsInput === false,
+      JSON.stringify({ activeTurn: rowS.activeTurn, needsInput: rowS.needsInput }));
   }
 
   // MCP tools through a real turn: the manager's stub server is connected
@@ -854,7 +873,7 @@ try {
       said(aEvents, "ask-ok") && said(bEvents, "b-done") && !said(bEvents, "ask-ok") && !said(aEvents, "b-done"));
   }
 
-  ok("every scripted persona turn made exactly one model call per step", turnBodies.length === 36, String(turnBodies.length));
+  ok("every scripted persona turn made exactly one model call per step", turnBodies.length === 38, String(turnBodies.length));
   turnStub.close();
   if (turnStub.closeAllConnections) turnStub.closeAllConnections();
 
@@ -870,10 +889,11 @@ try {
 
   const statsLoad = await (await fetch(s.url + "/api/sessions/messages?id=" + codeNew.id)).json();
   ok("a live session's stats ride with its messages", !!statsLoad.stats && typeof statsLoad.stats.calls === "number");
-  ok("model calls are counted", statsLoad.stats.calls === 28, String(statsLoad.stats.calls));
+  ok("model calls are counted", statsLoad.stats.calls === 30, String(statsLoad.stats.calls));
   ok("tool calls are counted per name",
     statsLoad.stats.tools.read_file === 3 && statsLoad.stats.tools.list_dir === 1 && statsLoad.stats.tools.write_file === 2 &&
-    statsLoad.stats.tools.ask_user === 2 && statsLoad.stats.tools.use_folder === 1 && statsLoad.stats.tools.plug_echo === 1,
+    statsLoad.stats.tools.ask_user === 2 && statsLoad.stats.tools.use_folder === 1 && statsLoad.stats.tools.plug_echo === 1 &&
+    statsLoad.stats.tools.suggest_session === 1,
     JSON.stringify(statsLoad.stats.tools));
   ok("mcp tool calls join the same counts",
     statsLoad.stats.tools.mcp__verify_stub__echo === 3,

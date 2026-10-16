@@ -62,7 +62,7 @@ let subagentCtx = null;
 // turn for its session falls back to prose.
 const askTurns = new Map();
 const SUBAGENT_BLOCKED = new Set(["write_file", "edit_file", "multi_edit", "run_command", "download", "fetch_url", "websearch", "task"]);
-const CHAT_TOOLS = ["websearch", "fetch_url", "self_knowledge", "task", "ask_user", "skill"];
+const CHAT_TOOLS = ["websearch", "fetch_url", "self_knowledge", "task", "ask_user", "skill", "suggest_session"];
 
 /* --------------------------------- mcp ----------------------------------- */
 // The shared MCP manager: connects enabled servers at boot, exposes their
@@ -169,6 +169,16 @@ function makeRunner(r, allowed, session = null) {
       if (turn) turn({ type: "cwd", cwd: abs });
       return "Working folder set to " + abs + (was === abs ? "" : " (was " + was + ")") +
         ". Later turns root there - relative paths, the file tree and commands all follow. For the rest of this turn, prefer absolute paths under it.";
+    },
+    suggestSession: async (title, description) => {
+      // A proposal card in the conversation: Start opens a new session with
+      // the description as its first message. Non-blocking - the model keeps
+      // working here meanwhile.
+      const turn = session ? askTurns.get(session.id) : null;
+      if (!turn) return "(no live turn - offer the new session in prose)";
+      const id = randomUUID();
+      turn({ type: "session_suggestion", id, title, description });
+      return "Offered the user a new session card: \"" + title + "\". If they start it, the description becomes the first message there. Keep helping in this session; do not repeat the offer.";
     },
     runSubagent: async ({ instructions, agent } = {}) => {
       if (!subagentCtx) return { error: "no model configured yet - answer without a subagent" };
@@ -362,6 +372,11 @@ function summarise(s) {
     turns,
     // A turn was in flight when the app last died: the next start continues it.
     pending: !!s.activeTurn,
+    // The sidebar auto-sorts with these: a live turn sits under "Working",
+    // and a session holding an unanswered question or permission ask climbs
+    // to "Needs input" until the user responds.
+    activeTurn: s.activeTurn || 0,
+    needsInput: (s.asks && s.asks.size > 0) || (s.pending && s.pending.size > 0),
   };
 }
 
@@ -461,7 +476,7 @@ function agentPersonaPrefix(agent) {
  * AutoJoin lesson: a Puck-modder persona in a chat collapsed to
  * self_knowledge alone and could not read the corpus at all.
  */
-const CORE_AGENT_TOOLS = ["task", "skill"];
+const CORE_AGENT_TOOLS = ["task", "skill", "suggest_session"];
 
 /**
  * Core reach that only code sessions carry: the folder the user names in

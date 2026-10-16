@@ -121,6 +121,12 @@ export const TOOL_SPECS = [
     dangerous: false,
     schema: { path: "string" },
   },
+  {
+    name: "suggest_session",
+    description: "Offer to move the user's request into a fresh session when it clearly starts a NEW task or topic unrelated to this session's work (a different project, another idea). Renders a card with the proposed title and description; the user clicks Start (a new session opens and begins with the description) or keeps it here. Offer once - never for continuations of the current work.",
+    dangerous: false,
+    schema: { title: "string", description: "string" },
+  },
 ];
 
 /** Ask questions, clamped to something a clickable card can render: 1-4
@@ -766,6 +772,9 @@ export function createToolRunner(root, opts = {}) {
   // A per-session folder switch (lib/server): binds the session to a folder
   // the user named in chat. Without it the tool says so instead of lying.
   const useFolder = typeof opts.useFolder === "function" ? opts.useFolder : null;
+  // A UI hook for suggest_session: offers a new-session card. Without it the
+  // tool tells the model to offer the new session in prose.
+  const suggestSession = typeof opts.suggestSession === "function" ? opts.suggestSession : null;
   // A custom agent may restrict which tools exist at all: `allowed` is the
   // union of names the runner will accept, null/undefined = every tool. The
   // refusal and the filtered schemas are the same list, so a restricted
@@ -1280,10 +1289,18 @@ export function createToolRunner(root, opts = {}) {
     return await useFolder(path.resolve(wanted));
   }
 
+  async function suggest_session({ title, description }) {
+    const t = String(title || "").trim().slice(0, 90);
+    const d = String(description || "").trim().slice(0, 600);
+    if (!t || !d) throw new Error("suggest_session needs a title and a description");
+    if (!suggestSession) return "(session suggestions are not available here - ask the user in prose whether to start a new session)";
+    return await suggestSession(t, d);
+  }
+
   const impl = {
     read_file, list_dir, search_files, glob_files, write_file, edit_file, run_command, download,
     search_knowledge: ({ query }) => searchKnowledge(root, query),
-    fetch_url, websearch, multi_edit, task, ask_user, use_folder,
+    fetch_url, websearch, multi_edit, task, ask_user, use_folder, suggest_session,
     skill: ({ name }) => loadSkill(root, name),
     self_knowledge: ({ topic }) => selfKnowledge(topic),
   };

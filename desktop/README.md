@@ -42,6 +42,9 @@ setting you change — including a model running on your own machine.
 | **Voxel builds** | `artifact voxel` scripts build 3D models (the VoxelBench idea): isometric render in the Preview, drag to rotate, wheel to zoom, revisions land as new versions of the same build |
 | **Blender viewport** | With a Blender MCP server connected, the Preview's viewport button streams live screenshots; the agent scripts Blender through its MCP tools with a build-look-refine doctrine |
 | **Usage pane** | Click the context ring: window used/limit (real limits, with a Settings override), model, per-session calls, tool groups and compaction savings |
+| **Self-sorting sidebar** | Sessions group themselves: **Needs input** (a pending question or permission climbs to the top), **Working**, **Completed** — in the background too |
+| **Session suggestions** | Star offers a new-session card (title + brief, "Do it here" / "Start new session") when a request clearly starts a different task |
+| **Composer + menu** | The + opens: side chat, attach file (explorer, images/videos first — the path rides into the message), run shell command, export conversation, new session |
 | **Plugins** | Local JS modules in `~/.star-code/plugins` — event hooks (turn/tool), custom tools the agent can call (permission-first), extra skill folders and agents. Broken plugins report in Settings instead of breaking the boot |
 | **Artifacts** | ` ```artifact ` html/svg/md blocks render in a sandboxed preview pane with version history — plus live formats: **motion** (canvas films with synthesized sound, recordable to video), **voxel** (isometric 3D builds), slides, design, doc |
 | **Knowledge** | Markdown notes in `.star-code/knowledge` — indexed in the prompt, searchable by the agent |

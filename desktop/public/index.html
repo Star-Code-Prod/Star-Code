@@ -204,6 +204,24 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
 .sess .ico{grid-row:1 / span 2;flex:none;width:16px;display:flex;justify-content:center;color:var(--muted)}
 .sess.run .ico{color:var(--accent)}
 .sess.run .ico .runarc{animation:spin 1.1s linear infinite;transform-origin:50% 50%}
+/* Waiting on the user: the row climbs into "Needs input" with a warning mark. */
+.sess.needs .ico{color:var(--accent)}
+.sess.needs .meta{color:var(--accent)}
+
+/* ================= ATTACHMENTS (composer) ================= */
+.attachrow{display:flex;flex-wrap:wrap;gap:6px;padding:0 4px 7px}
+.attachchip{
+  display:inline-flex;align-items:center;gap:6px;max-width:260px;
+  font-size:var(--fs-11);color:var(--text2);background:var(--chip);
+  border:1px solid var(--border);border-radius:var(--r-full);padding:3px 6px 3px 10px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.attachchip button{
+  width:16px;height:16px;border-radius:var(--r-full);display:inline-flex;align-items:center;justify-content:center;
+  color:var(--muted);font-size:12px;line-height:1;flex:none;
+  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
+}
+.attachchip button:hover{background:var(--hover);color:var(--text)}
 .sess.on .ico{color:var(--accent)}
 .sess .lbl{grid-column:2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.35}
 .sess .meta{
@@ -628,6 +646,7 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
   color:var(--muted);background:var(--chip);padding:2px 8px;border-radius:var(--r-full);
 }
 .ask-t{font-size:var(--fs-13);color:var(--text);line-height:1.5}
+.ask-d{font-size:var(--fs-12);color:var(--text2);line-height:1.55}
 .ask-opts{display:flex;flex-direction:column;gap:6px}
 .ask-opt{
   display:flex;flex-direction:column;gap:2px;text-align:left;width:100%;
@@ -1522,11 +1541,12 @@ body.mode-chat #bigProj{display:none}
     <div class="composer" id="composer" style="display:none">
       <div class="cwrap">
       <div class="slash" id="slashMenu" style="display:none"></div>
+      <div class="attachrow" id="attachRow" style="display:none"></div>
       <button class="jump" id="jumpBtn" type="button" title="Jump to latest" aria-label="Jump to the latest message">
         <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v10M3.5 8.5L8 13l4.5-4.5"/></svg>
       </button>
       <div class="cbox">
-        <button class="cplus" id="cPlus" type="button" title="Attach context (@)" aria-label="Attach context">
+        <button class="cplus" id="cPlus" type="button" title="More: side chat, attach a file, shell command, export, new session" aria-label="More actions">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M8 3.2v9.6M3.2 8h9.6"/></svg>
         </button>
         <textarea id="input" rows="1" placeholder="Type / for commands" aria-label="Message Star"></textarea>
@@ -1543,9 +1563,6 @@ body.mode-chat #bigProj{display:none}
         </button>
         <button class="cbtn ico" id="cShell" title="Shell mode" aria-label="Shell mode">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 5.5l3 3-3 3M8.5 12h4.5"/></svg>
-        </button>
-        <button class="cbtn ico" id="cMore" title="More" aria-label="More options">
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6.5l4 4 4-4"/></svg>
         </button>
         <span class="spacer"></span>
         <button class="cbtn" id="cModel" title="Model and reasoning effort">
@@ -1859,6 +1876,13 @@ let booting = true;   // silences navigation toasts while the shell restores its
  *  the transcript when you come back - so sessions keep working in the
  *  background and you can switch while one is streaming. */
 let liveTurns = new Map();
+/** Sessions waiting on the user right now (an ask_user question or a
+ *  permission prompt is pending). Set live from the event stream, cleared on
+ *  the answer, and seeded from the server's listing on load - this is what
+ *  lifts a session into the sidebar's "Needs input" group. */
+let liveInput = new Set();
+const needsInputOf = (s) => liveInput.has(s.id) || !!s.needsInput;
+const workingOf = (s) => isStreaming(s.id) || !!s.activeTurn;
 const isStreaming = (id) => !!(id && liveTurns.get(id) && liveTurns.get(id).running);
 /** A turn finished: stop its spinner; a background one is news - flag unread. */
 function finishLive(sid) {
@@ -3113,10 +3137,13 @@ function sessionRow(s) {
   const pinned = pinnedIds.includes(s.id);
   const unread = unreadIds.includes(s.id);
   const running = isStreaming(s.id);
+  const needs = needsInputOf(s);
   return `
-    <button class="sess ${on ? "on" : ""}${running ? " run" : ""}" data-id="${esc(s.id)}" title="${esc(s.title)}"${on ? ' aria-current="true"' : ""}>
+    <button class="sess ${on ? "on" : ""}${running ? " run" : ""}${needs ? " needs" : ""}" data-id="${esc(s.id)}" title="${esc(s.title)}"${on ? ' aria-current="true"' : ""}>
       <span class="ico">${
-        pinned
+        needs
+          ? '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M8 2.6l6 10.8H2z" stroke-linejoin="round"/><path d="M8 6.8v3M8 11.7h.01"/></svg>'
+          : pinned
           ? '<svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M9.6 1.8l4.6 4.6-1.4 1.4-.7-.7-2.6 2.6.3 2.4-1.3 1.3-3.3-3.3-3 3-.9-.9 3-3L1.3 6.4l1.3-1.3 2.4.3L7.6 2.8l-.7-.7z"/></svg>'
           : running
           ? '<svg class="runarc" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="5" opacity=".28"/><path d="M8 3a5 5 0 0 1 5 5"/></svg>'
@@ -3127,7 +3154,7 @@ function sessionRow(s) {
       <span class="more" data-more="${esc(s.id)}" title="More">
         <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="3.5" r="1.1"/><circle cx="8" cy="8" r="1.1"/><circle cx="8" cy="12.5" r="1.1"/></svg>
       </span>
-      <span class="meta">${esc(ago(s.updated))}${s.turns ? " · " + s.turns + " turns" : ""}</span>
+      <span class="meta">${needs ? "Waiting for your answer" : esc(ago(s.updated)) + (s.turns ? " · " + s.turns + " turns" : "")}</span>
     </button>`;
 }
 
@@ -3174,15 +3201,16 @@ function renderSessions() {
     const pinned = matches.filter((s) => pinnedIds.includes(s.id));
     const rest = matches.filter((s) => !pinnedIds.includes(s.id));
     if (pinned.length) html += '<div class="sess-group">Pinned</div>' + pinned.map(sessionRow).join("");
-    if (manual) {
-      // The user arranged the list by hand: one "Sessions" group in their order.
-      html += '<div class="sess-group">Sessions</div>' + rest.map(sessionRow).join("");
-    } else {
-      for (const bucket of ["Today", "Yesterday", "Earlier"]) {
-        const group = rest.filter((s) => dayBucket(s.updated) === bucket);
-        if (group.length) html += `<div class="sess-group">${bucket}</div>` + group.map(sessionRow).join("");
-      }
-    }
+    // The sidebar sorts itself: a session waiting on the user (question or
+    // permission) climbs into "Needs input", live turns sit under "Working",
+    // everything else is "Completed". The user's dragged order holds inside
+    // each group.
+    const needs = rest.filter(needsInputOf);
+    const working = rest.filter((s) => !needsInputOf(s) && workingOf(s));
+    const completed = rest.filter((s) => !needsInputOf(s) && !workingOf(s));
+    if (needs.length) html += '<div class="sess-group">Needs input</div>' + needs.map(sessionRow).join("");
+    if (working.length) html += '<div class="sess-group">Working</div>' + working.map(sessionRow).join("");
+    if (completed.length) html += `<div class="sess-group">${manual ? "Sessions" : "Completed"}</div>` + completed.map(sessionRow).join("");
   }
   box.innerHTML = html;
 
@@ -6105,6 +6133,8 @@ function renderAsk(evt) {
       ? "Answered"
       : "Skipped - Star will continue without an answer.";
     const answers = qs.map((q, i) => [...picks[i]].map((oi) => ((q.options || [])[oi] || {}).label).filter(Boolean));
+    liveInput.delete(sessionId);      // the sidebar's Needs input group drops it
+    renderSessions();
     fetch("/api/answer", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sessionId, id: evt.id, answers: final ? answers : [] }),
@@ -6124,6 +6154,45 @@ function renderAsk(evt) {
   n.querySelector("[data-send]").addEventListener("click", () => send(true));
   n.querySelector("[data-skip]").addEventListener("click", () => send(false));
   syncSend();
+  scrollDownSoon();
+}
+
+/** suggest_session: Star proposes moving an unrelated request into its own
+ *  session (title + description, like a mini brief). Start opens a fresh
+ *  session and begins it with the description; Do it here keeps the work in
+ *  this thread. */
+function renderSuggest(evt) {
+  const n = node("askcard suggest");
+  n.dataset.sg = evt.id;
+  n.innerHTML = `
+    <div class="ask-h">${SPARK_SVG}<span>Star suggests a new session</span></div>
+    <div class="ask-q">
+      <div class="ask-t"><b>${esc(evt.title)}</b></div>
+      <div class="ask-d">${esc(evt.description)}</div>
+    </div>
+    <div class="ask-f">
+      <span class="ask-note" data-note>This looks like its own task - want it in a fresh session?</span>
+      <span class="spacer"></span>
+      <button class="btn sm" data-here>Do it here</button>
+      <button class="btn pri sm" data-start>Start new session</button>
+    </div>`;
+  const note = n.querySelector("[data-note]");
+  const settle = (text) => {
+    n.classList.add("done");
+    n.querySelectorAll("button").forEach((b) => { b.disabled = true; });
+    if (note) note.textContent = text;
+  };
+  n.querySelector("[data-here]").addEventListener("click", () => settle("Staying here - Star continues in this session."));
+  n.querySelector("[data-start]").addEventListener("click", async () => {
+    settle("Starting…");
+    await newSession({ title: String(evt.title || "").slice(0, 80) });
+    state.lastSession = sessionId;
+    save();
+    renderSessions();
+    settle("Started in a new session");
+    const msg = String(evt.description || "").trim();
+    if (msg) sendToAgent(msg);
+  });
   scrollDownSoon();
 }
 
@@ -6186,6 +6255,8 @@ function askPermission({ id, name, args, dangerous }) {
     const scope = b.dataset.scope;
     n.classList.add("answered");
     n.querySelector(".pa").innerHTML = `<span class="pill ${scope === "deny" ? "no" : "ok"}">${scope === "deny" ? "Denied" : "Allowed"}</span>`;
+    liveInput.delete(sessionId);      // the sidebar's Needs input group drops it
+    renderSessions();
     await fetch("/api/permission", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sessionId, id, allowed: scope !== "deny", scope }),
@@ -6373,6 +6444,13 @@ function say(t) { startAssistant(); toolGroup = null; currentMsg._t = t; setMsgH
 
 async function sendToAgent(message, opts = {}) {
   const resume = !!opts.resume;
+  // Attachments picked in the composer ride along as absolute paths, appended
+  // so the model can read text files and use images/videos where relevant.
+  if (!resume && attachFiles.length) {
+    message = String(message || "") + "\n\n[attached file" + (attachFiles.length > 1 ? "s" : "") + ": " + attachFiles.join(", ") + "]";
+    attachFiles = [];
+    renderAttach();
+  }
   if (!resume) addUser(message);
   showChat();
   let sid = sessionId;
@@ -6408,6 +6486,15 @@ async function sendToAgent(message, opts = {}) {
         // the person is looking at it, it IS the current session.
         if (!sid && evt.sessionId) { sid = evt.sessionId; sessionId = sid; liveTurns.set(sid, live); renderSessions(); state.lastSession = sid; save(); }
         live.events.push(evt);
+        // The sidebar's Needs input group watches the wire: a pending
+        // question or permission lifts the session, answering drops it.
+        if (evt.type === "question" || evt.type === "permission_request") {
+          liveInput.add(sid);
+          renderSessions();
+        } else if (evt.type === "done") {
+          liveInput.delete(sid);
+          renderSessions();
+        }
         if (sid === sessionId) handle(evt);          // visible: paint live
         if (evt.type === "done") { finishLive(sid); break; }
       }
@@ -6460,6 +6547,7 @@ function handle(evt) {
     case "thinking_end": if (state.showThinking && state.verbosity !== "minimal") endThinking(evt.ms); break;
     case "todos": renderTodos(evt.todos); break;
     case "question": renderAsk(evt); break;
+    case "session_suggestion": renderSuggest(evt); break;
     case "cwd":
       // use_folder (the agent) bound the session to a new folder: the chip,
       // the file tree and the whole workspace follow immediately.
@@ -6596,19 +6684,64 @@ $("input").addEventListener("keydown", e => {
   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
 });
 $("kbdHint").addEventListener("click", () => { if (isStreaming(sessionId)) abort(); else send(); });
-$("cPlus").addEventListener("click", () => { $("input").value += "@"; $("input").focus(); autoGrow($("input")); });
-$("cShell").addEventListener("click", () => { $("input").value = "! "; $("input").focus(); });
-$("cMore").addEventListener("click", e => {
+/* Attachments: files picked for the next message. In Electron the native
+   explorer returns real paths; in the browser we can only take the name. The
+   paths ride into the message as a trailing [attached: …] line. */
+let attachFiles = [];
+function renderAttach() {
+  const row = $("attachRow");
+  if (!row) return;
+  row.style.display = attachFiles.length ? "flex" : "none";
+  row.innerHTML = attachFiles.map((p, i) => {
+    const name = String(p).split(/[\\/]/).filter(Boolean).pop() || p;
+    return `<span class="attachchip" title="${esc(p)}">${esc(name)}<button type="button" data-attdel="${i}" aria-label="Remove attachment">×</button></span>`;
+  }).join("");
+  row.querySelectorAll("[data-attdel]").forEach((b) => b.addEventListener("click", () => {
+    attachFiles.splice(Number(b.dataset.attdel), 1);
+    renderAttach();
+  }));
+}
+async function attachPick() {
+  if (bridge && bridge.pickFile) {
+    let p = null;
+    try { p = await bridge.pickFile(); } catch { /* picker failed */ }
+    if (p) { attachFiles.push(p); renderAttach(); $("input").focus(); }
+    return;
+  }
+  // Browser fallback: a real file input; the page cannot see the full path.
+  const inp = document.createElement("input");
+  inp.type = "file";
+  inp.accept = "image/*,video/*,.png,.jpg,.jpeg,.gif,.webp,.svg,.mp4,.mov,.webm,.mkv";
+  inp.style.display = "none";
+  document.body.appendChild(inp);
+  inp.addEventListener("change", () => {
+    const f = inp.files && inp.files[0];
+    if (f) { attachFiles.push(f.name); renderAttach(); toast("Attached " + f.name + " (full path needs the desktop app)"); }
+    inp.remove();
+  });
+  inp.click();
+}
+
+$("cPlus").addEventListener("click", e => {
   e.stopPropagation();
-  openMenu($("cMore"), [
-    { label: "Side chat", k: "⌘;", run: () => { $("input").value = "/btw "; $("input").focus(); } },
-    { label: "Attach file", k: "@", run: () => { $("input").value += "@"; $("input").focus(); } },
+  openMenu($("cPlus"), [
+    { label: "Side chat", run: async () => {
+      try {
+        const j = await (await fetch("/api/sessions/new", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ kind: state.mode }),
+        })).json();
+        if (j && j.id) { openSplit(j.id); renderSessions(); }
+      } catch { toast("Could not open the side chat"); }
+    } },
+    { label: "Attach file", run: attachPick },
     { label: "Run shell command", k: "!", run: () => { $("input").value = "! "; $("input").focus(); } },
     { sep: true },
     { label: "Export conversation", run: exportConv },
     { label: "New session", k: "⌘N", run: newSession },
   ]);
 });
+$("cShell").addEventListener("click", () => { $("input").value = "! "; $("input").focus(); });
 $("bigSend").addEventListener("click", () => {
   const v = $("bigInput").value.trim(); if (!v) return;
   $("bigInput").value = ""; sendToAgent(v);

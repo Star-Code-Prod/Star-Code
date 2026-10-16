@@ -333,6 +333,23 @@ function wire() {
     return picked;
   });
 
+  // Attach a file (image or video first, anything else behind "All files"):
+  // returns the absolute path, which rides into the message as [attached: …].
+  ipcMain.handle("desktop:pick-file", async () => {
+    const res = await dialog.showOpenDialog(win, {
+      title: "Attach a file",
+      defaultPath: serverModule ? serverModule.getRoot() : defaultRoot(),
+      properties: ["openFile"],
+      buttonLabel: "Attach",
+      filters: [
+        { name: "Images and videos", extensions: ["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg", "mp4", "mov", "webm", "mkv", "avi"] },
+        { name: "All files", extensions: ["*"] },
+      ],
+    });
+    if (res.canceled || !res.filePaths.length) return null;
+    return res.filePaths[0];
+  });
+
   ipcMain.handle("desktop:set-root", (_e, p) => {
     if (!p || !fs.existsSync(p) || !fs.statSync(p).isDirectory()) {
       return { ok: false, error: "Not a folder: " + p };
