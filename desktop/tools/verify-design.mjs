@@ -48,6 +48,8 @@ for (const token of [
   "#ff5f57", "#febc2e", "#28c840",                              // window lights
   "#8a8a86", "#d4d4d0", "#7a7a76", "#e89494",                   // terminal ink
   "#0d0d0d", "#f5f5f5", "#bdbdbd", "#cfcfcf", "#9a9a9a",        // brand mark
+  "#23262c", "#15161a", "#0c0d10",                              // voxel doc stage
+  "#0d0e11", "#aab0b8", "#ffb4a2",                              // blender view + voxel ink
 ]) allowed.add(canon(token));
 
 const literals = [];

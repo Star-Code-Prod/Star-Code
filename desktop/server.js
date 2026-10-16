@@ -29,7 +29,7 @@ import { scanOpencode, applyImport } from "./lib/opencode-import.js";
 // Local MCP servers (Settings > MCP): one manager per process, speaking stdio
 // JSON-RPC to server commands the user configures. Tools surface as
 // mcp__<server>__<tool> and always ask for permission.
-import { createMcpManager, readMcpConfig } from "./lib/mcp.js";
+import { createMcpManager, readMcpConfig, mcpToolName } from "./lib/mcp.js";
 import { scanSkills, readSkillsConfig, writeSkillsConfig } from "./lib/skills.js";
 import { pluginManager, readPluginsConfig, writePluginsConfig, userPluginsDir } from "./lib/plugins.js";
 // Namespace import: chatSystemPrompt() / cheapModelFor() are being added to
@@ -843,6 +843,43 @@ async function route(req, res) {
     return sendJSON(res, 200, await mcpManager.test(name));
   }
 
+  /* ---------------------- Blender live view (preview) ---------------------- */
+  // One frame for the Preview pane: ask a connected blender-ish MCP server for
+  // a viewport image. Tool names vary by package, so candidates are tried by
+  // shape and the answer says which one produced the frame.
+  if (req.method === "GET" && url.pathname === "/api/blender/frame") {
+    const candidates = ["look", "viewport_screenshot", "get_viewport_screenshot", "screenshot_viewport", "screenshot", "viewport_image", "get_viewport_image", "render_viewport"];
+    const ready = mcpManager.list().filter((s) => s.state === "ready");
+    const pool = ready.filter((s) => /blend/i.test(s.name)).concat(ready.filter((s) => !/blend/i.test(s.name)));
+    if (!pool.length) {
+      return sendJSON(res, 200, { ok: false, hint: "No MCP server is ready. Add the Blender MCP server in Settings > MCP (it talks to Blender on localhost:9876)." });
+    }
+    const tried = [];
+    for (const srv of pool) {
+      const names = (srv.tools || []).map((t) => t.name);
+      for (const want of candidates) {
+        const hit = names.find((n) => n === want) || names.find((n) => n.toLowerCase().includes(want));
+        if (!hit) continue;
+        const full = mcpToolName(srv.name, hit);
+        if (tried.includes(full)) continue;
+        tried.push(full);
+        try {
+          const out = await mcpManager.callRaw(full, {}, { timeoutMs: 20000 });
+          const img = out.images && out.images[0];
+          if (img) return sendJSON(res, 200, { ok: true, dataUrl: img.dataUrl, via: full, text: String(out.text || "").slice(0, 300) });
+          tried.push(full + " (no image)");
+        } catch (e) {
+          tried.push(full + ": " + String((e && e.message) || e).slice(0, 80));
+        }
+      }
+    }
+    return sendJSON(res, 200, {
+      ok: false,
+      hint: "A server is connected but no viewport screenshot came back - is Blender running with the bridge add-on, and does the server offer a screenshot tool?",
+      tried: tried.slice(0, 8),
+    });
+  }
+
   /* -------------------------------- skills -------------------------------- */
   // Settings > Skills: what the skill tool can load, and where it looks.
   if (req.method === "GET" && url.pathname === "/api/skills") {
@@ -1151,6 +1188,7 @@ async function route(req, res) {
         messages: session.messages, runner: chatRunner, emit, requestPermission,
         mode: session.mode, controller, autoAllow: session.autoAllow,
         effort: typeof body.effort === "string" ? body.effort : "",
+        contextLimitTokens: Number.isFinite(Number(body.contextLimit)) && Number(body.contextLimit) > 0 ? Number(body.contextLimit) : 0,
       });
     } catch (e) {
       emit({ type: "error", message: e.message });

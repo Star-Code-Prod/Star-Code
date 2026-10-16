@@ -19,7 +19,7 @@ const { PROVIDERS, normalizeModels, filterChatModels, isReasoning, discoverModel
   await import(pathToFileURL(path.resolve("lib/providers.js")).href);
 const { decisionFor, systemPrompt, resetSystemPromptCache, chatSystemPrompt, pruneOldToolResults, manageHistory,
   estimateTokens, hasIdenticalToolResult, identicalReuseStub, TOOL_RESULT_PREFIX,
-  parseAssistantContent, parseDsmlCalls, runAgentTurn } =
+  parseAssistantContent, parseDsmlCalls, runAgentTurn, contextLimit } =
   await import(pathToFileURL(path.resolve("lib/agent.js")).href);
 
 const results = [];
@@ -277,6 +277,24 @@ const keptBodies = hist.filter((m) => typeof m.content === "string" && m.content
 ok("recent tool results kept verbatim", keptBodies === 4, String(keptBodies));
 ok("old turns are summarised", hist.some((m) => m.role === "assistant" && String(m.content).startsWith("[older turn]")));
 ok("manageHistory lowers the token estimate", estimateTokens(hist) < preTokens);
+
+// A summary keeps the useful part: the point of the turn and the files it
+// created or edited, not just the first line of prose.
+{
+  const sh = [{ role: "system", content: "S" }, { role: "user", content: "TASK" }];
+  const wrote = '```tool\n{"name":"edit_file","args":{"path":"src/auth/login.js"}}\n```\n\n# Heading\n\nAdded the login flow with session cookies and a redirect back to the original page after the sign-in round trip. The session cookie is HttpOnly and SameSite=Lax, and the middleware now refreshes it on every request.';
+  sh.push({ role: "assistant", content: wrote });
+  sh.push(toolMsg(7000));
+  for (let i = 0; i < 10; i++) {
+    sh.push({ role: "assistant", content: "later step " + i });
+    sh.push(toolMsg(7000));
+  }
+  manageHistory(sh, 1_000_000);
+  const sum = sh.map((m) => String(m.content)).find((c) => c.startsWith("[older turn]")) || "";
+  ok("a summary keeps the point and the edited file",
+    sum.includes("Added the login flow") && sum.includes("[files: login.js]") && sum.includes("[called: edit_file]"),
+    sum.slice(0, 120));
+}
 const snapHist = JSON.stringify(hist);
 const freedAgain = manageHistory(hist, 1_000_000);
 ok("manageHistory is idempotent", freedAgain === 0 && JSON.stringify(hist) === snapHist, String(freedAgain));
@@ -704,6 +722,29 @@ ok("multi_edit is dangerous", mr.isDangerous("multi_edit") === true);
   ok("the prompt teaches use_folder",
     systemPrompt(process.cwd(), "manual").includes("use_folder sets this session's working folder") &&
     !chatSystemPrompt().includes("use_folder"));
+}
+
+/* ------------- context limits, voxel doctrine, blender doctrine ------------ */
+{
+  ok("an explicit override wins the context limit",
+    contextLimit("some-local-model", "custom", 1000000) === 1000000 &&
+    contextLimit("some-local-model", "custom", 0) === 128000);
+  ok("deepseek-v4 family gets its real 1M window",
+    contextLimit("deepseek-v4-flash", "custom") === 1000000 &&
+    contextLimit("deepseek-v4-pro-0731", "custom") === 1000000);
+  ok("known catalog models keep their numbers",
+    contextLimit("deepseek-chat", "deepseek") === 128000 &&
+    contextLimit("gpt-4.1", "openai") === 1000000);
+
+  const spd = systemPrompt(process.cwd(), "manual");
+  ok("the doctrine teaches the voxel format",
+    spd.includes("artifact voxel") && spd.includes("VOXEL.scene") &&
+    spd.includes("VoxelBench") && spd.includes("v.box(0, 0, 0, 10, 1, 10"));
+  ok("the doctrine teaches turn recaps",
+    spd.includes("How to close a turn") && chatSystemPrompt().includes("close with a compact recap"));
+  ok("the blender doctrine rides in only with blender tools",
+    !spd.includes("Blender is connected") &&
+    systemPrompt(process.cwd(), "manual", [{ name: "mcp__blender__look", description: "screenshot" }]).includes("Blender is connected"));
 }
 
 // fetch_url against a local server (no external network)

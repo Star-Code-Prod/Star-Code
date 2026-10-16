@@ -483,7 +483,10 @@ try {
     JSON.stringify(b2.messages || []).includes("not available to this agent") &&
     /Allowed tools: read_file, write_file/.test(JSON.stringify(b2.messages || [])));
 
-  const ev2 = await personaTurn({ sessionId: codeNew.id, kind: "code", message: "again" });
+  const ev2 = await personaTurn({ sessionId: codeNew.id, kind: "code", message: "again", contextLimit: 777000 });
+  ok("a per-provider context limit rides into the usage event",
+    (ev2.find((e) => e.type === "usage") || {}).contextLimit === 777000,
+    JSON.stringify((ev2.find((e) => e.type === "usage") || {}).contextLimit));
   const b3 = turnBodies[3] || {};
   ok("the persona never persists into the session",
     !String(b3.messages?.[0]?.content || "").includes("reviewer persona"));
@@ -604,8 +607,7 @@ try {
     ok("a broken plugin reports its error instead of taking the boot down",
       bad.ok === false && /unknown event/.test(String(bad.error)), String(bad.error));
 
-    const evPlug = await personaTurn({ sessionId: codeNew.id, kind: "code", message: "plug echo" });
-    const plugResult = evPlug.find((e) => e.type === "tool_result" && e.name === "plug_echo") || {};
+    const evPlug = await personaTurn({ sessionId: codeNew.id, kind: "code", message: "plug echo" });    const plugResult = evPlug.find((e) => e.type === "tool_result" && e.name === "plug_echo") || {};
     ok("a declared-safe plugin tool runs end to end without an ask",
       String(plugResult.preview || "").includes("echo:plugged") && said(evPlug, "plug-ok") &&
       !evPlug.some((e) => e.type === "permission_request"),
@@ -664,6 +666,17 @@ try {
     said(evBypass, "mcp-bypass-ok"),
     evBypass.map((e) => e.type + (e.name ? "(" + e.name + ")" : "") + (e.type === "tool_result" ? ":" + String(e.preview || "").slice(0, 40) : "")).join(" | ") +
     " || last=" + String([...(turnBodies[turnBodies.length - 1]?.messages || [])].reverse().find((m) => m.role === "user")?.content || "").slice(0, 90));
+
+  // Blender live view: the frame endpoint finds the screenshot-capable tool
+  // on a ready server and hands the image back as a data URL.
+  {
+    const frame = await (await fetch(s.url + "/api/blender/frame")).json();
+    ok("the blender frame endpoint returns the stub's image",
+      frame.ok === true && String(frame.dataUrl || "").startsWith("data:image/png;base64,") &&
+      frame.via === "mcp__verify_stub__screenshot" &&
+      /viewport 320x240/.test(String(frame.text || "")),
+      JSON.stringify({ ok: frame.ok, via: frame.via, tried: frame.tried, hint: String(frame.hint || "").slice(0, 80) }));
+  }
 
   const evAsk = await turnWithPermission({ sessionId: codeNew.id, kind: "code", message: "echo ask" }, { allowed: true, scope: "once" });
   const permEv = evAsk.find((e) => e.type === "permission_request") || {};

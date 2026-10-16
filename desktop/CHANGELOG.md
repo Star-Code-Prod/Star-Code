@@ -1,5 +1,12 @@
 # What's new in Star
 
+## 1.17.0 — 2026-10-16
+- Voxel builds are an artifact format now - the VoxelBench idea, in Star. Ask for a 3D model ("make me a small cabin") and one deterministic script builds it; the Preview renders it in isometric 3D, drag to rotate, wheel to zoom, soft shadow under it. Updates keep the build's name, so a revision lands as v2 of the same model.
+- Blender lives in the Preview pane. With a Blender MCP server connected, the new viewport button streams screenshots from it (the caption names the tool); the agent also gets a Blender doctrine - silhouette first, then structure, then materials, checking scene facts as it goes - so models actually get good while you watch live.
+- Thinking and summaries got smarter: a folded thinking card keeps its duration plus a one-line gist of what the model was working through; old-turn compaction summaries now keep the point of the turn and the files it touched; and both prompts close real work with a compact recap instead of drifting off.
+- The context meter shows the real window: deepseek-v4 models count as their 1M, and Settings > Providers > Advanced gained a Context limit override for anything custom. Clicking the usage ring opens a new Usage pane in the rail - window used/limit, the model, per-session call and tool stats, compaction savings.
+- The titlebar is a clean strip again: the sidebar and panes buttons moved under it with breathing room, the search button is gone (Cmd+K still focuses the sidebar search), and fullscreen preview now sits below the titlebar so its header buttons can never land under the window controls.
+
 ## 1.16.0 — 2026-10-16
 - The leaked DeepSeek tool markup is fixed properly this time. When a local proxy rewrites the <|DSML|> markers with spaces (<| |DSML| |tool_calls>), Star now reads them anyway: the call actually runs (no more silent "command must be a string" failures) and the raw markup never appears in the chat, streaming or settled.
 - If the model wraps its whole call in one "args" JSON parameter, Star unwraps it, so the tool receives real arguments instead of a nested blob it ignores.

@@ -16,7 +16,11 @@ const send = (obj) => {
 const TOOLS = [
   { name: "echo", description: "Echo text back", inputSchema: { type: "object", properties: { text: { type: "string" }, mode: { type: "string", enum: ["plain", "loud"] } }, required: ["text"] } },
   { name: "slow", description: "A tool that may never answer", inputSchema: { type: "object", properties: {} } },
+  { name: "screenshot", description: "Return a tiny image (like a viewport grab)", inputSchema: { type: "object", properties: {} } },
 ];
+
+// A 2x2 red PNG - the shape real screenshot tools return (type: "image").
+const TINY_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAEklEQVR4nGP8z8Dwn4EIwDiqEAAyCwMBAAAAAElFTkSuQmCC";
 
 const rl = readline.createInterface({ input: process.stdin });
 rl.on("line", (line) => {
@@ -37,6 +41,10 @@ rl.on("line", (line) => {
     const name = msg.params && msg.params.name;
     if (name === silent) return; // never answers
     const args = (msg.params && msg.params.arguments) || {};
+    if (name === "screenshot") {
+      send({ jsonrpc: "2.0", id: msg.id, result: { content: [{ type: "text", text: "viewport 320x240" }, { type: "image", data: TINY_PNG, mimeType: "image/png" }], isError: false } });
+      return;
+    }
     const text = name === "echo" ? "echo:" + String(args.text ?? "") : name + ":done";
     send({ jsonrpc: "2.0", id: msg.id, result: { content: [{ type: "text", text }], isError: false } });
     return;

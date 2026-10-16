@@ -72,13 +72,25 @@ export function pruneOldToolResults(messages) {
 function summariseOldMessage(m) {
   if (m.role === "assistant") {
     const { text, calls } = parseAssistantContent(String(m.content || ""));
-    const head = (text.split("\n").find((l) => l.trim()) || "").trim();
-    const names = calls.map((c) => c.name).slice(0, 8);
-    const suffix = names.length ? " [called: " + names.join(", ") + (calls.length > 8 ? ", …" : "") + "]" : "";
-    // 13 = "[older turn] ". Capping by construction keeps every summary under
-    // SUMMARY_CHARS, which is what makes a second call a no-op (idempotent).
-    const room = Math.max(40, SUMMARY_CHARS - 13 - suffix.length);
-    return "[older turn] " + (head.slice(0, room) || "(assistant replied)") + suffix;
+    // A content line beats a heading: the first non-heading line is almost
+    // always the turn's point ("Added the auth flow ...").
+    const lines = text.split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l && !/^#{1,6}\s/.test(l) && !/^[-*]\s*$/.test(l));
+    const head = (lines[0] || "").replace(/\*\*|__/g, "");
+    // What the turn touched is the part worth keeping: created/edited files
+    // by name, then the tool names it ran.
+    const files = [...new Set(calls
+      .filter((c) => (c.name === "write_file" || c.name === "edit_file" || c.name === "multi_edit") && c.args && c.args.path)
+      .map((c) => String(c.args.path).split(/[\\/]/).filter(Boolean).pop()))].slice(0, 4);
+    const names = [...new Set(calls.map((c) => c.name))];
+    const fileNote = files.length ? " [files: " + files.join(", ") + "]" : "";
+    const suffix = names.length ? " [called: " + names.slice(0, 8).join(", ") + "]" : "";
+    const tail = fileNote + suffix;
+    // room = 13 ("[older turn] ") + body + tail under SUMMARY_CHARS, so a
+    // second summarise pass is a no-op (idempotent).
+    const room = Math.max(40, SUMMARY_CHARS - 13 - tail.length);
+    return "[older turn] " + ((head || "(assistant replied)").slice(0, room)) + tail;
   }
   const head = String(m.content || "").split("\n").find((l) => l.trim())?.trim() || "";
   return "[older message] " + head.slice(0, SUMMARY_CHARS - 15); // 15 = "[older message] "
@@ -169,6 +181,8 @@ const AUTO_EDIT_TOOLS = new Set(["write_file", "edit_file"]);
 const CONTEXT_LIMITS = {
   "deepseek-chat": 128000,
   "deepseek-reasoner": 128000,
+  "deepseek-v4-flash": 1000000,
+  "deepseek-v4-pro": 1000000,
   "gpt-4o": 128000,
   "gpt-4o-mini": 128000,
   "gpt-4.1": 1000000,
@@ -184,9 +198,15 @@ export function estimateTokens(messages) {
   return Math.round(chars / 3.6);
 }
 
-export function contextLimit(model, provider) {
-  // Prefer what discovery actually reported for this model, then the static
-  // table, then the kind's default.
+export function contextLimit(model, provider, override = 0) {
+  // An explicit per-provider override wins (Settings -> Providers): local
+  // proxies serve windows the catalogs cannot know. Then what discovery
+  // reported, the static table (with a v4-family rule - those ship 1M and
+  // local proxies rewrite the ids), then the kind's default.
+  const o = Number(override);
+  if (Number.isFinite(o) && o > 0) return Math.round(o);
+  const id = String(model || "").toLowerCase();
+  if (/deepseek-v4/.test(id)) return 1000000;
   return getDiscoveredLimit(provider, model)
     || CONTEXT_LIMITS[model]
     || (PROVIDERS[provider]?.kind === "anthropic" ? 200000 : 128000);
@@ -242,6 +262,7 @@ Formats (pick one; never several for the same thing). Emit exactly one fence of 
 - slides - a deck presented in the pane: one slide per part separated by a line of ---, each slide ordinary HTML (h1, p, ul, table). Arrow keys / space move, F is fullscreen.
 - design - artboards on a pan/zoom canvas: one frame per part separated by a line of ---, each frame ordinary HTML. The user drags to pan and wheel-zooms.
 - motion - a canvas animation the user records to video (contract below).
+- voxel - a 3D voxel build (the VoxelBench-style prompt-to-voxel): one deterministic script, rendered in the pane, drag to rotate (contract below).
 
 For doc, slides and design the host supplies the styling; use plain headings, paragraphs, lists and tables inside - no page boilerplate, no styles of your own.
 
@@ -262,6 +283,7 @@ Playbooks - the parts worth copying, per format:
 - md and doc: open with a one-line TL;DR; short sections with meaningful headings; a table wherever things compare; blockquotes for rules and caveats. A doc must also print cleanly - no dark-only colors, no page chrome.
 - slides: one idea per slide, 3-5 lines of text at most, large readable type, the title in the same place every time. Hook first, takeaways last. 8-14 slides for a talk, fewer for a pitch.
 - design: 2-6 artboards (desktop and mobile for product work), one shared spacing/type system across frames, real component states inside the frames (default/hover/empty), tiny captions annotating intent.
+- voxel: the contract below.
 - motion: the contract below.
 
 Page contract (hand-built pages):
@@ -286,6 +308,23 @@ To show a rendered page, emit one artifact block (html, svg or md):
 …content…
 \`\`\`
 If the content itself contains a \`\`\` fence, open the artifact with four backticks instead.
+
+To build a 3D voxel model, emit an artifact block with the voxel language:
+\`\`\`artifact voxel
+// Title: Small Cabin
+VOXEL.scene({ title: "Small Cabin" }, (v) => {
+  v.box(0, 0, 0, 10, 1, 10, "#6f9e4a");   // x, y, z, width, height, depth, color
+  v.box(1, 1, 1, 8, 4, 8, "#c9a06a");     // walls
+  v.set(4, 5, 1, "#3b6ea5");              // a single voxel
+});
+\`\`\`
+Voxel rules:
+- Deterministic and self-contained: no network, no libraries, no Date.now() or Math.random().
+- Coordinates: x right, y up, z toward the viewer; v.set(x,y,z,color) places one voxel; v.box(x,y,z,w,h,d,color) fills a box from corner (x,y,z) with size w,h,d. Colors are "#rrggbb" strings; coordinates past 127 are dropped.
+- Build like a sculptor, not a printer: silhouette first (ground plane, main mass), then structure (roof, door, windows, trim), then one accent. Use 3-4 shades per material - the renderer already lights the top and side faces, so pick mid-tone base colors. Nothing floats unless it should.
+- Scale for a footprint of roughly 16-48 voxels and stay under ~20,000 voxels total (the renderer caps the rest; the camera auto-fits what you build).
+- Name every build (a leading \`// Title: Name\` comment or the title: option) and KEEP that name through revisions: the name is what makes an update land as a new version of the same build - one card - instead of a second artifact.
+- The user can drag to rotate and wheel to zoom; the build must read well from the default camera.
 
 To produce an animation or video, emit an artifact block with the motion language:
 \`\`\`artifact motion
@@ -332,6 +371,7 @@ Rules:
 - Be helpful, direct and concise. Use markdown; keep answers short unless depth was asked for.
 - Use websearch/fetch_url for anything time-sensitive; never invent facts, quotes or links.
 - Say plainly when you are unsure or cannot verify something - but don't stop there when a mission could: dispatch task missions and let verified findings answer.
+- After a multi-step answer, close with a compact recap: what you found or did, and what is still open - a few short lines, no filler.
 - This is Chat, not a coding session: for real file work (building a mod, editing a project) research and answer here, then tell the user to open a code session on that project folder - writes happen there.
 - If the content itself contains a \`\`\` fence, open your block with four backticks instead.
 ${skBlock}
@@ -362,12 +402,19 @@ function buildSystemPrompt(root, mode, extraTools = [], skillCatalog = "") {
       extra.map((t) => "- " + t.name + (t.params ? "(" + t.params + ")" : "") +
         (t.description ? " - " + String(t.description).replace(/\s+/g, " ").slice(0, 140) : "")).join("\n") + "\n"
     : "";
+  // Blender craft: when a blender-ish server is connected the agent is the
+  // hands and the Preview pane is the user's eyes - iterate on the visual.
+  const blenderLine = extra.some((t) => /blender/i.test(t.name || ""))
+    ? "\nBlender is connected: script it through its tools and build models like a craftsman. Look at the viewport (the screenshot tool) after each meaningful step so the user sees progress live in the Preview pane - you cannot read the image back, so verify geometry by inspecting the scene (get scene info, bounding boxes, vertex counts) and state what you checked. Work silhouette first, then structure, then materials and lighting; fix what the scene facts say is wrong, then move on. Name and keep objects (LowerBody, Roof_Plane), keep the scene clean, and only call a model done when the numbers and the render story agree.\n"
+    : "";
 
   return `You are a coding agent working in: ${root}
 ${memBlock}${knBlock}${skBlock}${planNote}
 Tools: read_file, list_dir, search_files, glob_files, write_file, edit_file, multi_edit, run_command, download, search_knowledge, task, fetch_url, websearch, self_knowledge, ask_user, skill, use_folder.
 task spawns a read-only explorer subagent with fresh context for research: one call per mission, and independent calls in one step (missions, reads, searches) run in parallel. Send missions to verify facts that live outside this conversation - reference corpora, other projects, big codebases - with exact paths and precise questions, and demand evidence back (file, line, signature). Never state a checkable fact you could have sent a mission to verify, and never hand over a scaffold stamped "unverified" when a mission could have read the source first. fetch_url and websearch ask for permission and plan mode blocks them; download fetches a file with source, hash, signature and virus checks (see the doctrine below); self_knowledge answers questions about Star Code itself; ask_user shows the user 1-4 questions with 2-4 clickable options each (put the recommended option first, labelled "(Recommended)") - prefer a click over a prose question whenever a decision is needed; skill loads an available skill pack - when a skill's description matches the task, load it and follow its procedure exactly; use_folder sets this session's working folder when the user names one in chat - adopt it the moment they say it (never tell them to pick a project; they type the folder, you bind it).
-${extraBlock}
+
+How to close a turn: end a substantive turn with a compact recap of what changed (files, commands, outcomes), what you verified, and what is still open - 2-5 short lines or a tight list, no filler and no restating the request. Small answers stay small; a recap is for work, not for chatter.
+${extraBlock}${blenderLine}
 
 Rules:
 - Read a file before editing it; never guess file contents.
@@ -633,7 +680,7 @@ export function permissionAskFor(name, args, dangerous) {
 export async function runAgentTurn({
   provider, model, apiKey, baseUrl, messages, runner, emit,
   requestPermission, mode = "manual", controller = { abort: false }, autoAllow = new Set(),
-  effort = "",
+  effort = "", contextLimitTokens = 0,
 }) {
   let interrupted = false;
 
@@ -711,7 +758,7 @@ export async function runAgentTurn({
 
     if (interrupted || controller.abort) {
       if (full) messages.push({ role: "assistant", content: full });
-      emit({ type: "usage", ...usageFor(messages, provider, model) });
+      emit({ type: "usage", ...usageFor(messages, provider, model, contextLimitTokens) });
       emit({ type: "done", text: "" });
       return;
     }
@@ -720,7 +767,7 @@ export async function runAgentTurn({
     messages.push({ role: "assistant", content: full });
 
     if (todos) emit({ type: "todos", todos });
-    emit({ type: "usage", ...usageFor(messages, provider, model) });
+    emit({ type: "usage", ...usageFor(messages, provider, model, contextLimitTokens) });
 
     if (!calls.length) {
       emit({ type: "done", text });
@@ -790,13 +837,13 @@ export async function runAgentTurn({
       settleToolResult(call, result, allowed);
     }
   }
-  emit({ type: "usage", ...usageFor(messages, provider, model) });
+  emit({ type: "usage", ...usageFor(messages, provider, model, contextLimitTokens) });
   emit({ type: "done", text: interrupted || controller.abort ? "(Stopped)" : "(Reached the step limit for this turn.)" });
 }
 
-function usageFor(messages, provider, model) {
+function usageFor(messages, provider, model, limitOverride = 0) {
   const used = estimateTokens(messages);
-  const limit = contextLimit(model, provider);
+  const limit = contextLimit(model, provider, limitOverride);
   return { contextTokens: used, contextLimit: limit, contextPct: Math.min(100, Math.round((used / limit) * 100)) };
 }
 

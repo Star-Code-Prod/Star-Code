@@ -249,10 +249,10 @@ ok("the About panel links the full log", html.includes('id="aboutNew"'));
 
 /* ------------------- rail controls: X, reorder, sizes ------------------- */
 ok("every pane header carries its own close X",
-  (html.match(/data-panex="/g) || []).length === 5 && js.includes("closePaneTab(b.dataset.panex)"));
+  (html.match(/data-panex="/g) || []).length === 6 && js.includes("closePaneTab(b.dataset.panex)"));
 ok("a closed pane hands focus back", js.includes("setTimeout(refocusComposerIfIdle, 0)"));
 ok("every pane card has a bottom resize grip",
-  (html.match(/data-panegrip="/g) || []).length === 5 && js.includes("setPaneHeight(") && /\.pane-grip-b\{/.test(html.replace(/\s+/g, "")));
+  (html.match(/data-panegrip="/g) || []).length === 6 && js.includes("setPaneHeight(") && /\.pane-grip-b\{/.test(html.replace(/\s+/g, "")));
 ok("pane cards reorder by dragging their header",
   js.includes("function applyPaneOrder(") && js.includes('state.paneOrder = [...body.querySelectorAll(".pane-row")]') &&
   js.includes('drag.row.classList.add("dragging")'));
@@ -422,6 +422,33 @@ ok("plugins have a settings section with a reload",
 ok("spaced DSML strips from the visible transcript",
   fns.stripBlocks('<| |DSML| |tool_calls>\n<| |DSML| |invoke name="x">\n</| |DSML| |invoke>\n</| |DSML| |calls>') === "" &&
   !fns.stripBlocks("Done.\n<| |DSML| |tool_c").includes("DSML"));
+
+/* ------------- voxel artifact, blender view, usage, titlebar -------------- */
+ok("the voxel artifact format is wired end to end",
+  js.includes("function voxelDoc(") && js.includes("VOXEL.scene") && js.includes("voxel-ready") &&
+  js.includes('a.lang === "voxel" ? voxelDoc(a.code)') &&
+  js.includes('"design", "voxel"') && js.includes('voxel: "Voxel"'));
+ok("the blender live view polls the frame endpoint",
+  html.includes('data-blender="1"') && html.includes('id="blenderImg"') &&
+  js.includes("function blenderOn(") &&
+  js.includes('fetch("/api/blender/frame")') &&
+  js.includes("blenderTimer = setInterval(blenderFrame, 1800)"));
+ok("the usage pane exists and the ring opens it",
+  html.includes('data-pane="usage"') && js.includes('{ id: "usage", label: "Usage" }') &&
+  js.includes("function renderUsage(") && js.includes('$("cRing").addEventListener("click"'));
+ok("a context limit override rides with every request",
+  js.includes("contextLimit: Number(p.contextLimit) > 0 ? Number(p.contextLimit) : undefined") &&
+  js.includes('id="fCtx"') && js.includes('on("fSaveCtx"'));
+ok("the titlebar is a clean strip and the buttons live under it",
+  !html.includes('id="btnSearch"') && js.includes("function focusSessionSearch(") &&
+  html.includes('class="appbar"') &&
+  html.indexOf('class="appbar"') > html.indexOf('class="titlebar"') &&
+  html.indexOf('id="btnSidebar"') > html.indexOf('class="appbar"') &&
+  /\.appbar\{[^}]*margin-bottom:6px/.test(html.replace(/\s+/g, "")));
+ok("fullscreen sits below the titlebar strip",
+  /body\.preview-full \.pane-row\[data-pane="preview"\]\{[^}]*inset:46px 0 0 0/.test(html.replace(/\s+/g, " ")));
+ok("the folded thinking pill carries a gist",
+  js.includes("function thinkingGist(") && js.includes('(gist ? " · " + gist : "")'));
 ok("the rail can take 60% of the window",
   js.includes("innerWidth * 0.6") && js.includes("function paneWMax(") &&
   /\.panes\{[^}]*width:var\(--pane-w/.test(html.replace(/\s+/g, "")));

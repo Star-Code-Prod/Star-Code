@@ -133,6 +133,13 @@ body.is-mac.is-electron .brand{margin-left:2px}
 }
 .tb-text:hover{background:var(--panel);color:var(--text)}
 .tb-text.on{background:var(--panel);color:var(--text)}
+/* The app row under the titlebar: its buttons, and the gap that separates
+   the titlebar strip from everything below it. */
+.appbar{
+  height:40px;flex:none;display:flex;align-items:center;gap:6px;
+  padding:7px 12px 0;margin-bottom:6px;
+}
+html[data-embed] .appbar{display:none}
 .tb-sep{width:1px;height:18px;background:var(--border);flex:none;margin:0 var(--sp-1)}
 
 /* ============================ SHELL ============================ */
@@ -653,6 +660,25 @@ body.is-mac.is-electron .brand{margin-left:2px}
 .ask-note{font-size:var(--fs-11);color:var(--dim)}
 .ask-f .spacer{flex:1}
 
+/* ================= USAGE PANE ================= */
+#cRing{cursor:pointer}
+#cRing:hover .tip{color:var(--text)}
+.usage{padding:12px 13px;display:flex;flex-direction:column;gap:10px;overflow:auto}
+.ucard{
+  border:1px solid var(--border);border-radius:var(--r-md);background:var(--panel2);
+  padding:11px 13px;display:flex;flex-direction:column;gap:7px;
+}
+.ut{font-size:var(--fs-12);font-weight:500;color:var(--text)}
+.ud{font-size:var(--fs-12);color:var(--text2);line-height:1.5}
+.ud b{color:var(--text)}
+.ubar{
+  height:6px;border-radius:var(--r-full);background:var(--chip);overflow:hidden;
+}
+.ubar span{
+  display:block;height:100%;background:var(--accent);
+  border-radius:var(--r-full);transition:width var(--t-mid) var(--ease);
+}
+
 /* ================= TASK LIST ================= */
 .tasklist{margin:13px auto;border:1px solid var(--border);border-radius:var(--r-md);background:var(--panel);overflow:hidden}
 .tasklist .th{
@@ -889,11 +915,12 @@ body.is-mac.is-electron .brand{margin-left:2px}
   overflow:hidden;background:var(--panel);box-shadow:var(--shadow-sm);position:relative;
 }
 .panes.hide{display:none}
-/* Preview fullscreen: the preview row covers the window (below dialogs and
-   menus, above everything else). Esc or the header button exits; closing the
-   pane exits too. */
+/* Preview fullscreen: the preview row covers the window BELOW the titlebar
+   strip (46px = the Electron titleBarOverlay height) - its header buttons
+   must never land under the OS window controls. Esc or the header button
+   exits; closing the pane exits too. */
 body.preview-full .pane-row[data-pane="preview"]{
-  position:fixed;inset:0;z-index:60;margin:0;border:none;border-radius:0;background:var(--bg);
+  position:fixed;inset:46px 0 0 0;z-index:60;margin:0;border:none;border-radius:0;background:var(--bg);
 }
 body.preview-full .pane-row[data-pane="preview"] .pane-grip-b{display:none}
 body.preview-full .pane-row[data-pane="preview"] .pane-sub{padding:9px 14px}
@@ -1022,7 +1049,16 @@ html[data-embed] .sidebar,
 html[data-embed] .panes,
 html[data-embed] .sb-scrim,
 html[data-embed] #splitBox{display:none !important}
-.pane-b{overflow:auto;font-size:var(--fs-125);flex:1;min-height:0}
+.pane-b{overflow:auto;font-size:var(--fs-125);flex:1;min-height:0;position:relative}
+/* Blender live view: the pane becomes a viewport mirror - frames poll in
+   from a connected blender MCP server, the caption names the tool. */
+#blenderView{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--bg);z-index:3}
+#blenderView img{flex:1;min-height:0;width:100%;object-fit:contain;background:#0d0e11}
+#blenderView .bv-cap{flex:none;padding:6px 12px;font-size:var(--fs-11);color:var(--dim);border-top:1px solid var(--border);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#blenderView.hint img{display:none}
+#blenderView.hint{justify-content:center}
+#blenderView.hint .bv-cap{border-top:none;text-align:center;padding:0 22px;white-space:normal;line-height:1.6}
+[data-blender].on{color:var(--accent);background:var(--panel)}
 .pane-b.pad{padding:var(--sp-4)}
 .pempty{padding:34px 18px;text-align:center;color:var(--dim);font-size:var(--fs-125);line-height:1.7}
 .term{
@@ -1315,11 +1351,14 @@ body.mode-chat #bigProj{display:none}
     </svg>
     <span class="nm" id="brandVer">Star</span>
   </span>
+  <span class="spacer"></span>
+</div>
+
+<!-- App controls live UNDER the titlebar - the titlebar itself stays a clean
+     drag strip (brand left, OS window controls right). -->
+<div class="appbar">
   <button class="tb-btn" id="btnSidebar" title="Toggle sidebar" aria-label="Toggle sidebar">
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M5.6 2.5v11"/></svg>
-  </button>
-  <button class="tb-btn" id="btnSearch" title="Search sessions" aria-label="Search sessions">
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
   </button>
   <span class="spacer"></span>
   <button class="tb-text" id="btnPanes" title="Toggle panes">
@@ -1575,8 +1614,8 @@ body.mode-chat #bigProj{display:none}
     <div class="pane-body" id="paneBody">
 
       <section class="pane-row" data-pane="preview">
-        <div class="pane-sub"><span id="previewTitle">Preview</span><span class="spacer"></span><button class="pane-x" data-panefull="preview" title="Fullscreen (Esc to exit)" aria-label="Fullscreen preview"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.2 2.5H2.5v3.7M9.8 2.5h3.7v3.7M6.2 13.5H2.5V9.8M9.8 13.5h3.7V9.8"/></svg></button><button class="pane-x" data-panex="preview" title="Close Preview" aria-label="Close Preview"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
-        <div class="pane-b"><div class="pempty" id="previewEmpty">Not running<br><span style="font-size:11.5px">Start a dev server, open an artifact, or click a file — previews appear here.</span></div><div id="filePreview" style="display:none"></div></div>
+        <div class="pane-sub"><span id="previewTitle">Preview</span><span class="spacer"></span><button class="pane-x" data-blender="1" title="Blender live view (needs a blender MCP server)" aria-label="Toggle Blender live view"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.6" y="3.2" width="12.8" height="9.6" rx="2"/><circle cx="8" cy="8" r="2.6"/></svg></button><button class="pane-x" data-panefull="preview" title="Fullscreen (Esc to exit)" aria-label="Fullscreen preview"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.2 2.5H2.5v3.7M9.8 2.5h3.7v3.7M6.2 13.5H2.5V9.8M9.8 13.5h3.7V9.8"/></svg></button><button class="pane-x" data-panex="preview" title="Close Preview" aria-label="Close Preview"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
+        <div class="pane-b"><div class="pempty" id="previewEmpty">Not running<br><span style="font-size:11.5px">Start a dev server, open an artifact, or click a file — previews appear here.</span></div><div id="filePreview" style="display:none"></div><div id="blenderView" style="display:none"><img id="blenderImg" alt="Blender viewport"><div class="bv-cap" id="blenderCap"></div></div></div>
         <div class="pane-grip-b" data-panegrip="preview" title="Drag to resize · double-click to reset" aria-hidden="true"></div>
       </section>
 
@@ -1607,6 +1646,12 @@ body.mode-chat #bigProj{display:none}
         <div class="pane-sub">Changes<span class="spacer"></span><button class="btn sm" data-act="review" style="font-size:11.5px;padding:3px 9px">Review code</button><button class="pane-x" data-panex="diff" title="Close Changes" aria-label="Close Changes"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
         <div class="pane-b"><div class="pempty" id="diffEmpty">No changes to show</div><div id="diffList"></div></div>
         <div class="pane-grip-b" data-panegrip="diff" title="Drag to resize · double-click to reset" aria-hidden="true"></div>
+      </section>
+
+      <section class="pane-row" data-pane="usage">
+        <div class="pane-sub"><span>Usage</span><span class="spacer"></span><button class="pane-x" data-panex="usage" title="Close Usage" aria-label="Close Usage"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
+        <div class="pane-b"><div class="usage" id="usageBody"></div></div>
+        <div class="pane-grip-b" data-panegrip="usage" title="Drag to resize · double-click to reset" aria-hidden="true"></div>
       </section>
 
     </div>
@@ -2455,6 +2500,7 @@ const PANE_DEFS = [
   { id: "plan", label: "Plan" },
   { id: "terminal", label: "Terminal" },
   { id: "diff", label: "Changes" },
+  { id: "usage", label: "Usage" },
 ];
 const paneOpen = new Set(["preview", "tasks", "plan", "terminal", "diff"]);
 const paneBadges = { tasks: 0, diff: 0, terminal: 0 };
@@ -2530,7 +2576,7 @@ function syncMotionVisibility() {
 }
 
 function closePaneTab(id) {
-  if (id === "preview") previewFull(false);
+  if (id === "preview") { previewFull(false); blenderOn(false); }
   paneOpen.delete(id);
   if (activePane === id) activePane = [...paneOpen][0] || null;
   applyActivePane();
@@ -2696,7 +2742,7 @@ $("sProj").addEventListener("click", () => {
 });
 
 /* ---- files / activity panel ---- */
-const ACT_ART_LANGS = { html: "HTML", doc: "Doc", slides: "Slides", design: "Design", svg: "SVG", md: "MD", motion: "Motion" };
+const ACT_ART_LANGS = { html: "HTML", doc: "Doc", slides: "Slides", design: "Design", svg: "SVG", md: "MD", motion: "Motion", voxel: "Voxel" };
 function renderActPanel() {
   const done = todos.filter((t) => t.status === "completed").length;
   const todoHtml = todos.length
@@ -2936,6 +2982,60 @@ function endFloatDrag(el, fl) {
 document.querySelectorAll("[data-panefull]").forEach(b => b.addEventListener("click", () => {
   previewFull(!document.body.classList.contains("preview-full"));
 }));
+
+/* ---- Blender live view (Preview pane) ----
+   Frames poll in from a connected blender MCP server through
+   /api/blender/frame; polling stops while the pane is closed or the tab is
+   hidden. Turning it off hands the pane back to whatever preview it had. */
+let blenderTimer = 0;
+let blenderActive = false;
+
+async function blenderFrame() {
+  if (!blenderActive) return;
+  let j = null;
+  try { j = await (await fetch("/api/blender/frame")).json(); } catch { return; }
+  if (!blenderActive) return;
+  const host = $("blenderView");
+  const img = $("blenderImg");
+  const cap = $("blenderCap");
+  if (!host || !img || !cap) return;
+  if (j && j.ok) {
+    host.classList.remove("hint");
+    if (img.getAttribute("src") !== j.dataUrl) img.src = j.dataUrl;
+    const via = String(j.via || "").replace(/^mcp__/, "").replace(/__/g, " · ");
+    cap.textContent = "Blender viewport · " + via + " · " + new Date().toLocaleTimeString();
+  } else {
+    host.classList.add("hint");
+    cap.textContent = (j && j.hint) || "No viewport frame came back.";
+  }
+}
+
+function blenderOn(on) {
+  blenderActive = !!on;
+  const host = $("blenderView");
+  if (!host) return;
+  host.style.display = blenderActive ? "flex" : "none";
+  document.querySelectorAll("[data-blender]").forEach(b => b.classList.toggle("on", blenderActive));
+  clearInterval(blenderTimer);
+  blenderTimer = 0;
+  if (blenderActive) {
+    $("previewEmpty").style.display = "none";
+    blenderFrame();
+    blenderTimer = setInterval(blenderFrame, 1800);
+  } else {
+    const img = $("blenderImg");
+    if (img) img.removeAttribute("src");
+    host.classList.remove("hint");
+    // Hand the pane back to whatever preview was showing.
+    if ($("filePreview") && $("filePreview").style.display === "none") $("previewEmpty").style.display = "block";
+  }
+}
+document.querySelectorAll("[data-blender]").forEach(b => b.addEventListener("click", () => blenderOn(!blenderActive)));
+document.addEventListener("visibilitychange", () => {
+  if (!blenderActive) return;
+  if (document.hidden) { clearInterval(blenderTimer); blenderTimer = 0; }
+  else if (!blenderTimer) { blenderFrame(); blenderTimer = setInterval(blenderFrame, 1800); }
+});
 $("hbDiff").addEventListener("click", () => showPane("diff"));
 $("hbBrowser").addEventListener("click", () => showPane("preview"));
 $("btnPanes").addEventListener("click", () => {
@@ -2946,11 +3046,13 @@ $("btnPanes").addEventListener("click", () => {
 });
 $("btnSidebar").addEventListener("click", () => toggleSidebar());
 $("sbScrim").addEventListener("click", () => toggleSidebar(false));
-$("btnSearch").addEventListener("click", () => {
+/* Focus the sidebar's search box (the titlebar used to carry a button for
+   this; the sidebar's own field and Cmd+K are the ways now). */
+function focusSessionSearch() {
   if (getComputedStyle($("sidebar")).display === "none") toggleSidebar(true);
   const s = $("sessSearch");
   if (s) { s.focus(); s.select(); }
-});
+}
 $("sessSearch").addEventListener("input", (e) => {
   sessQuery = e.target.value;
   $("sessClear").hidden = !sessQuery;
@@ -3811,7 +3913,7 @@ function parseArtifacts(s) {
   while ((m = re.exec(src)) !== null) {
     let lang = (m[2] || "html").toLowerCase();
     if (lang === "markdown") lang = "md";
-    if (!["html", "svg", "md", "motion", "doc", "slides", "design"].includes(lang)) continue;
+    if (!["html", "svg", "md", "motion", "doc", "slides", "design", "voxel"].includes(lang)) continue;
     const code = m[3].replace(/\n$/, "");
     out.push({
       lang,
@@ -4152,6 +4254,7 @@ function artifactPageHtml(a) {
     : a.lang === "slides" ? deckIframeHtml(a.code)
     : a.lang === "design" ? boardIframeHtml(a.code)
     : a.lang === "motion" ? motionDoc(a.code)
+    : a.lang === "voxel" ? voxelDoc(a.code)
     : `<pre style="font:13px ui-monospace,monospace;padding:24px;white-space:pre-wrap">${esc(a.code)}</pre>`;
 }
 
@@ -4188,6 +4291,7 @@ function renderArtifactInto(host, a) {
       : a.lang === "doc" ? docIframeHtml(a.code)
       : a.lang === "slides" ? deckIframeHtml(a.code)
       : a.lang === "design" ? boardIframeHtml(a.code)
+      : a.lang === "voxel" ? voxelDoc(a.code)
       : a.code;
     body.appendChild(frame);
   }
@@ -4629,8 +4733,238 @@ canvas{max-width:100%;max-height:100%;display:block}
 </html>`;
 }
 
-function renderMotionArtifact(body, a) {
-  const idx = artifactView.i;
+/** A voxel build (the VoxelBench-style prompt-to-voxel): one deterministic
+ *  script calling VOXEL.scene, rendered here with a small isometric engine -
+ *  back-to-front painter, exposed faces only, drag to rotate, wheel to zoom.
+ *  Opened standalone (Open in browser) it still just renders. */
+function voxelDoc(code) {
+  const safe = String(code || "").replace(/<\/script/gi, "<\\/script").replace(/<!--/g, "<\\!--");
+  return `<!doctype html>
+<html>
+<head><meta charset="utf-8">
+<style>
+html,body{margin:0;height:100%;overflow:hidden}
+body{background:radial-gradient(120% 90% at 50% 18%,#23262c 0%,#15161a 58%,#0c0d10 100%);display:grid;place-items:center}
+canvas{width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+canvas.drag{cursor:grabbing}
+.hint{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);font:12px system-ui,sans-serif;color:#aab0b8;
+  background:rgba(10,11,13,.55);padding:5px 12px;border-radius:999px;transition:opacity .4s ease;pointer-events:none}
+.hint.gone{opacity:0}
+.err{position:fixed;left:16px;right:16px;bottom:16px;font:12px ui-monospace,monospace;color:#ffb4a2;white-space:pre-wrap}
+</style></head>
+<body>
+<canvas id="vx" aria-label="Voxel build"></canvas>
+<div class="hint" id="vxHint">drag to rotate · wheel to zoom · double-click to reset</div>
+` + "<" + `script>
+(function () {
+  "use strict";
+  var canvas = document.getElementById("vx");
+  var ctx = canvas && canvas.getContext("2d");
+  var vox = new Map();          // "x,y,z" -> [r,g,b]
+  var count = 0, cap = 40000;
+  var theta = -0.62, zoom = 1;
+  var cx = 0, cy = 0, cz = 0, span = 8;
+  var dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+  var moved = false;
+  function post(msg) { try { parent.postMessage(msg, "*"); } catch (e) {} }
+  function fail(msg) {
+    var el = document.createElement("div");
+    el.className = "err";
+    el.textContent = msg;
+    document.body.appendChild(el);
+    post({ type: "voxel-error", message: msg });
+  }
+  function hex(c) {
+    var m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(c || "").trim());
+    if (!m) return [142, 148, 158];
+    var h = m[1];
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  }
+  function set(x, y, z, c) {
+    x = Math.round(x); y = Math.round(y); z = Math.round(z);
+    if (x < 0 || y < 0 || z < 0 || x > 127 || y > 127 || z > 127) return;
+    var k = x + "," + y + "," + z;
+    if (vox.has(k)) { vox.set(k, hex(c)); return; }
+    if (count >= cap) return;
+    count++;
+    vox.set(k, hex(c));
+  }
+  function box(x, y, z, w, h, d, c) {
+    x = Math.round(x); y = Math.round(y); z = Math.round(z);
+    w = Math.max(1, Math.round(w)); h = Math.max(1, Math.round(h)); d = Math.max(1, Math.round(d));
+    for (var i = 0; i < w; i++) for (var j = 0; j < h; j++) for (var k2 = 0; k2 < d; k2++) set(x + i, y + j, z + k2, c);
+  }
+  function fitView() {
+    if (!count) { cx = cy = cz = 0; span = 8; return; }
+    var mnX = 1e9, mxX = -1e9, mnY = 1e9, mxY = -1e9, mnZ = 1e9, mxZ = -1e9;
+    vox.forEach(function (_, k) {
+      var p = k.split(",");
+      var x = +p[0], y = +p[1], z = +p[2];
+      if (x < mnX) mnX = x; if (x > mxX) mxX = x;
+      if (y < mnY) mnY = y; if (y > mxY) mxY = y;
+      if (z < mnZ) mnZ = z; if (z > mxZ) mxZ = z;
+    });
+    cx = (mnX + mxX + 1) / 2;
+    cy = (mnY + mxY + 1) / 2;
+    cz = (mnZ + mxZ + 1) / 2;
+    span = Math.max(mxX - mnX + 2, mxZ - mnZ + 2, (mxY - mnY + 2) * 1.5, 6);
+  }
+  function sizeCanvas() {
+    var w = canvas.clientWidth || 640, h = canvas.clientHeight || 480;
+    canvas.width = Math.max(1, Math.round(w * dpr));
+    canvas.height = Math.max(1, Math.round(h * dpr));
+  }
+  var ISO_X = 0.86602, ISO_Y = 0.5;
+  function project(x, y, z, w, h, ca, sa) {
+    var rx = (x - cx) * ca - (z - cz) * sa;
+    var rz = (x - cx) * sa + (z - cz) * ca;
+    var s = (Math.min(w, h) / (span * 2.0)) * zoom * dpr;
+    return [w / 2 + (rx - rz) * ISO_X * s, h / 2 + ((rx + rz) * ISO_Y - (y - cy) * 1.08) * s];
+  }
+  function shade(rgb, f) {
+    return "rgb(" + Math.round(rgb[0] * f) + "," + Math.round(rgb[1] * f) + "," + Math.round(rgb[2] * f) + ")";
+  }
+  function quad(ctx2, pts, fill) {
+    ctx2.fillStyle = fill;
+    ctx2.beginPath();
+    ctx2.moveTo(pts[0][0], pts[0][1]);
+    for (var i = 1; i < pts.length; i++) ctx2.lineTo(pts[i][0], pts[i][1]);
+    ctx2.closePath();
+    ctx2.fill();
+    ctx2.stroke();
+  }
+  function draw() {
+    if (!ctx) return;
+    var w = canvas.width, h = canvas.height;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    if (!count) return;
+    var ca = Math.cos(theta), sa = Math.sin(theta);
+    // Camera-facing vertical faces (in world space) from the view direction.
+    var vx = ca + sa, vz = ca - sa;
+    var fx = vx >= 0 ? 1 : -1, fz = vz >= 0 ? 1 : -1;
+    // Soft ground shadow under the build.
+    var sc = project(cx, 0, cz, w, h, ca, sa);
+    var sr = (Math.max(span * 0.55, 3) / (span * 2)) * zoom * Math.min(w, h) * 0.78;
+    var g = ctx.createRadialGradient(sc[0], sc[1], 0, sc[0], sc[1], Math.max(8, sr));
+    g.addColorStop(0, "rgba(0,0,0,.34)");
+    g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.ellipse(sc[0], sc[1], Math.max(8, sr), Math.max(3, sr * 0.42), 0, 0, Math.PI * 2);
+    ctx.fill();
+    // One entry per voxel, painter order: depth (rx+rz) ascending, then y.
+    var items = [];
+    vox.forEach(function (rgb, k) {
+      var p = k.split(",");
+      var x = +p[0], y = +p[1], z = +p[2];
+      var rx = (x + 0.5 - cx) * ca - (z + 0.5 - cz) * sa;
+      var rz = (x + 0.5 - cx) * sa + (z + 0.5 - cz) * ca;
+      items.push({ x: x, y: y, z: z, rgb: rgb, d: rx + rz });
+    });
+    items.sort(function (a2, b2) { return (a2.d - b2.d) || (a2.y - b2.y); });
+    ctx.lineJoin = "round";
+    ctx.lineWidth = Math.max(0.6, Math.min(w, h) / 900);
+    ctx.strokeStyle = "rgba(0,0,0,.16)";
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i], x2 = it.x, y2 = it.y, z2 = it.z, rgb = it.rgb, col;
+      // The two camera-facing sides first, then the top caps the voxel.
+      if (fx > 0) {
+        if (!vox.has((x2 + 1) + "," + y2 + "," + z2)) {
+          col = shade(rgb, 0.6);
+          quad(ctx, [
+            project(x2 + 1, y2, z2, w, h, ca, sa), project(x2 + 1, y2, z2 + 1, w, h, ca, sa),
+            project(x2 + 1, y2 + 1, z2 + 1, w, h, ca, sa), project(x2 + 1, y2 + 1, z2, w, h, ca, sa),
+          ], col);
+        }
+      } else if (!vox.has((x2 - 1) + "," + y2 + "," + z2)) {
+        col = shade(rgb, 0.6);
+        quad(ctx, [
+          project(x2, y2, z2 + 1, w, h, ca, sa), project(x2, y2, z2, w, h, ca, sa),
+          project(x2, y2 + 1, z2, w, h, ca, sa), project(x2, y2 + 1, z2 + 1, w, h, ca, sa),
+        ], col);
+      }
+      if (fz > 0) {
+        if (!vox.has(x2 + "," + y2 + "," + (z2 + 1))) {
+          col = shade(rgb, 0.8);
+          quad(ctx, [
+            project(x2, y2, z2 + 1, w, h, ca, sa), project(x2 + 1, y2, z2 + 1, w, h, ca, sa),
+            project(x2 + 1, y2 + 1, z2 + 1, w, h, ca, sa), project(x2, y2 + 1, z2 + 1, w, h, ca, sa),
+          ], col);
+        }
+      } else if (!vox.has(x2 + "," + y2 + "," + (z2 - 1))) {
+        col = shade(rgb, 0.8);
+        quad(ctx, [
+          project(x2 + 1, y2, z2, w, h, ca, sa), project(x2, y2, z2, w, h, ca, sa),
+          project(x2, y2 + 1, z2, w, h, ca, sa), project(x2 + 1, y2 + 1, z2, w, h, ca, sa),
+        ], col);
+      }
+      if (!vox.has(x2 + "," + (y2 + 1) + "," + z2)) {
+        quad(ctx, [
+          project(x2, y2 + 1, z2, w, h, ca, sa), project(x2 + 1, y2 + 1, z2, w, h, ca, sa),
+          project(x2 + 1, y2 + 1, z2 + 1, w, h, ca, sa), project(x2, y2 + 1, z2 + 1, w, h, ca, sa),
+        ], shade(rgb, 1.0));
+      }
+    }
+  }
+  function hideHint() {
+    var el = document.getElementById("vxHint");
+    if (el) el.classList.add("gone");
+  }
+  var drag = null;
+  canvas.addEventListener("pointerdown", function (e) {
+    drag = { x: e.clientX, y: e.clientY, t: theta };
+    moved = true;
+    canvas.classList.add("drag");
+    try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+    e.preventDefault();
+  });
+  canvas.addEventListener("pointermove", function (e) {
+    if (!drag) return;
+    theta = drag.t + (e.clientX - drag.x) * 0.011;
+    draw();
+  });
+  function endDrag() { drag = null; canvas.classList.remove("drag"); }
+  canvas.addEventListener("pointerup", endDrag);
+  canvas.addEventListener("pointercancel", endDrag);
+  canvas.addEventListener("wheel", function (e) {
+    e.preventDefault();
+    zoom = Math.max(0.35, Math.min(4, zoom * (e.deltaY > 0 ? 0.9 : 1.1)));
+    draw();
+  }, { passive: false });
+  canvas.addEventListener("dblclick", function () { theta = -0.62; zoom = 1; draw(); });
+  window.addEventListener("resize", function () { sizeCanvas(); draw(); });
+  window.addEventListener("error", function (e) { fail(String((e && e.message) || "script error")); });
+  setTimeout(hideHint, 6000);
+  window.VOXEL = {
+    scene: function (o, build) {
+      o = o || {};
+      vox = new Map();
+      count = 0;
+      if (typeof o.background === "string" && o.background) document.body.style.background = o.background;
+      try {
+        if (typeof build === "function") build({ set: set, box: box });
+        else fail("VOXEL.scene needs a build function: VOXEL.scene({ title: \\"\\" }, (v) => { ... })");
+      } catch (e) {
+        fail("Build failed: " + ((e && e.message) || e));
+      }
+      fitView();
+      sizeCanvas();
+      draw();
+      post({ type: "voxel-ready", count: count });
+    }
+  };
+})();
+
+/* ---- the artifact build ---- */
+` + safe + `
+<\/script>
+</body>
+</html>`;
+}
+
+function renderMotionArtifact(body, a) {  const idx = artifactView.i;
   const noteKey = artifactKey(idx);
   const notes = (state.motionNotes && state.motionNotes[noteKey]) || [];
   body.innerHTML = `
@@ -5373,6 +5707,17 @@ function writeThinkNow() {
   scrollDownSoon();
 }
 
+/** One-line gist of a reasoning block for the folded pill: the first line
+ *  that says what is being done, trimmed to fit. */
+function thinkingGist(text) {
+  const lines = String(text || "").split("\n")
+    .map(l => l.replace(/^[\s>*#-]+/, "").trim())
+    .filter(Boolean);
+  const pick = lines.find(l => /^(let me|i'?ll|i will|first|now|next|check|look|the plan|plan:|start|need to|let's)/i.test(l)) || lines[0] || "";
+  const t = pick.replace(/\*\*|__|`/g, "").replace(/\s+/g, " ").trim();
+  return t.length > 92 ? t.slice(0, 89) + "…" : t;
+}
+
 function endThinking(ms) {
   if (!currentThink) return;   // idempotent: the server may close a block twice
   // Flush any text still waiting for a frame so the last words render.
@@ -5392,7 +5737,10 @@ function endThinking(ms) {
   if (!cur.text.trim()) { n.remove(); return; }
 
   n.removeAttribute("data-live");
-  cur.label.textContent = secs < 1 ? "Thought for a moment" : "Thought for " + Math.max(1, Math.round(secs)) + "s";
+  // The folded pill keeps the duration AND a one-line gist, so a collapsed
+  // card still says what the model was working through.
+  const gist = thinkingGist(cur.text);
+  cur.label.textContent = (secs < 1 ? "Thought for a moment" : "Thought for " + Math.max(1, Math.round(secs)) + "s") + (gist ? " · " + gist : "");
   cur.body.scrollTop = cur.body.scrollHeight;
 
   // autoCollapseThinking on → fold after half a second (unless the person
@@ -5666,7 +6014,43 @@ function renderRing() {
   $("ringFg").setAttribute("stroke-dashoffset", String(C - (C * Math.min(100, contextPct)) / 100));
   const k = v => v >= 1000 ? (v / 1000).toFixed(1) + "k" : String(v);
   $("ringTip").textContent = `Context ${k(contextTokens)} / ${k(contextLimit)} (${contextPct}%)` + ringStatBits();
+  renderUsage();
 }
+
+/** The Usage pane: where the ring's numbers live in full. Clicking the ring
+ *  opens it. Everything here is already client-side (usage events + session
+ *  stats); the limit is the one Star actually budgets against - a provider's
+ *  override, discovery, the catalog, then the default. */
+function renderUsage() {
+  const host = $("usageBody");
+  if (!host) return;
+  const p = prov();
+  const override = Number(p.contextLimit) > 0 ? Number(p.contextLimit) : 0;
+  const tok = lastUsage ? lastUsage.contextTokens : 0;
+  const lim = lastUsage ? lastUsage.contextLimit : 0;
+  const pct = lastUsage ? lastUsage.contextPct : 0;
+  const k = (v) => v >= 1000000 ? (v / 1000000).toFixed(2).replace(/\.?0+$/, "") + "M" : v >= 1000 ? (v / 1000).toFixed(1) + "k" : String(v || 0);
+  const s = sessStats || emptySessStats();
+  const groups = groupToolCounts(s.tools || {}).filter(g => g.group !== "other");
+  const other = groupToolCounts(s.tools || {}).find(g => g.group === "other");
+  if (other) groups.push(other);
+  const totalTools = groups.reduce((n, g) => n + g.count, 0);
+  host.innerHTML = `
+    <div class="ucard">
+      <div class="ut">Context window</div>
+      <div class="ubar" role="img" aria-label="Context used: ${pct}%"><span style="width:${Math.min(100, pct)}%"></span></div>
+      <div class="ud"><b>${k(tok)}</b> / ${k(lim)} tokens · ${pct}% used</div>
+      <div class="ud">${esc(p.model || "no model")} · ${esc(state.current)}${state.effort ? " · effort " + esc(state.effort) : ""}</div>
+      <div class="ud">${override ? "Limit set in Settings (" + override.toLocaleString() + ")" : "Limit: detected or catalog value - set one in Settings > Providers > Advanced"}</div>
+    </div>
+    <div class="ucard">
+      <div class="ut">This session</div>
+      <div class="ud">${s.calls || 0} model call${(s.calls || 0) === 1 ? "" : "s"} · ${totalTools} tool call${totalTools === 1 ? "" : "s"}${state.mode === "chat" ? "" : " · " + esc(state.defaultMode)}</div>
+      ${totalTools ? `<div class="ud">${groups.map(g => g.count + " " + g.group).join(" · ")}</div>` : ""}
+      ${s.compact && (s.compact.passes || s.compact.charsSaved) ? `<div class="ud">free compaction: ${s.compact.passes || 0} pass${(s.compact.passes || 0) === 1 ? "" : "es"} · ${k(s.compact.charsSaved || 0)} chars saved</div>` : ""}
+    </div>`;
+}
+$("cRing").addEventListener("click", () => { if (paneOpen.size === 0) $("panes").classList.remove("hide"); showPane("usage"); });
 
 /* ---- session stats: usage, free compaction, tool groupings ---- */
 /* Raw counts live on the server (persisted with the session); the page
@@ -5817,6 +6201,7 @@ async function sendToAgent(message, opts = {}) {
     sessionId: sid, message: resume ? undefined : message, mode: state.defaultMode, kind: state.mode,
     provider: state.current, model: p.model, apiKey: p.apiKey, baseUrl: payloadBaseUrl(),
     agent: state.agent || undefined, effort: state.effort,
+    contextLimit: Number(p.contextLimit) > 0 ? Number(p.contextLimit) : undefined,
   };
   const wasNew = !sid && !resume;
   const live = { events: [], running: true, wasNew };
@@ -6157,7 +6542,7 @@ document.addEventListener("keydown", e => {
   if (mod && e.key === ",") { e.preventDefault(); openSettings(); return; }
   if (mod && (e.key === "n" || e.key === "N")) { e.preventDefault(); newSession(); return; }
   if (mod && (e.key === "k" || e.key === "K")) {
-    if (!$("settings").classList.contains("on")) { e.preventDefault(); $("btnSearch").click(); }
+    if (!$("settings").classList.contains("on")) { e.preventDefault(); focusSessionSearch(); }
     return;
   }
   if (mod && (e.key === "l" || e.key === "L")) { e.preventDefault(); $("stream").innerHTML = ""; return; }
@@ -6596,6 +6981,11 @@ function settingsProviderDetail(id) {
           <input class="inp mono" id="fBase" value="${esc(p.baseUrlOverride || "")}" placeholder="${esc(p.baseUrl)}">
         </div>
         <button class="btn sm" id="fSaveBase">Save base URL</button>
+        <div class="fld" style="margin-top:12px">
+          <label>Context limit (tokens) - optional</label>
+          <input class="inp mono" id="fCtx" value="${esc(String((state.providers[providerDetailId] || {}).contextLimit || ""))}" placeholder="leave empty to detect - e.g. 1000000 for a 1M model">
+        </div>
+        <button class="btn sm" id="fSaveCtx">Save context limit</button>
       </details>
     </div>
 
@@ -7041,6 +7431,24 @@ function wireSettings() {
     });
     await refreshMeta();
     connectState = { error: "", warning: "", message: "Base URL saved." };
+    renderSettings();
+  });
+  on("fSaveCtx", "click", () => {
+    const raw = ($("fCtx") ? $("fCtx").value : "").trim();
+    const n = Math.round(Number(raw));
+    const cfg = state.providers[providerDetailId];
+    if (cfg) {
+      if (raw && Number.isFinite(n) && n > 0) cfg.contextLimit = n;
+      else delete cfg.contextLimit;
+      save();
+    }
+    // The ring reflects it immediately while this provider is the active one.
+    if (providerDetailId === state.current) {
+      if (raw && n > 0) { lastUsage = { ...lastUsage, contextLimit: n }; if (lastUsage.contextTokens != null) lastUsage.contextPct = Math.min(100, Math.round((lastUsage.contextTokens / n) * 100)); }
+      renderRing();
+      renderUsage();
+    }
+    connectState = { error: "", warning: "", message: raw && n > 0 ? "Context limit: " + n.toLocaleString() : "Context limit: automatic." };
     renderSettings();
   });
 

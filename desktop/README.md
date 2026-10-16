@@ -39,6 +39,9 @@ setting you change — including a model running on your own machine.
 | **Folder in the chat** | There is no project picker to pass: click the folder chip in the chat header and type the path, or tell Star where to work — `use_folder` binds the session (tree, terminal and later turns follow), and the prompt names the folder |
 | **Subagent missions** | `task` runs read-only research subagents with fresh context; several missions in one step run in parallel, and personas can never lose them |
 | **Skills** | SKILL.md packs (the opencode format) from `.star-code/skills/`, `~/.star-code/skills/` or extra paths — the prompt carries the catalog, the `skill` tool loads one on demand, subagents can follow them too |
+| **Voxel builds** | `artifact voxel` scripts build 3D models (the VoxelBench idea): isometric render in the Preview, drag to rotate, wheel to zoom, revisions land as new versions of the same build |
+| **Blender viewport** | With a Blender MCP server connected, the Preview's viewport button streams live screenshots; the agent scripts Blender through its MCP tools with a build-look-refine doctrine |
+| **Usage pane** | Click the context ring: window used/limit (real limits, with a Settings override), model, per-session calls, tool groups and compaction savings |
 | **Plugins** | Local JS modules in `~/.star-code/plugins` — event hooks (turn/tool), custom tools the agent can call (permission-first), extra skill folders and agents. Broken plugins report in Settings instead of breaking the boot |
 | **Artifacts** | ` ```artifact ` html/svg/md blocks render in a sandboxed preview pane with version history |
 | **Knowledge** | Markdown notes in `.star-code/knowledge` — indexed in the prompt, searchable by the agent |

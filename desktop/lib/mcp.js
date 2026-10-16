@@ -383,13 +383,59 @@ export function createMcpManager({ root, onChange, callTimeoutMs = CALL_TIMEOUT_
     }
   }
 
+  /** Like call(), but keeps image content blocks: { text, images }. The
+   *  Preview pane's Blender live view goes through this. */
+  async function callRaw(fullName, args, opts = {}) {
+    const p = parseToolName(fullName);
+    if (!p) throw new Error("not an MCP tool: " + fullName);
+    const rec = findBySlug(p.server);
+    if (!rec || !rec.cfg.enabled) throw new Error("MCP server \"" + p.server + "\" is not configured or is disabled.");
+    if (rec.state !== "ready" || !rec.tools.some((t) => t.name === p.tool)) {
+      await connectOnce(rec);
+      if (!rec.tools.some((t) => t.name === p.tool)) {
+        throw new Error("MCP tool \"" + p.tool + "\" is not offered by \"" + p.server + "\".");
+      }
+    }
+    scheduleIdle(rec);
+    const timeout = Number(opts.timeoutMs) || callTimeoutMs;
+    let res;
+    try {
+      res = await request(rec.conn, "tools/call", { name: p.tool, arguments: args || {} }, timeout);
+    } catch (e) {
+      if (e && e.mcpTimeout) throw e;
+      closeRec(rec);
+      rec.state = "starting";
+      await connectOnce(rec);
+      res = await request(rec.conn, "tools/call", { name: p.tool, arguments: args || {} }, timeout);
+    }
+    if (res && res.isError) throw new Error(resultText(rec, p, res).slice(0, RESULT_CAP));
+    return { text: resultText(rec, p, res), images: imagesOf(res) };
+  }
+
   function resultText(rec, p, res) {
     const texts = res && Array.isArray(res.content)
       ? res.content.filter((c) => c && c.type === "text").map((c) => String(c.text || ""))
       : [];
+    // Images: the agent cannot see them, but it must KNOW when one came back
+    // (Blender screenshots). A short note replaces the base64 blob.
+    const images = imagesOf(res);
+    for (const img of images) texts.push("[image: " + img.mime + ", " + Math.round(img.dataUrl.length * 0.75) + " bytes - shown to the user, not readable as text]");
     const text = texts.join("\n") || JSON.stringify(res === undefined ? null : res);
     if (res && res.isError) throw new Error(text.slice(0, RESULT_CAP));
     return text.slice(0, RESULT_CAP);
+  }
+
+  /** Image content blocks as { mime, dataUrl } (data URLs, ready for <img>). */
+  function imagesOf(res) {
+    const out = [];
+    if (res && Array.isArray(res.content)) {
+      for (const c of res.content) {
+        if (c && c.type === "image" && typeof c.data === "string" && c.data) {
+          out.push({ mime: String(c.mimeType || "image/png"), dataUrl: "data:" + String(c.mimeType || "image/png") + ";base64," + c.data });
+        }
+      }
+    }
+    return out;
   }
 
   async function test(name) {
@@ -452,5 +498,5 @@ export function createMcpManager({ root, onChange, callTimeoutMs = CALL_TIMEOUT_
   // A hard exit must not leave stub processes behind (Windows especially).
   process.once("exit", () => { for (const rec of servers.values()) closeRec(rec); });
 
-  return { ready, list, toolList, has, call, test, upsert, remove, setRoot, shutdown };
+  return { ready, list, toolList, has, call, callRaw, test, upsert, remove, setRoot, shutdown };
 }

@@ -74,6 +74,14 @@ await withManager({ stub: { command: stubCmd, environment: {} } }, async (mgr) =
   ok("has() knows the namespaced names", mgr.has("mcp__stub__echo") && !mgr.has("mcp__stub__nope"));
   const out = await mgr.call("mcp__stub__echo", { text: "hi" });
   ok("a tool call returns text", out === "echo:hi", out);
+  const shot = await mgr.callRaw("mcp__stub__screenshot", {});
+  ok("callRaw keeps image content as data URLs",
+    shot.images.length === 1 && shot.images[0].dataUrl.startsWith("data:image/png;base64,") &&
+    shot.text.includes("viewport 320x240"),
+    JSON.stringify([shot.images.length, shot.text.slice(0, 40)]));
+  const shotText = await mgr.call("mcp__stub__screenshot", {});
+  ok("the agent path notes an image instead of dumping base64",
+    shotText.includes("[image: image/png,") && shotText.length < 500 && !shotText.includes("iVBOR"), shotText.slice(0, 90));
   const t = await mgr.test("stub");
   ok("test reports tools", t.ok === true && t.tools.some((x) => x.name === "echo"));
 });
