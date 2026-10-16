@@ -475,6 +475,11 @@ ok("follow-ups can steer or queue (settings + composer)",
   js.includes('case "user_steer": addUser(evt.message)') &&
   js.includes("let sawDone = false") && js.includes("sendToAgent(next, { sessionId: sid })") &&
   js.includes("Type to steer Star") && js.includes("Type to queue a follow-up"));
+ok("the changes header shows a file name, not a raw path",
+  js.includes("const dirShort = dirRaw.length <= 44") && js.includes('<span class="base">') &&
+  js.includes('dels > 0 ? ` <b>−${dels}</b>`') &&
+  /\.dc-h\.p\.base\{[^}]*color:var\(--text\)/.test(html.replace(/\s+/g, "")) &&
+  /\.dc-h\.s\{[^}]*white-space:nowrap/.test(html.replace(/\s+/g, "")));
 
 /* --------------------- motion sound + film doctrine ---------------------- */
 ok("the motion runtime synthesizes sound and muxes it into recordings",

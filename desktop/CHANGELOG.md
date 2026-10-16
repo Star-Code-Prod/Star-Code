@@ -1,5 +1,8 @@
 # What's new in Star
 
+## 1.20.1 — 2026-10-16
+- The Changes card header reads like a file tab now: the file name (scene.js) stands out, the folders before it are trimmed from the front (…\dragon-house) instead of spilling a full C:\Users\... path across the row, and the +adds/−removes counts sit on one clean line that never wraps. A zero side stays hidden, so "+3" no longer comes with a dangling "−0".
+
 ## 1.20.0 — 2026-10-16
 - Follow-ups have a setting now: **Settings > Session > Steer or queue**. When you send something while Star is still working, Steer folds it into the running turn - Star adjusts course on its next step, and your message shows up in the conversation immediately. Queue holds it and sends it automatically the moment the turn finishes, even if that session moved to the background; queued messages sit above the composer as chips with an × to cancel, and the placeholder tells you which mode you are in.
 - The sidebar's "Open folder" button is gone for good - no project picking anywhere on the code page. Where Star works is set the ways you asked for: click the folder chip in the chat header and type a path, or just say where to work and Star binds it. The sidebar is down to New session, Settings and More.

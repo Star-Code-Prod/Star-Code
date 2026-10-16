@@ -444,8 +444,10 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
   border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:var(--fs-11);color:var(--muted);
   overflow:hidden;
 }
-.diffcard .dc-h .p{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;direction:rtl;text-align:left;color:var(--text2)}
-.diffcard .dc-h .s{flex:none;font-variant-numeric:tabular-nums}
+.diffcard .dc-h .p{display:flex;align-items:baseline;gap:2px;min-width:0;overflow:hidden;white-space:nowrap;flex:1;color:var(--text2)}
+.diffcard .dc-h .p .dir{color:var(--dim)}
+.diffcard .dc-h .p .base{color:var(--text);font-weight:500;flex:none}
+.diffcard .dc-h .s{flex:none;white-space:nowrap;font-variant-numeric:tabular-nums}
 .diffcard .dc-h .s i{font-style:normal;color:var(--add-fg)}
 .diffcard .dc-h .s b{font-weight:400;color:var(--del-fg)}
 .dl{display:flex;white-space:pre;font-family:var(--font-mono);font-size:var(--fs-125);line-height:1.75}
@@ -6108,11 +6110,19 @@ function renderDiff({ path: p, before, after }) {
   diffs.push({ path: p, before, after });
   const rows = diffRows(before, after);
   const adds = rows.filter(r => r.t === "add").length, dels = rows.filter(r => r.t === "del").length;
+  // The header reads like a file tab, not a raw path: the file name in full,
+  // the folders before it trimmed from the front (their tail is what tells
+  // files apart), and the counts on one line that never wraps.
+  const full = String(p || "");
+  const parts = full.split(/[\\/]/).filter(Boolean);
+  const baseName = parts.pop() || full;
+  const dirRaw = full.slice(0, Math.max(0, full.length - baseName.length)).replace(/[\\/]+$/, "");
+  const dirShort = dirRaw.length <= 44 ? dirRaw : "…" + dirRaw.slice(-43);
   const n = node("diffcard");
   n.innerHTML = `
     <div class="dc-h">
-      <span class="p" title="${esc(p)}">${esc(p)}</span>
-      <span class="s"><i>+${adds}</i> <b>−${dels}</b></span>
+      <span class="p" title="${esc(full)}">${dirShort ? `<span class="dir">${esc(dirShort)}</span>` : ""}<span class="base">${esc(baseName)}</span></span>
+      <span class="s"><i>+${adds}</i>${dels > 0 ? ` <b>−${dels}</b>` : ""}</span>
     </div>` +
     rows.map(r => `<div class="dl ${r.t}"><span class="n">${r.n}</span><span class="sg">${r.t === "add" ? "+" : r.t === "del" ? "−" : ""}</span><span class="c">${hl(r.x || "")}</span></div>`).join("");
   currentMsg = null; toolGroup = null;
