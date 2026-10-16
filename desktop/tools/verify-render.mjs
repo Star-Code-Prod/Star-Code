@@ -396,10 +396,10 @@ ok("reduced motion stills the working state", /prefers-reduced-motion:reduce\)\{
 
 /* -------------------- ask_user: clickable questions --------------------- */
 ok("question events render a clickable ask card",
-  js.includes("function renderAsk(") && js.includes('case "question": renderAsk(evt);') &&
+  js.includes("function renderAsk(") && js.includes('case "question": setActivity("waiting for your answer"); renderAsk(evt);') &&
   js.includes('n.querySelectorAll(".ask-opt")') && /\.askcard\{/.test(html.replace(/\s+/g, "")));
 ok("one simple question answers on the click itself",
-  js.includes("a click IS the answer") && js.includes("qs.length === 1 && !multi"));
+  js.includes("A click IS the answer") && js.includes("qs.length === 1 && !multi"));
 ok("several questions pick then submit",
   js.includes('n.querySelector("[data-send]").addEventListener("click", () => send(true))') &&
   js.includes('n.querySelector("[data-skip]").addEventListener("click", () => send(false))'));
@@ -457,6 +457,15 @@ ok("fullscreen sits below the titlebar strip",
   /body\.preview-full \.pane-row\[data-pane="preview"\]\{[^}]*inset:46px 0 0 0/.test(html.replace(/\s+/g, " ")));
 ok("the folded thinking pill carries a gist",
   js.includes("function thinkingGist(") && js.includes('(gist ? " · " + gist : "")'));
+ok("a pick per question sends; multiSelect still uses Submit",
+  js.includes("const anyMulti = qs.some((q) => q.multiSelect)") &&
+  js.includes("(qs.length === 1 && !multi) || (allSingle && ready)") &&
+  js.includes("the last pick sends") &&
+  js.includes("- pick one or more per question, then Submit.") &&
+  js.includes('setActivity("waiting for your answer")') &&
+  js.includes('setActivity("waiting for your permission")'));
+ok("ask options get a deliberate focus ring",
+  /\.ask-opt:focus-visible\{[^}]*outline:2pxsolidvar\(--accent\)/.test(html.replace(/\s+/g, "")));
 
 /* --------------------- motion sound + film doctrine ---------------------- */
 ok("the motion runtime synthesizes sound and muxes it into recordings",

@@ -658,6 +658,8 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
 .ask-opt .lb{font-size:var(--fs-125);font-weight:500}
 .ask-opt .ds{font-size:var(--fs-11);color:var(--muted);line-height:1.45}
 .ask-opt.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.ask-opt:focus{outline:none}
+.ask-opt:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .askcard.done .ask-opt:not(.on){opacity:.55}
 .askcard.done .ask-f{opacity:.6}
 .ask-f{
@@ -6156,14 +6158,31 @@ function renderAsk(evt) {
         </div>
       </div>`).join("")}
     <div class="ask-f">
-      <span class="ask-note" data-note>${qs.some((q) => q.multiSelect) ? "Pick one or more, then Submit." : "Click an option."}</span>
+      <span class="ask-note" data-note></span>
       <span class="spacer"></span>
       <button class="btn sm" data-skip>Skip</button>
       <button class="btn sm pri" data-send disabled>Submit</button>
     </div>`;
+  const anyMulti = qs.some((q) => q.multiSelect);
+  const allSingle = !anyMulti;
+  /** The footer tells the truth about what is still needed: for several
+   *  single-select questions a pick on each one sends automatically; a
+   *  multiSelect question is the case that needs an explicit Submit. */
+  const noteText = () => {
+    const picked = qs.filter((q, i) => picks[i].size > 0).length;
+    if (anyMulti) {
+      return picked + " of " + qs.length + " set" + (picked >= qs.length ? " - hit Submit." : " - pick one or more per question, then Submit.");
+    }
+    if (qs.length > 1) return picked + " of " + qs.length + " picked - click one option per question, the last pick sends.";
+    return "Click an option.";
+  };
   const syncSend = () => {
     const btn = n.querySelector("[data-send]");
-    if (btn) btn.disabled = !qs.every((q, i) => picks[i].size > 0);
+    const done = qs.every((q, i) => picks[i].size > 0);
+    if (btn) btn.disabled = !done;
+    const note = n.querySelector("[data-note]");
+    if (note && !n.classList.contains("done")) note.textContent = noteText();
+    return done;
   };
   const mark = (qi) => n.querySelectorAll(`[data-q="${qi}"] .ask-opt`).forEach((x, xi) => x.classList.toggle("on", picks[qi].has(xi)));
   const send = (final) => {
@@ -6190,8 +6209,10 @@ function renderAsk(evt) {
     if (multi) { if (picks[qi].has(oi)) picks[qi].delete(oi); else picks[qi].add(oi); }
     else { picks[qi].clear(); picks[qi].add(oi); }
     mark(qi);
-    syncSend();
-    if (qs.length === 1 && !multi) send(true);   // a click IS the answer
+    const ready = syncSend();
+    // A click IS the answer: one question sends on its click, and several
+    // single-select questions send as soon as the last one gets its pick.
+    if ((qs.length === 1 && !multi) || (allSingle && ready)) send(true);
   }));
   n.querySelector("[data-send]").addEventListener("click", () => send(true));
   n.querySelector("[data-skip]").addEventListener("click", () => send(false));
@@ -6588,7 +6609,7 @@ function handle(evt) {
     case "thinking_delta": if (state.showThinking && state.verbosity !== "minimal") addThinking(evt.text); break;
     case "thinking_end": if (state.showThinking && state.verbosity !== "minimal") endThinking(evt.ms); break;
     case "todos": renderTodos(evt.todos); break;
-    case "question": renderAsk(evt); break;
+    case "question": setActivity("waiting for your answer"); renderAsk(evt); break;
     case "session_suggestion": renderSuggest(evt); break;
     case "cwd":
       // use_folder (the agent) bound the session to a new folder: the chip,
@@ -6598,7 +6619,7 @@ function handle(evt) {
         toast("Working folder: " + (String(evt.cwd).split(/[\\/]/).filter(Boolean).pop() || evt.cwd));
       }
       break;
-    case "permission_request": askPermission(evt); break;
+    case "permission_request": setActivity("waiting for your permission"); askPermission(evt); break;
     case "tool": sessStats.tools[evt.name] = (sessStats.tools[evt.name] || 0) + 1; setActivity(activityForTool(evt.name)); addTool({ name: evt.name, args: evt.args, status: evt.allowed === false ? "denied" : "running", detail: "" }); break;
     case "tool_result": setActivity("thinking"); finishTool(evt.status, evt.preview); break;
     case "context_pruned": sessStats.compact.passes += 1; sessStats.compact.charsSaved += Number(evt.chars) || 0; break;

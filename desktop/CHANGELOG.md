@@ -1,5 +1,10 @@
 # What's new in Star
 
+## 1.19.2 — 2026-10-16
+- Question cards answer the way you actually click now. With several single-choice questions, a pick on each one sends automatically - no more choosing options and wondering why nothing happens while the footer still said "Click an option." The footer counts live ("1 of 2 picked - click one option per question, the last pick sends"), and pick-more-than-one questions still need their explicit Submit ("2 of 2 set - hit Submit.").
+- The work line tells the truth while a card waits on you: "waiting for your answer" (or "waiting for your permission") instead of claiming it is still thinking.
+- Option rows stop looking like text inputs: picks get the accent selection ring, and only keyboard focus draws an outline.
+
 ## 1.19.1 — 2026-10-16
 - Moving through a motion actually works now, both ways. Dragging the scrub used to fight the running playback - the clock kept advancing under your thumb, so going backwards barely landed. Touching the scrub now pauses the playback first, so the picture lands exactly where you drop it and stays there.
 - Arrow keys step the motion: left/right move one frame at a time, Shift+arrow moves a full second - the status line says so. Stepping while it plays pauses first, so reviewing a moment is precise.
