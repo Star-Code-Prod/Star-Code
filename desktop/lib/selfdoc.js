@@ -50,6 +50,12 @@ The model can emit \`\`\`artifact html|svg|md fences; they render in the
 Preview pane with a version list, a Code toggle and Open in browser. Rendered
 HTML/SVG runs in a sandboxed iframe (scripts on, origin isolated). If artifact
 content contains its own fence, open the artifact with four backticks.
+Beyond the page formats there are four live ones: motion (canvas animations;
+MOTION.scene takes an optional sound callback that synthesizes music and
+effects - tone/noise/kick/snare/hat/note/chord - and the Preview's Record
+button writes a video file WITH that sound into artifacts/), voxel (isometric
+3D builds from v.set/v.box commands, drag to rotate), doc, slides and design
+(text formats the host renders).
 
 ## Knowledge
 Markdown notes under <project>/.star-code/knowledge/. Their titles are always

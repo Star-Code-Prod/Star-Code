@@ -1,5 +1,10 @@
 # What's new in Star
 
+## 1.18.0 — 2026-10-16
+- Motion films have sound now. Scenes can synthesize music and effects (tone, noise, kick/snare/hat, note, chord - with sweeps, ambience beds and total silence as an effect), and Record writes a video file with that audio muxed in. A Sound toggle sits in the player; muting only silences the preview, the recording always keeps its sound. Everything is generated on the page - no files, nothing to download.
+- Star learned how the viral Claude civilization films are made, and the motion doctrine now teaches it: beat maps first, one act per era with its own palette, ONE evolving motif across the whole film, designed transitions with a sound hit on each, camera dollies and parallax, lights (glow, shafts, fog, flicker, day/night) and resolve-at-the-end pacing. Narrative films run 30-120 seconds now; loops stay short.
+- The motion runtime also gained the tools those films lean on: lerp, clamp, deterministic noise1() and an easing set (outCubic, inOutQuad, outQuart, inOutSine, outBack, outElastic) - all in scope for any scene.
+
 ## 1.17.0 — 2026-10-16
 - Voxel builds are an artifact format now - the VoxelBench idea, in Star. Ask for a 3D model ("make me a small cabin") and one deterministic script builds it; the Preview renders it in isometric 3D, drag to rotate, wheel to zoom, soft shadow under it. Updates keep the build's name, so a revision lands as v2 of the same model.
 - Blender lives in the Preview pane. With a Blender MCP server connected, the new viewport button streams screenshots from it (the caption names the tool); the agent also gets a Blender doctrine - silhouette first, then structure, then materials, checking scene facts as it goes - so models actually get good while you watch live.

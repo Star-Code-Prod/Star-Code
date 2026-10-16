@@ -1808,6 +1808,7 @@ const DEFAULT_STATE = {
   // reasoning expanded and shows tool outputs inline.
   verbosity: "normal",
   paneW: 0,
+  motionSound: true,
   sbW: 0,               // sidebar width, dragged by its right-edge grip
   paneOrder: [],        // rail pane order after dragging the cards
   paneHeights: {},      // per-pane card heights, set by the bottom grips
@@ -4573,6 +4574,154 @@ canvas{max-width:100%;max-height:100%;display:block}
   var standalone = false;
   try { standalone = window.parent === window; } catch (e) { standalone = true; }
 
+  /* ---- deterministic helpers the scenes lean on ---- */
+  function hash01(n) {
+    var x = Math.sin(n * 127.1) * 43758.5453123;
+    return x - Math.floor(x);
+  }
+  function noise1(x) {
+    var i = Math.floor(x), f = x - i;
+    var a = hash01(i), b = hash01(i + 1);
+    var u = f * f * (3 - 2 * f);
+    return a + (b - a) * u;
+  }
+  function lerp(a, b, t2) { return a + (b - a) * t2; }
+  function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+  var EASE = {
+    outCubic: function (x) { return 1 - Math.pow(1 - x, 3); },
+    inOutQuad: function (x) { return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2; },
+    outQuart: function (x) { return 1 - Math.pow(1 - x, 4); },
+    inOutSine: function (x) { return -(Math.cos(Math.PI * x) - 1) / 2; },
+    outBack: function (x) { var c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); },
+    outElastic: function (x) { var c4 = (2 * Math.PI) / 3; return x === 0 ? 0 : x === 1 ? 1 : Math.pow(2, -10 * x) * Math.sin((x * 10 - 0.75) * c4) + 1; },
+  };
+
+  /* ---- sound: everything is synthesized on this page, nothing to load.
+      Scenes register events through the sound callback; playback schedules
+      them on the AudioContext clock, the recorder muxes the same graph into
+      the file, and mute only silences the preview, never a recording. ---- */
+  var actx = null, master = null, previewGain = null, live = [];
+  var muted = false, soundEvents = [];
+  function ensureCtx() {
+    if (actx) return actx;
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      actx = new AC();
+      master = actx.createGain();
+      master.gain.value = 1;
+      previewGain = actx.createGain();
+      previewGain.gain.value = muted ? 0 : 1;
+      master.connect(previewGain);
+      previewGain.connect(actx.destination);
+    } catch (e) { actx = null; }
+    return actx;
+  }
+  function noiseBuf() {
+    if (actx && actx._nb) return actx._nb;
+    var len = Math.max(1, Math.floor(actx.sampleRate * 2));
+    var buf = actx.createBuffer(1, len, actx.sampleRate);
+    var d = buf.getChannelData(0);
+    var s = 1234567;
+    for (var i = 0; i < len; i++) { s = (s * 1103515245 + 12345) & 0x7fffffff; d[i] = s / 0x3fffffff - 1; }
+    actx._nb = buf;
+    return buf;
+  }
+  function noteFreq(p) {
+    if (typeof p === "number") return p;
+    var m = /^([a-gA-G])([#b]?)(-?\d)$/.exec(String(p || "").trim());
+    if (!m) return 440;
+    var table = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
+    var base = table[m[1].toLowerCase()];
+    if (base === undefined) return 440;
+    if (m[2] === "#") base += 1; else if (m[2] === "b") base -= 1;
+    var midi = (parseInt(m[3], 10) + 1) * 12 + base;
+    return 440 * Math.pow(2, (midi - 69) / 12);
+  }
+  function envGain(when, dur, gain, attack) {
+    var g = actx.createGain();
+    var peak = Math.max(0.0002, Number(gain) || 0.4);
+    var a = Math.max(0.002, Math.min(0.2, Number(attack) || 0.006));
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.exponentialRampToValueAtTime(peak, when + a);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + Math.max(a + 0.03, dur));
+    return g;
+  }
+  function keep(node, stopAt) {
+    live.push(node);
+    try { node.stop(stopAt); } catch (e) {}
+  }
+  function schedEvent(ev, when) {
+    var kind = ev.kind;
+    if (kind === "tone") {
+      var o = actx.createOscillator();
+      o.type = ev.type || "sine";
+      var f0 = ev.freq != null ? noteFreq(ev.freq) : 440;
+      o.frequency.setValueAtTime(f0, when);
+      if (ev.to != null) o.frequency.exponentialRampToValueAtTime(Math.max(20, noteFreq(ev.to)), when + Math.max(0.02, ev.dur || 0.3));
+      var g1 = envGain(when, ev.dur || 0.3, ev.gain != null ? ev.gain : 0.4, ev.attack);
+      o.connect(g1); g1.connect(master);
+      o.start(when); keep(o, when + (ev.dur || 0.3) + 0.3);
+      return;
+    }
+    if (kind === "note" || kind === "chord") {
+      var ps = kind === "chord" ? (ev.pitches || ["A4"]) : [ev.pitch != null ? ev.pitch : ev.freq];
+      for (var i = 0; i < ps.length; i++) {
+        var o2 = actx.createOscillator();
+        o2.type = ev.wave || "triangle";
+        o2.frequency.setValueAtTime(noteFreq(ps[i]), when);
+        var g2 = envGain(when, ev.dur || 0.4, (ev.gain != null ? ev.gain : 0.3) / ps.length, ev.attack || 0.01);
+        o2.connect(g2); g2.connect(master);
+        o2.start(when); keep(o2, when + (ev.dur || 0.4) + 0.3);
+      }
+      return;
+    }
+    // noise family: noise / kick / snare / hat
+    if (kind === "noise" || kind === "snare" || kind === "hat") {
+      var src = actx.createBufferSource();
+      src.buffer = noiseBuf();
+      src.loop = true;
+      var node = src;
+      var lp = kind === "noise" ? ev.lp : null, hp = kind === "noise" ? ev.hp : (kind === "hat" ? 6500 : 900);
+      if (lp) { var f1 = actx.createBiquadFilter(); f1.type = "lowpass"; f1.frequency.value = lp; node.connect(f1); node = f1; }
+      if (hp) { var f2 = actx.createBiquadFilter(); f2.type = "highpass"; f2.frequency.value = hp; node.connect(f2); node = f2; }
+      var dur = ev.dur != null ? ev.dur : (kind === "hat" ? 0.06 : kind === "snare" ? 0.16 : 0.5);
+      var gain = ev.gain != null ? ev.gain : (kind === "hat" ? 0.2 : kind === "snare" ? 0.5 : 0.4);
+      var g3 = envGain(when, dur, gain, ev.attack || 0.004);
+      node.connect(g3); g3.connect(master);
+      src.start(when); keep(src, when + dur + 0.2);
+      return;
+    }
+    if (kind === "kick") {
+      var ok = actx.createOscillator();
+      ok.type = "sine";
+      ok.frequency.setValueAtTime(140, when);
+      ok.frequency.exponentialRampToValueAtTime(42, when + 0.13);
+      var gk = envGain(when, 0.26, ev.gain != null ? ev.gain : 0.85, 0.003);
+      ok.connect(gk); gk.connect(master);
+      ok.start(when); keep(ok, when + 0.5);
+      return;
+    }
+  }
+  function stopSound() {
+    for (var i = 0; i < live.length; i++) { try { live[i].stop(0); } catch (e) {} }
+    live = [];
+  }
+  function scheduleSound(from, scale) {
+    if (!soundEvents.length) return;
+    var A = ensureCtx();
+    if (!A) return;
+    try { if (A.state === "suspended") A.resume(); } catch (e) {}
+    stopSound();
+    var t0 = A.currentTime + 0.06;
+    for (var i = 0; i < soundEvents.length; i++) {
+      var ev = soundEvents[i];
+      if (ev.at == null || ev.at < from - 0.02) continue;
+      schedEvent(ev, t0 + Math.max(0, (ev.at - from) / (scale || 1)));
+    }
+    post({ type: "motion-sound", events: soundEvents.length });
+  }
+
   function post(msg, transfer) { try { parent.postMessage(msg, "*", transfer || []); } catch (e) {} }
   function sizeCanvas(scale) {
     canvas.width = Math.max(1, Math.round(cfg.width * scale));
@@ -4610,12 +4759,14 @@ canvas{max-width:100%;max-height:100%;display:block}
     started = performance.now();
     nextAt = performance.now();
     stopRaf(); tick();
+    scheduleSound(base, speed);
   }
-  function pause() { playing = false; stopRaf(); }
+  function pause() { playing = false; stopSound(); stopRaf(); }
   function seek(t) {
     if (recActive) return;
+    stopSound();
     render(t);
-    if (playing) { base = cur; started = performance.now(); }
+    if (playing) { base = cur; started = performance.now(); scheduleSound(base, speed); }
     post({ type: "motion-progress", t: cur });
   }
   function pickMime() {
@@ -4629,6 +4780,7 @@ canvas{max-width:100%;max-height:100%;display:block}
     if (!recActive) return;
     recActive = false;
     if (recTimer) { clearInterval(recTimer); recTimer = 0; }
+    stopSound();
     try { if (rec && rec.state !== "inactive") { rec.requestData(); rec.stop(); } } catch (e) {}
   }
   function startRecorder(opts) {
@@ -4644,26 +4796,49 @@ canvas{max-width:100%;max-height:100%;display:block}
     pause();
     sizeCanvas(scale);
     chunks = [];
+    // The sound graph feeds the file directly (mute only silences the
+    // preview): combine the canvas video track with an audio track from a
+    // MediaStreamDestination so the recording carries both.
+    var vstream = null;
+    var atrack = null;
+    var adest = null;
+    if (soundEvents.length) {
+      var A = ensureCtx();
+      if (A) {
+        try {
+          if (A.state === "suspended") A.resume();
+          adest = A.createMediaStreamDestination();
+          master.connect(adest);
+          atrack = adest.stream.getAudioTracks()[0] || null;
+        } catch (e) { adest = null; atrack = null; }
+      }
+    }
     try {
-      stream = canvas.captureStream(fps);
+      vstream = canvas.captureStream(fps);
+      stream = atrack
+        ? new MediaStream(vstream.getVideoTracks().concat([atrack]))
+        : vstream;
       rec = mime ? new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8000000 }) : new MediaRecorder(stream);
     } catch (e) {
       sizeCanvas(1);
+      if (adest) { try { master.disconnect(adest); } catch (e2) {} }
       post({ type: "motion-error", message: "Could not start recording: " + ((e && e.message) || e) });
       return;
     }
     recActive = true;
+    var recTracks = { video: vstream ? vstream.getVideoTracks().length : 0, audio: atrack ? 1 : 0 };
     rec.ondataavailable = function (ev) { if (ev.data && ev.data.size) chunks.push(ev.data); };
     rec.onstop = function () {
       var type = (rec && rec.mimeType) || mime || "video/webm";
       var ext = type.indexOf("mp4") >= 0 ? "mp4" : "webm";
       var blob = new Blob(chunks, { type: type });
       rec = null; stream = null; chunks = [];
+      if (adest) { try { master.disconnect(adest); } catch (e2) {} adest = null; }
       sizeCanvas(1);
       render(0);
       post({ type: "motion-progress", t: 0 });
       blob.arrayBuffer().then(function (buf) {
-        post({ type: "motion-recorded", mime: type, ext: ext, bytes: buf }, [buf]);
+        post({ type: "motion-recorded", mime: type, ext: ext, bytes: buf, tracks: recTracks, sound: soundEvents.length }, [buf]);
       });
     };
     rec.onerror = function (ev) {
@@ -4672,7 +4847,9 @@ canvas{max-width:100%;max-height:100%;display:block}
     };
     rec.start();
     // Deterministic pass: one canvas frame every 1000/fps ms, t = frame/fps,
-    // from 0 through duration — the file's clock matches the scene's.
+    // from 0 through duration — the file's clock matches the scene's, and the
+    // sound is scheduled once from 0 so both share the same origin.
+    scheduleSound(0, 1);
     var total = Math.max(1, Math.round(cfg.duration * fps));
     var frame = 0;
     render(0);
@@ -4694,9 +4871,14 @@ canvas{max-width:100%;max-height:100%;display:block}
     else if (m.type === "motion-pause") pause();
     else if (m.type === "motion-speed") {
       // Playback speed only: the timeline is rebased so the picture does not
-      // jump when the rate changes mid-play.
+      // jump when the rate changes mid-play, and the sound reschedules to the
+      // same moment.
       speed = Math.max(0.1, Math.min(4, Number(m.speed) || 1));
-      if (playing) { base = cur; started = performance.now(); }
+      if (playing) { base = cur; started = performance.now(); scheduleSound(base, speed); }
+    }
+    else if (m.type === "motion-mute") {
+      muted = !!m.muted;
+      if (previewGain) previewGain.gain.value = muted ? 0 : 1;
     }
     else if (m.type === "motion-visibility") {
       // The pane is hidden: stop burning CPU; resume when it returns.
@@ -4712,14 +4894,32 @@ canvas{max-width:100%;max-height:100%;display:block}
       recActive = false;
       if (recTimer) { clearInterval(recTimer); recTimer = 0; }
       try { if (rec && rec.state !== "inactive") rec.stop(); } catch (e) {}
+      stopSound();
       cfg.width = Math.max(16, Math.round(Number(o.width) || 1280));
       cfg.height = Math.max(16, Math.round(Number(o.height) || 720));
       cfg.duration = Math.max(0.05, Number(o.duration) || 6);
       cfg.fps = Math.max(1, Math.round(Number(o.fps) || 30));
       draw = typeof fn === "function" ? fn : null;
+      // The sound callback registers timeline events; the scheduler only ever
+      // plays them back (synthesized here - no files, no network).
+      soundEvents = [];
+      if (typeof o.sound === "function") {
+        var s = {
+          tone: function (ev) { soundEvents.push(Object.assign({}, ev, { kind: "tone" })); },
+          noise: function (ev) { soundEvents.push(Object.assign({}, ev, { kind: "noise" })); },
+          kick: function (at, ev) { soundEvents.push(Object.assign({ at: at }, ev, { kind: "kick" })); },
+          snare: function (at, ev) { soundEvents.push(Object.assign({ at: at }, ev, { kind: "snare" })); },
+          hat: function (at, ev) { soundEvents.push(Object.assign({ at: at }, ev, { kind: "hat" })); },
+          note: function (ev) { soundEvents.push(Object.assign({}, ev, { kind: "note" })); },
+          chord: function (ev) { soundEvents.push(Object.assign({}, ev, { kind: "chord" })); },
+        };
+        try { o.sound(s); } catch (e) {
+          post({ type: "motion-error", message: "Sound callback failed: " + ((e && e.message) || e) });
+        }
+      }
       sizeCanvas(1);
       render(0);
-      post({ type: "motion-ready", duration: cfg.duration, fps: cfg.fps, width: cfg.width, height: cfg.height });
+      post({ type: "motion-ready", duration: cfg.duration, fps: cfg.fps, width: cfg.width, height: cfg.height, sound: soundEvents.length });
       // Nothing will ever ask a standalone page to play - start it here.
       if (standalone) setTimeout(function () { play(); }, 60);
     }
@@ -4985,6 +5185,7 @@ function renderMotionArtifact(body, a) {  const idx = artifactView.i;
           <option value="1920x1080x30">1080p · 30fps</option>
           <option value="1920x1080x60">1080p · 60fps</option>
         </select>
+        <button class="btn sm" id="moSound" title="Sound on/off — recordings always keep it" hidden>Sound</button>
         <button class="btn sm" id="moComment" disabled title="Comment on the moment you are looking at">Comment</button>
         <button class="btn sm" id="moTweaks" disabled title="Edit the scene without touching the code">Tweaks</button>
         <button class="btn pri sm" id="moRecord" disabled>Record</button>
@@ -5014,6 +5215,13 @@ function renderMotionArtifact(body, a) {  const idx = artifactView.i;
   const pinsLayer = body.querySelector("#moPins");
   const commentBtn = body.querySelector("#moComment");
   const tweaksBtn = body.querySelector("#moTweaks");
+  const soundBtn = body.querySelector("#moSound");
+  soundBtn.addEventListener("click", () => {
+    state.motionSound = !state.motionSound;
+    save();
+    soundBtn.classList.toggle("on", !!state.motionSound);
+    send({ type: "motion-mute", muted: !state.motionSound });
+  });
 
   const st = { ready: false, duration: 0, sceneW: 1280, sceneH: 720, t: 0, playing: false, recording: false, savedPath: "", speed: 1 };
   let autoPlayed = false;
@@ -5138,6 +5346,12 @@ function renderMotionArtifact(body, a) {  const idx = artifactView.i;
       recBtn.disabled = false;
       commentBtn.disabled = false;
       tweaksBtn.disabled = false;
+      // Sound: the scene declares it; the toggle mirrors the saved choice and
+      // the doc hears about it right away.
+      st.hasSound = (Number(m.sound) || 0) > 0;
+      soundBtn.hidden = !st.hasSound;
+      soundBtn.classList.toggle("on", state.motionSound !== false);
+      send({ type: "motion-mute", muted: state.motionSound === false });
       renderMarks();
       // Hug the scene's aspect: full rail width, no empty letterbox bands.
       const stage = body.querySelector(".mo-stage");

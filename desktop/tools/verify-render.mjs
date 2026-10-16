@@ -449,6 +449,16 @@ ok("fullscreen sits below the titlebar strip",
   /body\.preview-full \.pane-row\[data-pane="preview"\]\{[^}]*inset:46px 0 0 0/.test(html.replace(/\s+/g, " ")));
 ok("the folded thinking pill carries a gist",
   js.includes("function thinkingGist(") && js.includes('(gist ? " · " + gist : "")'));
+
+/* --------------------- motion sound + film doctrine ---------------------- */
+ok("the motion runtime synthesizes sound and muxes it into recordings",
+  js.includes("createMediaStreamDestination") && js.includes("scheduleSound(0, 1)") &&
+  js.includes('post({ type: "motion-sound"') && js.includes("function noteFreq(") &&
+  js.includes('m.type === "motion-mute"') && js.includes("tracks: recTracks") &&
+  js.includes("var EASE = {") && js.includes("function noise1(") &&
+  js.includes("if (typeof o.sound === \"function\")"));
+ok("the motion player carries a sound toggle",
+  html.includes('id="moSound"') && js.includes("state.motionSound") && js.includes("motionSound: true"));
 ok("the rail can take 60% of the window",
   js.includes("innerWidth * 0.6") && js.includes("function paneWMax(") &&
   /\.panes\{[^}]*width:var\(--pane-w/.test(html.replace(/\s+/g, "")));

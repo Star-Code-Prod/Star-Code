@@ -43,7 +43,7 @@ setting you change — including a model running on your own machine.
 | **Blender viewport** | With a Blender MCP server connected, the Preview's viewport button streams live screenshots; the agent scripts Blender through its MCP tools with a build-look-refine doctrine |
 | **Usage pane** | Click the context ring: window used/limit (real limits, with a Settings override), model, per-session calls, tool groups and compaction savings |
 | **Plugins** | Local JS modules in `~/.star-code/plugins` — event hooks (turn/tool), custom tools the agent can call (permission-first), extra skill folders and agents. Broken plugins report in Settings instead of breaking the boot |
-| **Artifacts** | ` ```artifact ` html/svg/md blocks render in a sandboxed preview pane with version history |
+| **Artifacts** | ` ```artifact ` html/svg/md blocks render in a sandboxed preview pane with version history — plus live formats: **motion** (canvas films with synthesized sound, recordable to video), **voxel** (isometric 3D builds), slides, design, doc |
 | **Knowledge** | Markdown notes in `.star-code/knowledge` — indexed in the prompt, searchable by the agent |
 | **Custom agents** | Markdown personas in `.star-code/agents/` — the `task` tool runs them as read-only subagents, and the composer's agent chip (or `/agents`) runs one as the turn's persona: its prompt, its tools and its model |
 | **MCP servers** | Local Model Context Protocol servers in Settings → MCP — Star starts them, their tools join the agent as `mcp__server__tool`, and every call asks permission first |

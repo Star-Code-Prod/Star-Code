@@ -355,10 +355,15 @@ ok("the frozen prompt still carries the doctrine", /Execution doctrine/.test(p1)
 // The system prompt teaches the motion artifact contract beside the html one,
 // and carries one self-contained worked example (a 40-60 line scene).
 ok("motion artifact contract documented", p1.includes("```artifact motion"));
-ok("motion doc gives the MOTION.scene signature", p1.includes("MOTION.scene({ width, height, duration, fps }, draw)") && p1.includes("draw(ctx, t, w, h)"));
+ok("motion doc gives the MOTION.scene signature", p1.includes("MOTION.scene({ width, height, duration, fps, sound: (s) =>") && p1.includes("(ctx, t, w, h) =>"));
 ok("motion doc demands a deterministic t", /deterministic function of t/.test(p1) && p1.includes("no Date.now()") && p1.includes("no unseeded Math.random()"));
-ok("motion doc names the in-app recording destination", p1.includes("Preview pane") && p1.includes("artifacts/") && p1.includes("recording is saved"));
+ok("motion doc names the in-app recording destination", p1.includes("Preview pane") && p1.includes("artifacts/") && p1.includes("recording includes the sound"));
 ok("motion doc carries the worked example marker", p1.includes("Worked example"));
+ok("the motion doctrine teaches sound, lights and narrative films",
+  p1.includes("s.tone({ at, dur, freq, to, type, gain })") && p1.includes("s.chord({ at, pitches:") &&
+  p1.includes("TOTAL silence") && p1.includes('"lighter" or "screen"') && p1.includes("noise1(t * k)") &&
+  p1.includes("beat map") && p1.includes("ONE evolving motif") && p1.includes("EASE.outCubic") &&
+  p1.includes("Narrative films"));
 const exCode = (p1.match(/Worked example[\s\S]*?```artifact motion\n([\s\S]*?)\n```/) || [])[1] || "";
 const exLines = exCode ? exCode.split("\n").length : 0;
 ok("motion worked example is a 40-60 line scene", exLines >= 40 && exLines <= 60, exLines + " lines");

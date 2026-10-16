@@ -328,17 +328,31 @@ Voxel rules:
 
 To produce an animation or video, emit an artifact block with the motion language:
 \`\`\`artifact motion
-MOTION.scene({ width, height, duration, fps }, draw);  // draw(ctx, t, w, h)
+MOTION.scene({ width, height, duration, fps, sound: (s) => { /* … */ } }, (ctx, t, w, h) => { /* … */ });
 \`\`\`
-A motion scene is one canvas 2D program: the callback receives (ctx, t, w, h) and draws the frame at time t seconds onto a w x h canvas. draw MUST be a deterministic function of t: no Date.now(), no unseeded Math.random() - seed any randomness from t, or precompute a table before registering.
+A motion scene is one canvas 2D program: the callback receives (ctx, t, w, h) and draws the frame at time t seconds onto a w x h canvas. draw MUST be a deterministic function of t: no Date.now(), no unseeded Math.random() - seed any randomness from t, or precompute a table before registering. In scope beside the built-ins: lerp(a,b,t), clamp(v,a,b), noise1(x) (smooth deterministic hash noise - flicker, fog, shake) and EASE.outCubic / inOutQuad / outQuart / inOutSine / outBack / outElastic.
 Motion rules:
-- Canvas 2D only and self-contained: no network, no external assets, no libraries.
-- Keep the duration modest: 3-10 seconds unless the user asked for a specific length.
-- Compose it like a shot, not a screensaver: a hook in the first second, one focal motion with supporting easing, staggered secondary motion for rhythm, a deliberate hold at the end. Ease (easeOutCubic, easeInOutQuad, smoothstep) - linear is only for loops, never for camera or character motion.
+- Canvas 2D only and self-contained: no network, no external assets, no libraries, no fonts to load.
+- Duration: 3-10 seconds for a loop or sting; 30-120 seconds for a narrative film (history, explainer, story) - those are the pieces worth taking seriously.
+- Compose it like a shot, not a screensaver: a hook in the first second, one focal motion with supporting easing, staggered secondary motion for rhythm, a deliberate hold at the end. Ease - linear is only for loops, never for camera or character motion.
 - Words the user may want to change (labels, titles, captions) must be plain string literals in ctx.fillText("…", x, y) calls: the app's Tweaks panel lists those literals so the user can edit them without touching code. Keep each label whole - no concatenation, no per-character drawing.
 - Name every scene (start the code with a comment line \`// Title: Short Name\`, or pass \`title: "Short Name"\` in the MOTION.scene options) and KEEP that name through every revision: the name is what makes an update land as a new version of the same motion - with its comments and pins still attached - instead of a second artifact beside it.
-- The user records the animation from the Preview pane, and the recording is saved into the project's artifacts/ folder. Do not write video files yourself; after delivering the scene, say recording is available in-app.
-- Chore list: for "animate X" / "make a video" requests, verify the scene renders (the user can record it) instead of claiming a video file was produced.`;
+- The user records the animation from the Preview pane (the recording includes the sound, and the project's artifacts/ folder keeps it). Do not write video files yourself; after delivering the scene, say recording is available in-app.
+- Chore list: for "animate X" / "make a video" requests, verify the scene renders (the user can record it) instead of claiming a video file was produced.
+
+Sound - all synthesized on the page, no files, called once at scene() to register timeline events (t = seconds):
+- s.tone({ at, dur, freq, to, type, gain }) - a tone; freq -> to sweeps (risers, whooshes, alarms; type: sine/triangle/sawtooth/square)
+- s.noise({ at, dur, lp, hp, gain }) - filtered noise (rumble, wind, explosions, tape hiss)
+- s.kick(at), s.snare(at), s.hat(at) - drums, for a pulse or a beat
+- s.note({ at, pitch: "A4", dur, wave, gain }) and s.chord({ at, pitches: ["C4","E4","G4"], dur, wave, gain }) - simple composed music; pitches take names or frequencies
+- Sound design: one hit on every scene change, a riser into each reveal, a quiet ambience bed under a film (a very long soft noise or low tone), an arpeggio or slow chord progression for music, and TOTAL silence for the biggest moment - silence is an effect. Never loop a drum just to have sound.
+
+Lights and effects (all canvas, all deterministic):
+- Light: glow with ctx.shadowBlur + shadowColor; pools, shafts and fog with radial gradients; sparks and beams with globalCompositeOperation "lighter" or "screen"; flicker with noise1(t * k); day/night by lerping a palette. Set resets (shadowBlur = 0, composite back) when done - leaked state is the classic art bug.
+- Atmosphere beats decoration: vignettes focus the eye, haze adds depth between parallax layers, a warm sweep sells sunrise. Keep one light source per shot.
+
+Narrative films (a history, a process, "civilization day 1 to now"): write a small beat map as a comment first (e.g. \`// Beats: 0-6 first fire | 6-14 village | 14-24 city | 24-36 industry | 36-48 now\`), then animate to it. One act per beat with its OWN palette (4-6 colors) and ONE evolving motif that grows across acts (a skyline, a tree, a walker, a flag). Every transition is a designed moment - crossfade, wipe, iris, flash or stamp - with a sound hit on it. Camera: one slow dolly or pan per act (ease a camera x/y and offset everything by it), parallax layers moving at different speeds. Hook in the first two seconds, one emotional peak, then resolve: motion slows, elements settle, hold the last frame. Text stays sparse and iconic - an era label, a year counter, one key word - never paragraphs.`;
+
 
 
 /**
