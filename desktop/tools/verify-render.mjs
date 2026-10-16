@@ -467,6 +467,15 @@ ok("a pick per question sends; multiSelect still uses Submit",
 ok("ask options get a deliberate focus ring",
   /\.ask-opt:focus-visible\{[^}]*outline:2pxsolidvar\(--accent\)/.test(html.replace(/\s+/g, "")));
 
+/* --------------------- follow-ups: steer or queue ------------------------ */
+ok("follow-ups can steer or queue (settings + composer)",
+  html.includes('id="fFollowUp"') && js.includes('followUp: "queue"') &&
+  js.includes("function sendFollowUp(") && js.includes('"/api/steer"') &&
+  js.includes("queueBySession") && html.includes('id="queueRow"') &&
+  js.includes('case "user_steer": addUser(evt.message)') &&
+  js.includes("let sawDone = false") && js.includes("sendToAgent(next, { sessionId: sid })") &&
+  js.includes("Type to steer Star") && js.includes("Type to queue a follow-up"));
+
 /* --------------------- motion sound + film doctrine ---------------------- */
 ok("the motion runtime synthesizes sound and muxes it into recordings",
   js.includes("createMediaStreamDestination") && js.includes("scheduleSound(0, 1)") &&
@@ -490,6 +499,9 @@ ok("the + opens the composer menu and the arrow is gone",
   js.includes('{ label: "Side chat"') && js.includes('{ label: "Attach file"') &&
   js.includes('{ label: "Run shell command"') && js.includes('{ label: "Export conversation"') &&
   js.includes('{ label: "New session"'));
+ok("the sidebar no longer carries a project picker",
+  !html.includes('id="btnOpenFolder"') && !js.includes("btnOpenFolder") &&
+  js.includes('$("btnSettings2").addEventListener("click", openSettings)'));
 ok("attach file picks through the bridge or a file input",
   js.includes("async function attachPick(") && js.includes("bridge.pickFile") &&
   js.includes('inp.type = "file"') && js.includes("[attached file") &&

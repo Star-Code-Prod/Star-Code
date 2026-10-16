@@ -1337,7 +1337,6 @@ textarea.inp{line-height:1.6;resize:vertical}
 body.mode-chat .pf-sec,
 body.mode-chat #fileTree,
 body.mode-chat #sProj,
-body.mode-chat #btnOpenFolder,
 body.mode-chat .envl,
 body.mode-chat #bigProj{display:none}
 </style>
@@ -1391,10 +1390,6 @@ body.mode-chat #bigProj{display:none}
           </button>
         </div>
       </div>
-      <button class="sb-link" id="btnOpenFolder">
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M1.8 9.8V4.5A1.5 1.5 0 013.3 3h2.4l1.3 1.6h5.5a1.5 1.5 0 011.5 1.5v1.3"/><path d="M4.9 7.5h8.9l-2.6 5.4H2.3z"/></svg>
-        Open folder
-      </button>
       <button class="sb-link" id="btnSettings2">
         <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12.79 6.98L14.55 7.2A6.6 6.6 0 0 1 14.55 8.8L12.79 9.02A4.9 4.9 0 0 1 12.11 10.67L13.2 12.06A6.6 6.6 0 0 1 12.06 13.2L10.67 12.11A4.9 4.9 0 0 1 9.02 12.79L8.8 14.55A6.6 6.6 0 0 1 7.2 14.55L6.98 12.79A4.9 4.9 0 0 1 5.33 12.11L3.94 13.2A6.6 6.6 0 0 1 2.8 12.06L3.89 10.67A4.9 4.9 0 0 1 3.21 9.02L1.45 8.8A6.6 6.6 0 0 1 1.45 7.2L3.21 6.98A4.9 4.9 0 0 1 3.89 5.33L2.8 3.94A6.6 6.6 0 0 1 3.94 2.8L5.33 3.89A4.9 4.9 0 0 1 6.98 3.21L7.2 1.45A6.6 6.6 0 0 1 8.8 1.45L9.02 3.21A4.9 4.9 0 0 1 10.67 3.89L12.06 2.8A6.6 6.6 0 0 1 13.2 3.94L12.11 5.33A4.9 4.9 0 0 1 12.79 6.98Z"/><circle cx="8" cy="8" r="2"/></svg>
         Settings
@@ -1544,6 +1539,7 @@ body.mode-chat #bigProj{display:none}
       <div class="cwrap">
       <div class="slash" id="slashMenu" style="display:none"></div>
       <div class="attachrow" id="attachRow" style="display:none"></div>
+      <div class="attachrow" id="queueRow" style="display:none"></div>
       <button class="jump" id="jumpBtn" type="button" title="Jump to latest" aria-label="Jump to the latest message">
         <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v10M3.5 8.5L8 13l4.5-4.5"/></svg>
       </button>
@@ -1802,6 +1798,7 @@ const DEFAULT_STATE = {
   verbosity: "normal",
   paneW: 0,
   motionSound: true,
+  followUp: "queue",
   sbW: 0,               // sidebar width, dragged by its right-edge grip
   paneOrder: [],        // rail pane order after dragging the cards
   paneHeights: {},      // per-pane card heights, set by the bottom grips
@@ -3224,6 +3221,7 @@ function renderSessions() {
       switchSession(el.dataset.id);
       if (innerWidth <= 820) toggleSidebar(false);
     }));
+  renderQueue();   // the queue chips belong to the session now open
 }
 
 /* ---- session dragging: reorder, or drop to the side for a second chat ---- */
@@ -6457,12 +6455,59 @@ function renderUsageCard() {
 /* ============================ SEND ============================ */
 async function send() {
   const text = $("input").value.trim();
-  if (!text || isStreaming(sessionId)) return;
+  if (!text) return;
+  if (isStreaming(sessionId)) return sendFollowUp(text);
   $("input").value = ""; autoGrow($("input")); hideSlash();
   showChat();
   if (text.startsWith("!")) { pushTerm(text.slice(1).trim(), "pr"); return sendToAgent("Run this shell command and report the exact output: `" + text.slice(1).trim() + "`"); }
   if (text.startsWith("/")) return handleCommand(text);
   return sendToAgent(text);
+}
+
+/** A follow-up typed while Star is mid-turn (Settings > Session > Follow up).
+ *  Steer folds it into the running turn now; Queue parks it and sends it
+ *  automatically once the turn finishes - even if that session is in the
+ *  background by then. */
+async function sendFollowUp(text) {
+  $("input").value = ""; autoGrow($("input")); hideSlash();
+  if (attachFiles.length) {
+    text += "\n\n[attached file" + (attachFiles.length > 1 ? "s" : "") + ": " + attachFiles.join(", ") + "]";
+    attachFiles = [];
+    renderAttach();
+  }
+  if ((state.followUp || "queue") === "steer") {
+    try {
+      const r = await (await fetch("/api/steer", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, message: text }),
+      })).json();
+      if (r && r.ok) { toast("Steering Star - it adjusts on its next step"); return; }
+    } catch { /* fall through to the queue */ }
+  }
+  const q = queueBySession.get(sessionId) || [];
+  q.push(text);
+  queueBySession.set(sessionId, q);
+  renderQueue();
+  toast(q.length > 1 ? q.length + " follow-ups queued - they send as turns finish" : "Queued - sends when this turn finishes");
+}
+
+/* Follow-ups waiting per session: id -> [message, …]. */
+const queueBySession = new Map();
+function renderQueue() {
+  const row = $("queueRow");
+  if (!row) return;
+  const q = queueBySession.get(sessionId) || [];
+  row.style.display = q.length ? "flex" : "none";
+  row.innerHTML = q.map((t, i) => {
+    const short = t.split("\n")[0];
+    return `<span class="attachchip" title="${esc(t)}">⤷ ${esc(short.slice(0, 42))}${short.length > 42 ? "…" : ""}<button type="button" data-qdel="${i}" aria-label="Remove queued message">×</button></span>`;
+  }).join("");
+  row.querySelectorAll("[data-qdel]").forEach((b) => b.addEventListener("click", () => {
+    const q2 = queueBySession.get(sessionId) || [];
+    q2.splice(Number(b.dataset.qdel), 1);
+    if (q2.length) queueBySession.set(sessionId, q2); else queueBySession.delete(sessionId);
+    renderQueue();
+  }));
 }
 
 async function handleCommand(text) {
@@ -6514,17 +6559,21 @@ async function sendToAgent(message, opts = {}) {
     attachFiles = [];
     renderAttach();
   }
-  if (!resume) addUser(message);
+  // A queued follow-up targets its own session; the visible one paints the
+  // bubble, a background one just runs (its transcript catches up on switch).
+  const target = opts.sessionId || sessionId;
+  const visible = !target || target === sessionId;
+  if (!resume && visible) addUser(message);
   showChat();
-  let sid = sessionId;
-  setWorking(true); showWorkLine(true);
+  let sid = opts.sessionId || sessionId;
+  if (visible) { setWorking(true); showWorkLine(true); }
   const p = prov();
   // The activity word tells the truth about what is happening: a model that
   // never streams reasoning should not claim to be "thinking" (that word is
   // what made the missing think card look like a bug).
   const mdlMeta = ((meta && meta.providers) || []).find((x) => x.id === state.current) || {};
   const reasoner = (mdlMeta.reasoning || []).includes(p.model) || /reason|thinking/i.test(p.model || "");
-  setActivity(resume ? "continuing" : reasoner ? "thinking" : "writing the reply");
+  if (visible) setActivity(resume ? "continuing" : reasoner ? "thinking" : "writing the reply");
   const payload = {
     sessionId: sid, message: resume ? undefined : message, mode: state.defaultMode, kind: state.mode,
     provider: state.current, model: p.model, apiKey: p.apiKey, baseUrl: payloadBaseUrl(),
@@ -6533,6 +6582,7 @@ async function sendToAgent(message, opts = {}) {
   };
   const wasNew = !sid && !resume;
   const live = { events: [], running: true, wasNew };
+  let sawDone = false;   // the queue only fires for turns that actually completed
   if (sid) { liveTurns.set(sid, live); renderSessions(); }   // its circle starts spinning now
   try {
     const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -6559,7 +6609,7 @@ async function sendToAgent(message, opts = {}) {
           renderSessions();
         }
         if (sid === sessionId) handle(evt);          // visible: paint live
-        if (evt.type === "done") { finishLive(sid); break; }
+        if (evt.type === "done") { sawDone = true; finishLive(sid); break; }
       }
       if (liveTurns.get(sid) !== live) break;        // aborted or superseded
     }
@@ -6574,6 +6624,18 @@ async function sendToAgent(message, opts = {}) {
       $("input").focus();
     } else if (sid) {
       finishLive(sid);   // background turn ended: spinner off, row flagged unread
+    }
+    // A queued follow-up goes out now that this session's turn finished (an
+    // aborted turn leaves the queue alone). It runs in its own session, even
+    // from the background.
+    if (sawDone && sid) {
+      const q = queueBySession.get(sid);
+      if (q && q.length) {
+        const next = q.shift();
+        if (q.length) queueBySession.set(sid, q); else queueBySession.delete(sid);
+        if (sid === sessionId) renderQueue();
+        setTimeout(() => sendToAgent(next, { sessionId: sid }), 60);
+      }
     }
     // the server titles a session from its first message; pull the new title in
     if (wasNew && sid) {
@@ -6610,6 +6672,7 @@ function handle(evt) {
     case "thinking_end": if (state.showThinking && state.verbosity !== "minimal") endThinking(evt.ms); break;
     case "todos": renderTodos(evt.todos); break;
     case "question": setActivity("waiting for your answer"); renderAsk(evt); break;
+    case "user_steer": addUser(evt.message); toast("Steering Star…"); break;
     case "session_suggestion": renderSuggest(evt); break;
     case "cwd":
       // use_folder (the agent) bound the session to a new folder: the chip,
@@ -6882,6 +6945,12 @@ function setWorking(on) {
     btn.classList.toggle("stop", !!on);
     btn.title = on ? "Stop" : "Send";
     btn.setAttribute("aria-label", on ? "Stop the response" : "Send message");
+  }
+  const inp = $("input");
+  if (inp) {
+    inp.placeholder = on
+      ? (state.followUp === "steer" ? "Type to steer Star - Enter folds it in" : "Type to queue a follow-up - Enter sends it after this turn")
+      : "Type / for commands";
   }
   const bar = $("workBar");
   if (!bar) return;
@@ -7447,6 +7516,19 @@ function settingsSession() {
       </div>
     </div>
     <div class="card">
+      <div class="ct">Follow up</div>
+      <div class="cs">What happens when you send a message while Star is still working.</div>
+      <div class="row">
+        <div class="rl"><div class="rt">Steer or queue</div><div class="rd">Steer folds your message into the running turn - Star adjusts course on its next step. Queue holds it and sends it automatically when the turn finishes (even in the background); queued messages show above the composer with an × to cancel.</div></div>
+        <div class="rc">
+          <div class="segbtn" id="fFollowUp">
+            <button data-m="steer" class="${state.followUp === "steer" ? "on" : ""}">Steer</button>
+            <button data-m="queue" class="${(state.followUp || "queue") === "queue" ? "on" : ""}">Queue</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
       <div class="ct">Working directory</div>
       <div class="cs">The folder Star reads and edits. Changing it starts a fresh session.</div>
       <div class="row" style="align-items:flex-start">
@@ -7905,6 +7987,12 @@ function wireSettings() {
     state.verbosity = b.dataset.v; save();
     document.querySelectorAll("#fVerbosity button").forEach(x => x.classList.toggle("on", x === b));
   }));
+  document.querySelectorAll("#fFollowUp button").forEach(b => b.addEventListener("click", () => {
+    state.followUp = b.dataset.m === "steer" ? "steer" : "queue";
+    save();
+    document.querySelectorAll("#fFollowUp button").forEach(x => x.classList.toggle("on", x === b));
+    toast(state.followUp === "steer" ? "Follow-ups steer the running turn" : "Follow-ups queue and send after the turn");
+  }));
   document.querySelectorAll("[data-kview]").forEach(el => el.addEventListener("click", async () => {
     const name = el.dataset.kview;
     try {
@@ -8102,32 +8190,6 @@ function toast(msg) {
 $("btnNew").addEventListener("click", () => {
   if (innerWidth <= 820) toggleSidebar(false);
   newSession();
-});
-$("btnOpenFolder").addEventListener("click", async () => {
-  if (bridge) {
-    try {
-      const picked = await bridge.pickFolder();
-      if (!picked) return;
-      state.root = picked; save(); updateChrome();
-      await newSession(); loadTree(); renderSettings();
-      toast("Working directory: " + picked.split(/[\\/]/).pop());
-    } catch { toast("Could not open the folder picker"); }
-    return;
-  }
-  // browser: ask the server for a native picker, otherwise point at settings
-  try {
-    const r = await fetch("/api/pick-folder", { method: "POST" });
-    const j = await r.json();
-    if (j.supported && j.path) {
-      state.root = j.path; save(); updateChrome(); await newSession(); loadTree();
-      toast("Working directory: " + j.path.split(/[\\/]/).pop());
-      return;
-    }
-  } catch {}
-  settingsSection = "session";
-  document.querySelectorAll(".set-nav button").forEach(x => x.classList.toggle("on", x.dataset.s === "session"));
-  openSettings();
-  toast("Set the working directory here");
 });
 $("btnSettings2").addEventListener("click", openSettings);
 $("btnTitleSettings").addEventListener("click", openSettings);

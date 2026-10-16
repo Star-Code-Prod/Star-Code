@@ -197,8 +197,7 @@ try {
   const travText = trav.ok ? await trav.text() : "";
   ok("path traversal on /assets is blocked", !trav.ok || !travText.includes("startServer"));
 
-  const pick = await (await fetch(s.url + "/api/pick-folder", { method: "POST" })).json();
-  ok("browser fallback for the folder picker", pick.supported === false);
+  // (the browser folder-picker fallback went with the Open folder button)
 
   const help = await (await fetch(s.url + "/api/command", {
     method: "POST",
@@ -392,6 +391,12 @@ try {
         await new Promise((r) => setTimeout(r, 600));   // stay live across A's ask
         script = { text: "b-done" };
       }
+      else if (lt.includes("steer probe") && !lt.includes("Tool result for read_file")) script = { tool: "read_file", args: { path: "package.json" } };
+      else if (String((parsed.messages || []).map((m) => String(m.content || "")).join("\n")).includes("steer probe") && lt.includes("Tool result for read_file")) {
+        await new Promise((r) => setTimeout(r, 700));   // a window to steer into
+        script = { text: "steer-done" };
+      }
+      else if (lt.includes("after steer")) script = { text: "after-steer-ok" };
       if (!script) script = [
         { tool: "read_file", args: { path: "package.json" } },  // reviewer: allowed
         { tool: "list_dir", args: { path: "." } },              // reviewer: refused
@@ -873,7 +878,35 @@ try {
       said(aEvents, "ask-ok") && said(bEvents, "b-done") && !said(bEvents, "ask-ok") && !said(aEvents, "b-done"));
   }
 
-  ok("every scripted persona turn made exactly one model call per step", turnBodies.length === 38, String(turnBodies.length));
+  // Steering a live turn (Settings > Session > Follow up): the message joins
+  // the running conversation (the next request carries it) and the event
+  // paints the bubble; with no turn running the endpoint refuses so the
+  // client can fall back to its queue.
+  {
+    const steerTurn = personaTurn({ sessionId: codeNew.id, kind: "code", message: "steer probe" });
+    await new Promise((r) => setTimeout(r, 250));   // mid-turn: the tool call is in flight
+    const sr = await (await fetch(s.url + "/api/steer", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: codeNew.id, message: "STEER-42 please adjust course" }),
+    })).json();
+    ok("steering a live turn is accepted", sr.ok === true, JSON.stringify(sr));
+    const evSteer = await steerTurn;
+    ok("the steer paints as a user message in the stream",
+      evSteer.some((e) => e.type === "user_steer" && String(e.message || "").includes("STEER-42")));
+    const evAfterSteer = await personaTurn({ sessionId: codeNew.id, kind: "code", message: "after steer" });
+    const bSteer = turnBodies[turnBodies.length - 1] || {};
+    const steerCarried = String(JSON.stringify(bSteer.messages || [])).includes("STEER-42 please adjust course") &&
+      String(JSON.stringify(bSteer.messages || [])).includes("treat it as steering");
+    ok("the next request carries the steering message and its marker",
+      steerCarried && said(evAfterSteer, "after-steer-ok"));
+    const idleSteer = await (await fetch(s.url + "/api/steer", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: codeNew.id, message: "too late" }),
+    })).json();
+    ok("steering with no turn running is refused", idleSteer.ok === false, JSON.stringify(idleSteer));
+  }
+
+  ok("every scripted persona turn made exactly one model call per step", turnBodies.length === 41, String(turnBodies.length));
   turnStub.close();
   if (turnStub.closeAllConnections) turnStub.closeAllConnections();
 
@@ -889,9 +922,9 @@ try {
 
   const statsLoad = await (await fetch(s.url + "/api/sessions/messages?id=" + codeNew.id)).json();
   ok("a live session's stats ride with its messages", !!statsLoad.stats && typeof statsLoad.stats.calls === "number");
-  ok("model calls are counted", statsLoad.stats.calls === 30, String(statsLoad.stats.calls));
+  ok("model calls are counted", statsLoad.stats.calls === 33, String(statsLoad.stats.calls));
   ok("tool calls are counted per name",
-    statsLoad.stats.tools.read_file === 3 && statsLoad.stats.tools.list_dir === 1 && statsLoad.stats.tools.write_file === 2 &&
+    statsLoad.stats.tools.read_file === 4 && statsLoad.stats.tools.list_dir === 1 && statsLoad.stats.tools.write_file === 2 &&
     statsLoad.stats.tools.ask_user === 2 && statsLoad.stats.tools.use_folder === 1 && statsLoad.stats.tools.plug_echo === 1 &&
     statsLoad.stats.tools.suggest_session === 1,
     JSON.stringify(statsLoad.stats.tools));

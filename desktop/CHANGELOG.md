@@ -1,5 +1,9 @@
 # What's new in Star
 
+## 1.20.0 — 2026-10-16
+- Follow-ups have a setting now: **Settings > Session > Steer or queue**. When you send something while Star is still working, Steer folds it into the running turn - Star adjusts course on its next step, and your message shows up in the conversation immediately. Queue holds it and sends it automatically the moment the turn finishes, even if that session moved to the background; queued messages sit above the composer as chips with an × to cancel, and the placeholder tells you which mode you are in.
+- The sidebar's "Open folder" button is gone for good - no project picking anywhere on the code page. Where Star works is set the ways you asked for: click the folder chip in the chat header and type a path, or just say where to work and Star binds it. The sidebar is down to New session, Settings and More.
+
 ## 1.19.2 — 2026-10-16
 - Question cards answer the way you actually click now. With several single-choice questions, a pick on each one sends automatically - no more choosing options and wondering why nothing happens while the footer still said "Click an option." The footer counts live ("1 of 2 picked - click one option per question, the last pick sends"), and pick-more-than-one questions still need their explicit Submit ("2 of 2 set - hit Submit.").
 - The work line tells the truth while a card waits on you: "waiting for your answer" (or "waiting for your permission") instead of claiming it is still thinking.

@@ -672,10 +672,6 @@ async function route(req, res) {
     res.writeHead(200, { "Content-Type": MIME[path.extname(file)] || "application/octet-stream", "Cache-Control": "max-age=3600" });
     return res.end(fs.readFileSync(file));
   }
-  // native folder picker fallback when running in a plain browser
-  if (req.method === "POST" && url.pathname === "/api/pick-folder") {
-    return sendJSON(res, 200, { supported: false, error: "Native folder picker is only available in the desktop app." });
-  }
 
   if (req.method === "GET" && url.pathname === "/api/providers") {
     const auth = readAuth();
@@ -1243,6 +1239,27 @@ async function route(req, res) {
       return sendJSON(res, 200, { ok: true });
     }
     return sendJSON(res, 404, { error: "no such pending question" });
+  }
+
+  // A follow-up typed while a turn is running (Settings > Session > Follow
+  // up: Steer): the message joins the live conversation now - the running
+  // loop reads it at its next step - and the event paints the bubble in the
+  // open stream. Without a live turn the client falls back to its queue.
+  if (req.method === "POST" && url.pathname === "/api/steer") {
+    const { sessionId: sid, message } = await readBody(req);
+    const session = sessions.get(sid);
+    const text = String(message || "").trim();
+    if (!session || !text) return sendJSON(res, 400, { ok: false, error: "a session and a message are required" });
+    const turn = askTurns.get(session.id);
+    if (!session.activeTurn || !turn) return sendJSON(res, 409, { ok: false, error: "no turn is running" });
+    session.messages.push({
+      role: "user",
+      content: text + "\n\n[The user sent this while you were working - treat it as steering: adjust course now, then continue.]",
+    });
+    session.updated = Date.now();
+    turn({ type: "user_steer", message: text });
+    persist();
+    return sendJSON(res, 200, { ok: true });
   }
 
   if (req.method === "POST" && url.pathname === "/api/abort") {
