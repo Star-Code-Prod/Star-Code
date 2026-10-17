@@ -1,0 +1,2 @@
+- [ ] Make so AI can interact and see tye preview in realtime.
+- [ ] Make so 3D models can render in the chat
