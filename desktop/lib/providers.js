@@ -208,6 +208,37 @@ export function cheapModelFor(providerId) {
   return entry.defaultModel;
 }
 
+/* ------------------------------- pricing -------------------------------- */
+// Public list prices, USD per 1M tokens (input / output). Providers reprice
+// and versions drift, so these are ESTIMATES: Settings > Providers > Advanced
+// takes an explicit per-model price that always wins, and a model we have no
+// price for shows tokens only instead of a made-up number.
+const PRICES = [
+  [/^deepseek-(chat|v3|v4)|^deepseek-flash/, { in: 0.28, out: 1.10 }],
+  [/^deepseek-reasoner|^deepseek-r/, { in: 0.55, out: 2.19 }],
+  [/^gpt-4o-mini/, { in: 0.15, out: 0.60 }],
+  [/^gpt-4o/, { in: 2.50, out: 10.00 }],
+  [/^gpt-4\.1|^gpt-5/, { in: 2.00, out: 8.00 }],
+  [/^o4-mini/, { in: 1.10, out: 4.40 }],
+  [/^claude-.*opus/, { in: 15.00, out: 75.00 }],
+  [/^claude-.*sonnet/, { in: 3.00, out: 15.00 }],
+  [/^claude-.*haiku/, { in: 0.80, out: 4.00 }],
+  [/^gemini-.*pro/, { in: 1.25, out: 10.00 }],
+  [/^gemini-.*flash/, { in: 0.30, out: 2.50 }],
+  [/^grok-4/, { in: 3.00, out: 15.00 }],
+  [/^grok-.*mini/, { in: 0.30, out: 0.50 }],
+  [/^llama-3\.3-70b/, { in: 0.59, out: 0.79 }],
+  [/^mistral-large/, { in: 2.00, out: 6.00 }],
+  [/^codestral/, { in: 0.30, out: 0.90 }],
+];
+/** { in, out } per 1M tokens for a model id, or null when unpriced. */
+export function priceFor(provider, model) {
+  const id = String(model || "").toLowerCase();
+  if (!id) return null;
+  for (const [re, p] of PRICES) if (re.test(id)) return { in: p.in, out: p.out };
+  return null;
+}
+
 /* ------------------------------ model lists ------------------------------ */
 // Every probe's payload normalizes to [{ id, name, contextLength }].
 
@@ -465,6 +496,10 @@ export function buildRequest({ provider, apiKey, baseUrl, model, messages, strea
     temperature: 0.3,
     stream: !!stream,
   };
+  // Ask OpenAI-compatible servers to report token usage on the stream. A
+  // server that rejects the field is retried without it (streamCompletion),
+  // so this can never break a provider that predates it.
+  if (stream) body.stream_options = { include_usage: true };
   // Effort is a REAL request parameter where the API takes one: OpenAI's
   // reasoning_effort (OpenAI proper and OpenRouter both accept it). Only sent
   // for reasoning models - the others reject the field - and the UI control
@@ -500,11 +535,18 @@ export function extractDelta(provider, obj) {
 }
 
 export async function* streamCompletion(req, fetchImpl = fetch) {
-  const res = await fetchImpl(req.url, {
+  const doFetch = (body) => fetchImpl(req.url, {
     method: "POST",
     headers: req.headers,
-    body: JSON.stringify(req.body),
+    body: JSON.stringify(body),
   });
+  let res = await doFetch(req.body);
+  // stream_options is the one field some older OpenAI-compatible servers
+  // reject outright: ask for usage, but never lose the turn over it.
+  if (!res.ok && req.body && req.body.stream_options && res.status >= 400 && res.status < 500) {
+    const { stream_options, ...plain } = req.body;
+    res = await doFetch(plain);
+  }
 
   if (!res.ok) {
     let detail = "";
@@ -520,6 +562,7 @@ export async function* streamCompletion(req, fetchImpl = fetch) {
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  const kind = PROVIDERS[req.provider]?.kind;
 
   while (true) {
     const { value, done } = await reader.read();
@@ -539,6 +582,28 @@ export async function* streamCompletion(req, fetchImpl = fetch) {
         continue;
       }
       if (obj.error) throw new Error(obj.error.message || JSON.stringify(obj.error));
+      // Real usage, when the provider reports it: the prompt count is the
+      // actual context the model saw, and in+out are what costs money.
+      if (kind === "anthropic") {
+        if (obj.type === "message_start" && obj.message && obj.message.usage) {
+          const u = obj.message.usage;
+          yield { usage: {
+            input: Number(u.input_tokens) || 0,
+            output: 0,
+            cached: (Number(u.cache_read_input_tokens) || 0) + (Number(u.cache_creation_input_tokens) || 0),
+          } };
+        } else if (obj.type === "message_delta" && obj.usage) {
+          yield { usage: { input: 0, output: Number(obj.usage.output_tokens) || 0, cached: 0 } };
+        }
+      } else if (obj.usage) {
+        const u = obj.usage;
+        yield { usage: {
+          input: Number(u.prompt_tokens ?? u.input_tokens) || 0,
+          output: Number(u.completion_tokens ?? u.output_tokens) || 0,
+          cached: Number(u.prompt_cache_hit_tokens ?? u.cached_tokens
+            ?? (u.prompt_tokens_details && u.prompt_tokens_details.cached_tokens)) || 0,
+        } };
+      }
       const { text, thinking } = extractDelta(req.provider, obj);
       if (text) yield { text };
       if (thinking) yield { thinking };

@@ -1837,6 +1837,32 @@ function flashSaved() {
 }
 
 function prov() { return state.providers[state.current] || state.providers.deepseek; }
+/* Model display names: the provider's own name wins (their /models list
+   often carries one - "DeepSeek V4.1 Flash 1017" beside the id), then a
+   small built-in map, then a readable form of the id. The id itself never
+   stops working: it is what the API receives. */
+const MODEL_PRETTY = {
+  "deepseek-chat": "DeepSeek Chat", "deepseek-reasoner": "DeepSeek Reasoner",
+  "gpt-4o": "GPT-4o", "gpt-4o-mini": "GPT-4o mini", "gpt-4.1": "GPT-4.1", "o4-mini": "o4-mini",
+  "claude-sonnet-4-20250514": "Claude Sonnet 4", "claude-opus-4-20250514": "Claude Opus 4",
+  "claude-3-5-haiku-20241022": "Claude 3.5 Haiku",
+  "gemini-2.5-pro": "Gemini 2.5 Pro", "gemini-2.5-flash": "Gemini 2.5 Flash",
+  "grok-4": "Grok 4", "grok-3-mini": "Grok 3 mini",
+};
+function prettyModelName(id) {
+  const s = String(id || "");
+  if (!s) return "";
+  return MODEL_PRETTY[s] || s.replace(/[-_/]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()).replace(/\s+/g, " ").trim();
+}
+/** The label for a model id: the live provider name, the saved pick, or the
+ *  prettified id - never blank while a model is set. */
+function modelLabel(pid, mid) {
+  const cfg = state.providers[pid] || {};
+  if (cfg.modelName && cfg.model === mid) return cfg.modelName;
+  const live = liveModels[pid];
+  const hit = live && Array.isArray(live.models) ? live.models.find((m) => m && m.id === mid) : null;
+  return (hit && hit.name) || prettyModelName(mid);
+}
 
 /** Send a client baseUrl only when it truly overrides the catalog default.
  *  A stale copy would otherwise beat the stored override server-side. */
@@ -2018,8 +2044,8 @@ function updateChrome() {
   $("sProj").textContent = base;
   $("sProj").title = r;
   $("bigProjName").textContent = base;
-  $("cModelName").textContent = prov().model || "—";
-  $("bigModelName").textContent = prov().model || "—";
+  $("cModelName").textContent = prov().model ? modelLabel(state.current, prov().model) : "—";
+  $("bigModelName").textContent = prov().model ? modelLabel(state.current, prov().model) : "—";
   $("cEffort").textContent = state.effort[0].toUpperCase() + state.effort.slice(1);
   const agentLabel = state.agent || "No agent";
   $("cAgent").textContent = agentLabel;
@@ -2213,10 +2239,12 @@ async function refreshPickableModels() {
   }));
 }
 
-function chooseModel(pid, mid) {
+function chooseModel(pid, mid, label) {
   state.current = pid;
   state.providers[pid] = state.providers[pid] || {};
   state.providers[pid].model = mid;
+  const pretty = label || modelLabel(pid, mid) || mid;
+  state.providers[pid].modelName = pretty;
   save(); updateChrome(); renderSessions();
   // Tell the server about the pick so the CLI (which keeps the same record)
   // agrees next time; best-effort — an older server without /api/last-model
@@ -2228,7 +2256,7 @@ function chooseModel(pid, mid) {
     }).catch(() => {});
   } catch { /* never break the picker over a background write */ }
   if ($("settings").classList.contains("on")) renderSettings();
-  toast(pid + " · " + mid);
+  toast(pid + " · " + pretty);
   if (!$("settings").classList.contains("on")) focusComposer();
 }
 
@@ -2249,11 +2277,11 @@ function renderModelPicker(menu) {
     const cfg = state.providers[p.id] || {};
     const cur = cfg.model || p.defaultModel;
     let models = (cached && cached.models.length) ? cached.models.slice()
-      : (p.models || []).map(id => ({ id, reasoning: (p.reasoning || []).includes(id) }));
-    if (cur && !models.some(m => m.id === cur)) models.unshift({ id: cur, reasoning: false });
+      : (p.models || []).map(id => ({ id, name: prettyModelName(id), reasoning: (p.reasoning || []).includes(id) }));
+    if (cur && !models.some(m => m.id === cur)) models.unshift({ id: cur, name: modelLabel(p.id, cur), reasoning: false });
     const filtered = models.filter(m => {
       if (!q) return true;
-      const hay = (p.label + " " + p.id + " " + m.id + " " + p.id + "/" + m.id).toLowerCase();
+      const hay = (p.label + " " + p.id + " " + m.id + " " + (m.name || "") + " " + prettyModelName(m.id) + " " + p.id + "/" + m.id).toLowerCase();
       return hay.includes(q);
     });
     if (!filtered.length) continue;
@@ -2261,7 +2289,7 @@ function renderModelPicker(menu) {
   }
   for (const g of groups) {
     for (const m of g.models) {
-      mpItems.push({ pid: g.p.id, mid: m.id, reasoning: !!m.reasoning, contextLength: m.contextLength, live: g.live });
+      mpItems.push({ pid: g.p.id, mid: m.id, label: m.name || prettyModelName(m.id), reasoning: !!m.reasoning, contextLength: m.contextLength, live: g.live });
     }
   }
   let idx = 0;
@@ -2270,9 +2298,10 @@ function renderModelPicker(menu) {
     g.models.map(m => {
       const i = idx++;
       const active = g.p.id === state.current && m.id === (state.providers[g.p.id] || {}).model;
-      const badges = [m.reasoning ? "reasoning" : "", m.contextLength ? Math.round(m.contextLength / 1000) + "k" : ""].filter(Boolean).join(" · ");
+      const name = m.name || prettyModelName(m.id);
+      const badges = [name !== m.id ? m.id : "", m.reasoning ? "reasoning" : "", m.contextLength ? Math.round(m.contextLength / 1000) + "k" : ""].filter(Boolean).join(" · ");
       return `<button class="mi ${i === 0 ? "on" : ""}" data-i="${i}">
-        <span class="mono" style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.id)}</span>
+        <span style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(name)}</span>
         ${badges ? `<span class="sub">${esc(badges)}</span>` : ""}
         ${active ? '<span class="tick">✓</span>' : ""}
       </button>`;
@@ -2303,7 +2332,7 @@ function renderModelPicker(menu) {
   }));
   menu.querySelectorAll(".mi[data-i]").forEach(el => el.addEventListener("click", () => {
     const it = mpItems[+el.dataset.i];
-    if (it) { closeMenus(); chooseModel(it.pid, it.mid); }
+    if (it) { closeMenus(); chooseModel(it.pid, it.mid, it.label); }
   }));
   menu.querySelector("#mpConnect").addEventListener("click", () => {
     closeMenus();
@@ -2349,7 +2378,7 @@ function modelPicker(anchor) {
   menu.addEventListener("keydown", e => {
     if (e.key === "ArrowDown") { e.preventDefault(); moveMp(1); }
     else if (e.key === "ArrowUp") { e.preventDefault(); moveMp(-1); }
-    else if (e.key === "Enter") { e.preventDefault(); const it = mpItems[mpSel]; if (it) { closeMenus(); chooseModel(it.pid, it.mid); } }
+    else if (e.key === "Enter") { e.preventDefault(); const it = mpItems[mpSel]; if (it) { closeMenus(); chooseModel(it.pid, it.mid, it.label); } }
     else if (e.key === "Escape") { e.preventDefault(); closeMenus(); focusComposer(); }
   });
   refreshPickableModels().then(() => { if (document.body.contains(menu)) draw(); });
@@ -6248,6 +6277,16 @@ function endThinking(ms) {
   // The model skipped reasoning: no text ever arrived, so no card either.
   if (!cur.text.trim()) { n.remove(); return; }
 
+  // Belt and braces: the server already scrubs tool markup out of reasoning,
+  // but a card must never be able to show it - an old build, a new provider
+  // dialect or a stored transcript should all settle clean. stripBlocks is
+  // the same scrub the transcript uses, applied once at settle.
+  const clean = stripBlocks(cur.text);
+  if (clean !== cur.text) {
+    cur.text = clean;
+    if (cur.panel) cur.panel.textContent = clean;
+  }
+
   n.removeAttribute("data-live");
   // The folded pill keeps the duration AND a one-line gist, so a collapsed
   // card still says what the model was working through.
@@ -6620,7 +6659,15 @@ function renderRing() {
   const C = 2 * Math.PI * 7.5;
   $("ringFg").setAttribute("stroke-dashoffset", String(C - (C * Math.min(100, contextPct)) / 100));
   const k = v => v >= 1000 ? (v / 1000).toFixed(1) + "k" : String(v);
-  $("ringTip").textContent = `Context ${k(contextTokens)} / ${k(contextLimit)} (${contextPct}%)` + ringStatBits();
+  // Money joins the tooltip the moment both tokens and a price exist.
+  const p = prov();
+  const pin = Number(p.priceIn) > 0 ? Number(p.priceIn) : (Number(lastUsage.priceIn) || 0);
+  const pout = Number(p.priceOut) > 0 ? Number(p.priceOut) : (Number(lastUsage.priceOut) || 0);
+  const money = (pin > 0 || pout > 0)
+    ? ((sessStats.inputTokens || 0) / 1e6) * pin + ((sessStats.outputTokens || 0) / 1e6) * pout
+    : null;
+  $("ringTip").textContent = `Context ${k(contextTokens)} / ${k(contextLimit)} (${contextPct}%)` + ringStatBits() +
+    (money != null ? ` · ≈ $${money >= 0.01 ? money.toFixed(2) : money.toFixed(4)}` : "");
   renderUsage();
 }
 
@@ -6642,13 +6689,41 @@ function renderUsage() {
   const other = groupToolCounts(s.tools || {}).find(g => g.group === "other");
   if (other) groups.push(other);
   const totalTools = groups.reduce((n, g) => n + g.count, 0);
+
+  // Money: an explicit price in Settings wins, then the server's list price
+  // for this model; with neither, tokens are shown without a fake number.
+  const priceIn = Number(p.priceIn) > 0 ? Number(p.priceIn) : (lastUsage && Number(lastUsage.priceIn) > 0 ? Number(lastUsage.priceIn) : 0);
+  const priceOut = Number(p.priceOut) > 0 ? Number(p.priceOut) : (lastUsage && Number(lastUsage.priceOut) > 0 ? Number(lastUsage.priceOut) : 0);
+  const costOf = (tin, tout, pin, pout) =>
+    (pin > 0 || pout > 0) ? (tin / 1e6) * pin + (tout / 1e6) * pout : null;
+  const fmtMoney = (v) => v == null ? "" : v >= 0.01 ? "$" + v.toFixed(2) : "$" + v.toFixed(4);
+  const sIn = s.inputTokens || 0, sOut = s.outputTokens || 0;
+  const sCost = costOf(sIn, sOut, priceIn, priceOut);
+  let allIn = 0, allOut = 0, allCost = 0, allPriced = true;
+  for (const it of sessionList) {
+    const u = it.usage || {};
+    allIn += u.inputTokens || 0;
+    allOut += u.outputTokens || 0;
+    const c = costOf(u.inputTokens || 0, u.outputTokens || 0, Number(u.priceIn) || 0, Number(u.priceOut) || 0);
+    if (c == null && ((u.inputTokens || 0) + (u.outputTokens || 0)) > 0) allPriced = false;
+    allCost += c || 0;
+  }
+  const label = modelLabel(state.current, p.model || "");
+
   host.innerHTML = `
     <div class="ucard">
       <div class="ut">Context window</div>
       <div class="ubar" role="img" aria-label="Context used: ${pct}%"><span style="width:${Math.min(100, pct)}%"></span></div>
-      <div class="ud"><b>${k(tok)}</b> / ${k(lim)} tokens · ${pct}% used</div>
-      <div class="ud">${esc(p.model || "no model")} · ${esc(state.current)}${state.effort ? " · effort " + esc(state.effort) : ""}</div>
+      <div class="ud"><b>${k(tok)}</b> / ${k(lim)} tokens · ${pct}% used${lastUsage && lastUsage.estimated ? " (estimated - this provider reports no usage)" : ""}</div>
+      <div class="ud">${esc(label || "no model")} · ${esc(state.current)}${state.effort ? " · effort " + esc(state.effort) : ""}</div>
       <div class="ud">${override ? "Limit set in Settings (" + override.toLocaleString() + ")" : "Limit: detected or catalog value - set one in Settings > Providers > Advanced"}</div>
+    </div>
+    <div class="ucard">
+      <div class="ut">Tokens and cost</div>
+      <div class="ud"><b>${k(sIn)}</b> in · <b>${k(sOut)}</b> out this session</div>
+      <div class="ud">${sCost != null ? "≈ " + fmtMoney(sCost) + " this session" : "no price known for " + esc(label || "this model") + " - set one in Settings > Providers > Advanced"}</div>
+      ${(allIn + allOut) > 0 ? `<div class="ud">all sessions: ${k(allIn)} in · ${k(allOut)} out${allCost > 0 ? " ≈ " + fmtMoney(allCost) + (allPriced ? "" : "+") : ""}</div>` : ""}
+      <div class="ud">list prices are estimates; your override always wins</div>
     </div>
     <div class="ucard">
       <div class="ut">This session</div>
@@ -6692,13 +6767,17 @@ function fmtCount(n) {
   return n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : String(n);
 }
 function emptySessStats() {
-  return { calls: 0, tools: {}, compact: { passes: 0, charsSaved: 0 }, lastContext: null };
+  return { calls: 0, tools: {}, compact: { passes: 0, charsSaved: 0 }, lastContext: null, inputTokens: 0, outputTokens: 0 };
 }
 let sessStats = emptySessStats();
+let liveUsageSeen = { in: 0, out: 0 };   // this turn's last cumulative token totals
 function hydrateSessStats(raw) {
   sessStats = emptySessStats();
+  liveUsageSeen = { in: 0, out: 0 };
   if (!raw || typeof raw !== "object") return;
   sessStats.calls = Number(raw.calls) || 0;
+  sessStats.inputTokens = Number(raw.inputTokens) || 0;
+  sessStats.outputTokens = Number(raw.outputTokens) || 0;
   if (raw.tools && typeof raw.tools === "object") sessStats.tools = { ...raw.tools };
   if (raw.compact && typeof raw.compact === "object") {
     sessStats.compact.passes = Number(raw.compact.passes) || 0;
@@ -6976,10 +7055,26 @@ function handle(evt) {
     case "tool_result": setActivity("thinking"); finishTool(evt.status, evt.preview); break;
     case "context_pruned": sessStats.compact.passes += 1; sessStats.compact.charsSaved += Number(evt.chars) || 0; break;
     case "diff": renderDiff(evt); updatePrBar(evt); break;
-    case "usage": lastUsage = evt; sessStats.lastContext = { contextTokens: evt.contextTokens, contextLimit: evt.contextLimit, contextPct: evt.contextPct }; renderRing(); break;
+    case "usage": {
+      lastUsage = evt;
+      // The event carries this TURN's cumulative tokens; fold only the delta
+      // so the session total matches the server's persisted stats.
+      const dIn = Math.max(0, (evt.inputTokens || 0) - (liveUsageSeen.in || 0));
+      const dOut = Math.max(0, (evt.outputTokens || 0) - (liveUsageSeen.out || 0));
+      sessStats.inputTokens = (sessStats.inputTokens || 0) + dIn;
+      sessStats.outputTokens = (sessStats.outputTokens || 0) + dOut;
+      liveUsageSeen = { in: evt.inputTokens || 0, out: evt.outputTokens || 0 };
+      sessStats.lastContext = {
+        contextTokens: evt.contextTokens, contextLimit: evt.contextLimit, contextPct: evt.contextPct,
+        priceIn: evt.priceIn ?? null, priceOut: evt.priceOut ?? null, model: evt.model || null, estimated: !!evt.estimated,
+      };
+      renderRing();
+      break;
+    }
     case "error": addTool({ name: "error", args: {}, status: "denied", detail: evt.message }); break;
     case "done":
       endAssistant(); endThinking();
+      liveUsageSeen = { in: 0, out: 0 };   // the next turn's tally restarts
       if (evt.text && state.defaultMode === "plan" && evt.text.length > 80) renderPlan(evt.text);
       break;
   }
@@ -7727,6 +7822,14 @@ function settingsProviderDetail(id) {
           <input class="inp mono" id="fCtx" value="${esc(String((state.providers[providerDetailId] || {}).contextLimit || ""))}" placeholder="leave empty to detect - e.g. 1000000 for a 1M model">
         </div>
         <button class="btn sm" id="fSaveCtx">Save context limit</button>
+        <div class="fld" style="margin-top:12px">
+          <label>Price per 1M tokens, USD - optional</label>
+          <div style="display:flex;gap:8px">
+            <input class="inp mono" id="fPriceIn" value="${esc(String((state.providers[providerDetailId] || {}).priceIn || ""))}" placeholder="input, e.g. 0.28" autocomplete="off">
+            <input class="inp mono" id="fPriceOut" value="${esc(String((state.providers[providerDetailId] || {}).priceOut || ""))}" placeholder="output, e.g. 1.10" autocomplete="off">
+          </div>
+        </div>
+        <button class="btn sm" id="fSavePrice">Save prices</button>
       </details>
     </div>
 
@@ -8204,6 +8307,23 @@ function wireSettings() {
     }
     connectState = { error: "", warning: "", message: raw && n > 0 ? "Context limit: " + n.toLocaleString() : "Context limit: automatic." };
     renderSettings();
+  });
+  on("fSavePrice", "click", () => {
+    // What the user actually pays per 1M tokens - overrides the list estimate
+    // for the usage pane's money line, this session and the total.
+    const pin = Math.max(0, Number(($("fPriceIn") ? $("fPriceIn").value : "").trim()) || 0);
+    const pout = Math.max(0, Number(($("fPriceOut") ? $("fPriceOut").value : "").trim()) || 0);
+    state.providers[providerDetailId] = state.providers[providerDetailId] || {};
+    const cfg = state.providers[providerDetailId];
+    if (pin > 0) cfg.priceIn = pin; else delete cfg.priceIn;
+    if (pout > 0) cfg.priceOut = pout; else delete cfg.priceOut;
+    save();
+    connectState = {
+      error: "", warning: "",
+      message: (pin > 0 || pout > 0) ? "Prices set: $" + pin + " in / $" + pout + " out per 1M tokens." : "Prices cleared - list estimates used.",
+    };
+    renderSettings();
+    if (providerDetailId === state.current) renderUsage();
   });
 
   /* VirusTotal key — an auxiliary credential, not a model provider. */

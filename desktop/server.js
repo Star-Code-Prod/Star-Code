@@ -279,13 +279,15 @@ function isEmptyUntitled(s) {
 
 /** Zeroed session stats - also the shape old stored sessions get on load. */
 function emptyStats() {
-  return { calls: 0, tools: {}, compact: { passes: 0, charsSaved: 0 }, lastContext: null };
+  return { calls: 0, tools: {}, compact: { passes: 0, charsSaved: 0 }, lastContext: null, inputTokens: 0, outputTokens: 0 };
 }
 /** Merge whatever was persisted into the zero shape (never throws). */
 function normalizeStats(raw) {
   const base = emptyStats();
   if (!raw || typeof raw !== "object") return base;
   base.calls = Number(raw.calls) || 0;
+  base.inputTokens = Number(raw.inputTokens) || 0;
+  base.outputTokens = Number(raw.outputTokens) || 0;
   if (raw.tools && typeof raw.tools === "object") base.tools = { ...raw.tools };
   if (raw.compact && typeof raw.compact === "object") {
     base.compact.passes = Number(raw.compact.passes) || 0;
@@ -302,7 +304,23 @@ function bumpSessionStats(session, evt) {
   if (evt.type === "assistant_start") stats.calls += 1;
   else if (evt.type === "tool" && evt.name) stats.tools[evt.name] = (stats.tools[evt.name] || 0) + 1;
   else if (evt.type === "usage") {
-    stats.lastContext = { contextTokens: evt.contextTokens, contextLimit: evt.contextLimit, contextPct: evt.contextPct };
+    // Turn totals arrive cumulatively with each usage event; the session
+    // store keeps tokens, a real cost basis, and the true context reading.
+    stats.lastContext = {
+      contextTokens: evt.contextTokens,
+      contextLimit: evt.contextLimit,
+      contextPct: evt.contextPct,
+      priceIn: evt.priceIn ?? null,
+      priceOut: evt.priceOut ?? null,
+      model: evt.model || (stats.lastContext && stats.lastContext.model) || null,
+      estimated: !!evt.estimated,
+    };
+    const inNow = Number(evt.inputTokens) || 0;
+    const outNow = Number(evt.outputTokens) || 0;
+    stats.inputTokens += Math.max(0, inNow - (session.usageSeenIn || 0));
+    stats.outputTokens += Math.max(0, outNow - (session.usageSeenOut || 0));
+    session.usageSeenIn = inNow;
+    session.usageSeenOut = outNow;
   } else if (evt.type === "context_pruned") {
     stats.compact.passes += 1;
     stats.compact.charsSaved += Number(evt.chars) || 0;
@@ -425,6 +443,14 @@ function summarise(s) {
     // to "Needs input" until the user responds.
     activeTurn: s.activeTurn || 0,
     needsInput: (s.asks && s.asks.size > 0) || (s.pending && s.pending.size > 0),
+    // Totals for the usage pane's "all sessions" line; prices come from the
+    // last usage reading so money can be summed client-side.
+    usage: {
+      inputTokens: (s.stats && s.stats.inputTokens) || 0,
+      outputTokens: (s.stats && s.stats.outputTokens) || 0,
+      priceIn: (s.stats && s.stats.lastContext && s.stats.lastContext.priceIn) ?? null,
+      priceOut: (s.stats && s.stats.lastContext && s.stats.lastContext.priceOut) ?? null,
+    },
   };
 }
 
@@ -1295,6 +1321,11 @@ async function route(req, res) {
     // get a fresh runner limited to CHAT_TOOLS, always rooted at home; a
     // selected agent narrows that list (never widens it).
     const chatRunner = sessionRunner(session, selectedAgent);
+
+    // A new turn starts a fresh usage tally: the usage events of one turn
+    // carry cumulative token totals, and the stats fold only their deltas.
+    session.usageSeenIn = 0;
+    session.usageSeenOut = 0;
 
     try {
       await runAgentTurn({

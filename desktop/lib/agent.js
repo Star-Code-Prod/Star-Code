@@ -1,7 +1,7 @@
 // The agent loop: stream assistant text + reasoning, detect tool calls,
 // apply the session's permission mode, execute, feed results back, repeat.
 
-import { buildRequest, streamCompletion, PROVIDERS, getDiscoveredLimit } from "./providers.js";
+import { buildRequest, streamCompletion, PROVIDERS, getDiscoveredLimit, priceFor } from "./providers.js";
 import { readProjectMemory, TOOL_SPECS } from "./tools.js";
 import { knowledgeIndex } from "./knowledge.js";
 import { classifySource } from "./sources.js";
@@ -784,8 +784,7 @@ export async function runAgentTurn({
 
   /** Shared tail of tool handling: clip, dedupe, emit and record one result.
    *  The sequential path and parallel fleets both settle through here. */
-  const settleToolResult = (call, result, allowed) => {
-    const str = String(result);
+  const settleToolResult = (call, result, allowed) => {    const str = String(result);
     const clipped = elideToolResult(str, TOOL_RESULT_CHARS, call.name);
     const body = TOOL_RESULT_PREFIX + call.name + ":\n\n" + clipped;
     // identical bytes already in the transcript (and not pruned) are not
@@ -795,6 +794,30 @@ export async function runAgentTurn({
     if (reused) event.reused = true;
     emit(event);
     messages.push({ role: "user", content: reused ? identicalReuseStub(call.name, str.length) : body });
+  };
+
+  /** Real usage: providers report per-request prompt/completion tokens (the
+   *  prompt count is the true context the model saw). Summed per turn and
+   *  priced when a list price is known; the token estimate is only the
+   *  fallback for providers that report nothing. */
+  let turnIn = 0, turnOut = 0, lastPrompt = 0;
+  const emitUsage = () => {
+    const used = lastPrompt || estimateTokens(messages);
+    const limit = contextLimit(model, provider, contextLimitTokens);
+    const price = priceFor(provider, model);
+    emit({
+      type: "usage",
+      contextTokens: used,
+      contextLimit: limit,
+      contextPct: Math.min(100, Math.round((used / limit) * 100)),
+      inputTokens: turnIn,
+      outputTokens: turnOut,
+      estimated: !lastPrompt,
+      model,
+      provider,
+      priceIn: price ? price.in : null,
+      priceOut: price ? price.out : null,
+    });
   };
 
   for (let step = 0; step < MAX_STEPS; step++) {
@@ -825,6 +848,14 @@ export async function runAgentTurn({
     try {
       for await (const chunk of streamCompletion(req)) {
         if (interrupted || controller.abort) { interrupted = true; break; }
+
+        if (chunk.usage) {
+          // The prompt count is the real context; in+out are the money.
+          if (chunk.usage.input) lastPrompt = chunk.usage.input;
+          turnIn += chunk.usage.input || 0;
+          turnOut += chunk.usage.output || 0;
+          continue;
+        }
 
         if (chunk.thinking) {
           // open a new block only if one is not already open. Resetting
@@ -868,7 +899,7 @@ export async function runAgentTurn({
 
     if (interrupted || controller.abort) {
       if (full) messages.push({ role: "assistant", content: full });
-      emit({ type: "usage", ...usageFor(messages, provider, model, contextLimitTokens) });
+      emitUsage();
       emit({ type: "done", text: "" });
       return;
     }
@@ -877,7 +908,7 @@ export async function runAgentTurn({
     messages.push({ role: "assistant", content: full });
 
     if (todos) emit({ type: "todos", todos });
-    emit({ type: "usage", ...usageFor(messages, provider, model, contextLimitTokens) });
+    emitUsage();
 
     if (!calls.length) {
       emit({ type: "done", text });
@@ -947,14 +978,8 @@ export async function runAgentTurn({
       settleToolResult(call, result, allowed);
     }
   }
-  emit({ type: "usage", ...usageFor(messages, provider, model, contextLimitTokens) });
+  emitUsage();
   emit({ type: "done", text: interrupted || controller.abort ? "(Stopped)" : "(Reached the step limit for this turn.)" });
-}
-
-function usageFor(messages, provider, model, limitOverride = 0) {
-  const used = estimateTokens(messages);
-  const limit = contextLimit(model, provider, limitOverride);
-  return { contextTokens: used, contextLimit: limit, contextPct: Math.min(100, Math.round((used / limit) * 100)) };
 }
 
 async function safeRead(runner, call) {

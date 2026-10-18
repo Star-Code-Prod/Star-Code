@@ -420,6 +420,7 @@ try {
       };
       else if (lt.includes("preview e2e") && !lt.includes("Tool result for preview")) script = { tool: "preview", args: { action: "look" } };
       else if (lt.includes("Tool result for preview")) script = { text: lt.includes("Hello from the preview") ? "saw:yes" : "saw:no" };
+      else if (lt.includes("usage probe")) script = { text: "usage-ok", usage: { prompt_tokens: 123456, completion_tokens: 2345 } };
       if (!script) script = [
         { tool: "read_file", args: { path: "package.json" } },  // reviewer: allowed
         { tool: "list_dir", args: { path: "." } },              // reviewer: refused
@@ -447,6 +448,7 @@ try {
         }
         send({ choices: [{ delta: { content: script.text } }] });
       }
+      if (script.usage) send({ choices: [], usage: script.usage });
       res.write("data: [DONE]\n\n");
       res.end();
     });
@@ -1049,7 +1051,23 @@ try {
       JSON.stringify({ ops: evP.filter((e) => e.type === "preview_op").length, res: String((evP.find((e) => e.type === "tool_result" && e.name === "preview") || {}).preview || "").slice(0, 120) }));
   }
 
-  ok("every scripted persona turn made exactly one model call per step", turnBodies.length === 44, String(turnBodies.length));  turnStub.close();
+  // Real usage: the provider's own token counts reach the UI event, the
+  // session stats and the session list (where the money line reads them).
+  {
+    const evU = await personaTurn({ sessionId: codeNew.id, kind: "code", message: "usage probe" });
+    const uEv = evU.filter((e) => e.type === "usage").pop() || {};
+    ok("the usage event carries the provider's real tokens",
+      said(evU, "usage-ok") && uEv.inputTokens === 123456 && uEv.outputTokens === 2345 && uEv.estimated === false,
+      JSON.stringify(uEv));
+    const dumpU = await (await fetch(s.url + "/api/sessions/messages?id=" + codeNew.id)).json();
+    ok("session stats keep the tokens", dumpU.stats.inputTokens === 123456 && dumpU.stats.outputTokens === 2345,
+      JSON.stringify({ in: dumpU.stats.inputTokens, out: dumpU.stats.outputTokens }));
+    const sumU = ((await (await fetch(s.url + "/api/sessions")).json()).sessions || []).find((x) => x.id === codeNew.id) || {};
+    ok("the session list carries usage totals", sumU.usage && sumU.usage.inputTokens === 123456 && sumU.usage.outputTokens === 2345,
+      JSON.stringify(sumU.usage));
+  }
+
+  ok("every scripted persona turn made exactly one model call per step", turnBodies.length === 45, String(turnBodies.length));  turnStub.close();
   if (turnStub.closeAllConnections) turnStub.closeAllConnections();
 
   // Session stats: usage, tool counts (the raw layer under the UI groupings)
@@ -1064,7 +1082,7 @@ try {
 
   const statsLoad = await (await fetch(s.url + "/api/sessions/messages?id=" + codeNew.id)).json();
   ok("a live session's stats ride with its messages", !!statsLoad.stats && typeof statsLoad.stats.calls === "number");
-  ok("model calls are counted", statsLoad.stats.calls === 36, String(statsLoad.stats.calls));
+  ok("model calls are counted", statsLoad.stats.calls === 37, String(statsLoad.stats.calls));
   ok("tool calls are counted per name",
     statsLoad.stats.tools.read_file === 4 && statsLoad.stats.tools.list_dir === 1 && statsLoad.stats.tools.write_file === 2 &&
     statsLoad.stats.tools.ask_user === 2 && statsLoad.stats.tools.use_folder === 1 && statsLoad.stats.tools.plug_echo === 1 &&

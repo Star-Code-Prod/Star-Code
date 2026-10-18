@@ -15,7 +15,7 @@ process.env.STAR_CODE_DATA = dir;
 const { authPath, readAuth, writeAuthEntry, removeAuthEntry, resolveKey, mask } =
   await import(pathToFileURL(path.resolve("lib/auth.js")).href);
 const { PROVIDERS, normalizeModels, filterChatModels, isReasoning, discoverModels, detectLocals, getDiscoveredLimit,
-  attributionHeaders, isOpenRouterHost, cheapModelFor, buildRequest, streamCompletion } =
+  attributionHeaders, isOpenRouterHost, cheapModelFor, buildRequest, streamCompletion, priceFor } =
   await import(pathToFileURL(path.resolve("lib/providers.js")).href);
 const { decisionFor, systemPrompt, resetSystemPromptCache, chatSystemPrompt, pruneOldToolResults, manageHistory,
   estimateTokens, hasIdenticalToolResult, identicalReuseStub, TOOL_RESULT_PREFIX,
@@ -185,12 +185,65 @@ line "two"</|DSML|parameter>
     parseDsmlCalls(spaced).length === 1 && parseDsmlCalls(spaced)[0].name === "run_command");
 }
 
-/* ------------- reasoning scrubbing (the thinking card shows prose) ------------- */
-// A proxy routes raw DSML through reasoning_content: the thinking card used to
-// render the markup verbatim. The reasoning path gets the same treatment as
-// content - normalize, drop whole blocks and stray tags, trim the seams - and
-// a delta boundary that falls inside a still-incomplete opener holds the tail
-// back so no fragment ever streams through.
+/* ------------------------- pricing and usage ------------------------- */
+// Money must never be invented: known models get list prices, unknown ones
+// get nothing, and providers that report usage give REAL tokens.
+{
+  ok("list prices resolve for known model families",
+    JSON.stringify(priceFor("deepseek", "deepseek-flash")) === JSON.stringify({ in: 0.28, out: 1.10 }) &&
+    JSON.stringify(priceFor("openai", "gpt-4o-mini")) === JSON.stringify({ in: 0.15, out: 0.60 }) &&
+    JSON.stringify(priceFor("anthropic", "claude-sonnet-4-20250514")) === JSON.stringify({ in: 3, out: 15 }),
+    JSON.stringify(priceFor("deepseek", "deepseek-flash")));
+  ok("an unknown model has no price instead of a guess", priceFor("custom", "some-local-model") === null);
+  const req = buildRequest({ provider: "deepseek", apiKey: "k", model: "deepseek-flash", messages: [{ role: "user", content: "hi" }], stream: true });
+  ok("streaming requests ask for usage", JSON.stringify(req.body.stream_options) === JSON.stringify({ include_usage: true }));
+
+  const http = await import("node:http");
+  const srv = http.createServer((rq, rs) => {
+    rs.writeHead(200, { "Content-Type": "text/event-stream" });
+    rs.write('data: {"choices":[{"delta":{"content":"hi"}}]}\n\n');
+    rs.write('data: {"choices":[],"usage":{"prompt_tokens":321,"completion_tokens":45,"prompt_cache_hit_tokens":100}}\n\n');
+    rs.write("data: [DONE]\n\n");
+    rs.end();
+  });
+  await new Promise((r) => srv.listen(0, "127.0.0.1", r));
+  const port = srv.address().port;
+  try {
+    const chunks = [];
+    for await (const c of streamCompletion({ provider: "deepseek", url: "http://127.0.0.1:" + port + "/v1/chat/completions", headers: { "Content-Type": "application/json" }, body: { model: "deepseek-flash", stream: true, messages: [] } })) chunks.push(c);
+    const text = chunks.filter((c) => c.text).map((c) => c.text).join("");
+    const u = chunks.find((c) => c.usage)?.usage || {};
+    ok("the stream carries the provider's real usage", text === "hi" && u.input === 321 && u.output === 45 && u.cached === 100, JSON.stringify(u));
+  } finally {
+    srv.close();
+  }
+  // A server that rejects stream_options must still work (retry without it).
+  const srv2 = http.createServer((rq, rs) => {
+    let body = "";
+    rq.on("data", (c) => { body += c; });
+    rq.on("end", () => {
+      if (body.includes("stream_options")) { rs.writeHead(400, { "Content-Type": "application/json" }); rs.end('{"error":{"message":"unknown field stream_options"}}'); return; }
+      rs.writeHead(200, { "Content-Type": "text/event-stream" });
+      rs.write('data: {"choices":[{"delta":{"content":"ok"}}]}\n\n');
+      rs.write("data: [DONE]\n\n");
+      rs.end();
+    });
+  });
+  await new Promise((r) => srv2.listen(0, "127.0.0.1", r));
+  const port2 = srv2.address().port;
+  try {
+    let out = "";
+    for await (const c of streamCompletion({ provider: "deepseek", url: "http://127.0.0.1:" + port2 + "/v1/chat/completions", headers: { "Content-Type": "application/json" }, body: { model: "deepseek-flash", stream: true, stream_options: { include_usage: true }, messages: [] } })) if (c.text) out += c.text;
+    ok("a server that rejects stream_options still completes", out === "ok", out);
+  } finally {
+    srv2.close();
+  }
+}
+
+// The thinking card must show prose: reasoning that carries the same
+// markup (proxies route DSML through reasoning_content) gets scrubbed
+// before it ever reaches the UI, with partial openers held back at delta
+// boundaries so streamed prefixes never leak a fragment.
 {
   const reasoning = "Let me read the leagues first. <| |DSML| |calls>\n" +
     '<| |DSML| |invoke name="read_file">\n' +
@@ -494,6 +547,20 @@ ok("ddg parses title and url", ddg.length === 1 && ddg[0].url === "https://examp
 ok("selfdoc is substantial", SELF_DOC.length > 1500);
 ok("selfdoc topic match", selfKnowledge("providers").toLowerCase().includes("provider"));
 ok("selfdoc unknown topic falls back to full doc", selfKnowledge("zzz-not-a-topic").length >= SELF_DOC.length);
+// 1.22: the manual says what the harness can actually do today, and the
+// topic matcher reads how people ask ("how much money", "3d", "blender").
+{
+  ok("the manual documents usage and cost", SELF_DOC.includes("## Usage and cost") && SELF_DOC.includes("prompt-token count"));
+  ok("the manual covers the preview tool", SELF_DOC.includes("preview looks at and drives the LIVE Preview pane") || SELF_DOC.includes("preview looks at"));
+  const money = selfKnowledge("how much money have i spent");
+  ok("money questions land on the usage section", money.includes("## Usage and cost"), money.slice(0, 60));
+  const three = selfKnowledge("3d models");
+  ok("3d questions land on preview and artifacts", three.includes("## Preview and artifacts"), three.slice(0, 60));
+  const blender = selfKnowledge("blender is closed");
+  ok("bridge questions land on MCP", blender.includes("## MCP servers"), blender.slice(0, 60));
+  const names = selfKnowledge("model names");
+  ok("model naming questions land on providers", names.includes("## Providers and models"), names.slice(0, 60));
+}
 
 // multi_edit on a temp file
 const med = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-multi-"));

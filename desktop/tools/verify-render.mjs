@@ -503,6 +503,17 @@ ok("3D builds render inline in the chat card",
   js.includes('const live = card.node.querySelector(".ac-live iframe")') &&
   html.replace(/\s+/g, "").includes(".artifactcard.has-live{flex-wrap:wrap}") &&
   html.replace(/\s+/g, "").includes(".ac-live-in{width:100%;max-width:520px;height:280px"));
+ok("model names come from the provider, never raw ids alone",
+  js.includes("function modelLabel(") && js.includes("function prettyModelName(") &&
+  js.includes("state.providers[pid].modelName = pretty") &&
+  js.includes('prov().model ? modelLabel(state.current, prov().model) : "—"') &&
+  js.includes("const name = m.name || prettyModelName(m.id)"));
+ok("usage shows real tokens and money",
+  js.includes("liveUsageSeen") && js.includes("const sCost = costOf(sIn, sOut, priceIn, priceOut)") &&
+  js.includes("all sessions:") && js.includes('id="fPriceIn"') && js.includes('on("fSavePrice"') &&
+  js.includes("priceIn: evt.priceIn ?? null"));
+ok("thinking cards scrub at settle too",
+  js.includes("const clean = stripBlocks(cur.text)") && js.includes("cur.panel.textContent = clean"));
 
 /* --------------------- motion sound + film doctrine ---------------------- */
 ok("the motion runtime synthesizes sound and muxes it into recordings",
