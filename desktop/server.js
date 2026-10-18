@@ -8,6 +8,7 @@ import path from "node:path";
 import os from "node:os";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { randomUUID } from "node:crypto";
+import zlib from "node:zlib";
 import { exec } from "node:child_process";
 // Namespace import: cheapModelFor() was added to providers.js alongside this
 // work; destructuring keeps every existing use, and the lookup accepts the
@@ -62,7 +63,7 @@ let subagentCtx = null;
 // turn for its session falls back to prose.
 const askTurns = new Map();
 const SUBAGENT_BLOCKED = new Set(["write_file", "edit_file", "multi_edit", "run_command", "download", "fetch_url", "websearch", "task"]);
-const CHAT_TOOLS = ["websearch", "fetch_url", "self_knowledge", "task", "ask_user", "skill", "suggest_session"];
+const CHAT_TOOLS = ["websearch", "fetch_url", "self_knowledge", "task", "ask_user", "skill", "suggest_session", "preview"];
 
 /* --------------------------------- mcp ----------------------------------- */
 // The shared MCP manager: connects enabled servers at boot, exposes their
@@ -181,6 +182,22 @@ function makeRunner(r, allowed, session = null) {
       pushUi(session, { type: "suggestion", after: uiAfter(session), id, title, description });
       turn({ type: "session_suggestion", id, title, description });
       return "Offered the user a new session card: \"" + title + "\". If they start it, the description becomes the first message there. Keep helping in this session; do not repeat the offer.";
+    },
+    previewOp: async (op) => {
+      // The Preview pane is client-side (artifacts render in sandboxed
+      // iframes). The request rides the turn's event stream; the page answers
+      // over HTTP with the rendered state and a coarse picture, or applies an
+      // interaction first. No live turn means nobody can look.
+      const turn = session ? askTurns.get(session.id) : null;
+      if (!turn) return null;
+      return new Promise((resolve) => {
+        const id = randomUUID();
+        session.previewPending.set(id, resolve);
+        turn({ type: "preview_op", id, op });
+        setTimeout(() => {
+          if (session.previewPending.delete(id)) resolve({ error: "the preview did not answer in time" });
+        }, 5000);
+      });
     },
     runSubagent: async ({ instructions, agent } = {}) => {
       if (!subagentCtx) return { error: "no model configured yet - answer without a subagent" };
@@ -313,6 +330,7 @@ function loadStore() {
             stats: normalizeStats(s.stats),
             pending: new Map(),
             asks: new Map(),
+            previewPending: new Map(),
             uiLog: Array.isArray(s.uiLog) ? s.uiLog : [],
             aborts: new Set(),
             autoAllow: new Set(),
@@ -454,6 +472,7 @@ function newSession(title, kind) {
     stats: emptyStats(),
     pending: new Map(),
     asks: new Map(),
+    previewPending: new Map(),
     uiLog: [],
     aborts: new Set(),
     autoAllow: new Set(),
@@ -583,7 +602,23 @@ function readBody(req) {
 }
 
 const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon", ".woff2": "font/woff2", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp", ".md": "text/markdown; charset=utf-8" };
-const sendJSON = (res, code, obj) => { res.writeHead(code, { "Content-Type": "application/json; charset=utf-8" }); res.end(JSON.stringify(obj)); };
+const sendJSON = (res, code, obj) => {
+  const body = JSON.stringify(obj);
+  // JSON replies (file trees, session lists, MCP catalogs) compress well; SSE
+  // never goes through here. The browser gets identical JSON either way.
+  const accepts = /\bgzip\b/.test(String((res.req && res.req.headers && res.req.headers["accept-encoding"]) || ""));
+  if (accepts && body.length > 1024) {
+    const gz = zlib.gzipSync(Buffer.from(body), { level: 6 });
+    res.writeHead(code, {
+      "Content-Type": "application/json; charset=utf-8",
+      "Content-Encoding": "gzip",
+      "Vary": "Accept-Encoding",
+    });
+    return res.end(gz);
+  }
+  res.writeHead(code, { "Content-Type": "application/json; charset=utf-8" });
+  res.end(body);
+};
 
 function sh(cmd, cwd = ROOT) {
   return new Promise((resolve) => {
@@ -679,20 +714,39 @@ function importErrorText(e) {
     .slice(0, 300) || "opencode import failed";
 }
 
+/** Static files are re-read per request (editing the UI is a reload) and
+ *  compressed once per content change: the UI drops to a fraction of its
+ *  bytes on the wire, which is most of the app's cold-start transfer. */
+const staticCache = new Map(); // file -> { mtimeMs, size, gz }
+function sendStatic(req, res, file, type, extra = {}) {
+  const stat = fs.statSync(file);
+  const accepts = /\bgzip\b/.test(String(req.headers["accept-encoding"] || ""));
+  const headers = { "Content-Type": type || "application/octet-stream", Vary: "Accept-Encoding", ...extra };
+  if (accepts && stat.size > 2048) {
+    let hit = staticCache.get(file);
+    if (!hit || hit.mtimeMs !== stat.mtimeMs || hit.size !== stat.size) {
+      hit = { mtimeMs: stat.mtimeMs, size: stat.size, gz: zlib.gzipSync(fs.readFileSync(file), { level: 6 }) };
+      staticCache.set(file, hit);
+    }
+    res.writeHead(200, { ...headers, "Content-Encoding": "gzip" });
+    return res.end(hit.gz);
+  }
+  res.writeHead(200, headers);
+  return res.end(fs.readFileSync(file));
+}
+
 async function route(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
   if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/index.html")) {
-    res.writeHead(200, { "Content-Type": MIME[".html"] });
-    return res.end(fs.readFileSync(path.join(__dirname, "public", "index.html")));
+    return sendStatic(req, res, path.join(__dirname, "public", "index.html"), MIME[".html"]);
   }
   if (req.method === "GET" && url.pathname.startsWith("/public/")) {
     const rel = url.pathname.replace("/public/", "");
     const file = path.join(__dirname, "public", rel);
     if (!file.startsWith(path.join(__dirname, "public"))) return sendJSON(res, 403, { error: "forbidden" });
     if (!fs.existsSync(file)) return sendJSON(res, 404, { error: "not found" });
-    res.writeHead(200, { "Content-Type": MIME[path.extname(file)] || "application/octet-stream" });
-    return res.end(fs.readFileSync(file));
+    return sendStatic(req, res, file, MIME[path.extname(file)]);
   }
   // app assets (icon, logo) + favicon
   if (req.method === "GET" && (url.pathname === "/favicon.ico" || url.pathname.startsWith("/assets/"))) {
@@ -700,8 +754,7 @@ async function route(req, res) {
     const file = path.join(__dirname, "assets", rel);
     if (!file.startsWith(path.join(__dirname, "assets"))) return sendJSON(res, 403, { error: "forbidden" });
     if (!fs.existsSync(file)) return sendJSON(res, 404, { error: "not found" });
-    res.writeHead(200, { "Content-Type": MIME[path.extname(file)] || "application/octet-stream", "Cache-Control": "max-age=3600" });
-    return res.end(fs.readFileSync(file));
+    return sendStatic(req, res, file, MIME[path.extname(file)], { "Cache-Control": "max-age=3600" });
   }
 
   if (req.method === "GET" && url.pathname === "/api/providers") {
@@ -1283,9 +1336,22 @@ async function route(req, res) {
     return sendJSON(res, 404, { error: "no such pending permission" });
   }
 
+  // The live preview answers a `preview` tool call: rendered state, a coarse
+  // picture, or the result of an interaction.
+  if (req.method === "POST" && url.pathname === "/api/preview/result") {
+    const { sessionId, id, result } = await readBody(req);
+    const session = sessions.get(sessionId);
+    const resolver = session && session.previewPending ? session.previewPending.get(id) : null;
+    if (resolver) {
+      session.previewPending.delete(id);
+      resolver(result && typeof result === "object" ? result : { error: "the preview sent an empty answer" });
+      return sendJSON(res, 200, { ok: true });
+    }
+    return sendJSON(res, 404, { error: "no such pending preview request" });
+  }
+
   // Ask-user answers: the clickable option card resolves the waiting tool.
-  if (req.method === "POST" && url.pathname === "/api/answer") {
-    const { sessionId, id, answers } = await readBody(req);
+  if (req.method === "POST" && url.pathname === "/api/answer") {    const { sessionId, id, answers } = await readBody(req);
     const session = sessions.get(sessionId);
     const resolver = session?.asks.get(id);
     if (resolver) {

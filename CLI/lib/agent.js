@@ -7,7 +7,9 @@ import { knowledgeIndex } from "./knowledge.js";
 import { classifySource } from "./sources.js";
 import { scanSkills, catalogText } from "./skills.js";
 import { pluginManager } from "./plugins.js";
+import fs from "node:fs";
 import os from "node:os";
+import path from "node:path";
 
 // 25 was too tight for "set up the whole thing" work: install + write + run +
 // fix loops burn steps fast, and a truncated turn leaves half-built state.
@@ -394,6 +396,30 @@ ${skBlock}
 ${ARTIFACTS_DOC}`;
 }
 
+const SKIP_DIRS = new Set(["node_modules", "dist", "build", ".git", ".next", "release", "coverage"]);
+
+/** A compact project map: top two levels, names only, capped. The prompt is
+ *  cached, so this runs on rebuilds rather than on every turn. */
+function projectMap(root) {
+  const out = [];
+  const walk = (dir, depth, prefix) => {
+    if (out.length >= 60 || depth > 1) return;
+    let entries = [];
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    entries.sort((a, b) => (b.isDirectory() - a.isDirectory()) || a.name.localeCompare(b.name));
+    for (const e of entries) {
+      if (out.length >= 60) return;
+      if (e.name.startsWith(".") && e.name !== ".star-code") continue;
+      if (SKIP_DIRS.has(e.name)) continue;
+      const name = prefix + e.name + (e.isDirectory() ? "/" : "");
+      out.push(name);
+      if (e.isDirectory()) walk(path.join(dir, e.name), depth + 1, name);
+    }
+  };
+  walk(root, 0, "");
+  return out.join("  ");
+}
+
 function buildSystemPrompt(root, mode, extraTools = [], skillCatalog = "") {
   const mem = readProjectMemory(root);
   // Kept deliberately terse: this is re-sent on every step of every turn, so
@@ -404,6 +430,13 @@ function buildSystemPrompt(root, mode, extraTools = [], skillCatalog = "") {
     const idx = knowledgeIndex(root);
     if (idx) knBlock = "\nProject knowledge (search with search_knowledge):\n" + idx + "\n";
   } catch { /* knowledge is optional */ }
+  // Orientation, not truth: a two-level map costs a couple hundred tokens and
+  // saves the model from guessing where things live before it reads anything.
+  let mapBlock = "";
+  try {
+    const map = projectMap(root);
+    if (map) mapBlock = "\nProject map (top two levels, names only - orientation, not truth):\n" + map + "\n";
+  } catch { /* the map is optional */ }
   const skBlock = skillCatalog ? "\n" + skillCatalog : "";
   const planNote = mode === "plan"
     ? "\nPLAN MODE: read-only. Do not edit files or run mutating commands. Explore, then propose a plan and stop.\n"
@@ -428,14 +461,15 @@ function buildSystemPrompt(root, mode, extraTools = [], skillCatalog = "") {
     : "";
 
   return `You are a coding agent working in: ${root}
-${memBlock}${knBlock}${skBlock}${planNote}
-Tools: read_file, list_dir, search_files, glob_files, write_file, edit_file, multi_edit, run_command, download, search_knowledge, task, fetch_url, websearch, self_knowledge, ask_user, skill, use_folder.
+${memBlock}${knBlock}${mapBlock}${skBlock}${planNote}
+Tools: read_file, list_dir, search_files, glob_files, write_file, edit_file, multi_edit, run_command, download, search_knowledge, task, fetch_url, websearch, self_knowledge, ask_user, skill, use_folder, preview.
 task spawns a read-only explorer subagent with fresh context for research: one call per mission, and independent calls in one step (missions, reads, searches) run in parallel. Send missions to verify facts that live outside this conversation - reference corpora, other projects, big codebases - with exact paths and precise questions, and demand evidence back (file, line, signature). Never state a checkable fact you could have sent a mission to verify, and never hand over a scaffold stamped "unverified" when a mission could have read the source first. fetch_url and websearch ask for permission and plan mode blocks them; download fetches a file with source, hash, signature and virus checks (see the doctrine below); self_knowledge answers questions about Star Code itself; ask_user shows the user 1-4 questions with 2-4 clickable options each (put the recommended option first, labelled "(Recommended)") - prefer a click over a prose question whenever a decision is needed; skill loads an available skill pack - when a skill's description matches the task, load it and follow its procedure exactly; use_folder sets this session's working folder when the user names one in chat - adopt it the moment they say it (never tell them to pick a project; they type the folder, you bind it); suggest_session offers a click-to-start card when the user's request clearly begins a DIFFERENT task than this session's work (another project, another idea) - offer it once with a real title and a one-sentence description, then keep helping here either way.
 
 How to close a turn: end a substantive turn with a compact recap of what changed (files, commands, outcomes), what you verified, and what is still open - 2-5 short lines or a tight list, no filler and no restating the request. Small answers stay small; a recap is for work, not for chatter.
 ${extraBlock}${blenderLine}
 
 Rules:
+- Understanding first: read the ask before acting. When the outcome is not obvious, say in one line what you understand it to be before your first tool call; if two readings differ materially, ask ONE question with ask_user instead of guessing. Follow the project's own conventions (README, package.json, config, existing code) - the map is orientation, the files are truth. When you learn something that changes the plan, say so and adjust - never silently drift.
 - Read a file before editing it; never guess file contents.
 - Keep changes minimal and consistent with surrounding style.
 - Verify with tests/build/lint when a way exists.

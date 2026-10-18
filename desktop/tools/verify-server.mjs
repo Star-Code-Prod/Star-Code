@@ -418,6 +418,8 @@ try {
         ],
         text: "think-done",
       };
+      else if (lt.includes("preview e2e") && !lt.includes("Tool result for preview")) script = { tool: "preview", args: { action: "look" } };
+      else if (lt.includes("Tool result for preview")) script = { text: lt.includes("Hello from the preview") ? "saw:yes" : "saw:no" };
       if (!script) script = [
         { tool: "read_file", args: { path: "package.json" } },  // reviewer: allowed
         { tool: "list_dir", args: { path: "." } },              // reviewer: refused
@@ -463,6 +465,45 @@ try {
     }).filter(Boolean);
   }
   const said = (events, marker) => events.some((e) => e.type === "delta" && String(e.text || "").includes(marker));
+
+  /** A turn read as a live SSE stream so the UI's answer to a `preview` tool
+   *  call can be posted while it waits; returns every event once the stream
+   *  ends. This is the page half of the preview bridge, without a browser. */
+  async function turnWithPreview(body, result) {
+    const res = await fetch(s.url + "/api/chat", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: "custom", model: "base-model", apiKey: "k", baseUrl: turnBase, mode: "manual", ...body }),
+    });
+    const events = [];
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    let answered = false;
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, i).trim();
+        buf = buf.slice(i + 1);
+        if (!line.startsWith("data:")) continue;
+        const payload = line.slice(5).trim();
+        if (!payload || payload === "[DONE]") continue;
+        let ev = null;
+        try { ev = JSON.parse(payload); } catch { continue; }
+        events.push(ev);
+        if (ev.type === "preview_op" && !answered) {
+          answered = true;
+          fetch(s.url + "/api/preview/result", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId: body.sessionId, id: ev.id, result }),
+          });
+        }
+      }
+    }
+    return events;
+  }
 
   /** A turn read as a live SSE stream so a permission request can be answered
    *  while it waits; returns every event once the stream ends. */
@@ -976,8 +1017,39 @@ try {
       JSON.stringify((sys.match(/mcp__\w+/g) || []).slice(0, 6)) + " blender:" + /blender/i.test(sys));
   }
 
-  ok("every scripted persona turn made exactly one model call per step", turnBodies.length === 42, String(turnBodies.length));
-  turnStub.close();
+  // Transport: the UI and big JSON ride gzipped when the client asks for it
+  // (browsers always do). Node's fetch decompresses transparently, so the
+  // text still matches while the header proves the compression happened.
+  {
+    const plain = await (await fetch(s.url + "/")).text();
+    const gzRes = await fetch(s.url + "/", { headers: { "Accept-Encoding": "gzip" } });
+    const gzText = await gzRes.text();
+    ok("the UI is served gzipped to browsers",
+      gzRes.headers.get("content-encoding") === "gzip" && gzText.length === plain.length && plain.length > 50_000,
+      JSON.stringify({ plain: plain.length, hdr: gzRes.headers.get("content-encoding") }));
+    const gzApiRes = await fetch(s.url + "/api/tree", { headers: { "Accept-Encoding": "gzip" } });
+    const apiText = await gzApiRes.text();
+    ok("big JSON is gzipped when the client accepts it",
+      apiText.length < 1024 || gzApiRes.headers.get("content-encoding") === "gzip",
+      JSON.stringify({ bytes: apiText.length, hdr: gzApiRes.headers.get("content-encoding") }));
+  }
+
+  // The preview tool: the live UI answers over the turn's own event stream.
+  // This is the page half of the bridge, exercised without a browser.
+  {
+    const evP = await turnWithPreview({ sessionId: codeNew.id, kind: "code", message: "preview e2e" }, {
+      ok: true, title: "Rendered page", kind: "page", state: "12 elements",
+      text: "Hello from the preview", picture: " ..##..\n .####. ",
+    });
+    ok("the preview tool asks the live page and reports what it saw",
+      evP.some((e) => e.type === "preview_op" && e.op && e.op.action === "look") &&
+      evP.some((e) => e.type === "tool_result" && e.name === "preview" && String(e.preview || "").includes("Hello from the preview")) &&
+      evP.some((e) => e.type === "tool_result" && e.name === "preview" && String(e.preview || "").includes("Picture (") &&
+      said(evP, "saw:yes")),
+      JSON.stringify({ ops: evP.filter((e) => e.type === "preview_op").length, res: String((evP.find((e) => e.type === "tool_result" && e.name === "preview") || {}).preview || "").slice(0, 120) }));
+  }
+
+  ok("every scripted persona turn made exactly one model call per step", turnBodies.length === 44, String(turnBodies.length));  turnStub.close();
   if (turnStub.closeAllConnections) turnStub.closeAllConnections();
 
   // Session stats: usage, tool counts (the raw layer under the UI groupings)
@@ -992,7 +1064,7 @@ try {
 
   const statsLoad = await (await fetch(s.url + "/api/sessions/messages?id=" + codeNew.id)).json();
   ok("a live session's stats ride with its messages", !!statsLoad.stats && typeof statsLoad.stats.calls === "number");
-  ok("model calls are counted", statsLoad.stats.calls === 34, String(statsLoad.stats.calls));
+  ok("model calls are counted", statsLoad.stats.calls === 36, String(statsLoad.stats.calls));
   ok("tool calls are counted per name",
     statsLoad.stats.tools.read_file === 4 && statsLoad.stats.tools.list_dir === 1 && statsLoad.stats.tools.write_file === 2 &&
     statsLoad.stats.tools.ask_user === 2 && statsLoad.stats.tools.use_folder === 1 && statsLoad.stats.tools.plug_echo === 1 &&

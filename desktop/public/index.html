@@ -475,6 +475,12 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
 .artifactcard .ac-t{color:var(--text);font-size:var(--fs-13);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .artifactcard .ac-d{font-size:var(--fs-12);color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .artifactcard .ac-v{width:auto;padding:4px 8px;flex:none}
+/* A 3D build renders right in the transcript: the card becomes a two-row
+   block (name + actions, then the live sandboxed frame). */
+.artifactcard.has-live{flex-wrap:wrap}
+.artifactcard .ac-live{flex-basis:100%;display:flex;justify-content:center;margin-top:9px}
+.artifactcard .ac-live-in{width:100%;max-width:520px;height:280px;border-radius:var(--r-sm);overflow:hidden;border:1px solid var(--border);background:var(--bg)}
+.artifactcard .ac-live-in iframe{width:100%;height:100%;border:0;display:block}
 /* Right under its own message the card tucks up: the message's hover copy bar
    already provides the visual gap, so the card's 13px would leave the icon
    floating in a dead pocket (10px above it, 13px below). */
@@ -1911,7 +1917,8 @@ const ICONS = {
   fetch_url: ["Fetch", "Fetched"], websearch: ["Web", "Searched web"],
   task: ["Explore", "Explored"], self_knowledge: ["Learn", "Learned"],
   ask_user: ["Ask", "Asked"], skill: ["Study", "Studied"],
-  search_knowledge: ["Knowledge", "Searched knowledge"], error: ["Error", "Error"],
+  search_knowledge: ["Knowledge", "Searched knowledge"], preview: ["Looked", "Looked at the preview"],
+  error: ["Error", "Error"],
 };
 
 /* ============================ BOOT ============================ */
@@ -3621,6 +3628,16 @@ async function previewFile(path) {
   renderFilePreview();
 }
 
+/* ---- the live-preview probe: pages answer the same protocol as the canvas
+   runtimes, so the agent can read what rendered and click/scroll/type it ---- */
+const PROBE_SCRIPT = "<" + "script>(function(){window.addEventListener('message',function(ev){var m=ev.data||{};if(m.type!=='star-preview')return;try{var act=m.act||{};if(act.scroll!=null)window.scrollTo(0,Number(act.scroll)||0);if(act.click){var el=document.querySelector(String(act.click));if(el)el.click();}if(act.type&&act.selector){var t=document.querySelector(String(act.selector));if(t){t.value=String(act.type);t.dispatchEvent(new Event('input',{bubbles:true}));t.dispatchEvent(new Event('change',{bubbles:true}));}}var txt='';try{txt=((document.body&&document.body.innerText)||'').replace(/\\s+/g,' ').trim().slice(0,1500);}catch(e2){}parent.postMessage({type:'star-preview-state',id:m.id,ok:true,kind:'page',state:((document.title||'')?document.title+', ':'')+document.querySelectorAll('*').length+' elements',text:txt},'*');}catch(e){parent.postMessage({type:'star-preview-state',id:m.id,error:String((e&&e.message)||e)},'*');}});})()</" + "script>";
+
+function withProbe(html) {
+  const s = String(html || "");
+  const i = s.toLowerCase().lastIndexOf("</body>");
+  return i >= 0 ? s.slice(0, i) + PROBE_SCRIPT + s.slice(i) : s + PROBE_SCRIPT;
+}
+
 function renderFilePreview() {
   const host = $("filePreview");
   if (!currentFile) return;
@@ -3659,9 +3676,9 @@ function renderFilePreview() {
     const frame = document.createElement("iframe");
     frame.className = "apframe";
     frame.setAttribute("sandbox", "allow-scripts");
-    frame.srcdoc = f.path.toLowerCase().endsWith(".svg")
+    frame.srcdoc = withProbe(f.path.toLowerCase().endsWith(".svg")
       ? `<!doctype html><body style="margin:0;display:grid;place-items:center;height:100vh;background:#fff">${f.content}</body>`
-      : f.content;
+      : f.content);
     body.appendChild(frame);
   }
   const tog = host.querySelector("#fpMode");
@@ -4270,6 +4287,9 @@ function updateCardFace(card, i) {
     desc.textContent = a.desc || "";
     desc.hidden = !a.desc;
   }
+  // The inline 3D frame follows the selected version.
+  const live = card.node.querySelector(".ac-live iframe");
+  if (live && a && a.lang === "voxel" && live.srcdoc !== voxelDoc(a.code)) live.srcdoc = voxelDoc(a.code);
 }
 
 function addArtifactCard(i) {
@@ -4295,6 +4315,22 @@ function addArtifactCard(i) {
     ${a.lang === "motion" ? "" : '<button class="btn sm" data-save>Save</button>'}`;
   const card = { node: n, indices: [i], select: n.querySelector("[data-vsel]") };
   artifactCards.set(key, card);
+  // A 3D build is the point of the message: let it render in the chat itself,
+  // not just behind the Open button. Same voxel runtime, same drag/wheel.
+  if (a.lang === "voxel") {
+    n.classList.add("has-live");
+    const wrap = document.createElement("div");
+    wrap.className = "ac-live";
+    const inner = document.createElement("div");
+    inner.className = "ac-live-in";
+    const live = document.createElement("iframe");
+    live.setAttribute("sandbox", "allow-scripts");
+    live.setAttribute("title", "3D build");
+    live.srcdoc = voxelDoc(a.code);
+    inner.appendChild(live);
+    wrap.appendChild(inner);
+    n.appendChild(wrap);
+  }
   updateCardFace(card, i);
   renderCardVersions(card, i);
 
@@ -4385,13 +4421,16 @@ function renderArtifactInto(host, a) {
     const frame = document.createElement("iframe");
     frame.className = "apframe";
     frame.setAttribute("sandbox", "allow-scripts");
-    frame.srcdoc = a.lang === "svg"
+    const page = a.lang === "svg"
       ? `<!doctype html><body style="margin:0;display:grid;place-items:center;height:100vh;background:#fff">${a.code}</body>`
       : a.lang === "doc" ? docIframeHtml(a.code)
       : a.lang === "slides" ? deckIframeHtml(a.code)
       : a.lang === "design" ? boardIframeHtml(a.code)
       : a.lang === "voxel" ? voxelDoc(a.code)
       : a.code;
+    // The canvas runtimes answer the probe themselves; pages get the bridge
+    // injected so the agent can also read and drive them.
+    frame.srcdoc = a.lang === "voxel" ? page : withProbe(page);
     body.appendChild(frame);
   }
   host.querySelector("#apMode").addEventListener("click", () => {
@@ -4512,6 +4551,51 @@ window.addEventListener("message", (ev) => {
   if (!m || !m.frame || !m.frame.contentWindow || ev.source !== m.frame.contentWindow) return;
   m.recv(ev.data || {});
 });
+
+/* ---- the live preview answers the agent: state, a coarse picture, or the
+   result of an interaction, posted back over /api/preview/result. ---- */
+const previewOps = new Map(); // request id -> resolve
+window.addEventListener("message", (ev) => {
+  const d = ev.data || {};
+  if (d.type !== "star-preview-state") return;
+  const r = previewOps.get(d.id);
+  if (r) { previewOps.delete(d.id); r(d); }
+});
+
+async function handlePreviewOp(evt) {
+  const reply = (result) => fetch("/api/preview/result", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sessionId, id: evt.id, result }),
+  }).catch(() => {});
+  const op = evt.op || {};
+  try {
+    const host = $("filePreview");
+    const frame = (host && host.querySelector("iframe.apframe")) ||
+      document.querySelector("#artifactDialog iframe.apframe");
+    if (frame && frame.contentWindow) {
+      const got = await new Promise((resolve) => {
+        previewOps.set(evt.id, resolve);
+        try { frame.contentWindow.postMessage({ type: "star-preview", id: evt.id, act: op.action === "act" ? op : null }, "*"); }
+        catch { previewOps.delete(evt.id); resolve({ error: "the preview frame could not be reached" }); }
+        setTimeout(() => { if (previewOps.delete(evt.id)) resolve({ error: "the preview did not answer in time - it may still be loading" }); }, 2500);
+      });
+      got.title = $("previewTitle").textContent;
+      if (!got.kind) { const a = artifacts[artifactView.i]; if (a) got.kind = a.lang; }
+      return reply(got);
+    }
+    if (currentFile) {
+      return reply({
+        ok: true, kind: currentFile.kind || "file",
+        title: $("previewTitle").textContent || currentFile.path,
+        state: "file preview" + (currentFile.error ? " - " + currentFile.error : " (" + currentFile.kind + ")"),
+        text: currentFile.content != null ? String(currentFile.content).slice(0, 2000) : "",
+      });
+    }
+    reply({ error: "no preview is open - open an artifact or preview a file first" });
+  } catch (e) {
+    reply({ error: String((e && e.message) || e) });
+  }
+}
 
 // Arrow keys step the visible motion player: one frame per press, one second
 // with Shift. Typing anywhere (input, textarea, contenteditable) keeps the
@@ -5000,6 +5084,43 @@ canvas{max-width:100%;max-height:100%;display:block}
     else if (m.type === "motion-record") startRecorder(m);
     else if (m.type === "motion-stop") stopRecorder();
   });
+  function samplePicture() {
+    try {
+      var w = canvas.width, h = canvas.height;
+      if (!w || !h || !ctx) return "";
+      var data = ctx.getImageData(0, 0, w, h).data;
+      var cols = 36, rows = 14, ramp = " .:-=+*#%@", out = [];
+      for (var ry = 0; ry < rows; ry++) {
+        var line = "";
+        for (var rx = 0; rx < cols; rx++) {
+          var sx = Math.min(w - 1, Math.floor((rx + 0.5) * w / cols));
+          var sy = Math.min(h - 1, Math.floor((ry + 0.5) * h / rows));
+          var i = (sy * w + sx) * 4;
+          var lum = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) / 255;
+          line += ramp.charAt(Math.max(0, Math.min(9, Math.round(lum * 9))));
+        }
+        out.push(line);
+      }
+      return out.join("\\n");
+    } catch (e) { return ""; }
+  }
+  // The agent's eyes and hands for motion: seek/play it first when asked to
+  // act, then report the moment (state + a coarse luminance picture).
+  window.addEventListener("message", function (ev) {
+    var m = ev.data || {};
+    if (m.type !== "star-preview") return;
+    try {
+      if (m.act) {
+        if (m.act.seek != null) seek(Math.max(0, Math.min(cfg.duration, Number(m.act.seek) || 0)));
+        if (m.act.play === true) play();
+        if (m.act.play === false) pause();
+      }
+      post({ type: "star-preview-state", id: m.id, ok: true, kind: "motion",
+        state: "t=" + cur.toFixed(2) + "s of " + cfg.duration.toFixed(2) + "s, " + (playing ? "playing" : "paused") +
+          ", " + cfg.width + "x" + cfg.height + " at " + cfg.fps + "fps, speed " + speed + "x, " + soundEvents.length + " sound events",
+        picture: samplePicture() });
+    } catch (e) { post({ type: "star-preview-state", id: m.id, error: String((e && e.message) || e) }); }
+  });
   window.MOTION = {
     scene: function (o, fn) {
       o = o || {};
@@ -5247,6 +5368,43 @@ canvas.drag{cursor:grabbing}
   }, { passive: false });
   canvas.addEventListener("dblclick", function () { theta = -0.62; zoom = 1; draw(); });
   window.addEventListener("resize", function () { sizeCanvas(); draw(); });
+  function samplePicture() {
+    try {
+      var w = canvas.width, h = canvas.height;
+      if (!w || !h || !ctx) return "";
+      var data = ctx.getImageData(0, 0, w, h).data;
+      var cols = 36, rows = 14, ramp = " .:-=+*#%@", out = [];
+      for (var ry = 0; ry < rows; ry++) {
+        var line = "";
+        for (var rx = 0; rx < cols; rx++) {
+          var sx = Math.min(w - 1, Math.floor((rx + 0.5) * w / cols));
+          var sy = Math.min(h - 1, Math.floor((ry + 0.5) * h / rows));
+          var i = (sy * w + sx) * 4;
+          var lum = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) / 255;
+          line += ramp.charAt(Math.max(0, Math.min(9, Math.round(lum * 9))));
+        }
+        out.push(line);
+      }
+      return out.join("\\n");
+    } catch (e) { return ""; }
+  }
+  // The agent's eyes and hands: report the live build (state + a coarse
+  // luminance picture), or rotate/zoom it first when asked to act.
+  window.addEventListener("message", function (ev) {
+    var m = ev.data || {};
+    if (m.type !== "star-preview") return;
+    try {
+      if (m.act) {
+        if (m.act.rotate != null) theta += Number(m.act.rotate) || 0;
+        if (m.act.zoom != null) zoom = Math.max(0.35, Math.min(4, zoom * (Number(m.act.zoom) || 1)));
+        if (m.act.reset) { theta = -0.62; zoom = 1; }
+        draw();
+      }
+      post({ type: "star-preview-state", id: m.id, ok: true, kind: "voxel",
+        state: "angle " + theta.toFixed(2) + " rad, zoom " + zoom.toFixed(2) + "x, " + count + " blocks",
+        picture: samplePicture() });
+    } catch (e) { post({ type: "star-preview-state", id: m.id, error: String((e && e.message) || e) }); }
+  });
   window.addEventListener("error", function (e) { fail(String((e && e.message) || "script error")); });
   setTimeout(hideHint, 6000);
   window.VOXEL = {
@@ -6802,6 +6960,7 @@ function handle(evt) {
     case "thinking_end": if (state.showThinking && state.verbosity !== "minimal") endThinking(evt.ms); break;
     case "todos": renderTodos(evt.todos); break;
     case "question": setActivity("waiting for your answer"); renderAsk(evt); break;
+    case "preview_op": handlePreviewOp(evt); break;
     case "user_steer": addUser(evt.message); toast("Steering Star…"); break;
     case "session_suggestion": renderSuggest(evt); break;
     case "cwd":

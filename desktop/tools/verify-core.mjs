@@ -796,6 +796,13 @@ ok("multi_edit is dangerous", mr.isDangerous("multi_edit") === true);
   ok("the MCP block says when to reach for its tools",
     blendSp.includes("Reach for one of these only when the job is about the app or service it fronts") &&
     systemPrompt(process.cwd(), "plan", [{ name: "mcp__stub__echo", description: "echo" }]).includes("Reach for one of these only when the job is about the app or service it fronts"));
+  // Understanding: the model gets its bearings (a map) and a doctrine that
+  // makes it say what it understood before acting, and ask when it cannot.
+  ok("the prompt carries a project map for orientation",
+    spd.includes("Project map (top two levels, names only") && spd.includes("lib/") && spd.includes("package.json"));
+  ok("the doctrine asks for understanding before acting",
+    spd.includes("Understanding first") && spd.includes("ask ONE question with ask_user instead of guessing") &&
+    spd.includes("the map is orientation, the files are truth"));
 }
 
 // fetch_url against a local server (no external network)

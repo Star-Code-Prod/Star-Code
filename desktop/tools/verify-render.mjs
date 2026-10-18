@@ -489,6 +489,20 @@ ok("cards survive session reloads via the persisted UI log",
   js.includes("renderTranscript(j.messages || [], j.ui || [])"));
 ok("restored thinking is scrubbed of stored markup",
   js.includes("const body = stripBlocks(String(e.text || \"\"))") && js.includes("const gist = thinkingGist(body)"));
+ok("the agent can see and drive the live preview",
+  js.includes("function handlePreviewOp(") && js.includes("star-preview-state") &&
+  js.includes('case "preview_op": handlePreviewOp(evt); break;') &&
+  js.includes('fetch("/api/preview/result"') && js.includes("function withProbe(") &&
+  js.includes("const PROBE_SCRIPT = "));
+ok("canvas runtimes answer the preview probe",
+  js.includes('if (m.type !== "star-preview") return;') && js.includes("function samplePicture()") &&
+  (js.match(/star-preview-state/g) || []).length >= 2);
+ok("3D builds render inline in the chat card",
+  js.includes('n.classList.add("has-live")') && js.includes('inner.className = "ac-live-in"') &&
+  js.includes("live.srcdoc = voxelDoc(a.code)") &&
+  js.includes('const live = card.node.querySelector(".ac-live iframe")') &&
+  html.replace(/\s+/g, "").includes(".artifactcard.has-live{flex-wrap:wrap}") &&
+  html.replace(/\s+/g, "").includes(".ac-live-in{width:100%;max-width:520px;height:280px"));
 
 /* --------------------- motion sound + film doctrine ---------------------- */
 ok("the motion runtime synthesizes sound and muxes it into recordings",

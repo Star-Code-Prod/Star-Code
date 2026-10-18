@@ -127,6 +127,12 @@ export const TOOL_SPECS = [
     dangerous: false,
     schema: { title: "string", description: "string" },
   },
+  {
+    name: "preview",
+    description: "Look at and drive the live Preview pane - what the user is actually looking at: an artifact (motion film, voxel build, html/svg/md page), a previewed file, or its rendered frame. action:\"look\" returns the rendered text, live state (time, angle, zoom) and a coarse luminance picture of the canvas, so you can judge composition, framing and contrast without guessing. action:\"act\" moves it in real time first (seek a motion, rotate/zoom a voxel build, click/scroll/type an html page), then reports the new state. Call it after publishing a visual artifact, or whenever the user talks about what is on screen.",
+    dangerous: false,
+    schema: { action: "string", seek: "number", rotate: "number", zoom: "number", click: "string", scroll: "number", type: "string", selector: "string" },
+  },
 ];
 
 /** Ask questions, clamped to something a clickable card can render: 1-4
@@ -775,6 +781,9 @@ export function createToolRunner(root, opts = {}) {
   // A UI hook for suggest_session: offers a new-session card. Without it the
   // tool tells the model to offer the new session in prose.
   const suggestSession = typeof opts.suggestSession === "function" ? opts.suggestSession : null;
+  // A UI hook for preview: reads and drives the live Preview pane. Without a
+  // live turn (CLI, subagents) the pane cannot answer, and the tool says so.
+  const previewOp = typeof opts.previewOp === "function" ? opts.previewOp : null;
   // A custom agent may restrict which tools exist at all: `allowed` is the
   // union of names the runner will accept, null/undefined = every tool. The
   // refusal and the filtered schemas are the same list, so a restricted
@@ -1297,10 +1306,32 @@ export function createToolRunner(root, opts = {}) {
     return await suggestSession(t, d);
   }
 
+  async function preview(args) {
+    const action = String((args && args.action) || "look").toLowerCase();
+    if (action !== "look" && action !== "act") throw new Error('preview action must be "look" or "act"');
+    if (!previewOp) return "(there is no live preview here - describe what the user should check, or open the artifact in the browser)";
+    const op = { action };
+    for (const k of ["seek", "rotate", "zoom", "click", "scroll", "type", "selector", "play"]) {
+      if (args && args[k] !== undefined && args[k] !== "") op[k] = args[k];
+    }
+    const res = await previewOp(op);
+    if (!res) return "(no live turn is reading the preview - open the pane and try again)";
+    if (res.error) return "preview: " + res.error;
+    const lines = [];
+    lines.push("Preview: " + (res.title || "(untitled)") + (res.kind ? "  [" + res.kind + "]" : ""));
+    if (res.state) lines.push("State: " + String(res.state).slice(0, 600));
+    if (res.text) lines.push("Rendered text:\n" + String(res.text).slice(0, 3000));
+    if (res.picture) {
+      lines.push("Picture (one char per cell, rows top to bottom; dark . mid o light # - this is the live canvas, sampled):\n" + String(res.picture).slice(0, 4000));
+    }
+    lines.push("You are looking at the real thing. Use action:\"act\" (seek / rotate / zoom / click / scroll / type) to move it, then look again.");
+    return lines.join("\n\n");
+  }
+
   const impl = {
     read_file, list_dir, search_files, glob_files, write_file, edit_file, run_command, download,
     search_knowledge: ({ query }) => searchKnowledge(root, query),
-    fetch_url, websearch, multi_edit, task, ask_user, use_folder, suggest_session,
+    fetch_url, websearch, multi_edit, task, ask_user, use_folder, suggest_session, preview,
     skill: ({ name }) => loadSkill(root, name),
     self_knowledge: ({ topic }) => selfKnowledge(topic),
   };
