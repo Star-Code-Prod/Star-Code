@@ -870,6 +870,10 @@ ok("multi_edit is dangerous", mr.isDangerous("multi_edit") === true);
   ok("the doctrine asks for understanding before acting",
     spd.includes("Understanding first") && spd.includes("ask ONE question with ask_user instead of guessing") &&
     spd.includes("the map is orientation, the files are truth"));
+  ok("the doctrine demands language-tagged code fences",
+    spd.includes("Code fences always open with the real language tag") &&
+    spd.includes("never a bare") && spd.includes("```text") &&
+    chatSystemPrompt().includes("never a bare fence for code"));
 }
 
 // fetch_url against a local server (no external network)

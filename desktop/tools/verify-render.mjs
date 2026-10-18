@@ -514,6 +514,13 @@ ok("usage shows real tokens and money",
   js.includes("priceIn: evt.priceIn ?? null"));
 ok("thinking cards scrub at settle too",
   js.includes("const clean = stripBlocks(cur.text)") && js.includes("cur.panel.textContent = clean"));
+ok("code renders as a language-titled canvas with a gutter",
+  js.includes("function prettyLang(") && js.includes('class="cb-lang"') &&
+  js.includes('class="cb-gutter"') && js.includes("${lines.length} line") &&
+  js.includes("LANG_NAMES") && js.includes('ts: "TypeScript"') &&
+  html.replace(/\s+/g, "").includes(".cb-lang{color:#dcdcd8") &&
+  html.replace(/\s+/g, "").includes(".cb-gutter{") &&
+  html.replace(/\s+/g, "").includes(".cb-body{display:flex"));
 
 /* --------------------- motion sound + film doctrine ---------------------- */
 ok("the motion runtime synthesizes sound and muxes it into recordings",

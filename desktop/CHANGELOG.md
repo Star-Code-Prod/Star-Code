@@ -1,5 +1,9 @@
 # What's new in Star
 
+## 1.22.2 — 2026-10-18
+- Code answers now land in a proper canvas. Every fenced block renders as a framed card: the language as a title (TypeScript, Python, Shell, HTML...), the line count and a Copy button in its header, a line-number gutter, and the highlighted source on the code canvas - instead of a bare strip of monospace text. A fence with no language reads as Text.
+- The model is told to open every code fence with its real language tag - ```ts, ```py, ```bash - never a bare fence, and ```text when the language is unknown. Both the code and chat prompts carry the rule, so the title and highlighting are always right.
+
 ## 1.22.1 — 2026-10-18
 - Real model names. When a provider's model list carries a display name ("DeepSeek V4.1 Flash 1017" beside the id deepseek-flash), the picker, the composer and the usage pane show that name - with the real id and its context size as the small print underneath. Providers that only publish ids get a readable name instead of a raw slug, and the API always receives the id.
 - Real usage, not guesses. Star now asks providers for token usage on every stream (and safely retries without the field for servers that reject it), then shows the provider's own prompt-token count as your context - "estimated" only when a provider reports nothing. The Usage pane also shows tokens in and out this session, and what they cost: list-price estimates per model, or the exact price you set in Settings > Providers > Advanced (input/output per 1M tokens). A total across all sessions sits beside it, and the context ring's tooltip carries the same money. Unknown models show tokens without an invented price.
