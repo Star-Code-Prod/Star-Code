@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 260" width="900" height="260" role="img" aria-label="0 stars">
-<title>Star history — 0 stars</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 260" width="900" height="260" role="img" aria-label="1 star">
+<title>Star history — 1 star</title>
 <line x1="20" y1="206" x2="880" y2="206" stroke="#8C8C88" stroke-opacity="0.22"/>
-<text x="880" y="30" text-anchor="end" font-family="ui-monospace, JetBrains Mono, Consolas, monospace" font-size="18" font-weight="700" fill="#8C8C88">0 stars</text>
-<polyline points="20,206 880,206" fill="none" stroke="#F0B95A" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="20" y1="165.5" x2="880" y2="165.5" stroke="#8C8C88" stroke-opacity="0.22"/>
+<line x1="20" y1="125" x2="880" y2="125" stroke="#8C8C88" stroke-opacity="0.22"/>
+<line x1="20" y1="84.5" x2="880" y2="84.5" stroke="#8C8C88" stroke-opacity="0.22"/>
+<line x1="20" y1="44" x2="880" y2="44" stroke="#8C8C88" stroke-opacity="0.22"/>
+<text x="880" y="30" text-anchor="end" font-family="ui-monospace, JetBrains Mono, Consolas, monospace" font-size="18" font-weight="700" fill="#8C8C88">1 star</text>
+<circle cx="880" cy="44" r="3" fill="#F0B95A"/>
+<text x="20" y="234" text-anchor="start" font-family="ui-monospace, JetBrains Mono, Consolas, monospace" font-size="13" fill="#8C8C88">Oct 18, 2026</text>
+<text x="880" y="234" text-anchor="end" font-family="ui-monospace, JetBrains Mono, Consolas, monospace" font-size="13" fill="#8C8C88">Oct 18, 2026</text>
 </svg>
