@@ -668,7 +668,7 @@ body.mode-chat #navProjects{display:none}
 .office-tabs{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap}
 .office-tab{padding:4px 9px;border-radius:6px;border:1px solid var(--border);color:var(--muted);font-size:var(--fs-12)}
 .office-tab.on{background:var(--panel2);color:var(--text);border-color:var(--border2)}
-.office-slide{border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;background:var(--panel)}
+.office-slide{border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;background:var(--panel);animation:fadeIn var(--t-mid) var(--ease)}
 .office-slide-n{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:4px}
 .office-slide p{margin:0 0 4px}
 .apmd{padding:var(--sp-4)}
@@ -793,6 +793,7 @@ body.mode-chat #navProjects{display:none}
 .askcard{
   margin:13px auto;border:1px solid var(--border);border-radius:var(--r-md);
   background:var(--panel);box-shadow:var(--shadow-sm);overflow:hidden;
+  animation:cardIn var(--t-mid) var(--ease);
 }
 .ask-h{
   display:flex;align-items:center;gap:8px;padding:9px 13px;background:var(--panel2);
@@ -1350,6 +1351,7 @@ html[data-embed] #splitBox{display:none !important}
 .cmdp-row{
   display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border-radius:8px;
   color:var(--text2);text-align:left;font-size:var(--fs-13);
+  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
 }
 .cmdp-row .cic{width:18px;display:flex;justify-content:center;color:var(--muted);flex:none}
 .cmdp-row .lb{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -7957,7 +7959,7 @@ const CMDP_ICONS = {
   keys: '<rect x="1.5" y="3.5" width="13" height="9" rx="1.8"/><path d="M4 6h.01M6.5 6h.01M9 6h.01M11.5 6h.01M4 9h6"/>',
 };
 let cmdItems = [], cmdIndex = 0;
-function cmdActions() {
+function cmdActions(includeFiles = false) {
   const items = [
     { id: "new", label: "New session", hint: "⌘N", icon: "new", run: () => newSession() },
     { id: "search", label: "Search sessions", icon: "search", run: () => focusSessionSearch() },
@@ -7972,11 +7974,16 @@ function cmdActions() {
   for (const s of sessionList) {
     items.push({ id: "sess:" + s.id, label: "Open session · " + s.title, icon: "session", run: () => switchSession(s.id) });
   }
+  for (const e of treeEntries) {
+    if (!includeFiles || e.dir) continue;
+    items.push({ id: "file:" + e.path, label: "Open file · " + e.path, icon: "session", run: () => previewFile(e.path) });
+    if (items.length > 160) break;
+  }
   return items;
 }
 function renderCmd() {
   const q = $("cmdInput").value.trim().toLowerCase();
-  const all = cmdActions();
+  const all = cmdActions(q.length >= 2);
   cmdItems = q ? all.filter((i) => i.label.toLowerCase().includes(q)) : all;
   if (cmdIndex >= cmdItems.length) cmdIndex = Math.max(0, cmdItems.length - 1);
   $("cmdList").innerHTML = cmdItems.length
@@ -8001,6 +8008,7 @@ function runCmd(i) {
 function openCmd() {
   const el = $("cmdPalette");
   if (el.style.display !== "none") return;
+  if (!treeEntries.length) loadTree();
   el.style.display = "flex";
   $("cmdInput").value = "";
   cmdIndex = 0;
