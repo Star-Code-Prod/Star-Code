@@ -60,7 +60,7 @@
   --bg:#faf9f5; --sidebar:#faf9f5; --panel:#f1efe7; --panel2:#e9e6db;
   --elev:#e9e6db; --bubble:#f1efe7; --hover:rgba(0,0,0,.06);
   --border:#e0dccf; --border2:#d4cfc0;
-  --text:#2b2a27; --text2:#3d3b36; --muted:#7a776d; --dim:#9a968c;
+  --text:#2b2a27; --text2:#3d3b36; --muted:#6f6c63; --dim:#8b877d;
   --accent:#1f1e1b; --accent-h:#000000; --accent-fg:#ffffff;
   --add-bg:#e7f2e2; --add-fg:#255322; --add-gut:#4B7A44;
   --del-bg:#f9e4de; --del-fg:#7a2a17; --del-gut:#A5593F;
@@ -127,6 +127,26 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
   font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;
 }
 .updatebar .x:hover{background:var(--elev);color:var(--text)}
+
+/* ============================ BOOT / LOADING ============================ */
+.boot{
+  position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;
+  background:var(--bg);color:var(--muted);transition:opacity var(--t-mid) var(--ease);
+}
+.boot.done{opacity:0;pointer-events:none}
+.boot-in{display:flex;align-items:center;gap:10px;font-size:var(--fs-13)}
+.boot-star{color:var(--brand);font-size:20px;line-height:1;animation:pulse 1.8s ease-in-out infinite}
+.spinner{
+  width:16px;height:16px;border-radius:50%;flex:none;
+  border:2px solid var(--border2);border-top-color:var(--brand);
+  animation:spin .9s linear infinite;
+}
+.loading-row{display:flex;align-items:center;gap:9px;padding:12px 9px;font-size:var(--fs-12);color:var(--muted)}
+.loading-row .spinner{width:13px;height:13px;border-width:1.5px}
+@media(prefers-reduced-motion:reduce){
+  .spinner,.boot-star{animation:none!important}
+  .spinner{border-top-color:var(--border2);border-right-color:var(--brand)}
+}
 
 /* ============================ TITLE BAR ============================ */
 .titlebar{
@@ -232,6 +252,7 @@ body.is-mac .wc{display:none}
 }
 .sb-nav-row svg{flex:none;color:currentColor}
 .sb-nav-row:hover{background:var(--hover);color:var(--text)}
+.sb-nav-row:active{transform:scale(.995)}
 .sb-nav-row.on{background:var(--panel2);color:var(--text-strong,var(--text))}
 .sb-nav-row:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
 body.mode-chat #navProjects{display:none}
@@ -247,7 +268,7 @@ body.mode-chat #navProjects{display:none}
 .pf-path:hover{color:var(--text)}
 .pf-path svg{flex:none;opacity:.8}
 .pf-path .proj{
-  font-size:var(--fs-11);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  font-size:var(--fs-11);color:var(--muted);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   cursor:text;padding:2px 0;transition:color var(--t-fast);
 }
 .pf-path .proj:hover{color:var(--text)}
@@ -263,7 +284,7 @@ body.mode-chat #navProjects{display:none}
   font-size:var(--fs-13);padding:5px 0;
 }
 .sb-search input::placeholder{color:var(--dim)}
-.sb-search .clr{color:var(--dim);display:flex;padding:2px;border-radius:4px}
+.sb-search .clr{color:var(--dim);display:flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border-radius:6px;flex:none}
 .sb-search .clr:hover{background:var(--hover);color:var(--text)}
 .sessions{flex:0 0 auto;max-height:260px;overflow-y:auto;min-height:0;padding:0}
 .sess-group{
@@ -272,9 +293,11 @@ body.mode-chat #navProjects{display:none}
 .sess{
   display:flex;align-items:center;gap:12px;width:100%;padding:9px 10px;border-radius:10px;
   font-size:var(--fs-14);color:var(--text2);text-align:left;position:relative;
-  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
+  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease),transform var(--t-fast) var(--ease);
 }
-.sess:hover{background:var(--hover);color:var(--text)}
+.sess:hover{background:var(--hover);color:var(--text);transform:translateX(1px)}
+.sess:active{transform:scale(.995)}
+.sess{transform-origin:left center}
 .sess.on{background:var(--sess-active);color:var(--text);box-shadow:none}
 .sess.on::before{
   content:"";position:absolute;left:0;top:6px;bottom:6px;width:3px;border-radius:0 3px 3px 0;background:var(--brand);
@@ -288,7 +311,7 @@ body.mode-chat #navProjects{display:none}
 .sess.needs .meta{color:var(--brand)}
 
 /* ================= ATTACHMENTS (composer) ================= */
-.attachrow{display:flex;flex-wrap:wrap;gap:6px;padding:0 4px 7px}
+.attachrow{display:flex;flex-wrap:wrap;gap:6px;padding:0 4px 7px;max-height:96px;overflow-y:auto}
 .attachchip{
   display:inline-flex;align-items:center;gap:6px;max-width:260px;
   font-size:var(--fs-11);color:var(--text2);background:var(--chip);
@@ -453,7 +476,7 @@ body.mode-chat #navProjects{display:none}
 }
 .codeblock pre:not(.cb-gutter){margin:0;padding:14px;overflow-x:auto;flex:1}
 .codeblock code{font-family:var(--font-mono);font-size:var(--fs-125);line-height:1.68;color:var(--code-fg)}
-.cp{font-family:var(--font-mono);font-size:var(--fs-11);color:var(--muted);padding:2px 6px;border-radius:var(--r-xs);transition:color var(--t-fast),background var(--t-fast)}
+.cp{font-family:var(--font-mono);font-size:var(--fs-12);color:var(--text2);padding:2px 6px;border-radius:var(--r-xs);transition:color var(--t-fast),background var(--t-fast)}
 .cp:hover{color:var(--code-fg);background:color-mix(in srgb,var(--code-fg) 7%,transparent)}
 
 /* ================= THINKING (reasoning pill) ================= */
@@ -473,7 +496,7 @@ body.mode-chat #navProjects{display:none}
 }
 .think-h:hover{color:var(--text2);background:var(--hover);border-color:var(--border2)}
 .think-star{width:15px;height:15px;color:var(--brand);flex:none}
-.think-label{font-variant-numeric:tabular-nums;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.think-label{font-variant-numeric:tabular-nums;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .think-chev{width:12px;height:12px;flex:none;transition:transform 200ms var(--ease)}
 .think:not([data-mode="closed"]) .think-chev{transform:rotate(180deg)}
 .think-b{width:100%;max-height:0;overflow:hidden;transition:max-height 300ms ease}
@@ -1053,9 +1076,10 @@ body.preview-full .pane-row[data-pane="preview"] .pane-sub{padding:0 14px}
 .paneTitle{
   display:flex;align-items:center;gap:7px;padding:8px 14px;border-radius:var(--r-full);
   font-size:var(--fs-14);color:var(--text2);background:var(--elev);border:1px solid var(--border);
-  flex:none;
+  flex:none;max-width:60%;overflow:hidden;
   transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease);
 }
+.paneTitle .lb{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .paneTitle:hover{background:var(--hover);border-color:var(--border2);color:var(--text)}
 .paneTitle .chev{opacity:.55;flex:none}
 .paneTitle .badge{
@@ -1463,7 +1487,7 @@ textarea.inp{line-height:1.6;resize:vertical}
 
 /* ================= MISC ================= */
 .toast{
-  position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(6px);background:var(--panel);
+  position:fixed;top:52px;bottom:auto;left:50%;transform:translateX(-50%) translateY(-6px);background:var(--panel);
   border:1px solid var(--border2);color:var(--text);font-size:var(--fs-125);padding:10px 16px;border-radius:var(--r-md);
   z-index:200;opacity:0;pointer-events:none;transition:opacity var(--t-mid) var(--ease),transform var(--t-mid) var(--ease);
   box-shadow:var(--shadow);max-width:min(560px,90vw);text-align:center;
@@ -1543,6 +1567,14 @@ body.mode-chat #bigProj{display:none}
 </style>
 </head>
 <body>
+
+<div class="boot" id="boot" role="status" aria-live="polite">
+  <div class="boot-in">
+    <span class="boot-star" aria-hidden="true">✦</span>
+    <span class="spinner" aria-hidden="true"></span>
+    <span class="boot-txt">Starting Star…</span>
+  </div>
+</div>
 
 <!-- ==================== TITLE BAR ==================== -->
 <div class="titlebar">
@@ -2142,6 +2174,8 @@ const bridge = (typeof window !== "undefined" && window.desktop && window.deskto
   // First run? Captured before anything (importLocalKeys, save) can write the
   // key, so we can adopt the CLI's last-used model on a virgin profile only.
   const firstRun = localStorage.getItem(LS) === null;
+  // Never let a slow or failed boot leave the splash covering the app.
+  setTimeout(() => { const b = $("boot"); if (b) { b.classList.add("done"); setTimeout(() => b.remove(), 260); } }, 8000);
   applyTheme();
   if (bridge) {
     document.body.classList.add("is-electron");
@@ -2209,6 +2243,13 @@ const bridge = (typeof window !== "undefined" && window.desktop && window.deskto
     if (state.lastSession && sessionList.some((s) => s.id === state.lastSession)) switchSession(state.lastSession);
   }
   setTimeout(() => { booting = false; }, 900);
+  const bootEl = $("boot");
+  if (bootEl) {
+    requestAnimationFrame(() => {
+      bootEl.classList.add("done");
+      setTimeout(() => bootEl.remove(), 260);
+    });
+  }
   // Quiet update check a few seconds after launch. Deliberately delayed so it
   // never competes with first paint, and it only surfaces a banner when there
   // is genuinely something newer than the running build.
@@ -3334,6 +3375,7 @@ function pushTerm(cmd, kind) {
 // Real sessions, served by the backend and persisted to disk, so they survive
 // a restart and can be switched between.
 let sessionList = [];
+let sessionsLoading = true;
 let pinnedIds = [];
 let unreadIds = [];
 let pendingSessionIds = new Set();   // turns cut off by a restart, continued on open
@@ -3353,6 +3395,8 @@ function saveLocalSessionFlags() {
 }
 
 async function loadSessions() {
+  sessionsLoading = true;
+  renderSessions();
   try {
     const j = await (await fetch("/api/sessions")).json();
     sessionList = j.sessions || [];
@@ -3362,6 +3406,7 @@ async function loadSessions() {
   // sessions. Keep `state.sessions` (persisted) in step with the loaded list.
   for (const s of sessionList) s.kind = s.kind === "chat" ? "chat" : "code";
   state.sessions = sessionList.map((s) => ({ ...s }));
+  sessionsLoading = false;
   renderSessions();
 }
 
@@ -3439,7 +3484,9 @@ function renderSessions() {
   const matches = q ? list.filter((s) => String(s.title || "").toLowerCase().includes(q)) : list;
 
   if (!list.length) {
-    box.innerHTML = '<div class="sess-empty">No ' + (state.mode === "chat" ? "chat " : "") + 'sessions yet.</div>';
+    box.innerHTML = sessionsLoading
+      ? '<div class="loading-row"><span class="spinner" aria-hidden="true"></span><span>Loading sessions…</span></div>'
+      : '<div class="sess-empty">No ' + (state.mode === "chat" ? "chat " : "") + 'sessions yet.</div>';
     return;
   }
   if (!matches.length) {
@@ -3833,12 +3880,15 @@ function sessionMenu(anchor, id) {
 let treeEntries = [];
 let treeCollapsed = new Set();
 let treeInitialized = false;
+let treeLoading = false;
 let currentFile = null;              // { path, kind, content, error }
 let fileView = { mode: "render" };   // "render" | "code" for md/html/svg
 
 const PREVIEW_KIND = { ".md": "md", ".html": "frame", ".htm": "frame", ".svg": "frame", ".png": "img", ".jpg": "img", ".jpeg": "img", ".gif": "img", ".webp": "img" };
 
 async function loadTree(attempt = 0) {
+  treeLoading = true;
+  if (!treeEntries.length) renderTree();
   try {
     const j = await (await fetch("/api/tree")).json();
     treeEntries = j.entries || [];
@@ -3852,6 +3902,7 @@ async function loadTree(attempt = 0) {
     for (const e of treeEntries) if (e.dir) treeCollapsed.add(e.path);
     treeInitialized = true;
   }
+  treeLoading = false;
   renderTree();
 }
 
@@ -3865,14 +3916,19 @@ function treeChildren(prefix) {
 
 function renderTree() {
   const box = $("fileTree");
-  if (!treeEntries.length) { box.innerHTML = '<div class="sess-empty">No files yet.</div>'; return; }
+  if (!treeEntries.length) {
+    box.innerHTML = treeLoading
+      ? '<div class="loading-row"><span class="spinner" aria-hidden="true"></span><span>Loading files…</span></div>'
+      : '<div class="sess-empty">No files yet.</div>';
+    return;
+  }
   box.innerHTML = "";
   const add = (prefix) => {
     for (const e of treeChildren(prefix)) {
       const el = document.createElement("button");
       const open = e.dir && !treeCollapsed.has(e.path);
       el.className = "ft-item" + (open ? " open" : "");
-      el.style.paddingLeft = (6 + e.depth * 20) + "px";
+      el.style.paddingLeft = (6 + Math.min(e.depth, 7) * 20) + "px";
       el.innerHTML = `<span class="ft-caret">${e.dir ? CHEV_SVG : ""}</span><span class="nm">${esc(e.name)}</span>`;
       el.title = e.path;
       if (e.dir) {
@@ -4397,7 +4453,7 @@ const SHELL_CSS = `
   th,td{border:1px solid light-dark(#e0dccf,#34322d);padding:6px 10px;text-align:left}
   th{background:light-dark(#e9e6db,#252421)}
   img{max-width:100%}
-  blockquote{margin:.6em 0;padding:.2em 1em;border-left:3px solid light-dark(#e0dccf,#34322d);color:light-dark(#7a776d,#9b988d)}
+  blockquote{margin:.6em 0;padding:.2em 1em;border-left:3px solid light-dark(#e0dccf,#34322d);color:light-dark(#6f6c63,#9b988d)}
 `;
 
 /** A document artifact: markdown rendered on a page of comfortable width,
@@ -4436,7 +4492,7 @@ function deckIframeHtml(code) {
   .bar button{width:30px;height:30px;border-radius:999px;border:1px solid light-dark(#d4cfc0,#3d3a34);
     background:transparent;color:inherit;font-size:16px;cursor:pointer;line-height:1}
   .bar button:hover{background:light-dark(#e9e6db,#2e2c28)}
-  .bar .hint{color:light-dark(#7a776d,#9b988d);margin-left:6px}
+  .bar .hint{color:light-dark(#6f6c63,#9b988d);margin-left:6px}
 </style></head><body>
 ${rendered}
 <div class="bar"><button id="prev" aria-label="Previous slide">‹</button><span id="count">1 / ${body.length}</span><button id="next" aria-label="Next slide">›</button><span class="hint">← → · space · F fullscreen</span></div>
@@ -4473,13 +4529,13 @@ function boardIframeHtml(code) {
     grid-template-columns:repeat(2,minmax(360px,1fr));gap:36px;align-content:start;cursor:grab}
   .canvas.drag{cursor:grabbing}
   .frame{margin:0}
-  figcaption{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:light-dark(#7a776d,#9b988d);margin:0 0 8px 2px}
+  figcaption{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:light-dark(#6f6c63,#9b988d);margin:0 0 8px 2px}
   .sheet{background:light-dark(#ffffff,#252421);border:1px solid light-dark(#e0dccf,#34322d);
     border-radius:12px;box-shadow:0 8px 24px light-dark(rgba(0,0,0,.08),rgba(0,0,0,.45));
     padding:24px;min-height:200px;overflow:hidden}
   .sheet>*:first-child{margin-top:0}
   .hintbar{position:fixed;left:0;right:0;bottom:0;height:38px;display:flex;align-items:center;justify-content:center;
-    font-size:12px;color:light-dark(#7a776d,#9b988d);background:light-dark(rgba(247,244,236,.9),rgba(27,26,23,.9));
+    font-size:12px;color:light-dark(#6f6c63,#9b988d);background:light-dark(rgba(247,244,236,.9),rgba(27,26,23,.9));
     border-top:1px solid light-dark(#e0dccf,#34322d)}
 </style></head><body>
 <div class="canvas" id="canvas">${rendered}</div>
@@ -6648,7 +6704,7 @@ function renderToolGroup(g) {
   g.node.querySelector("[data-in]").innerHTML = items.map((i, idx) => `
     <div class="trow" data-i="${idx}">
       <span class="v">${esc(i.verb)}</span>
-      <span class="a">${esc(i.arg)}</span>
+      <span class="a" title="${esc(i.arg)}">${esc(i.arg)}</span>
       <span class="m ${i.status === "ok" ? "ok" : i.status === "denied" ? "no" : ""}">${
         i.status === "running" ? "…" : i.status === "denied" ? "denied" : "done"}</span>
     </div>

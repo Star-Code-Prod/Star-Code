@@ -474,6 +474,14 @@ ok("the sidebar uses four English workspace rows instead of More",
   js.includes("function setSidebarNav(") &&
   /\.sb-nav-row\{[^}]*height:36px/.test(html.replace(/\s+/g, "")) &&
   /\.sb-nav-row\{[^}]*border-radius:10px/.test(html.replace(/\s+/g, "")));
+ok("boot and list loading use a visible spinner with a reduced-motion fallback",
+  html.includes('id="boot"') && html.includes('class="spinner"') &&
+  /\.spinner\{[^}]*animation:spin/.test(html.replace(/\s+/g, "")) &&
+  js.includes("Loading sessions…") && js.includes("Loading files…") &&
+  html.replace(/\s+/g, "").includes(".spinner,.boot-star{animation:none"));
+ok("toasts sit above the composer, not on it",
+  /\.toast\{[^}]*top:52px/.test(html.replace(/\s+/g, "")) &&
+  /\.toast\{[^}]*bottom:auto/.test(html.replace(/\s+/g, "")));
 ok("fullscreen sits below the titlebar strip",
   /body\.preview-full \.pane-row\[data-pane="preview"\]\{[^}]*inset:40px 0 0 0/.test(html.replace(/\s+/g, " ")));
 ok("the folded thinking pill carries a gist",
