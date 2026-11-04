@@ -1,9 +1,13 @@
 # What's new in Star
 
+## 1.25.1 — 2026-11-04
+- **Update log now shows everything you missed.** On launch it lists every version released since the last one you saw, not just the newest entry; **About → Update log** still shows the full history. The 1.25.0 notes were expanded to cover the sidebar, Projects popup, boot speed and mode-switch spacing.
+
 ## 1.25.0 — 2026-11-04
 - **Attachments by drag and drop or paste.** Drop files anywhere on the composer or paste an image and it becomes an attachment chip. Electron resolves the real path through the preload bridge; the browser keeps the filename.
 - **Desktop notifications.** When a background session finishes while the window is hidden, Electron shows a native notification with the session title.
-- **Project picker refinements and the 1.24.2 Chat/Code spacing** are included in this line.
+- **Sidebar, projects and speed.** The large New session button is gone (use **New**), Chat/Code sit beside the Star wordmark with proper spacing, and the workspace nav is **New / Search / Projects**. **Artifacts** moved to the title bar beside the theme button. **Projects** opens a popup of every known project folder with a path field, Browse and Open. Boot loads providers, sessions and keys in parallel and reveals the UI before tree/pane/settings setup.
+- **Update log fixes.** The update dialog now shows every version released since your last launch instead of only the newest one, and the About → Update log view keeps the full history.
 
 ## 1.24.2 — 2026-11-04
 - **Chat/Code switch spacing.** The switch now sits 16 px from the Star wordmark instead of touching it, uses the same 30 px height as the reference row, has a subtle border, 30×24 buttons, 13 px icons and a clear inset active state. No inherited `.seg` margins or shadows distort it.

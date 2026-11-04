@@ -2398,7 +2398,7 @@ const bridge = (typeof window !== "undefined" && window.desktop && window.deskto
     let seen = "";
     try { seen = localStorage.getItem("ccd.seenVersion") || ""; } catch { /* private mode */ }
     try { localStorage.setItem("ccd.seenVersion", running); } catch { /* fine */ }
-    if (seen && seen !== running) openWhatsNew(false);
+    if (seen && seen !== running) openWhatsNew(false, seen);
   }, 1500);
 })();
 
@@ -6694,14 +6694,31 @@ function changelogHtml(entries, onlyNewest) {
       <ul>${(e.notes || []).map((n) => `<li>${esc(n)}</li>`).join("")}</ul>
     </div>`).join("");
 }
-function openWhatsNew(all) {
+function versionNewer(a, b) {
+  const pa = String(a || "").split(".").map(Number);
+  const pb = String(b || "").split(".").map(Number);
+  for (let i = 0; i < 3; i++) {
+    const x = pa[i] || 0, y = pb[i] || 0;
+    if (x !== y) return x > y;
+  }
+  return false;
+}
+function openWhatsNew(all, sinceVersion) {
   const el = $("newDlg");
   if (!el) return;
   const entries = (changelog && changelog.entries) || [];
-  const newest = entries[0];
-  $("newTitle").textContent = all ? "Update log" : newest ? "What's new in v" + newest.version : "What's new";
-  $("newBody").innerHTML = entries.length
-    ? changelogHtml(entries, !all)
+  let list = entries;
+  if (!all && sinceVersion) {
+    list = entries.filter((e) => versionNewer(e.version, sinceVersion));
+    if (!list.length) list = entries.slice(0, 1);
+  }
+  $("newTitle").textContent = all
+    ? "Update log"
+    : list.length === 1
+      ? "What's new in v" + list[0].version
+      : list.length > 1 ? "What's new" : "What's new";
+  $("newBody").innerHTML = list.length
+    ? changelogHtml(list, false)
     : '<p class="cvempty">No update notes found.</p>';
   newDlgBack = document.activeElement;
   el.classList.add("on");

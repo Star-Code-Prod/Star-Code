@@ -252,8 +252,10 @@ ok("sessions stream in the background while you switch",
 ok("a live turn replays into the transcript on switch",
   fnBody("async function switchSession(").includes("for (const e of live.events) handle(e)"));
 ok("superseded readers stop cleanly", fnBody("async function sendToAgent(").includes("liveTurns.get(sid) !== live"));
-ok("the update log is parsed and shown once per version",
-  js.includes("function openWhatsNew(") && js.includes("ccd.seenVersion") &&
+ok("the update log shows every version since the last launch",
+  js.includes("function openWhatsNew(") && js.includes("function versionNewer(") &&
+  js.includes("openWhatsNew(false, seen)") && js.includes("ccd.seenVersion") &&
+  js.includes("e.version, sinceVersion") &&
   js.includes("function changelogHtml(") && html.includes('id="newDlg"'));
 ok("the About panel links the full log", html.includes('id="aboutNew"'));
 
