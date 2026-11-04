@@ -482,6 +482,11 @@ ok("boot and list loading use a visible spinner with a reduced-motion fallback",
 ok("toasts sit above the composer, not on it",
   /\.toast\{[^}]*top:52px/.test(html.replace(/\s+/g, "")) &&
   /\.toast\{[^}]*bottom:auto/.test(html.replace(/\s+/g, "")));
+ok("Office documents and PDFs preview in-app",
+  html.includes('".docx": "office"') && html.includes('".xlsx": "office"') &&
+  html.includes('".pptx": "office"') && html.includes('".pdf": "pdf"') &&
+  js.includes("function officeHtml(") && js.includes('f.kind === "office"') &&
+  /\.office-table\{/.test(html.replace(/\s+/g, "")) && /\.fpdf\{/.test(html.replace(/\s+/g, "")));
 ok("fullscreen sits below the titlebar strip",
   /body\.preview-full \.pane-row\[data-pane="preview"\]\{[^}]*inset:40px 0 0 0/.test(html.replace(/\s+/g, " ")));
 ok("the folded thinking pill carries a gist",

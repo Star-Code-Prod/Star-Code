@@ -33,6 +33,7 @@ import { scanOpencode, applyImport } from "./lib/opencode-import.js";
 import { createMcpManager, readMcpConfig, readMcpConfigText, writeMcpConfigText, parseMcpJson, mcpToolName } from "./lib/mcp.js";
 import { scanSkills, readSkillsConfig, writeSkillsConfig } from "./lib/skills.js";
 import { pluginManager, readPluginsConfig, writePluginsConfig, userPluginsDir } from "./lib/plugins.js";
+import { extractOffice, officeKind } from "./lib/office.js";
 // Namespace import: chatSystemPrompt() / cheapModelFor() are being added to
 // agent.js alongside this work, and the server must keep booting (and code
 // sessions keep working) whether or not they have landed yet. The chat path
@@ -1140,6 +1141,16 @@ async function route(req, res) {
     const rel = url.searchParams.get("path") || "";
     const abs = safeResolve(rel);
     if (!abs) return sendJSON(res, 403, { error: "path outside working directory" });
+    const ext = path.extname(abs).toLowerCase();
+    const okind = officeKind(ext);
+    if (okind === "pdf") return sendJSON(res, 200, { pdf: true, kind: "pdf" });
+    if (okind === "office") {
+      try {
+        return sendJSON(res, 200, { office: await extractOffice(abs, ext) });
+      } catch (e) {
+        return sendJSON(res, 422, { error: "Could not preview " + path.basename(abs) + ": " + e.message });
+      }
+    }
     try {
       // No size limit: any file in the workspace is displayable. Big files
       // arrive as plain text (the UI skips highlighting over its threshold).

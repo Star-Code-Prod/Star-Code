@@ -646,6 +646,20 @@ body.mode-chat #navProjects{display:none}
 .apbody{flex:1;min-height:0;display:flex;flex-direction:column;overflow:auto}
 .apframe{flex:1;width:100%;min-height:320px;border:0;background:#fff}
 .apimg{max-width:100%;display:block;margin:0 auto;background:#fff}
+.fpdf{width:100%;height:100%;border:0;background:#fff;display:block}
+.office{flex:1;min-height:0;overflow:auto;padding:18px 20px;font-size:var(--fs-13);line-height:1.6;color:var(--text)}
+.office h1,.office h2,.office h3{font-family:var(--font-sans);color:var(--text-strong,var(--text));margin:0 0 8px;line-height:1.3}
+.office h1{font-size:20px}.office h2{font-size:16px}.office h3{font-size:14px}
+.office p{margin:0 0 8px;white-space:pre-wrap}
+.office-table{border-collapse:collapse;margin:10px 0;font-size:var(--fs-12);max-width:100%}
+.office-table td{border:1px solid var(--border);padding:5px 8px;vertical-align:top;min-width:36px}
+.office-grid td{font-family:var(--font-mono);white-space:pre-wrap;max-width:280px;overflow:hidden;text-overflow:ellipsis}
+.office-tabs{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap}
+.office-tab{padding:4px 9px;border-radius:6px;border:1px solid var(--border);color:var(--muted);font-size:var(--fs-12)}
+.office-tab.on{background:var(--panel2);color:var(--text);border-color:var(--border2)}
+.office-slide{border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;background:var(--panel)}
+.office-slide-n{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:4px}
+.office-slide p{margin:0 0 4px}
 .apmd{padding:var(--sp-4)}
 .apmd p{margin:10px 0}
 .apmd h1,.apmd h2,.apmd h3{font-size:var(--fs-15);font-weight:600;margin:18px 0 8px}
@@ -3890,7 +3904,7 @@ let treeLoading = false;
 let currentFile = null;              // { path, kind, content, error }
 let fileView = { mode: "render" };   // "render" | "code" for md/html/svg
 
-const PREVIEW_KIND = { ".md": "md", ".html": "frame", ".htm": "frame", ".svg": "frame", ".png": "img", ".jpg": "img", ".jpeg": "img", ".gif": "img", ".webp": "img" };
+const PREVIEW_KIND = { ".md": "md", ".html": "frame", ".htm": "frame", ".svg": "frame", ".png": "img", ".jpg": "img", ".jpeg": "img", ".gif": "img", ".webp": "img", ".pdf": "pdf", ".docx": "office", ".xlsx": "office", ".pptx": "office" };
 
 async function loadTree(attempt = 0) {
   treeLoading = true;
@@ -3960,7 +3974,7 @@ async function previewFile(path) {
   if (kind !== "img") {
     try { j = await (await fetch("/api/file?path=" + encodeURIComponent(path))).json(); } catch {}
   }
-  currentFile = { path, kind, content: j.content, error: j.error };
+  currentFile = { path, kind, content: j.content, error: j.error, office: j.office, pdf: !!j.pdf };
   fileView = { mode: kind === "source" ? "code" : "render" };
   $("previewTitle").textContent = path;
   $("previewEmpty").style.display = "none";
@@ -3978,6 +3992,41 @@ function withProbe(html) {
   return i >= 0 ? s.slice(0, i) + PROBE_SCRIPT + s.slice(i) : s + PROBE_SCRIPT;
 }
 
+function officeHtml(o) {
+  if (!o) return '<div class="pempty">Could not read that document.</div>';
+  if (o.type === "docx") {
+    const body = (o.blocks || []).map((b) => {
+      if (b.type === "table") {
+        return '<table class="office-table">' + b.rows.map((r) => "<tr>" + r.map((c) => "<td>" + esc(c) + "</td>").join("") + "</tr>").join("") + "</table>";
+      }
+      const h = /^Heading([1-3])$/i.exec(b.style || "");
+      const tag = h ? "h" + h[1] : "p";
+      return "<" + tag + ">" + esc(b.text) + "</" + tag + ">";
+    }).join("");
+    return '<div class="office office-docx">' + body + "</div>";
+  }
+  if (o.type === "xlsx") {
+    const sheets = o.sheets || [];
+    if (!sheets.length) return '<div class="pempty">This workbook has no readable sheets.</div>';
+    const tabs = sheets.length > 1
+      ? '<div class="office-tabs">' + sheets.map((s, i) => '<button class="office-tab' + (i === 0 ? " on" : "") + '" data-sheet="' + i + '">' + esc(s.name) + "</button>").join("") + "</div>"
+      : "";
+    const tables = sheets.map((s, i) => {
+      const rows = (s.rows || []).map((r) => "<tr>" + r.map((c) => "<td>" + esc(c.value) + "</td>").join("") + "</tr>").join("");
+      return '<div class="office-sheet" data-sheet="' + i + '"' + (i ? " hidden" : "") + '><table class="office-table office-grid">' + rows + "</table></div>";
+    }).join("");
+    return '<div class="office office-xlsx">' + tabs + tables + "</div>";
+  }
+  if (o.type === "pptx") {
+    const slides = (o.slides || []).map((s) =>
+      '<div class="office-slide"><div class="office-slide-n">Slide ' + s.index + '</div>' +
+      (s.paragraphs || []).map((p, i) => i === 0 ? "<h3>" + esc(p) + "</h3>" : "<p>" + esc(p) + "</p>").join("") +
+      "</div>").join("");
+    return '<div class="office office-pptx">' + slides + "</div>";
+  }
+  return '<div class="pempty">Unsupported document.</div>';
+}
+
 function renderFilePreview() {
   const host = $("filePreview");
   if (!currentFile) return;
@@ -3993,10 +4042,25 @@ function renderFilePreview() {
     return;
   }
 
-  if (f.kind === "source" || f.content == null) {
+  if (f.kind === "source" || (f.content == null && f.kind !== "pdf" && f.kind !== "office")) {
     host.innerHTML = (f.content != null)
       ? `<pre class="fpre">${f.content.length > 1_000_000 ? esc(f.content) : hl(f.content)}</pre>`
       : `<div class="pempty">${esc(f.error || "Could not read that file.")}</div>`;
+    return;
+  }
+
+  if (f.kind === "pdf") {
+    host.innerHTML = `<iframe class="fpdf" title="${esc(f.path)}" src="/api/file/raw?path=${encodeURIComponent(f.path)}"></iframe>`;
+    return;
+  }
+
+  if (f.kind === "office") {
+    if (f.error) { host.innerHTML = `<div class="pempty">${esc(f.error)}</div>`; return; }
+    host.innerHTML = officeHtml(f.office);
+    host.querySelectorAll(".office-tab").forEach((b) => b.addEventListener("click", () => {
+      host.querySelectorAll(".office-tab").forEach((x) => x.classList.toggle("on", x === b));
+      host.querySelectorAll(".office-sheet").forEach((x) => { x.hidden = x.dataset.sheet !== b.dataset.sheet; });
+    }));
     return;
   }
 
