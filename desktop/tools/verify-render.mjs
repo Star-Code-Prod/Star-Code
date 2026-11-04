@@ -496,6 +496,10 @@ ok("session filters and project grouping are wired",
   html.includes('id="btnSessFilter"') && js.includes("state.sessFilter") &&
   js.includes('"Group by project"') && js.includes("state.sessGroupProject") &&
   js.includes("No sessions in this filter."));
+ok("text files can be edited and saved from the preview",
+  js.includes("function startFileEdit(") && js.includes('id="fpEdit"') &&
+  js.includes("/api/file/write") && js.includes("Ctrl") &&
+  /\.fedit\{/.test(html.replace(/\s+/g, "")));
 ok("fullscreen sits below the titlebar strip",
   /body\.preview-full \.pane-row\[data-pane="preview"\]\{[^}]*inset:40px 0 0 0/.test(html.replace(/\s+/g, " ")));
 ok("the folded thinking pill carries a gist",
