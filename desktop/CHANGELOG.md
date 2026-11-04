@@ -1,5 +1,8 @@
 # What's new in Star
 
+## 1.23.4 — 2026-11-04
+- **Sidebar cleanup.** The brand row is just the coral star and serif "Star" again; the working-folder selector moved into the Project files header, where it sits with the refresh button. The New session button and mode switch now share the same 42 px height, More uses the reference spacing, the active session's coral bar is visible inside the row, search text is 13 px, the tree uses the reference 14 px / 5 px rows, and the section header buttons are proper 26 px icon buttons.
+
 ## 1.23.3 — 2026-11-04
 - **Raw tool calls never reach the transcript again.** Some providers emit `<dots_function_call><invoke name="…"><args>{…}</args></invoke></dots_function_call>` instead of a fenced block, and some leave a malformed `</parameter>` or a stray `</tool>` behind. Star now parses that dialect into real calls, drops the markup live and on replay, and scrubs it from reasoning too. The visible transcript shows prose and a tool row — never XML.
 - **The activity stream, title bar, sidebar and card panel follow the supplied desktop reference.** A 40 px title bar with transparent, currentColor icon buttons and custom window controls (−, □, ×; red close hover); a 300 px sidebar with the serif star, filled New session row, mode switch, sessions/search, active-session coral bar and 20 px-indented tree; a wide centred chat stack with 40 px grouped tool rows (green status dot, summary label, count pill, chevron), 38 px thinking pills with the coral four-point star, 16 px prose and right-aligned bubbles; and a 400 px rounded card panel with a Changes pill and stacked Preview / Tasks / Plan / Changes cards. All colours come from theme variables, so light and dark both work.
