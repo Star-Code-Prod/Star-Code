@@ -475,6 +475,7 @@ ok("the sidebar uses three English workspace rows with modes beside the brand",
   html.indexOf('id="modeSeg"') < html.indexOf('class="sb-links"') &&
   html.includes('id="btnArtifacts"') &&
   js.includes("function openProjects(") && js.includes("function switchProject(") &&
+  html.includes("margin:0 0 0 16px") &&
   /\.sb-nav-row\{[^}]*height:36px/.test(html.replace(/\s+/g, "")) &&
   /\.sb-nav-row\{[^}]*border-radius:10px/.test(html.replace(/\s+/g, "")));
 ok("the Projects row opens a project picker with known folders",

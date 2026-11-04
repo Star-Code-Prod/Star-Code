@@ -208,8 +208,6 @@ body.is-mac .wc{display:none}
   color:var(--brand);
 }
 .sb-word{font-family:var(--font-serif);font-size:22px;font-weight:500;letter-spacing:-.01em;color:var(--text-strong,var(--text))}
-.sb-modes{margin-left:auto;flex:none;height:32px;padding:2px;border-radius:9px;border-color:var(--border);background:var(--panel)}
-.sb-modes button{width:28px;height:26px;padding:0;min-height:0;border-radius:7px}
 .sb-sub{margin-left:auto;font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--dim)}
 .seg{display:flex;gap:6px;margin:var(--sp-3) var(--sp-3) var(--sp-2);padding:4px;background:var(--chip);border-radius:var(--r-sm)}
 .seg button{
@@ -219,6 +217,18 @@ body.is-mac .wc{display:none}
 }
 .seg button:hover{background:var(--hover);color:var(--text2)}
 .seg button.on{background:var(--panel);color:var(--text);font-weight:500;box-shadow:var(--shadow-sm)}
+/* The Chat/Code switch in the brand row: right-aligned, with breathing room
+   from the wordmark and no inherited margins from the generic .seg. */
+.sb-brand .sb-modes{
+  margin:0 0 0 16px;height:30px;padding:2px;gap:2px;flex:none;border:1px solid var(--border);
+  border-radius:9px;background:var(--panel);
+}
+.sb-brand .sb-modes button{
+  flex:none;width:30px;height:24px;min-height:0;padding:0;border-radius:6px;color:var(--muted);
+}
+.sb-brand .sb-modes button svg{width:13px;height:13px}
+.sb-brand .sb-modes button:hover{background:var(--hover);color:var(--text)}
+.sb-brand .sb-modes button.on{background:var(--panel2);color:var(--text);box-shadow:inset 0 0 0 1px var(--border2)}
 .sb-links{padding:0 0 8px;display:flex;flex-direction:column;gap:2px}
 .sb-link{
   display:flex;align-items:center;gap:12px;width:100%;padding:9px 8px;border-radius:8px;

@@ -1,5 +1,8 @@
 # What's new in Star
 
+## 1.24.2 — 2026-11-04
+- **Chat/Code switch spacing.** The switch now sits 16 px from the Star wordmark instead of touching it, uses the same 30 px height as the reference row, has a subtle border, 30×24 buttons, 13 px icons and a clear inset active state. No inherited `.seg` margins or shadows distort it.
+
 ## 1.24.1 — 2026-11-04
 - **Cleaner sidebar.** The large New session button is gone (use **New**), and the Chat/Code switch now sits beside the Star wordmark. The workspace nav is **New / Search / Projects**. **Artifacts** moved to the title bar next to the theme button.
 - **Projects popup.** Clicking **Projects** opens a picker of every known project folder (current folder, saved projects, and folders from your sessions), with a path field, Browse and Open. Picking one binds the current session to it and refreshes the file tree.
