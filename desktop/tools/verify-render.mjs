@@ -612,6 +612,10 @@ ok("attach file picks through the bridge or a file input",
   js.includes("async function attachPick(") && js.includes("bridge.pickFile") &&
   js.includes('inp.type = "file"') && js.includes("[attached file") &&
   /\.attachchip\{/.test(html.replace(/\s+/g, "")));
+ok("files can be dropped or pasted into the composer",
+  html.includes('id="dropNote"') && js.includes("function attachMany(") &&
+  js.includes("getPathForFile") && js.includes('addEventListener("drop"') &&
+  js.includes('addEventListener("paste"') && /\.cwrap\.dragover/.test(html.replace(/\s+/g, "")));
 {
   const preloadSrc = fs.readFileSync("electron/preload.cjs", "utf8");
   const mainSrc = fs.readFileSync("electron/main.cjs", "utf8");

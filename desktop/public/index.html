@@ -324,6 +324,13 @@ body.mode-chat #navProjects{display:none}
 
 /* ================= ATTACHMENTS (composer) ================= */
 .attachrow{display:flex;flex-wrap:wrap;gap:6px;padding:0 4px 7px;max-height:96px;overflow-y:auto}
+.dropnote{
+  display:none;position:absolute;inset:6px;z-index:3;align-items:center;justify-content:center;
+  border:1px dashed var(--brand-line);border-radius:10px;background:color-mix(in srgb,var(--brand) 8%,var(--bg));
+  color:var(--brand);font-size:var(--fs-12);pointer-events:none;
+}
+.cwrap.dragover .dropnote{display:flex}
+.cwrap.dragover{border-color:var(--brand)}
 .attachchip{
   display:inline-flex;align-items:center;gap:6px;max-width:260px;
   font-size:var(--fs-11);color:var(--text2);background:var(--chip);
@@ -1848,6 +1855,7 @@ body.mode-chat #bigProj{display:none}
       <div class="cwrap">
       <div class="slash" id="slashMenu" style="display:none"></div>
       <div class="attachrow" id="attachRow" style="display:none"></div>
+      <div class="dropnote" id="dropNote">Drop files to attach</div>
       <div class="attachrow" id="queueRow" style="display:none"></div>
       <button class="jump" id="jumpBtn" type="button" title="Jump to latest" aria-label="Jump to the latest message">
         <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v10M3.5 8.5L8 13l4.5-4.5"/></svg>
@@ -2259,6 +2267,10 @@ function finishLive(sid) {
   if (sid !== sessionId) {
     unreadIds = [...new Set([...unreadIds, sid])];
     saveLocalSessionFlags();
+    if (document.hidden && bridge && bridge.notify) {
+      const s = sessionList.find((x) => x.id === sid);
+      try { bridge.notify({ title: "Star", body: (s && s.title ? s.title : "Session") + " finished" }); } catch { /* fine */ }
+    }
   }
   renderSessions();
 }
@@ -7838,6 +7850,54 @@ function renderAttach() {
     renderAttach();
   }));
 }
+function attachPathFor(file) {
+  try {
+    if (bridge && bridge.getPathForFile) return bridge.getPathForFile(file) || file.name;
+    if (file && file.path) return file.path;
+  } catch { /* fall through to the name */ }
+  return file && file.name ? file.name : "";
+}
+function attachMany(files) {
+  const list = [...files].filter(Boolean);
+  if (!list.length) return;
+  let named = 0;
+  for (const f of list) {
+    const p = attachPathFor(f);
+    if (p) { attachFiles.push(p); named++; }
+  }
+  if (named) {
+    renderAttach();
+    toast("Attached " + named + " file" + (named === 1 ? "" : "s"));
+    $("input").focus();
+  }
+}
+(function wireComposerDrop() {
+  const wrap = document.querySelector(".cwrap");
+  if (!wrap) return;
+  let depth = 0;
+  const clear = () => { depth = 0; wrap.classList.remove("dragover"); };
+  wrap.addEventListener("dragenter", (e) => {
+    if (!e.dataTransfer || ![...e.dataTransfer.types].includes("Files")) return;
+    e.preventDefault(); depth++; wrap.classList.add("dragover");
+  });
+  wrap.addEventListener("dragover", (e) => {
+    if (!e.dataTransfer || ![...e.dataTransfer.types].includes("Files")) return;
+    e.preventDefault(); e.dataTransfer.dropEffect = "copy";
+  });
+  wrap.addEventListener("dragleave", () => { depth = Math.max(0, depth - 1); if (!depth) clear(); });
+  wrap.addEventListener("drop", (e) => {
+    e.preventDefault(); clear();
+    attachMany(e.dataTransfer ? e.dataTransfer.files : []);
+  });
+  document.addEventListener("paste", (e) => {
+    if (!e.clipboardData || !e.clipboardData.items) return;
+    const files = [...e.clipboardData.items].filter((i) => i.kind === "file").map((i) => i.getAsFile()).filter(Boolean);
+    if (!files.length) return;
+    e.preventDefault();
+    attachMany(files);
+  });
+})();
+
 async function attachPick() {
   if (bridge && bridge.pickFile) {
     let p = null;

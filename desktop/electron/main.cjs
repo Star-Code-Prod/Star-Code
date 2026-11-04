@@ -4,7 +4,7 @@
 // no separately installed Node runtime is required), then loads the UI.
 // The window uses a hidden title bar so the app's own chrome is the frame.
 
-const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme } = require("electron");
+const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme, Notification } = require("electron");
 const path = require("node:path");
 const fs = require("node:fs");
 const crypto = require("node:crypto");
@@ -453,6 +453,18 @@ function wire() {
   ipcMain.handle("desktop:set-theme", (_e, theme) => {
     nativeTheme.themeSource = theme === "light" ? "light" : theme === "dark" ? "dark" : "system";
     return true;
+  });
+
+  ipcMain.handle("desktop:notify", (_e, payload = {}) => {
+    if (!Notification.isSupported()) return false;
+    try {
+      new Notification({
+        title: String(payload.title || "Star").slice(0, 80),
+        body: String(payload.body || "").slice(0, 240),
+        silent: false,
+      }).show();
+      return true;
+    } catch { return false; }
   });
 
   ipcMain.handle("desktop:window", (_e, action) => {

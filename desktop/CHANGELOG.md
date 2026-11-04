@@ -1,5 +1,10 @@
 # What's new in Star
 
+## 1.25.0 — 2026-11-04
+- **Attachments by drag and drop or paste.** Drop files anywhere on the composer or paste an image and it becomes an attachment chip. Electron resolves the real path through the preload bridge; the browser keeps the filename.
+- **Desktop notifications.** When a background session finishes while the window is hidden, Electron shows a native notification with the session title.
+- **Project picker refinements and the 1.24.2 Chat/Code spacing** are included in this line.
+
 ## 1.24.2 — 2026-11-04
 - **Chat/Code switch spacing.** The switch now sits 16 px from the Star wordmark instead of touching it, uses the same 30 px height as the reference row, has a subtle border, 30×24 buttons, 13 px icons and a clear inset active state. No inherited `.seg` margins or shadows distort it.
 
