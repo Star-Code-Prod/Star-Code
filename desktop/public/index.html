@@ -23,7 +23,7 @@
   --sb-w:264px;     /* sidebar width */
   --font-sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --font-mono:'JetBrains Mono',ui-monospace,"SF Mono",Consolas,monospace;
-  --focus-ring:0 0 0 2px var(--bg),0 0 0 4px color-mix(in srgb,var(--accent) 70%,transparent);
+  --focus-ring:0 0 0 2px var(--bg),0 0 0 4px color-mix(in srgb,var(--brand) 72%,transparent);
 }
 
 /* ============================ THEMES ============================ */
@@ -42,6 +42,13 @@
   --shadow-md:0 8px 24px -10px rgba(0,0,0,.62);
   --chip:#2a2a2a; --chip-on:#383838;
   --termbg:#141414;
+  /* The star's own colour: gold for the things that are alive - a running
+     session, focus, the send button - against the monochrome chrome. */
+  --brand:#f2b544; --brand-strong:#ffcb6b; --brand-dim:#8a6a2f;
+  --brand-soft:color-mix(in srgb,var(--brand) 12%,transparent);
+  --brand-line:color-mix(in srgb,var(--brand) 30%,transparent);
+  --brand-fg:#191307;
+  --ambient:radial-gradient(900px 420px at 50% -10%,color-mix(in srgb,var(--brand) 9%,transparent),transparent 62%);
   --title-font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
 }
 :root[data-theme="light"]{
@@ -59,6 +66,11 @@
   --shadow-md:0 8px 24px -12px rgba(20,20,19,.22);
   --chip:#F0EEE6; --chip-on:#E6E3D8;
   --termbg:#141413;
+  --brand:#8a5a00; --brand-strong:#6f4700; --brand-dim:#b78a3a;
+  --brand-soft:color-mix(in srgb,var(--brand) 9%,transparent);
+  --brand-line:color-mix(in srgb,var(--brand) 24%,transparent);
+  --brand-fg:#ffffff;
+  --ambient:radial-gradient(900px 420px at 50% -10%,color-mix(in srgb,var(--brand) 7%,transparent),transparent 62%);
   --title-font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
 }
 
@@ -71,6 +83,7 @@ body{
   display:flex; flex-direction:column; height:100vh; overflow:hidden;
   -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
 }
+::selection{background:color-mix(in srgb,var(--brand) 32%,transparent);color:var(--text)}
 button{font-family:inherit;cursor:pointer;color:inherit;background:none;border:0;padding:0}
 input,textarea,select{font-family:inherit}
 [hidden]{display:none!important}
@@ -90,14 +103,14 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
 /* ============================ UPDATE BANNER ============================ */
 .updatebar{
   display:none;align-items:center;gap:var(--sp-3);padding:var(--sp-2) var(--sp-4);flex:none;
-  background:color-mix(in srgb,var(--accent) 10%,var(--panel));
-  border-bottom:1px solid color-mix(in srgb,var(--accent) 26%,var(--border));
+  background:color-mix(in srgb,var(--brand) 9%,var(--panel));
+  border-bottom:1px solid var(--brand-line);
   font-size:var(--fs-125);color:var(--text2);
 }
 .updatebar.on{display:flex;animation:slideDown var(--t-slow) var(--ease)}
-.updatebar .ic{color:var(--accent);display:flex;flex:none}
+.updatebar .ic{color:var(--brand);display:flex;flex:none}
 .updatebar b{color:var(--text);font-weight:600}
-.updatebar .rel{font-family:var(--font-mono);font-size:var(--fs-11);color:var(--accent)}
+.updatebar .rel{font-family:var(--font-mono);font-size:var(--fs-11);color:var(--brand)}
 .updatebar .x{
   color:var(--muted);width:24px;height:24px;border-radius:var(--r-xs);
   font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;
@@ -139,6 +152,15 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
   position:relative;
   display:flex;flex-direction:column;overflow:hidden;min-height:0;
 }
+.sb-brand{display:flex;align-items:center;gap:9px;padding:12px 14px 8px;flex:none}
+.sb-mark{
+  width:27px;height:27px;border-radius:var(--r-sm);flex:none;
+  display:flex;align-items:center;justify-content:center;color:var(--brand);
+  background:var(--brand-soft);border:1px solid var(--brand-line);
+  box-shadow:inset 0 1px 0 color-mix(in srgb,var(--brand) 20%,transparent);
+}
+.sb-word{font-family:var(--title-font);font-size:14.5px;font-weight:600;letter-spacing:-.01em;color:var(--text)}
+.sb-sub{margin-left:auto;font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--dim)}
 .seg{display:flex;gap:6px;margin:var(--sp-3) var(--sp-3) var(--sp-2);padding:4px;background:var(--chip);border-radius:var(--r-sm)}
 .seg button{
   flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
@@ -163,7 +185,12 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
 .sb-link.open .chev{transform:rotate(90deg)}
 /* New session + the Chat|Code icon switch share one row */
 .sb-newrow{display:flex;align-items:center;gap:var(--sp-2)}
-.sb-newrow .sb-link{flex:1;min-width:0}
+.sb-newrow .sb-link{
+  flex:1;min-width:0;background:var(--elev);border:1px solid var(--border);
+  font-weight:500;color:var(--text);
+}
+.sb-newrow .sb-link:hover{background:var(--panel2);border-color:var(--brand-line);color:var(--text)}
+.sb-newrow .sb-link svg{color:var(--brand);opacity:.95}
 .sb-newrow .seg{margin:0;padding:4px;flex:none}
 .sb-newrow .seg button{padding:6px 8px;min-height:26px}
 .seg-icons button{flex:none}
@@ -171,6 +198,7 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
   display:flex;align-items:center;gap:6px;padding:var(--sp-3) 14px 6px;
   font-size:var(--fs-11);letter-spacing:.05em;color:var(--dim);text-transform:uppercase;
 }
+.pf-sec{border-top:1px solid var(--border);margin-top:4px}
 .sb-sec .spacer{flex:1}
 .sb-sec button{color:var(--dim);padding:3px;border-radius:var(--r-xs);display:flex}
 .sb-sec button:hover{background:var(--hover);color:var(--text2)}
@@ -197,16 +225,16 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
   transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
 }
 .sess:hover{background:var(--hover);color:var(--text)}
-.sess.on{background:var(--elev);color:var(--text);box-shadow:var(--shadow-sm)}
+.sess.on{background:color-mix(in srgb,var(--brand) 8%,var(--elev));color:var(--text);box-shadow:var(--shadow-sm)}
 .sess.on::before{
-  content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;border-radius:var(--r-full);background:var(--accent);
+  content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;border-radius:var(--r-full);background:var(--brand);
 }
 .sess .ico{grid-row:1 / span 2;flex:none;width:16px;display:flex;justify-content:center;color:var(--muted)}
-.sess.run .ico{color:var(--accent)}
+.sess.run .ico{color:var(--brand)}
 .sess.run .ico .runarc{animation:spin 1.1s linear infinite;transform-origin:50% 50%}
 /* Waiting on the user: the row climbs into "Needs input" with a warning mark. */
-.sess.needs .ico{color:var(--accent)}
-.sess.needs .meta{color:var(--accent)}
+.sess.needs .ico{color:var(--brand)}
+.sess.needs .meta{color:var(--brand)}
 
 /* ================= ATTACHMENTS (composer) ================= */
 .attachrow{display:flex;flex-wrap:wrap;gap:6px;padding:0 4px 7px}
@@ -267,7 +295,7 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
   height:46px;flex:none;display:flex;align-items:center;gap:9px;padding:0 12px;
   margin:8px 8px 0;border:1px solid var(--border);border-radius:var(--r-md);background:var(--panel);
 }
-.shead .ico{color:var(--accent);display:flex;flex:none;opacity:.9}
+.shead .ico{color:var(--brand);display:flex;flex:none;opacity:.95}
 .shead .ttl{
   font-family:var(--title-font);font-size:var(--fs-14);font-weight:500;letter-spacing:-.01em;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
@@ -306,7 +334,8 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
 .msg-u{display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-end}
 .msg-u .b{
   max-width:min(660px,86%);padding:10px 14px;border-radius:var(--r-lg);
-  background:var(--bubble);border:1px solid color-mix(in srgb,var(--text) 7%,transparent);
+  background:color-mix(in srgb,var(--brand) 4%,var(--bubble));
+  border:1px solid color-mix(in srgb,var(--brand) 14%,transparent);
   font-size:var(--fs-14);line-height:1.55;white-space:pre-wrap;word-break:break-word;
 }
 .msg-a{font-size:var(--fs-14);line-height:1.68;color:var(--text);word-break:break-word;position:relative;max-width:var(--col)}
@@ -315,8 +344,8 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
 .msg-a h1{font-size:var(--fs-18)}
 .msg-a ul,.msg-a ol{margin:9px 0;padding-left:22px}.msg-a li{margin:5px 0}
 .msg-a strong{font-weight:600;color:var(--text)}
-.msg-a a{color:var(--accent);text-underline-offset:2px;text-decoration-thickness:1px}
-.msg-a a:hover{color:var(--accent-h)}
+.msg-a a{color:var(--brand);text-underline-offset:2px;text-decoration-thickness:1px}
+.msg-a a:hover{color:var(--brand-strong)}
 .msg-a table{border-collapse:collapse;margin:12px 0;font-size:var(--fs-13);display:block;overflow-x:auto;max-width:100%}
 .msg-a th,.msg-a td{border:1px solid var(--border);padding:7px 11px;text-align:left}
 .msg-a th{background:var(--panel);font-weight:600}
@@ -339,14 +368,14 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
 .ma-btn.done{color:var(--add-fg)}
 .ic{
   font-family:var(--font-mono);font-size:.88em;padding:2px 5px;border-radius:var(--r-xs);
-  background:var(--chip);color:var(--text);border:1px solid color-mix(in srgb,var(--text) 6%,transparent);
+  background:var(--brand-soft);color:var(--brand);border:1px solid var(--brand-line);
 }
 /* Code renders as a canvas card: a titled frame, a sticky line-number gutter
    and the highlighted source - never a bare fence. */
 .codeblock{
   margin:15px 0;border-radius:var(--r-md);overflow:hidden;background:var(--code-bg);
   border:1px solid var(--border);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 10px 28px rgba(0,0,0,.12);
+  box-shadow:inset 2px 0 0 var(--brand-line), inset 0 1px 0 rgba(255,255,255,.04), 0 10px 28px rgba(0,0,0,.12);
 }
 .cb-h{
   display:flex;align-items:center;gap:8px;padding:7px 12px;
@@ -383,7 +412,7 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
   transition:color var(--t-fast) var(--ease),background var(--t-fast) var(--ease);
 }
 .think-h:hover{color:var(--text)}
-.think-star{width:14px;height:14px;color:var(--accent);flex:none}
+.think-star{width:14px;height:14px;color:var(--brand);flex:none}
 .think-label{font-variant-numeric:tabular-nums}
 .think-chev{width:12px;height:12px;flex:none;transition:transform 200ms var(--ease)}
 .think:not([data-mode="closed"]) .think-chev{transform:rotate(180deg)}
@@ -419,7 +448,7 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
 .tools-h:hover{background:var(--panel2);color:var(--text2);border-color:var(--border)}
 .tools-h .dot{width:6px;height:6px;border-radius:50%;flex:none;background:var(--add-fg)}
 .tools-h.err .dot{background:var(--del-fg)}
-.tools-h.run .dot{background:var(--accent);animation:pulse 1.2s ease-in-out infinite}
+.tools-h.run .dot{background:var(--brand);animation:pulse 1.2s ease-in-out infinite}
 .tools-h .txt{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tools-h .cnt{
   font-family:var(--font-mono);font-size:10.5px;color:var(--dim);
@@ -661,7 +690,7 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
   display:flex;align-items:center;gap:8px;padding:9px 13px;background:var(--panel2);
   border-bottom:1px solid var(--border);font-size:var(--fs-12);color:var(--text2);
 }
-.ask-h svg{width:13px;height:13px;color:var(--accent);flex:none}
+.ask-h svg{width:13px;height:13px;color:var(--brand);flex:none}
 .ask-q{padding:12px 13px;display:flex;flex-direction:column;gap:8px}
 .ask-q + .ask-q{border-top:1px dashed var(--border)}
 .ask-tag{
@@ -680,7 +709,7 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
 .ask-opt:hover{background:var(--hover);border-color:var(--border2)}
 .ask-opt .lb{font-size:var(--fs-125);font-weight:500}
 .ask-opt .ds{font-size:var(--fs-11);color:var(--muted);line-height:1.45}
-.ask-opt.on{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.ask-opt.on{border-color:var(--accent);background:var(--brand-soft)}
 .ask-opt:focus{outline:none}
 .ask-opt:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .askcard.done .ask-opt:not(.on){opacity:.55}
@@ -722,20 +751,20 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
 .task .bx{width:13px;flex:none;margin-top:2px;color:var(--dim);display:flex;justify-content:center}
 .task.completed{color:var(--dim)}.task.completed .bx{color:var(--add-fg)}
 .task.completed .tx{text-decoration:line-through}
-.task.in_progress{color:var(--text)}.task.in_progress .bx{color:var(--accent)}
+.task.in_progress{color:var(--text)}.task.in_progress .bx{color:var(--brand)}
 .task.pending{color:var(--muted)}
 
 /* ================= PERMISSION ================= */
 .perm{
-  margin:13px auto;border:1px solid color-mix(in srgb,var(--accent) 24%,var(--border2));
+  margin:13px auto;border:1px solid var(--brand-line);
   border-radius:var(--r-lg);background:var(--panel);padding:var(--sp-4);box-shadow:var(--shadow-sm);
   position:relative;overflow:hidden;
 }
-.perm::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--accent);opacity:.7}
+.perm::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--brand);opacity:.8}
 .perm.answered{border-color:var(--border);box-shadow:none}
 .perm.answered::before{opacity:.25}
 .perm .ph{display:flex;align-items:center;gap:9px;font-size:var(--fs-13);font-weight:500;margin-bottom:11px}
-.perm .ph svg{color:var(--accent);flex:none}
+.perm .ph svg{color:var(--brand);flex:none}
 .perm .ph .why{color:var(--muted);font-weight:400}
 .perm .pb{
   font-family:var(--font-mono);font-size:var(--fs-12);padding:10px 12px;border-radius:var(--r-sm);
@@ -750,8 +779,8 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
   transition:background var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
 }
 .btn:hover{background:var(--elev)}
-.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);font-weight:500}
-.btn.pri:hover{background:var(--accent-h);border-color:var(--accent-h)}
+.btn.pri{background:var(--brand);border-color:var(--brand);color:var(--brand-fg);font-weight:600}
+.btn.pri:hover{background:var(--brand-strong);border-color:var(--brand-strong)}
 .btn.dgr{color:var(--del-fg);border-color:color-mix(in srgb,var(--del-fg) 40%,var(--border2))}
 .btn.dgr:hover{background:color-mix(in srgb,var(--del-fg) 10%,transparent)}
 .btn.sm{padding:5px 10px;font-size:var(--fs-12)}
@@ -765,8 +794,8 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
   transition:border-color var(--t-mid) var(--ease),box-shadow var(--t-mid) var(--ease);
 }
 .cbox:focus-within{
-  border-color:color-mix(in srgb,var(--accent) 42%,var(--border2));
-  box-shadow:var(--shadow-md),0 0 0 3px color-mix(in srgb,var(--accent) 9%,transparent);
+  border-color:var(--brand-line);
+  box-shadow:var(--shadow-md),0 0 0 3px var(--brand-soft);
 }
 .cbox textarea{
   flex:1;border:0;outline:0;background:transparent;color:var(--text);resize:none;
@@ -780,7 +809,7 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
   color:var(--muted);border:1px solid var(--border2);background:transparent;
   transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease),transform var(--t-fast) var(--ease);
 }
-.cplus:hover{background:var(--panel);color:var(--text);border-color:var(--muted)}
+.cplus:hover{background:var(--panel);color:var(--brand);border-color:var(--brand-line)}
 .cplus:active{transform:scale(.94)}
 .kbdh{
   flex:none;width:30px;height:30px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center;
@@ -789,8 +818,8 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
 }
 .kbdh:hover{background:var(--panel);color:var(--text);border-color:var(--muted)}
 .kbdh:active{transform:scale(.94)}
-.kbdh.ready{background:var(--accent);color:var(--accent-fg);border-color:transparent}
-.kbdh.ready:hover{background:var(--accent-h);color:var(--accent-fg)}
+.kbdh.ready{background:var(--brand);color:var(--brand-fg);border-color:transparent;box-shadow:0 2px 10px -2px color-mix(in srgb,var(--brand) 55%,transparent)}
+.kbdh.ready:hover{background:var(--brand-strong);color:var(--brand-fg)}
 .kbdh .ic-stop{display:none}
 .kbdh.stop{
   background:var(--panel2);color:var(--del-fg);
@@ -809,21 +838,21 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
 .cbtn.ico{padding:5px 7px}
 .cbtn.send{
   width:30px;height:30px;padding:0;justify-content:center;border-radius:var(--r-full);
-  background:var(--accent);color:var(--accent-fg);
+  background:var(--brand);color:var(--brand-fg);
 }
-.cbtn.send:hover{background:var(--accent-h);color:var(--accent-fg)}
+.cbtn.send:hover{background:var(--brand-strong);color:var(--brand-fg)}
 .ring{position:relative;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:var(--r-sm)}
 .ring:hover{background:var(--panel)}
 .ring svg{transform:rotate(-90deg)}
 .ring .tr{stroke:var(--border2)}
-.ring .fg{stroke:var(--accent);stroke-linecap:round;transition:stroke-dashoffset .4s var(--ease)}
+.ring .fg{stroke:var(--brand);stroke-linecap:round;transition:stroke-dashoffset .4s var(--ease)}
 .workbar{
   display:none;align-items:center;gap:9px;margin-top:var(--sp-2);padding:7px 12px;
-  border:1px solid var(--border);border-radius:var(--r-md);background:var(--panel);
+  border:1px solid var(--brand-line);border-radius:var(--r-md);background:var(--panel);
   font-size:var(--fs-12);color:var(--muted);animation:slideDown var(--t-mid) var(--ease);
 }
 .workbar.on{display:flex}
-.wdot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none;animation:pulse 1.2s ease-in-out infinite}
+.wdot{width:7px;height:7px;border-radius:50%;background:var(--brand);flex:none;animation:pulse 1.2s ease-in-out infinite}
 .wlbl{font-family:var(--font-mono);font-size:var(--fs-11);color:var(--text2);font-variant-numeric:tabular-nums}
 .workbar .wact,.workline .wact{font-size:var(--fs-11);color:var(--dim)}
 .workbar .wact:empty,.workline .wact:empty{display:none}
@@ -837,7 +866,7 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
 .workline .wlbl2{color:var(--text2)}
 .wspin{
   width:11px;height:11px;border-radius:50%;flex:none;
-  border:1.6px solid var(--chip-on);border-top-color:var(--accent);
+  border:1.6px solid var(--chip-on);border-top-color:var(--brand);
   animation:spin .9s linear infinite;
 }
 .jump{
@@ -870,7 +899,7 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
 .mi:hover{background:var(--elev);color:var(--text)}
 .mi .k{margin-left:auto;font-family:var(--font-mono);font-size:var(--fs-11);color:var(--dim)}
 .mi.on{color:var(--text)}
-.mi.on .tick{margin-left:auto;color:var(--accent)}
+.mi.on .tick{margin-left:auto;color:var(--brand)}
 .mi .sub{font-size:var(--fs-11);color:var(--dim);font-family:var(--font-mono);margin-left:6px}
 .msep{height:1px;background:var(--border);margin:5px 4px}
 .mh{padding:8px 10px 5px;font-size:10.5px;letter-spacing:.05em;color:var(--dim);text-transform:uppercase}
@@ -935,7 +964,7 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
 }
 .si{display:flex;gap:var(--sp-3);align-items:baseline;padding:8px 13px;cursor:pointer;transition:background var(--t-fast) var(--ease)}
 .si:hover,.si.sel{background:var(--elev)}
-.si .n{font-family:var(--font-mono);font-size:var(--fs-125);color:var(--accent);min-width:92px}
+.si .n{font-family:var(--font-mono);font-size:var(--fs-125);color:var(--brand);min-width:92px}
 .si .d{font-size:var(--fs-125);color:var(--muted)}
 
 /* ================= RIGHT PANES (tabbed) ================= */
@@ -943,7 +972,7 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
    panels it hosts, not a flush bordered column. */
 .panes{
   width:var(--pane-w,420px);flex:none;display:flex;flex-direction:column;
-  margin:8px;border:1px solid var(--border);border-radius:var(--r-md);
+  margin:8px;border:1px solid var(--border);border-radius:var(--r-lg);
   overflow:hidden;background:var(--panel);box-shadow:var(--shadow-sm);position:relative;
 }
 .panes.hide{display:none}
@@ -963,10 +992,11 @@ body.preview-full .pane-row[data-pane="preview"] .pane-sub{padding:9px 14px}
 .pane-tabs::-webkit-scrollbar{height:0}
 .paneTitle{
   display:flex;align-items:center;gap:6px;padding:5px 11px;border-radius:var(--r-full);
-  font-size:var(--fs-12);color:var(--text);background:var(--elev);box-shadow:var(--shadow-sm);flex:none;
-  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
+  font-size:var(--fs-12);color:var(--text);background:var(--elev);border:1px solid var(--border);
+  box-shadow:var(--shadow-sm);flex:none;
+  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease);
 }
-.paneTitle:hover{background:var(--panel2)}
+.paneTitle:hover{background:var(--panel2);border-color:var(--brand-line)}
 .paneTitle .chev{opacity:.55;flex:none}
 .paneTitle .badge{
   font-family:var(--font-mono);font-size:10px;padding:0 5px;border-radius:var(--r-full);
@@ -991,22 +1021,30 @@ body.preview-full .pane-row[data-pane="preview"] .pane-sub{padding:9px 14px}
 .pane-grip:hover{background:color-mix(in srgb,var(--accent) 45%,transparent)}
 body.pane-drag{cursor:col-resize;user-select:none}
 body.pane-drag .pane-grip{background:color-mix(in srgb,var(--accent) 45%,transparent)}
-.pane-body{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;overflow-y:auto;padding:10px}
+.pane-body{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;overflow-y:auto;padding:8px}
 /* Every open pane stacks in the rail as its own card; the active one (which
    the title chip and menu show) gets the brighter frame. A single open pane
    fills the rail like before. */
 .pane-row{
-  flex:0 0 auto;display:none;flex-direction:column;min-height:264px;
+  flex:0 0 auto;display:none;flex-direction:column;min-height:216px;
   border:1px solid var(--border);border-radius:var(--r-md);background:var(--panel);overflow:hidden;
 }
 .pane-row.open{display:flex;animation:fadeIn var(--t-mid) var(--ease)}
-.pane-row.active{border-color:var(--border2)}
+/* Open panes share the leftover height; an empty one collapses to its header
+   and stops growing (the rule further down), so the rail never shows a stack
+   of empty boxes. */
+#paneBody .pane-row.open{flex:1 1 auto}
+.pane-row.active{border-color:var(--brand-line)}
 #paneBody.solo .pane-row.open{flex:1;min-height:0}
 .pane-sub{
-  display:flex;align-items:center;gap:7px;height:38px;padding:0 12px;background:var(--panel2);
-  border-bottom:1px solid var(--border);flex:none;font-size:var(--fs-13);color:var(--text2);
+  display:flex;align-items:center;gap:7px;height:36px;padding:0 12px;background:var(--panel2);
+  border-bottom:1px solid var(--border);flex:none;
+  font-size:var(--fs-11);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
 }
 .pane-sub>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* The pane label is a quiet uppercase eyebrow; a file name in the same row
+   must keep its real case. */
+.pane-sub #previewTitle{text-transform:none;letter-spacing:0;font-size:var(--fs-12);color:var(--text2)}
 .pane-sub .spacer{flex:1}
 /* Per-pane controls: a close X in each header, a drag-to-resize grip along
    each card's bottom edge (double-click the grip to reset). The header
@@ -1081,8 +1119,7 @@ html[data-embed] .sidebar,
 html[data-embed] .panes,
 html[data-embed] .sb-scrim,
 html[data-embed] #splitBox{display:none !important}
-.pane-b{overflow:auto;font-size:var(--fs-125);flex:1;min-height:0;position:relative}
-/* Blender live view: the pane becomes a viewport mirror - frames poll in
+.pane-b{overflow:auto;font-size:var(--fs-125);flex:1;min-height:0;position:relative}/* Blender live view: the pane becomes a viewport mirror - frames poll in
    from a connected blender MCP server, the caption names the tool. */
 #blenderView{position:absolute;inset:0;display:flex;flex-direction:column;background:var(--bg);z-index:3}
 #blenderView img{flex:1;min-height:0;width:100%;object-fit:contain;background:#0d0e11}
@@ -1092,7 +1129,18 @@ html[data-embed] #splitBox{display:none !important}
 #blenderView.hint .bv-cap{border-top:none;text-align:center;padding:0 22px;white-space:normal;line-height:1.6}
 [data-blender].on{color:var(--accent);background:var(--panel)}
 .pane-b.pad{padding:var(--sp-4)}
-.pempty{padding:34px 18px;text-align:center;color:var(--dim);font-size:var(--fs-125);line-height:1.7}
+.pempty{padding:28px 18px;text-align:center;color:var(--dim);font-size:var(--fs-12);line-height:1.7}
+.pempty::before{
+  content:"✦";display:block;font-size:19px;line-height:1;margin-bottom:9px;
+  color:var(--brand);opacity:.65;
+}
+.pempty[hidden]{display:none}
+/* A pane with nothing to show collapses to its title row, so the rail reads
+   as a stack of tools instead of a wall of empty boxes. Preview always keeps
+   its body (it explains how to fill it). */
+.pane-row:not([data-pane="preview"]):has(.pempty:not([hidden])) .pane-b{display:none}
+#paneBody .pane-row:not([data-pane="preview"]):has(.pempty:not([hidden])){flex:0 0 auto;min-height:0}
+.pane-row:not([data-pane="preview"]):has(.pempty:not([hidden])) .pane-grip-b{display:none}
 .term{
   background:var(--termbg);padding:10px 13px;font-family:var(--font-mono);font-size:var(--fs-11);
   line-height:1.7;color:var(--code-fg);flex:1;min-height:120px;overflow:auto;white-space:pre-wrap;
@@ -1118,55 +1166,76 @@ html[data-embed] #splitBox{display:none !important}
 .prbar button:hover{opacity:1;background:color-mix(in srgb,var(--purple-fg) 10%,transparent)}
 
 /* ================= LANDING ================= */
+/* The first screen carries the brand: one warm aura behind a lit mark, an
+   eyebrow, then the prompt card. Everything stays inside the same column as
+   the conversation so the transition into a session is seamless. */
 .landing{
   flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:var(--sp-5);padding:var(--sp-8) var(--sp-6);overflow-y:auto;
+  gap:18px;padding:var(--sp-8) var(--sp-6);overflow-y:auto;position:relative;
 }
+.landing::before{content:"";position:absolute;inset:0;background:var(--ambient);pointer-events:none;z-index:0}
+.landing > *{position:relative;z-index:1}
 .landing .lmark{
   display:flex;align-items:center;justify-content:center;
-  width:54px;height:54px;border-radius:var(--r-lg);background:var(--panel);border:1px solid var(--border);
-  box-shadow:var(--shadow-sm);animation:popIn var(--t-slow) var(--ease);
+  width:62px;height:62px;border-radius:var(--r-xl);
+  background:linear-gradient(160deg,var(--panel2),var(--panel));
+  border:1px solid var(--brand-line);
+  box-shadow:0 18px 44px -18px color-mix(in srgb,var(--brand) 55%,transparent),
+             inset 0 1px 0 color-mix(in srgb,#fff 7%,transparent);
+  animation:popIn var(--t-slow) var(--ease);
 }
-.landing .lmark svg{display:block;border-radius:var(--r-md)}
+.landing .lmark svg{display:block;width:38px;height:38px;border-radius:var(--r-md)}
+.leyebrow{
+  display:flex;align-items:center;gap:9px;margin-top:2px;
+  font-size:10px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--brand);
+}
+.leyebrow::before,.leyebrow::after{content:"";width:20px;height:1px;background:var(--brand-line)}
 .landing h1{
-  margin:0;font-family:var(--title-font);font-size:clamp(22px,3vw,30px);font-weight:500;
-  letter-spacing:-.02em;text-align:center;
+  margin:0;font-family:var(--title-font);font-size:clamp(24px,3.2vw,34px);font-weight:500;
+  letter-spacing:-.03em;line-height:1.15;text-align:center;
 }
-.landing .lsub{margin:-6px 0 0;font-size:var(--fs-13);color:var(--muted);text-align:center;max-width:520px;line-height:1.65}
+.landing .lsub{margin:-8px 0 0;font-size:var(--fs-13);color:var(--muted);text-align:center;max-width:540px;line-height:1.7}
 .bigbox{
-  width:min(660px,100%);background:var(--elev);border:1px solid var(--border2);border-radius:var(--r-xl);
-  padding:14px;display:flex;flex-direction:column;gap:var(--sp-3);box-shadow:var(--shadow-md);
+  width:min(680px,100%);background:var(--elev);border:1px solid var(--border2);border-radius:var(--r-xl);
+  padding:14px 15px;display:flex;flex-direction:column;gap:var(--sp-3);
+  box-shadow:var(--shadow-md),inset 0 1px 0 color-mix(in srgb,#fff 4%,transparent);
   transition:border-color var(--t-mid) var(--ease),box-shadow var(--t-mid) var(--ease);
 }
-.bigbox:focus-within{border-color:color-mix(in srgb,var(--accent) 42%,var(--border2));box-shadow:var(--shadow-md),0 0 0 3px color-mix(in srgb,var(--accent) 9%,transparent)}
+.bigbox:focus-within{
+  border-color:var(--brand-line);
+  box-shadow:var(--shadow-md),0 0 0 3px var(--brand-soft);
+}
 .bigbox textarea{
   border:0;outline:0;background:transparent;color:var(--text);font-size:var(--fs-15);
   resize:none;min-height:50px;line-height:1.55;width:100%;
 }
 .bigbox textarea::placeholder{color:var(--dim)}
-.starters{display:flex;flex-wrap:wrap;gap:var(--sp-2);justify-content:center;width:min(660px,100%)}
+.starters{display:flex;flex-wrap:wrap;gap:var(--sp-2);justify-content:center;width:min(680px,100%)}
 .chip{
   display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:var(--r-full);
   border:1px solid var(--border);background:var(--panel);font-size:var(--fs-125);color:var(--text2);
   transition:background var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease),color var(--t-fast) var(--ease),transform var(--t-fast) var(--ease);
 }
-.chip:hover{background:var(--panel2);border-color:var(--border2);color:var(--text);transform:translateY(-1px)}
+.chip:hover{background:var(--panel2);border-color:var(--brand-line);color:var(--text);transform:translateY(-1px)}
 .chip svg{flex:none;color:var(--dim)}
-.envl{width:min(660px,100%);display:flex;flex-direction:column;gap:6px}
+.chip:hover svg{color:var(--brand)}
+.envl{width:min(680px,100%);display:flex;flex-direction:column;gap:7px}
 .envl .lab{font-size:var(--fs-11);letter-spacing:.05em;text-transform:uppercase;color:var(--dim);padding:0 3px}
-.envlist{background:var(--panel);border:1px solid var(--border);border-radius:var(--r-md);overflow:hidden}
+/* Two compact choices side by side, not a full-width list: the first screen
+   should not feel like a settings form. */
+.envlist{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .envrow{
-  display:flex;gap:var(--sp-3);align-items:flex-start;padding:13px 14px;width:100%;text-align:left;
-  border-bottom:1px solid var(--border);transition:background var(--t-fast) var(--ease);
+  display:flex;gap:10px;align-items:flex-start;padding:10px 12px;width:100%;text-align:left;
+  border:1px solid var(--border);border-radius:var(--r-md);background:var(--panel);
+  transition:background var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease);
 }
-.envrow:last-child{border-bottom:0}
-.envrow:hover{background:var(--panel2)}
-.envrow.on{background:var(--elev)}
+.envrow:hover{background:var(--panel2);border-color:var(--border2)}
+.envrow.on{background:color-mix(in srgb,var(--brand) 7%,var(--panel));border-color:var(--brand-line)}
 .envrow.on .tt{color:var(--text)}
-.radio{width:15px;height:15px;flex:none;margin-top:3px;border-radius:var(--r-full);border:1.5px solid var(--dim);transition:border-color var(--t-fast) var(--ease),border-width var(--t-fast) var(--ease)}
-.envrow.on .radio{border:5px solid var(--accent)}
-.envrow .tt{font-size:var(--fs-13);font-weight:500;color:var(--text2)}
-.envrow .dd{display:block;font-size:var(--fs-125);color:var(--muted);line-height:1.55;margin-top:2px}
+.radio{width:15px;height:15px;flex:none;margin-top:2px;border-radius:var(--r-full);border:1.5px solid var(--dim);transition:border-color var(--t-fast) var(--ease),border-width var(--t-fast) var(--ease)}
+.envrow.on .radio{border:5px solid var(--brand)}
+.envrow .tt{font-size:var(--fs-125);font-weight:500;color:var(--text2)}
+.envrow .dd{display:block;font-size:var(--fs-11);color:var(--muted);line-height:1.5;margin-top:2px}
 
 /* ================= SETTINGS DIALOG ================= */
 .settings{
@@ -1193,11 +1262,11 @@ html[data-embed] #splitBox{display:none !important}
 }
 .set-nav button{
   display:flex;align-items:center;gap:9px;width:100%;padding:8px 10px;border-radius:var(--r-sm);
-  font-size:var(--fs-13);color:var(--muted);text-align:left;margin-bottom:2px;
+  font-size:var(--fs-13);color:var(--muted);text-align:left;margin-bottom:1px;
   transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
 }
 .set-nav button:hover{background:var(--hover);color:var(--text2)}
-.set-nav button.on{background:var(--elev);color:var(--text);font-weight:500;box-shadow:var(--shadow-sm)}
+.set-nav button.on{background:var(--elev);color:var(--text);font-weight:500;box-shadow:inset 2px 0 0 var(--brand),var(--shadow-sm)}
 .set-nav button svg{flex:none;opacity:.85}
 .set-main{flex:1;overflow-y:auto;padding:var(--sp-8) var(--sp-8) var(--sp-10)}
 .set-main .h{font-family:var(--title-font);font-size:var(--fs-22);font-weight:500;letter-spacing:-.02em;margin:0 0 6px}
@@ -1221,7 +1290,7 @@ html[data-embed] #splitBox{display:none !important}
   border-radius:var(--r-sm);padding:8px 11px;font-size:var(--fs-13);
   transition:border-color var(--t-fast) var(--ease),box-shadow var(--t-fast) var(--ease);
 }
-.inp:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 12%,transparent)}
+.inp:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-soft)}
 .inp.mono{font-family:var(--font-mono);font-size:var(--fs-12)}
 select.inp{font-family:inherit;cursor:pointer}
 textarea.inp{line-height:1.6;resize:vertical}
@@ -1236,7 +1305,7 @@ textarea.inp{line-height:1.6;resize:vertical}
   content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:var(--r-full);
   background:#fff;transition:transform var(--t-mid) var(--ease);box-shadow:0 1px 2px rgba(0,0,0,.3);
 }
-.tog.on{background:var(--accent)}
+.tog.on{background:var(--brand)}
 .tog.on::after{transform:translateX(16px);background:var(--accent-fg)}
 .segbtn{display:flex;gap:2px;padding:3px;background:var(--chip);border-radius:var(--r-sm)}
 .segbtn button{padding:6px 13px;border-radius:var(--r-xs);font-size:var(--fs-125);color:var(--muted);transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease)}
@@ -1248,7 +1317,7 @@ textarea.inp{line-height:1.6;resize:vertical}
 }
 .pill.ok{background:color-mix(in srgb,var(--add-fg) 16%,transparent);color:var(--add-fg)}
 .pill.no{background:color-mix(in srgb,var(--del-fg) 16%,transparent);color:var(--del-fg)}
-.pill.warn{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent)}
+.pill.warn{background:var(--brand-soft);color:var(--brand)}
 .pill.dim{color:var(--dim)}
 .prov{
   display:flex;align-items:center;gap:var(--sp-3);padding:12px 0;border-bottom:1px solid var(--border);
@@ -1267,10 +1336,10 @@ textarea.inp{line-height:1.6;resize:vertical}
 .banner{
   display:flex;align-items:center;gap:9px;padding:11px 13px;border-radius:var(--r-sm);font-size:var(--fs-125);
   margin-bottom:var(--sp-4);line-height:1.5;
-  background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--text2);
-  border:1px solid color-mix(in srgb,var(--accent) 20%,var(--border));
+  background:var(--brand-soft);color:var(--text2);
+  border:1px solid var(--brand-line);
 }
-.banner svg{flex:none;color:var(--accent)}
+.banner svg{flex:none;color:var(--brand)}
 .banner.err{background:color-mix(in srgb,var(--del-fg) 10%,transparent);color:var(--del-fg);border-color:color-mix(in srgb,var(--del-fg) 26%,var(--border))}
 .banner.ok{background:color-mix(in srgb,var(--add-fg) 10%,transparent);color:var(--add-fg);border-color:color-mix(in srgb,var(--add-fg) 26%,var(--border))}
 /* import-from-opencode report (Settings → Providers) */
@@ -1282,6 +1351,74 @@ textarea.inp{line-height:1.6;resize:vertical}
 .imp-from{font-size:var(--fs-11);color:var(--dim);margin-top:6px}
 .settings details summary{border-radius:var(--r-xs);padding:2px 4px}
 .settings details summary:hover{color:var(--text2)}
+
+/* ================= MCP SETTINGS ================= */
+/* A status board, not a table: each server is a card with a live dot, where
+   it comes from, what it runs, and the tools it answered with. Errors carry a
+   one-line hint for the failure people actually hit (missing npx, slow first
+   run, a 401). The JSON tab is the escape hatch for args/headers/whole files. */
+.mcp-head{display:flex;align-items:flex-start;gap:var(--sp-4);flex-wrap:wrap}
+.mcp-head .h{margin-bottom:6px}
+.mcp-head .sh{margin-bottom:var(--sp-4)}
+.mcp-seg{flex:none;margin-top:8px}
+.mcp-stats{
+  display:flex;align-items:center;gap:18px;margin:0 0 var(--sp-4);padding:10px 14px;
+  border:1px solid var(--border);border-radius:var(--r-md);background:var(--panel);
+  font-size:var(--fs-12);color:var(--muted);
+}
+.mcp-stat{display:flex;align-items:baseline;gap:4px}
+.mcp-stat b{color:var(--text);font-size:var(--fs-13);font-variant-numeric:tabular-nums}
+.mcp-list{display:flex;flex-direction:column;gap:9px;margin-bottom:var(--sp-4)}
+.mcp-card{
+  border:1px solid var(--border);border-radius:var(--r-md);background:var(--panel);
+  padding:12px 14px;transition:border-color var(--t-fast) var(--ease);
+}
+.mcp-card.ready:hover{border-color:var(--border2)}
+.mcp-card.starting{border-color:var(--brand-line)}
+.mcp-card.down{border-color:color-mix(in srgb,var(--del-fg) 28%,var(--border))}
+.mcp-card-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mcp-dot{width:7px;height:7px;border-radius:var(--r-full);flex:none;background:var(--dim)}
+.mcp-dot.ready{background:var(--add-fg);box-shadow:0 0 0 3px color-mix(in srgb,var(--add-fg) 16%,transparent)}
+.mcp-dot.starting{background:var(--brand);animation:pulse 1.2s ease-in-out infinite}
+.mcp-dot.down{background:var(--del-fg)}
+.mcp-name{font-size:var(--fs-13);font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:34%}
+.mcp-tag{
+  font-family:var(--font-mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--dim);border:1px solid var(--border);border-radius:var(--r-xs);padding:1px 5px;
+}
+.mcp-tag.project{color:var(--brand);border-color:var(--brand-line)}
+.mcp-cmd{margin-top:7px;font-size:11.5px;color:var(--muted);word-break:break-all;line-height:1.5}
+.mcp-meta{margin-top:4px;font-size:11px;color:var(--dim);line-height:1.5;word-break:break-all}
+.mcp-tools{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+.mcp-tool{
+  display:inline-flex;align-items:baseline;gap:6px;max-width:100%;
+  font-family:var(--font-mono);font-size:10.5px;color:var(--text2);
+  background:var(--chip);border-radius:var(--r-xs);padding:2px 7px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.mcp-tool i{font-style:normal;color:var(--dim);font-size:10px}
+.mcp-tool.more{color:var(--dim)}
+.mcp-card .btn.dgr{border-color:transparent;color:var(--muted);background:transparent}
+.mcp-card .btn.dgr:hover{color:var(--del-fg);border-color:color-mix(in srgb,var(--del-fg) 40%,var(--border2));background:color-mix(in srgb,var(--del-fg) 8%,transparent)}
+.mcp-err{margin-top:8px;font-size:11.5px;line-height:1.55;color:var(--del-fg);word-break:break-word}
+.mcp-hint{margin-top:3px;color:var(--muted)}
+.mcp-ok{margin-top:8px;font-size:11.5px;line-height:1.5;color:var(--add-fg)}
+.mcp-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mcp-note{font-size:11px;color:var(--dim);word-break:break-all}
+.mcp-path{font-size:11px;color:var(--muted);padding:3px 0;word-break:break-all}
+.mcp-json{font-size:11.5px;line-height:1.62;resize:vertical;min-height:110px}
+.mcp-add .ct{margin-bottom:4px}
+.mcp-add .mcp-kind{margin:0 0 var(--sp-3);width:max-content}
+.mcp-presets{display:flex;flex-wrap:wrap;gap:6px;margin:var(--sp-3) 0}
+.mcp-presets .chip{font-size:var(--fs-11);padding:5px 10px}
+.mcp-empty{
+  padding:var(--sp-6) var(--sp-4);text-align:center;border:1px dashed var(--border2);
+  border-radius:var(--r-md);background:var(--panel);
+}
+.mcp-empty-ic{display:block;font-size:22px;line-height:1;color:var(--brand);opacity:.8;margin-bottom:10px}
+.mcp-empty-t{font-size:var(--fs-13);font-weight:600;color:var(--text)}
+.mcp-empty-d{max-width:460px;margin:5px auto 0;font-size:var(--fs-12);color:var(--muted);line-height:1.6}
+.mcp-empty .mcp-presets{justify-content:center;margin-bottom:0}
 
 /* ================= MISC ================= */
 .toast{
@@ -1398,6 +1535,12 @@ body.mode-chat #bigProj{display:none}
 <div class="shell">
   <!-- ==================== SIDEBAR ==================== -->
   <aside class="sidebar" id="sidebar">
+    <div class="sb-brand">
+      <span class="sb-mark" aria-hidden="true">
+        <svg width="17" height="17" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.1l1.7 4.2 4.5.4-3.4 3 1 4.4L8 10.8l-3.8 2.3 1-4.4-3.4-3 4.5-.4z"/></svg>
+      </span>
+      <span class="sb-word">Star</span>
+    </div>
     <div class="sb-links">
       <div class="sb-newrow">
         <button class="sb-link" id="btnNew">
@@ -1485,6 +1628,7 @@ body.mode-chat #bigProj{display:none}
           <path d="M366 154c5 33 20 48 53 53-33 5-48 20-53 53-5-33-20-48-53-53 33-5 48-20 53-53z" fill="url(#ls)"/>
         </svg>
       </span>
+      <div class="leyebrow">Agentic coding</div>
       <h1 id="landingTitle">What should we build today?</h1>
       <p class="lsub">Star works in your project folder — it reads, searches, edits, and runs commands on this machine.</p>
       <div class="bigbox">
@@ -1637,8 +1781,7 @@ body.mode-chat #bigProj{display:none}
         <div class="pane-sub"><span>Plan</span><span class="spacer"></span><button class="pane-x" data-panex="plan" title="Close Plan" aria-label="Close Plan"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
         <div class="pane-b">
           <div class="plan-body" id="planBody">
-            <div style="font-weight:600;color:var(--text);margin-bottom:6px">No plan yet.</div>
-            <div style="color:var(--dim)">Star writes the plan here as it explores. Keep chatting.</div>
+            <div class="pempty" id="planEmpty">No plan yet.<br><span style="font-size:11.5px">Star writes the plan here as it explores. Keep chatting.</span></div>
           </div>
         </div>
         <div class="pane-grip-b" data-panegrip="plan" title="Drag to resize · double-click to reset" aria-hidden="true"></div>
@@ -2023,7 +2166,7 @@ const bridge = (typeof window !== "undefined" && window.desktop && window.deskto
       const known = new Set(["preview", "tasks", "plan", "terminal", "diff"]);
       paneOpen.clear();
       for (const id of state.paneOpen) if (known.has(id)) paneOpen.add(id);
-      if (!paneOpen.size) ["preview", "tasks", "plan", "terminal", "diff"].forEach((id) => paneOpen.add(id));
+      if (!paneOpen.size) ["preview", "tasks", "plan", "diff"].forEach((id) => paneOpen.add(id));
       activePane = state.paneActive && paneOpen.has(state.paneActive) ? state.paneActive : [...paneOpen][0];
       applyActivePane();
     }
@@ -2548,7 +2691,7 @@ const PANE_DEFS = [
   { id: "diff", label: "Changes" },
   { id: "usage", label: "Usage" },
 ];
-const paneOpen = new Set(["preview", "tasks", "plan", "terminal", "diff"]);
+const paneOpen = new Set(["preview", "tasks", "plan", "diff"]);
 const paneBadges = { tasks: 0, diff: 0, terminal: 0 };
 let activePane = "preview";
 
@@ -3202,7 +3345,7 @@ function sessionRow(s) {
       <span class="more" data-more="${esc(s.id)}" title="More">
         <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="3.5" r="1.1"/><circle cx="8" cy="8" r="1.1"/><circle cx="8" cy="12.5" r="1.1"/></svg>
       </span>
-      <span class="meta">${needs ? "Waiting for your answer" : esc(ago(s.updated)) + (s.turns ? " · " + s.turns + " turns" : "")}</span>
+      <span class="meta">${needs ? "Waiting for your answer" : esc(ago(s.updated)) + (s.turns ? " · " + s.turns + " turn" + (s.turns === 1 ? "" : "s") : "")}</span>
     </button>`;
 }
 
@@ -7561,6 +7704,11 @@ function renderSettings() {
     loadMcp().then(changed => {
       if (changed && settingsSection === "mcp" && $("settings").classList.contains("on")) settingsAutoRender();
     });
+    if (mcpView === "json") {
+      loadMcpConfig().then(changed => {
+        if (changed && settingsSection === "mcp" && mcpView === "json" && $("settings").classList.contains("on")) settingsAutoRender();
+      });
+    }
     // A server that is still coming up checks itself again; once every state
     // has settled this stops on its own.
     if (warm) setTimeout(() => {
@@ -8027,55 +8175,196 @@ function settingsKnowledge() {
 let mcpServers = [];
 let mcpLoadedAt = 0;
 let mcpTests = {};      // server name -> { ok, tools?, error? } | "running"
+let mcpPaths = { userPath: "", projectPaths: [], sources: [] };
+let mcpView = "servers";        // servers | json
+let mcpConfig = { user: "", project: "", claude: "", paths: {}, loaded: 0 };
+let mcpPaste = "";
+let mcpAddKind = "stdio";       // stdio | remote
+let mcpSavedNotice = "";
 
 /** Fetch the server list at most every 3s; returns true when it re-rendered. */
 async function loadMcp() {
   if (Date.now() - mcpLoadedAt < 3000) return false;
-  try { mcpServers = (await (await fetch("/api/mcp")).json()).servers || []; } catch { /* keep the last list */ }
+  try {
+    const data = await (await fetch("/api/mcp")).json();
+    mcpServers = data.servers || [];
+    if (data.paths) mcpPaths = data.paths;
+  } catch { /* keep the last list */ }
   mcpLoadedAt = Date.now();
   return true;
 }
 
-function mcpPill(s) {
-  const map = { ready: ["ok", "Ready"], starting: ["warn", "Starting"], down: ["no", "Down"], off: ["dim", "Off"] };
-  const [cls, label] = map[s.state] || ["dim", s.state];
-  return `<span class="pill ${cls}" style="margin-left:6px">${esc(label)}</span>`;
+/** The raw JSON files, for the JSON tab. */
+async function loadMcpConfig({ force = false } = {}) {
+  if (!force && mcpConfig.loaded && Date.now() - mcpConfig.loaded < 5000) return false;
+  try {
+    const data = await (await fetch("/api/mcp/config")).json();
+    if (!data.ok) return false;
+    mcpConfig = { user: data.user || "", project: data.project || "", claude: data.claude || "", paths: data.paths || {}, loaded: Date.now() };
+    if (data.info) mcpPaths = data.info;
+  } catch { /* keep the last text */ }
+  return true;
 }
 
-function settingsMcp() {
-  return `
-  <div class="sect">
-    <h2 class="h">MCP servers</h2>
-    <p class="sh">Local Model Context Protocol servers Star starts for this machine. Their tools reach the agent as <span class="mono">mcp__server__tool</span>, every call asking permission first. Saved to <span class="mono">~/.star-code/mcp.json</span>; a project can add its own in <span class="mono">.star-code/mcp.json</span>.</p>
-    <div class="card">
-      <div class="ct">Servers</div>
-      <div class="cs">${mcpServers.length ? mcpServers.length + " configured" : "No servers yet. Add one below - for example uvx for a Python server or npx for a Node one."}</div>
-      ${mcpServers.map(s => {
-        const t = mcpTests[s.name];
-        return `<div class="row">
-        <div class="rl">
-          <div class="rt">${esc(s.name)}${mcpPill(s)}</div>
-          <div class="rd" style="font-family:var(--font-mono);word-break:break-all">${esc(s.command)}</div>
-          ${s.state === "ready" && s.tools.length ? `<div class="rd">${s.tools.length} tool${s.tools.length === 1 ? "" : "s"}: ${esc(s.tools.slice(0, 6).map(x => x.name).join(", "))}${s.tools.length > 6 ? ", …" : ""}</div>` : ""}
-          ${s.error ? `<div class="rd" style="color:var(--del-fg)">${esc(s.error)}</div>` : ""}
-          ${t === "running" ? `<div class="rd">Testing…</div>`
-            : t && t.ok ? `<div class="rd">Test OK - ${t.tools.length} tool${t.tools.length === 1 ? "" : "s"}.</div>`
-            : t ? `<div class="rd" style="color:var(--del-fg)">${esc(t.error || "test failed")}</div>` : ""}
-        </div>
-        <div class="rc">
-          <button class="btn sm" data-mcptest="${esc(s.name)}">Test</button>
-          <button class="btn sm" data-mcptoggle="${esc(s.name)}" data-on="${s.enabled ? "1" : "0"}">${s.enabled ? "Disable" : "Enable"}</button>
-          <button class="btn sm dgr" data-mcpdel="${esc(s.name)}">Remove</button>
-        </div>
-      </div>`; }).join("")}
+function mcpPill(s) {
+  const map = {
+    ready: ["ok", "Ready"], starting: ["warn", "Starting"], idle: ["dim", "Idle"],
+    down: ["no", "Down"], off: ["dim", "Off"],
+  };
+  const [cls, label] = map[s.state] || ["dim", s.state];
+  return `<span class="pill ${cls}">${esc(label)}</span>`;
+}
+
+/** One actionable line for the failures people actually hit. */
+function mcpHint(s) {
+  const e = String(s.error || "");
+  const cmd = String(s.command || "").trim();
+  if (/not found|ENOENT/i.test(e)) {
+    if (/^npx\b/i.test(cmd)) return "npx ships with Node.js - install it from nodejs.org, or use the server's full path.";
+    if (/^uvx\b|^uv\b/i.test(cmd)) return "uvx comes from uv - install it with `pip install uv` or set the full path.";
+    return "Install that command, or give its full path in the command field.";
+  }
+  if (/timed out/i.test(e)) return "No handshake answer yet. A first npx/uvx run can be downloading packages - press Test again in a moment.";
+  if (/fetch failed|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|network/i.test(e)) return "Nothing answered at that URL - start the server, check the port, or fix the URL.";
+  if (/401|403/.test(e)) return "The server rejected the request. Add or fix its Authorization header in the JSON tab.";
+  if (/HTTP 404|HTTP 405/i.test(e)) return "That URL is not an MCP endpoint. Remote servers usually end in /mcp or /sse.";
+  if (/exited|stopped/i.test(e)) return "The process quit right after starting. Its stderr tail is the line above.";
+  return "";
+}
+
+function mcpToolChips(tools) {
+  if (!tools || !tools.length) return "";
+  const shown = tools.slice(0, 8);
+  return `<div class="mcp-tools">${shown.map(t =>
+    `<span class="mcp-tool" title="${esc(t.description || "")}">${esc(t.name)}${t.params ? `<i>${esc(t.params)}</i>` : ""}</span>`).join("")}` +
+    (tools.length > shown.length ? `<span class="mcp-tool more">+${tools.length - shown.length} more</span>` : "") + `</div>`;
+}
+
+function mcpServerCard(s) {
+  const t = mcpTests[s.name];
+  const hint = mcpHint(s);
+  const isProject = s.source === "project";
+  const where = s.url ? s.url : s.command;
+  return `<div class="mcp-card ${esc(s.state)}">
+    <div class="mcp-card-h">
+      <span class="mcp-dot ${esc(s.state)}" aria-hidden="true"></span>
+      <span class="mcp-name">${esc(s.name)}</span>
+      ${mcpPill(s)}
+      <span class="mcp-tag">${s.url ? (s.transport === "sse" ? "SSE" : s.transport === "auto" ? "Remote" : s.transport.toUpperCase()) : "Local"}</span>
+      ${isProject ? `<span class="mcp-tag project" title="Defined in the project's MCP config">project</span>` : ""}
+      <span class="spacer"></span>
+      <button class="btn sm" data-mcptest="${esc(s.name)}" ${t === "running" ? "disabled" : ""}>${t === "running" ? "Testing…" : "Test"}</button>
+      <button class="btn sm" data-mcptoggle="${esc(s.name)}" data-on="${s.enabled ? "1" : "0"}">${s.enabled ? "Disable" : "Enable"}</button>
+      ${isProject ? "" : `<button class="btn sm dgr" data-mcpdel="${esc(s.name)}">Remove</button>`}
     </div>
-    <div class="card">
+    <div class="mcp-cmd mono">${esc(where)}</div>
+    ${s.cwd ? `<div class="mcp-meta mono">cwd ${esc(s.cwd)}</div>` : ""}
+    ${s.enabled && s.state === "ready" && s.tools.length ? mcpToolChips(s.tools) : ""}
+    ${s.enabled && s.state === "off" ? `<div class="mcp-meta">Disabled - its tools stay out of the agent.</div>` : ""}
+    ${s.error ? `<div class="mcp-err">${esc(s.error)}${hint ? `<div class="mcp-hint">${esc(hint)}</div>` : ""}</div>` : ""}
+    ${t && t !== "running" ? (t.ok
+      ? `<div class="mcp-ok">Test OK - ${t.tools.length} tool${t.tools.length === 1 ? "" : "s"} answered.</div>`
+      : `<div class="mcp-err">${esc(t.error || "test failed")}</div>`) : ""}
+  </div>`;
+}
+
+const MCP_PRESETS = [
+  { id: "fetch", label: "Web fetch", command: "uvx mcp-server-fetch", hint: "Fetch a URL as markdown (Python / uv)." },
+  { id: "memory", label: "Memory", command: "npx -y @modelcontextprotocol/server-memory", hint: "A persistent knowledge graph (Node.js)." },
+  { id: "filesystem", label: "Filesystem", command: "npx -y @modelcontextprotocol/server-filesystem .", hint: "Read/write files in a folder (Node.js)." },
+  { id: "everything", label: "Everything", command: "npx -y @modelcontextprotocol/server-everything", hint: "The protocol's demo server (Node.js)." },
+];
+
+function settingsMcp() {
+  const ready = mcpServers.filter(s => s.state === "ready").length;
+  const total = mcpServers.length;
+  const tools = mcpServers.reduce((n, s) => n + (s.tools ? s.tools.length : 0), 0);
+  const header = `
+    <div class="mcp-head">
+      <div>
+        <h2 class="h">MCP servers</h2>
+        <p class="sh">Model Context Protocol servers Star launches, local or remote. Their tools reach the agent as <span class="mono">mcp__server__tool</span>, every call asking permission first. Drop a config into <span class="mono">~/.star-code/mcp.json</span> (or paste one below) and it is picked up without a restart.</p>
+      </div>
+      <div class="segbtn mcp-seg" role="tablist" aria-label="MCP view">
+        <button role="tab" aria-selected="${mcpView === "servers"}" class="${mcpView === "servers" ? "on" : ""}" data-mcpview="servers">Servers</button>
+        <button role="tab" aria-selected="${mcpView === "json"}" class="${mcpView === "json" ? "on" : ""}" data-mcpview="json">JSON</button>
+      </div>
+    </div>
+    <div class="mcp-stats">
+      <span class="mcp-stat"><b>${total}</b> configured</span>
+      <span class="mcp-stat"><b>${ready}</b> ready</span>
+      <span class="mcp-stat"><b>${tools}</b> tools</span>
+      <span class="spacer"></span>
+      <button class="btn sm" id="fMcpReload" title="Re-read the config files now">Reload config</button>
+    </div>`;
+
+  if (mcpView === "json") {
+    return `<div class="sect">${header}
+      <div class="card">
+        <div class="ct">Paste a config</div>
+        <div class="cs">Any shape works: Claude Desktop/Code (<span class="mono">mcpServers</span>), VS Code or Cursor (<span class="mono">servers</span>), opencode (<span class="mono">mcp</span>) or Star's own file. Paste it, import, and the servers start below.</div>
+        <div class="fld"><textarea class="inp mono mcp-json" id="fMcpPaste" rows="7" placeholder='{
+  "mcpServers": {
+    "fetch": { "command": "uvx", "args": ["mcp-server-fetch"] },
+    "docs":  { "url": "https://example.com/mcp", "type": "http" }
+  }
+}' aria-label="Paste an MCP JSON config">${esc(mcpPaste)}</textarea></div>
+        <div class="mcp-actions">
+          <button class="btn pri sm" id="fMcpImport">Import JSON</button>
+          <span class="mcp-note">Existing servers with the same name are replaced.</span>
+        </div>
+        ${mcpSavedNotice ? `<div class="mcp-ok">${esc(mcpSavedNotice)}</div>` : ""}
+      </div>
+      <div class="card">
+        <div class="ct">User config</div>
+        <div class="cs">The file Star owns. Edit it here or in any editor - the running app reloads it. <span class="mono">command</span> takes an argv array or a quoted string; remote servers use <span class="mono">url</span> + optional <span class="mono">headers</span>.</div>
+        <div class="mcp-path mono">${esc(mcpPaths.userPath || "~/.star-code/mcp.json")}</div>
+        <div class="fld"><textarea class="inp mono mcp-json" id="fMcpJson" rows="12" aria-label="User MCP config JSON">${esc(mcpConfig.user)}</textarea></div>
+        <div class="mcp-actions">
+          <button class="btn pri sm" id="fMcpJsonSave">Save mcp.json</button>
+          <button class="btn sm" id="fMcpJsonLoad">Reload from disk</button>
+          <span class="mcp-note">Validated before it is written.</span>
+        </div>
+        ${mcpSavedNotice ? `<div class="mcp-ok">${esc(mcpSavedNotice)}</div>` : ""}
+      </div>
+      <div class="card">
+        <div class="ct">Project config</div>
+        <div class="cs">A project can ship its own servers; they win by name over the user file. Star reads both a Claude-style <span class="mono">.mcp.json</span> at the project root and <span class="mono">.star-code/mcp.json</span>.</div>
+        ${(mcpPaths.projectPaths || []).map(p => `<div class="mcp-path mono">${esc(p)}</div>`).join("")}
+        ${mcpConfig.project ? `<div class="mcp-meta">The project file defines ${esc(String((mcpConfig.project.match(/"command"|"url"/g) || []).length))} entry point${(mcpConfig.project.match(/"command"|"url"/g) || []).length === 1 ? "" : "s"}.</div>` : `<div class="mcp-meta">No project file for this folder.</div>`}
+      </div>
+    </div>`;
+  }
+
+  return `<div class="sect">${header}
+    <div class="mcp-list">
+      ${total ? mcpServers.map(mcpServerCard).join("") : `<div class="mcp-empty">
+        <span class="mcp-empty-ic" aria-hidden="true">✦</span>
+        <div class="mcp-empty-t">No MCP servers yet</div>
+        <div class="mcp-empty-d">Add one below - a local command (uvx, npx, node) or a remote URL. Star launches it, lists its tools and asks before every call.</div>
+        <div class="mcp-presets">
+          ${MCP_PRESETS.map(p => `<button class="chip" data-mcppreset="${p.id}" title="${esc(p.hint)}">${esc(p.label)}</button>`).join("")}
+        </div>
+      </div>`}
+    </div>
+    <div class="card mcp-add">
       <div class="ct">Add a server</div>
-      <div class="cs">The command Star runs; the rest of the line is its arguments. Environment entries apply to that process only.</div>
-      <div class="fld"><label>Name</label><input class="inp" id="fMcpName" placeholder="fetch" autocomplete="off"></div>
-      <div class="fld"><label>Command</label><input class="inp" id="fMcpCmd" placeholder="uvx mcp-server-fetch" autocomplete="off"></div>
-      <div class="fld"><label>Environment - optional, one KEY=value per line</label><textarea class="inp" id="fMcpEnv" rows="2" placeholder="API_KEY=…"></textarea></div>
-      <button class="btn pri sm" id="fMcpAdd">Add server</button>
+      <div class="cs">A local server is a command Star runs and talks to over stdio; a remote server is an HTTP/SSE URL. Use the JSON tab for args, headers or a whole pasted config.</div>
+      <div class="segbtn mcp-kind" role="tablist" aria-label="Server type">
+        <button role="tab" aria-selected="${mcpAddKind === "stdio"}" class="${mcpAddKind === "stdio" ? "on" : ""}" data-mcpkind="stdio">Local command</button>
+        <button role="tab" aria-selected="${mcpAddKind === "remote"}" class="${mcpAddKind === "remote" ? "on" : ""}" data-mcpkind="remote">Remote URL</button>
+      </div>
+      <div class="fld"><label>Name</label><input class="inp" id="fMcpName" placeholder="${mcpAddKind === "remote" ? "docs" : "fetch"}" autocomplete="off"></div>
+      ${mcpAddKind === "remote"
+        ? `<div class="fld"><label>URL</label><input class="inp mono" id="fMcpUrl" placeholder="https://example.com/mcp" autocomplete="off"></div>
+           <div class="fld"><label>Headers - optional, one <span class="mono">Name: value</span> per line</label><textarea class="inp mono" id="fMcpHeaders" rows="2" placeholder="Authorization: Bearer …"></textarea></div>`
+        : `<div class="fld"><label>Command</label><input class="inp mono" id="fMcpCmd" placeholder="uvx mcp-server-fetch" autocomplete="off"></div>
+           <div class="fld"><label>Environment - optional, one <span class="mono">KEY=value</span> per line</label><textarea class="inp mono" id="fMcpEnv" rows="2" placeholder="API_KEY=…"></textarea></div>`}
+      ${total ? `<div class="mcp-presets">
+        ${MCP_PRESETS.map(p => `<button class="chip" data-mcppreset="${p.id}" title="${esc(p.hint)}">${esc(p.label)}</button>`).join("")}
+      </div>` : ""}
+      <button class="btn pri sm" id="fMcpAdd">${mcpAddKind === "remote" ? "Add remote server" : "Add server"}</button>
+      ${mcpSavedNotice ? `<div class="mcp-ok">${esc(mcpSavedNotice)}</div>` : ""}
     </div>
   </div>`;
 }
@@ -8472,6 +8761,72 @@ function wireSettings() {
     else toast(r.error || "Could not save");
   });
   const mcpRefresh = async () => { mcpLoadedAt = 0; await loadMcp(); renderSettings(); };
+  const mcpJsonRefresh = async () => { mcpLoadedAt = 0; await loadMcp(); await loadMcpConfig({ force: true }); renderSettings(); };
+  const mcpFlash = (text) => { mcpSavedNotice = text; settingsAutoRender(); };
+  document.querySelectorAll("[data-mcpview]").forEach(el => el.addEventListener("click", async () => {
+    mcpView = el.dataset.mcpview === "json" ? "json" : "servers";
+    mcpSavedNotice = "";
+    if (mcpView === "json") await loadMcpConfig();
+    renderSettings();
+  }));
+  document.querySelectorAll("[data-mcpkind]").forEach(el => el.addEventListener("click", () => {
+    mcpAddKind = el.dataset.mcpkind === "remote" ? "remote" : "stdio";
+    renderSettings();
+  }));
+  document.querySelectorAll("[data-mcppreset]").forEach(el => el.addEventListener("click", () => {
+    const p = MCP_PRESETS.find(x => x.id === el.dataset.mcppreset);
+    if (!p) return;
+    mcpAddKind = "stdio";
+    renderSettings();
+    const nameEl = $("fMcpName"), cmdEl = $("fMcpCmd");
+    if (nameEl) nameEl.value = p.id;
+    if (cmdEl) cmdEl.value = p.command;
+    if (nameEl) nameEl.focus();
+  }));
+  on("fMcpReload", "click", async () => {
+    try {
+      await fetch("/api/mcp/reload", { method: "POST" });
+      await mcpJsonRefresh();
+      toast("MCP config reloaded");
+    } catch { toast("Could not reload the MCP config"); }
+  });
+  const pasteEl = $("fMcpPaste");
+  if (pasteEl) pasteEl.addEventListener("input", () => { mcpPaste = pasteEl.value; });
+  const jsonEl = $("fMcpJson");
+  if (jsonEl) jsonEl.addEventListener("input", () => { mcpConfig.user = jsonEl.value; });
+  on("fMcpImport", "click", async () => {
+    const text = $("fMcpPaste") ? $("fMcpPaste").value : mcpPaste;
+    if (!String(text || "").trim()) { toast("Paste a JSON config first"); return; }
+    try {
+      const r = await (await fetch("/api/mcp/import", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, scope: "user" }),
+      })).json();
+      if (!r.ok) { toast(r.error || "That JSON could not be imported"); return; }
+      mcpPaste = "";
+      mcpView = "servers";
+      mcpSavedNotice = "Imported " + (r.imported || []).join(", ") + (r.skipped && r.skipped.length ? " - skipped " + r.skipped.map(s => s.name).join(", ") : "");
+      await mcpJsonRefresh();
+      toast("Imported " + (r.imported || []).length + " server" + ((r.imported || []).length === 1 ? "" : "s"));
+    } catch (e) { toast(e.message || "Could not import the config"); }
+  });
+  on("fMcpJsonSave", "click", async () => {
+    const text = $("fMcpJson") ? $("fMcpJson").value : mcpConfig.user;
+    try {
+      const r = await (await fetch("/api/mcp/config", {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scope: "user", text }),
+      })).json();
+      if (!r.ok) { toast(r.error || "That JSON is not valid"); return; }
+      mcpSavedNotice = "Saved to " + (r.path || "mcp.json");
+      await mcpJsonRefresh();
+      toast("Saved mcp.json");
+    } catch (e) { toast(e.message || "Could not save the file"); }
+  });
+  on("fMcpJsonLoad", "click", async () => {
+    await mcpJsonRefresh();
+    toast("Reloaded from disk");
+  });
   document.querySelectorAll("[data-mcptest]").forEach(el => el.addEventListener("click", async () => {
     const name = el.dataset.mcptest;
     mcpTests[name] = "running";
@@ -8488,9 +8843,10 @@ function wireSettings() {
     const name = el.dataset.mcptoggle;
     const want = el.dataset.on !== "1";
     try {
-      await fetch("/api/mcp", {
+      const r = await (await fetch("/api/mcp", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, enabled: want }),
-      });
+      })).json();
+      if (!r.ok) { toast(r.error || "Could not update " + name); return; }
       toast((want ? "Enabled " : "Disabled ") + name);
     } catch { toast("Could not update " + name); }
     await mcpRefresh();
@@ -8498,26 +8854,48 @@ function wireSettings() {
   document.querySelectorAll("[data-mcpdel]").forEach(el => el.addEventListener("click", async () => {
     const name = el.dataset.mcpdel;
     if (!confirm("Remove the MCP server " + name + "?")) return;
-    try { await fetch("/api/mcp?name=" + encodeURIComponent(name), { method: "DELETE" }); } catch { /* the refresh tells the truth */ }
+    try {
+      const r = await (await fetch("/api/mcp?name=" + encodeURIComponent(name), { method: "DELETE" })).json();
+      if (!r.ok) { toast(r.error || "Could not remove " + name); return; }
+    } catch { /* the refresh tells the truth */ }
     delete mcpTests[name];
     await mcpRefresh();
   }));
   on("fMcpAdd", "click", async () => {
     const name = $("fMcpName") ? $("fMcpName").value.trim() : "";
-    const cmd = $("fMcpCmd") ? $("fMcpCmd").value.trim() : "";
-    if (!name || !cmd) { toast("A name and a command are required"); return; }
-    const environment = {};
-    ($("fMcpEnv") ? $("fMcpEnv").value : "").split("\n").map(l => l.trim()).filter(Boolean).forEach(l => {
-      const i = l.indexOf("=");
-      if (i > 0) environment[l.slice(0, i).trim()] = l.slice(i + 1).trim();
-    });
-    const r = await (await fetch("/api/mcp", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, command: cmd, environment }),
-    })).json();
-    if (!r.ok) { toast(r.error || "Could not save the server"); return; }
-    toast("Added " + name);
-    await mcpRefresh();
+    if (!name) { toast("A name is required"); return; }
+    const payload = { name };
+    if (mcpAddKind === "remote") {
+      const url = $("fMcpUrl") ? $("fMcpUrl").value.trim() : "";
+      if (!url) { toast("A URL is required"); return; }
+      payload.url = url;
+      const headers = {};
+      ($("fMcpHeaders") ? $("fMcpHeaders").value : "").split("\n").map(l => l.trim()).filter(Boolean).forEach(l => {
+        const i = l.indexOf(":");
+        if (i > 0) headers[l.slice(0, i).trim()] = l.slice(i + 1).trim();
+      });
+      payload.headers = headers;
+    } else {
+      const cmd = $("fMcpCmd") ? $("fMcpCmd").value.trim() : "";
+      if (!cmd) { toast("A command is required"); return; }
+      payload.command = cmd;
+      const environment = {};
+      ($("fMcpEnv") ? $("fMcpEnv").value : "").split("\n").map(l => l.trim()).filter(Boolean).forEach(l => {
+        const i = l.indexOf("=");
+        if (i > 0) environment[l.slice(0, i).trim()] = l.slice(i + 1).trim();
+      });
+      payload.environment = environment;
+    }
+    try {
+      const r = await (await fetch("/api/mcp", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })).json();
+      if (!r.ok) { toast(r.error || "Could not save the server"); return; }
+      toast("Added " + name);
+      mcpSavedNotice = "";
+      await mcpRefresh();
+    } catch (e) { toast(e.message || "Could not save the server"); }
   });
   const skillsRefresh = async () => { skillsLoadedAt = 0; await loadSkills(); renderSettings(); };
   on("fSkillPathAdd", "click", async () => {

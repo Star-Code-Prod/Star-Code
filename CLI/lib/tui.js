@@ -172,15 +172,26 @@ export function statusLine(status, width, ansi = true) {
   const w = Math.max(4, width | 0);
   const ink = makeInk(ansi);
   const st = status || {};
-  const parts = [];
-  if (st.mode) parts.push(ink.fg(String(st.mode)));
-  if (st.model) parts.push(ink.fg(String(st.model)));
-  if (st.ctxPct != null && st.ctxPct !== "") parts.push(ink.gold(String(Math.floor(Number(st.ctxPct) || 0)) + "% ctx"));
-  if (st.root) parts.push(ink.dim(String(st.root)));
-  let line = ink.gold("⏵") + (parts.length ? " " + parts.join(ink.dim(" · ")) : "");
+  const build = (withRoot) => {
+    const parts = [];
+    if (st.mode) parts.push(ink.fg(String(st.mode)));
+    if (st.model) parts.push(ink.fg(String(st.model)));
+    if (st.ctxPct != null && st.ctxPct !== "") parts.push(ink.gold(String(Math.floor(Number(st.ctxPct) || 0)) + "% ctx"));
+    if (withRoot && st.root) parts.push(ink.dim(String(st.root)));
+    return ink.gold("⏵") + (parts.length ? " " + parts.join(ink.dim(" · ")) : "");
+  };
+  let line = build(true);
   const hint = st.hint ? ink.dim(String(st.hint)) : "";
   if (hint) {
-    const room = w - visibleWidth(line) - 2;
+    let room = w - visibleWidth(line) - 2;
+    // A narrow terminal used to spend all its room on the folder path and
+    // clip the hint down to "streaming" - losing "1 queued" and "ctrl+c
+    // stops", the two things the status line exists for. The root drops out
+    // first; the mode/model/context row wins only after that.
+    if (room < 10 && st.root) {
+      line = build(false);
+      room = w - visibleWidth(line) - 2;
+    }
     if (room >= 6) {
       const shown = clipTo(hint, room);
       line += " ".repeat(w - visibleWidth(line) - visibleWidth(shown)) + shown;

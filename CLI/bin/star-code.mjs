@@ -12,6 +12,7 @@
 // no escape sequences at all; NO_COLOR drops the ink on a real terminal.
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import readline from "node:readline";
 import { pathToFileURL } from "node:url";
@@ -236,8 +237,24 @@ function banner() {
   return box([
     { segs: [{ t: "✦ ", c: "gold" }, { t: "Star Code", c: "nm" }, { t: "  v" + VERSION, c: "dim" }] },
     { t: provider + " · " + model + " · effort " + EFFORT, c: "dim" },
-    { t: root, c: "dim" },
+    { t: shortPath(root, Math.max(18, width() - 8)), c: "dim" },
   ], { border: "goldLine" });
+}
+
+/** A path that fits one terminal line: ~ for home, then the shortest tail
+ *  that still names the project. A 96-character Windows path used to be
+ *  clipped mid-word and hide where the turn runs. */
+function shortPath(p, max = 44) {
+  const full = String(p || "");
+  const home = os.homedir();
+  let t = full;
+  if (home && (full === home || full.startsWith(home + path.sep))) t = "~" + full.slice(home.length);
+  const limit = Math.max(8, max | 0);
+  if (t.length <= limit) return t;
+  let cut = t.length - (limit - 1);
+  const sep = Math.max(t.lastIndexOf("\\", cut), t.lastIndexOf("/", cut));
+  if (sep > 0) cut = sep;
+  return "…" + t.slice(cut);
 }
 
 function tips() {
@@ -785,14 +802,15 @@ async function mcpSettled() {
   await Promise.race([m.ready(), new Promise((r) => setTimeout(r, 1500))]);
   return m.list();
 }
-const MCP_HINT = "No MCP servers configured. Add one in Settings > MCP (desktop) or in ~/.star-code/mcp.json.";
+const MCP_HINT = "No MCP servers configured. Add one in Settings > MCP (desktop) or in ~/.star-code/mcp.json - mcpServers, servers and opencode's mcp shapes all work.";
 
 async function mcpText() {
   const list = await mcpSettled();
   if (!list.length) return dim(MCP_HINT);
   return list.map((s) => {
     const mark = s.state === "ready" ? green("ready") : s.state === "down" ? red("down") : dim(s.state);
-    const head = gold(s.name) + dim(" · ") + mark + dim(" · " + s.command);
+    const where = s.url ? s.url + dim(s.transport && s.transport !== "auto" ? " · " + s.transport : " · remote") : s.command;
+    const head = gold(s.name) + dim(" · ") + mark + dim(" · ") + where;
     const tools = s.tools.length ? dim("  " + s.tools.map((t) => t.name).join(", ")) : "";
     const err = s.error ? red("  " + s.error) : "";
     return [head, tools, err].filter(Boolean).join("\n");
@@ -805,7 +823,7 @@ async function mcpBox(t) {
   const rows = [];
   for (const s of list) {
     rows.push({ segs: [{ t: s.name, c: "gold" }, { t: "  · " + s.state, c: s.state === "ready" ? "green" : s.state === "down" ? "red" : "dim" }] });
-    rows.push({ segs: [{ t: "    " + s.command, c: "dim" }] });
+    rows.push({ segs: [{ t: "    " + (s.url || s.command), c: "dim" }] });
     if (s.tools.length) rows.push({ segs: [{ t: "    tools: " + s.tools.map((x) => x.name).join(", "), c: "dim" }] });
     if (s.error) rows.push({ segs: [{ t: "    " + s.error, c: "dim" }] });
   }
@@ -1264,7 +1282,7 @@ function frameStatus(tab) {
   } else if (tab.queue.length) {
     hint = tab.queue.length + " queued";
   }
-  return { mode: MODE_LABEL[flags.mode] || flags.mode, model: provider + "/" + model, ctxPct: tab.ctxPct, root, hint };
+  return { mode: MODE_LABEL[flags.mode] || flags.mode, model: provider + "/" + model, ctxPct: tab.ctxPct, root: shortPath(root, 44), hint };
 }
 
 /** The permission box and the connect key prompt replace the popup content. */

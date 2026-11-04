@@ -462,8 +462,12 @@ ok("run 1: the mcp.json round-trips through lib/mcp.js", (() => {
   const b = cfg["blender-mcp"] || null;
   return !!b && b.command.join(" ") === "uvx blender-mcp" && b.environment.BLENDER_HOST === "localhost" && b.enabled === true;
 })());
-ok("run 1: remote mcp servers keep an honest skip row",
-  (rowOf(r1.report, "skip", "mcp remote") || {}).detail === "remote MCP does not import yet - Star launches local servers only");
+ok("run 1: remote mcp servers import with their url",
+  (rowOf(r1.report, "mcp", "remote") || {}).action === "imported" &&
+  (() => {
+    const s = readMcpConfig(path.join(tmp, "empty-project")).servers.remote;
+    return !!s && s.url === "https://example.com/mcp" && s.transport === "http";
+  })());
 ok("run 1: a commandless mcp server is skipped", (rowOf(r1.report, "skip", "mcp broken") || {}).detail === "no command to run");
 ok("run 1: skills.paths lands in Star's skills.json",
   (rowOf(r1.report, "skills", path.resolve(path.join(tmp, "imp-skills"))) || {}).action === "imported" &&
@@ -473,7 +477,7 @@ ok("run 1: the opencode plugin row says why it cannot run",
   /opencode SDK plugins do not run in Star/.test((rowOf(r1.report, "skip", 'plugin "./plugins/x.js"') || {}).detail || ""));
 ok("one skip row per scanned skip, with what and why", (() => {
   const skips = r1.report.filter((r) => r.kind === "skip");
-  return skips.length === applyScan.skipped.length && applyScan.skipped.length === 4 &&
+  return skips.length === applyScan.skipped.length && applyScan.skipped.length === 3 &&
     applyScan.skipped.every((s) => skips.some((r) => r.id === s.what && r.detail === s.why && r.action === "skipped"));
 })());
 ok("nothing was kept on the first run", r1.report.every((r) => r.action !== "kept"));

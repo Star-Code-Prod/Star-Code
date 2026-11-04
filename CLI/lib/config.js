@@ -24,7 +24,7 @@ const emptyShape = () => ({ version: 1, lastModel: null });
  *  keys are preserved; a malformed lastModel reads as null. */
 export function readConfig() {
   try {
-    const raw = JSON.parse(fs.readFileSync(configPath(), "utf8"));
+    const raw = JSON.parse(fs.readFileSync(configPath(), "utf8").replace(/^\uFEFF/, ""));
     if (raw && typeof raw === "object" && !Array.isArray(raw)) {
       const last = raw.lastModel;
       const provider = last && typeof last.provider === "string" ? last.provider.trim() : "";

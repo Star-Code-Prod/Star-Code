@@ -174,7 +174,7 @@ function stripTrailingCommas(src) {
 }
 
 function parseJsoncText(text) {
-  return JSON.parse(stripTrailingCommas(stripJsonc(text)));
+  return JSON.parse(stripTrailingCommas(stripJsonc(String(text || "").replace(/^\uFEFF/, ""))));
 }
 
 /* --------------------------- opencode field bits --------------------------- */
@@ -552,17 +552,27 @@ export function scanOpencode(opts = {}) {
   }
 
   /* --------------------------------- mcp --------------------------------- */
-  // opencode's `mcp` block: local stdio servers import verbatim. Remote
-  // (url) servers need a transport Star does not speak yet, so they keep a
-  // skip row with the honest reason instead of vanishing.
+  // opencode's `mcp` block: local stdio servers and remote (url) servers both
+  // import - Star speaks streamable HTTP and legacy SSE now, so a remote entry
+  // is no longer a dead end.
   const mcpServers = [];
   if (isObj(config.mcp)) {
     for (const [name, cfg] of Object.entries(config.mcp)) {
       const id = str(name);
       if (!id) continue;
       if (!isObj(cfg)) { skipped.push({ what: "mcp " + id, why: "not an object, nothing to import" }); continue; }
-      if (str(cfg.type).toLowerCase() === "remote" || str(cfg.url)) {
-        skipped.push({ what: "mcp " + id, why: "remote MCP does not import yet - Star launches local servers only" });
+      const url = str(cfg.url).trim();
+      if (str(cfg.type).toLowerCase() === "remote" || url) {
+        if (!url) { skipped.push({ what: "mcp " + id, why: "a remote server without a url" }); continue; }
+        const headers = {};
+        if (isObj(cfg.headers)) for (const [k, v] of Object.entries(cfg.headers)) if (str(k)) headers[str(k)] = String(v);
+        mcpServers.push({
+          name: id,
+          url,
+          type: /sse/i.test(str(cfg.type)) ? "sse" : "http",
+          headers,
+          enabled: cfg.enabled !== false,
+        });
         continue;
       }
       let command = [];
@@ -789,11 +799,18 @@ export function applyImport(scan, opts = {}) {
           report.push({ kind: "mcp", id, action: "kept", detail: "a server with this name already exists" });
           continue;
         }
-        user[id] = {
-          command: Array.isArray(sv.command) ? sv.command.map(String) : [],
-          environment: isObj(sv.environment) ? sv.environment : {},
-          enabled: sv.enabled !== false,
-        };
+        user[id] = sv.url
+          ? {
+            url: str(sv.url),
+            ...(sv.type ? { type: String(sv.type) } : {}),
+            headers: isObj(sv.headers) ? sv.headers : {},
+            enabled: sv.enabled !== false,
+          }
+          : {
+            command: Array.isArray(sv.command) ? sv.command.map(String) : [],
+            environment: isObj(sv.environment) ? sv.environment : {},
+            enabled: sv.enabled !== false,
+          };
         dirty = true;
         report.push({ kind: "mcp", id, action: "imported", detail: "added to mcp.json" });
       }

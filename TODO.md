@@ -1,2 +1,4 @@
-- [ ] Make so AI can interact and see the preview in realtime.
-- [ ] Make so 3D models can render in the chat
+- [x] Make so AI can interact and see the preview in realtime. — the `preview` tool (1.22.0)
+- [x] Make so 3D models can render in the chat — live voxel cards (1.22.0)
+- [ ] MCP resources and prompts (tools, remote transports and config import are done)
+- [ ] Ship JetBrains Mono with the app so offline installs keep the intended type

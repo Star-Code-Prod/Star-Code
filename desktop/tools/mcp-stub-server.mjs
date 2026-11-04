@@ -1,12 +1,17 @@
 // A tiny MCP server for tests: newline-delimited JSON-RPC on stdio.
 // Env knobs: MCP_STUB_CRASH=after-init exits right after initialize;
 // MCP_STUB_NOISE=1 prints junk lines to stdout; MCP_STUB_SILENT=<tool>
-// never answers that tool call; MCP_STUB_DELAY=<ms> delays every reply.
+// never answers that tool call; MCP_STUB_DELAY=<ms> delays every reply;
+// MCP_STUB_PAGINATE=1 splits tools/list into two pages (nextCursor);
+// MCP_STUB_COUNT_FILE=<path> appends a line per "explode" call.
+import fs from "node:fs";
 import readline from "node:readline";
 
 const silent = process.env.MCP_STUB_SILENT || "";
 const noise = process.env.MCP_STUB_NOISE === "1";
 const delay = Number(process.env.MCP_STUB_DELAY || 0);
+const paginate = process.env.MCP_STUB_PAGINATE === "1";
+const countFile = process.env.MCP_STUB_COUNT_FILE || "";
 
 const send = (obj) => {
   const out = () => process.stdout.write(JSON.stringify(obj) + "\n");
@@ -17,6 +22,7 @@ const TOOLS = [
   { name: "echo", description: "Echo text back", inputSchema: { type: "object", properties: { text: { type: "string" }, mode: { type: "string", enum: ["plain", "loud"] } }, required: ["text"] } },
   { name: "slow", description: "A tool that may never answer", inputSchema: { type: "object", properties: {} } },
   { name: "screenshot", description: "Return a tiny image (like a viewport grab)", inputSchema: { type: "object", properties: {} } },
+  { name: "explode", description: "A tool that reports an error", inputSchema: { type: "object", properties: {} } },
 ];
 
 // A 2x2 red PNG - the shape real screenshot tools return (type: "image").
@@ -34,6 +40,14 @@ rl.on("line", (line) => {
   }
   if (msg.method === "notifications/initialized") return;
   if (msg.method === "tools/list") {
+    if (paginate) {
+      const cursor = msg.params && msg.params.cursor;
+      const result = cursor === "page-2"
+        ? { tools: TOOLS.slice(2) }
+        : { tools: TOOLS.slice(0, 2), nextCursor: "page-2" };
+      send({ jsonrpc: "2.0", id: msg.id, result });
+      return;
+    }
     send({ jsonrpc: "2.0", id: msg.id, result: { tools: TOOLS } });
     return;
   }
@@ -41,6 +55,11 @@ rl.on("line", (line) => {
     const name = msg.params && msg.params.name;
     if (name === silent) return; // never answers
     const args = (msg.params && msg.params.arguments) || {};
+    if (name === "explode") {
+      if (countFile) { try { fs.appendFileSync(countFile, "call\n"); } catch { /* test detail */ } }
+      send({ jsonrpc: "2.0", id: msg.id, result: { content: [{ type: "text", text: "exploded: " + String(args.reason || "") }], isError: true } });
+      return;
+    }
     if (name === "screenshot") {
       send({ jsonrpc: "2.0", id: msg.id, result: { content: [{ type: "text", text: "viewport 320x240" }, { type: "image", data: TINY_PNG, mimeType: "image/png" }], isError: false } });
       return;

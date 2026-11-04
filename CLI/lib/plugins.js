@@ -41,7 +41,7 @@ export function userPluginsConfigPath() { return path.join(dataDir(), "plugins.j
 
 export function readPluginsConfig() {
   try {
-    const raw = JSON.parse(fs.readFileSync(userPluginsConfigPath(), "utf8"));
+    const raw = JSON.parse(fs.readFileSync(userPluginsConfigPath(), "utf8").replace(/^\uFEFF/, ""));
     const paths = Array.isArray(raw && raw.paths)
       ? raw.paths.map(String).map((s) => s.trim()).filter(Boolean).slice(0, PATHS_CAP)
       : [];

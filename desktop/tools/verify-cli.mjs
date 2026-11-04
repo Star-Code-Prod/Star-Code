@@ -28,9 +28,13 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-cli-"));
     }
   }
   const drift = [];
+  // Compare text, not the checkout's line endings: Windows git can still hand
+  // back CRLF for a file the root .gitattributes forgot, and that is not a
+  // real drift between the two copies.
+  const norm = (s) => s.replace(/\r\n/g, "\n");
   for (const rel of files) {
     try {
-      if (fs.readFileSync(rel, "utf8") !== fs.readFileSync("../CLI/" + rel, "utf8")) drift.push(rel);
+      if (norm(fs.readFileSync(rel, "utf8")) !== norm(fs.readFileSync("../CLI/" + rel, "utf8"))) drift.push(rel);
     } catch { drift.push(rel + " (missing on one side)"); }
   }
   ok("the CLI mirrors desktop's bin/ and lib/ byte-for-byte", drift.length === 0, drift.join(", "));
@@ -48,6 +52,10 @@ ok("unknown provider is a usage error", badProvider.status === 2, String(badProv
 
 // 2. no key anywhere: real guidance, exit 1, no hang
 const cleanEnv = { ...process.env, STAR_CODE_DATA: tmp };
+// The harness that runs these tests may set NO_COLOR (and --demo deliberately
+// honors it), but the demo assertions below are about the ink itself. Drop it
+// so the suite checks the same thing on every machine.
+delete cleanEnv.NO_COLOR;
 for (const k of ["DEEPSEEK_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY", "XAI_API_KEY", "GROQ_API_KEY", "MISTRAL_API_KEY", "OPENROUTER_API_KEY", "TOGETHER_API_KEY", "CUSTOM_API_KEY"]) {
   cleanEnv[k] = "";
 }
@@ -117,7 +125,9 @@ ok("repl /model lists providers", /deepseek/.test(list.stdout) && /openai/.test(
 ok("banner names the tool, model and root",
   /✦ Star Code/.test(list.stdout || "") &&
   (list.stdout || "").includes("deepseek · deepseek-chat · effort medium") &&
-  (list.stdout || "").includes(process.cwd()),
+  // A long Windows cwd is shortened instead of clipped mid-word; the tail
+  // must still name the folder the session runs in.
+  (list.stdout || "").includes(path.basename(process.cwd())),
   (list.stdout || "").slice(0, 160));
 ok("tips line points at the slash commands", /Tips: .*\/model.*switch model/.test(list.stdout || ""));
 ok("status line shows the mode, the model and the context bar",

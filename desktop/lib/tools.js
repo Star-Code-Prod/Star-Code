@@ -382,7 +382,7 @@ function ledgerPath(root) {
 /** Ledger read; missing or corrupt reads as empty. */
 export function readLedger(root) {
   try {
-    const raw = JSON.parse(fssync.readFileSync(ledgerPath(root), "utf8"));
+    const raw = JSON.parse(fssync.readFileSync(ledgerPath(root), "utf8").replace(/^\uFEFF/, ""));
     if (raw && typeof raw === "object" && raw.entries && typeof raw.entries === "object") {
       return { updated: raw.updated || null, entries: raw.entries };
     }
@@ -1382,7 +1382,16 @@ export function createToolRunner(root, opts = {}) {
       if (mcp) {
         extra.push(...mcp.toolList()
           .filter((t) => !allowedSet || allowedSet.has(t.name))
-          .map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: { type: "object", properties: {}, additionalProperties: true } } })));
+          // The server told us its real inputSchema at handshake time: pass it
+          // through so native tool calling fills correct arguments instead of
+          // the model guessing parameter names.
+          .map((t) => {
+            const schema = t.schema && typeof t.schema === "object" ? t.schema : null;
+            const parameters = schema
+              ? { type: "object", ...schema }
+              : { type: "object", properties: {}, additionalProperties: true };
+            return { type: "function", function: { name: t.name, description: t.description, parameters } };
+          }));
       }
       if (plugins) {
         extra.push(...plugins.toolList()

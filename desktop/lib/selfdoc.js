@@ -179,15 +179,19 @@ running with Star's own privileges - only load what you trust. opencode
 plugins cannot be imported: they are written against the opencode SDK.
 
 ## MCP servers
-Local Model Context Protocol servers (Settings > MCP, ~/.star-code/mcp.json or
-a project's .star-code/mcp.json) start with Star, handshake over stdio
-JSON-RPC and join the tools as mcp__server__tool; every call asks permission
-first, plan mode blocks them, bypass allows them, and they are never offered to
-subagents. Servers are killed after 15 idle minutes and reconnect on demand.
-A bridge to an app is probed before every turn: when the app (a Blender
-bridge's Blender) is not running, its tools are hidden from the model rather
-than half-working. The prompt says MCP tools are for the app they front -
-reading files and running commands stay with the built-in tools.
+Local and remote Model Context Protocol servers (Settings > MCP, ~/.star-code/mcp.json
+or a project's .star-code/mcp.json / .mcp.json) start with Star and join the tools
+as mcp__server__tool; every call asks permission first, plan mode blocks them, bypass
+allows them, and they are never offered to subagents. Local servers handshake over
+stdio JSON-RPC; remote ones speak streamable HTTP or legacy SSE. The config accepts
+Claude/VS Code/opencode shapes (mcpServers, servers, mcp; command+args+env or
+url+headers), a hand-edited file reloads without a restart, and Settings > MCP has a
+JSON tab that pastes or edits a whole config. Servers are killed after 15 idle
+minutes and reconnect on demand, keeping their tool list. A bridge to an app is
+probed before every turn: when the app (a Blender bridge's Blender) is not running,
+its tools are hidden from the model rather than half-working. The prompt says MCP
+tools are for the app they front - reading files and running commands stay with the
+built-in tools.
 
 ## Slash commands (desktop and CLI)
 /help /clear /compact /init /diff /context /status /memory /export /btw

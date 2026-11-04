@@ -18,7 +18,7 @@ const emptyShape = () => ({ version: 1, providers: {} });
 /** Missing, unreadable, or corrupt files read as "nothing stored". */
 export function readAuth() {
   try {
-    const raw = JSON.parse(fs.readFileSync(authPath(), "utf8"));
+    const raw = JSON.parse(fs.readFileSync(authPath(), "utf8").replace(/^\uFEFF/, ""));
     if (raw && typeof raw === "object" && raw.providers && typeof raw.providers === "object") {
       return { version: 1, providers: raw.providers };
     }

@@ -109,7 +109,7 @@ The **base URL is per provider and fully honored** — point it at a proxy or a 
 | **Artifacts** | `` ```artifact `` html/svg/md blocks render in a sandboxed preview pane with version history — plus live formats: **motion** (canvas films with synthesized music and effects, recordable to video), **voxel** (isometric 3D builds), slides, design, doc |
 | **Voxel builds** | `artifact voxel` scripts build 3D models (the VoxelBench idea): isometric render in the Preview, drag to rotate, wheel to zoom, revisions land as new versions of the same build |
 | **Blender viewport** | With a Blender MCP server and Blender running, the Preview's viewport button streams live screenshots and the agent scripts Blender through its MCP tools with a build-look-refine doctrine. The tools appear only while Blender is actually running — scripting Blender is for 3D scenes, never for file or shell chores |
-| **MCP servers** | Local Model Context Protocol servers in Settings → MCP — Star starts them, their tools join the agent as `mcp__server__tool`, and every call asks permission first |
+| **MCP servers** | Local and remote Model Context Protocol servers in Settings → MCP — add a command or URL, or paste a Claude/VS Code/opencode JSON config; Star starts them, their tools join the agent as `mcp__server__tool` with their real schemas, hand-edited `mcp.json` hot-reloads, and every call asks permission first |
 | **Custom agents** | Markdown personas in `.star-code/agents/` — the `task` tool runs them as read-only subagents, and the composer's agent chip (or `/agents`) runs one as the turn's persona: its prompt, its tools and its model |
 | **Usage pane** | Click the context ring: window used/limit, model, per-session calls, tool groups and compaction savings |
 | **Composer + menu** | The + opens: side chat, attach file (explorer, images/videos first — the path rides into the message), run shell command, export conversation, new session. Input modes: `@` file mention, `!` shell, `/` commands |
@@ -164,11 +164,13 @@ Plugin tools ask permission before every call (a plugin may declare `dangerous: 
 
 ## MCP servers
 
-Star speaks the Model Context Protocol to **local** servers — the same kind opencode configures. Open **Settings → MCP**, add a command (for example `uvx mcp-server-fetch` or `npx -y @modelcontextprotocol/server-memory`), and Star launches it, handshakes over stdio JSON-RPC and lists its tools. They reach the agent as `mcp__server__tool` beside the built-in tools, every call asking permission first; plan mode blocks them, bypass allows them. Servers come up at boot, are tested with the **Test** button, and are killed after 15 idle minutes.
+Star speaks the Model Context Protocol to **local and remote** servers. Open **Settings → MCP** to add a command (for example `uvx mcp-server-fetch` or `npx -y @modelcontextprotocol/server-memory`) or a URL, or paste a whole JSON config — Claude Desktop/Code (`mcpServers`), VS Code/Cursor (`servers`), opencode (`mcp`) and Star's own file all import as-is. Star launches local servers, handshakes over stdio JSON-RPC, and speaks streamable HTTP or legacy SSE to remote ones. Their tools reach the agent as `mcp__server__tool` beside the built-in tools, with the server's real argument schema, and every call asks permission first; plan mode blocks them, bypass allows them. Servers come up at boot, are tested with the **Test** button, and are killed after 15 idle minutes (the next call wakes them, keeping the tool list stable).
+
+The **JSON** tab in Settings → MCP is the escape hatch: paste a config from anywhere, or edit `~/.star-code/mcp.json` directly — the running app notices the change and reloads it, no restart needed. A server config accepts `command` (string or argv array) + `args` + `env`/`environment`, or `url` + `type` (`http`/`sse`) + `headers`, plus `cwd`, `enabled` and `timeoutMs`. On Windows, `npx`/`uvx` shims are resolved through `PATH` + `PATHEXT`, so a `.cmd` server actually starts; a first `npx` run gets 45 seconds to download.
 
 A bridge to an app is only as good as the app behind it: before every turn Star probes the socket of a Blender-style server, and while the app is closed its tools never reach the model — a "connected" server that cannot do the work is worse than no server at all. The prompt also draws the line: MCP tools are for the app they front, and reading files or running commands stays with the built-in tools.
 
-Servers live in `~/.star-code/mcp.json` (a project may add its own in `.star-code/mcp.json`, which wins by name). The file accepts both Star's `servers` key and opencode's `mcp` key verbatim, so importing an opencode install brings its servers along — remote (`url`) servers are listed as skipped until Star speaks that transport. In the CLI, `/mcp` shows the servers, their state and their tools.
+Servers live in `~/.star-code/mcp.json`; a project may add its own in `.star-code/mcp.json` or a Claude-style `.mcp.json` at its root, which win by name. The file accepts Star's `servers` key, Claude's `mcpServers` and opencode's `mcp` verbatim, so importing an opencode install brings its servers along — local and remote. In the CLI, `/mcp` shows the servers, their state, transport and tools.
 
 ## Star Code CLI
 
@@ -201,7 +203,7 @@ In an interactive session:
 | `/model` | List providers, or switch with `/model <provider/model>` |
 | `/connect <provider>` | Store an API key for a provider |
 | `/agents` | List the custom agents — the builtin `explorer` plus `.star-code/agents/*.md` |
-| `/mcp` | List the configured MCP servers, their state and their tools |
+| `/mcp` | List the configured MCP servers (local and remote), their state, transport and tools |
 | `/import` | Import settings (providers, keys, model, theme, agents, MCP servers) from a local opencode install |
 | `/knowledge` | List the project's knowledge files |
 | `/exit` | Quit |
@@ -275,7 +277,7 @@ Star-Code/
 │   │   ├── agent.js        agent loop, permission modes, reasoning, usage
 │   │   ├── tools.js        the 17 tools
 │   │   ├── providers.js    provider catalog, model discovery, streaming
-│   │   ├── mcp.js          MCP client (stdio JSON-RPC, availability probes)
+│   │   ├── mcp.js          MCP client (stdio + HTTP/SSE, config shapes, reload)
 │   │   ├── skills.js       SKILL.md packs
 │   │   ├── plugins.js      local plugin loader
 │   │   └── auth.js         credential store, masking, resolution

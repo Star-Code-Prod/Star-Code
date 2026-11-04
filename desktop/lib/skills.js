@@ -45,7 +45,7 @@ export function userSkillsConfigPath() {
 /** Star's configured extra skill paths (Settings -> Skills, opencode import). */
 export function readSkillsConfig() {
   try {
-    const raw = JSON.parse(fs.readFileSync(userSkillsConfigPath(), "utf8"));
+    const raw = JSON.parse(fs.readFileSync(userSkillsConfigPath(), "utf8").replace(/^\uFEFF/, ""));
     const paths = Array.isArray(raw && raw.paths)
       ? raw.paths.map(String).map((s) => s.trim()).filter(Boolean).slice(0, CONFIG_PATHS_CAP)
       : [];

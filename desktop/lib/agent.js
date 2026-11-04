@@ -442,13 +442,13 @@ function buildSystemPrompt(root, mode, extraTools = [], skillCatalog = "") {
   const planNote = mode === "plan"
     ? "\nPLAN MODE: read-only. Do not edit files or run mutating commands. Explore, then propose a plan and stop.\n"
     : "";
-  // Tools from connected local MCP servers: one line each with their
-  // parameters in parentheses, so the model can actually construct a call.
-  // Every call goes through the normal permission ask (they count as
+  // Tools from connected MCP servers (local or remote): one line each with
+  // their parameters in parentheses, so the model can actually construct a
+  // call. Every call goes through the normal permission ask (they count as
   // dangerous), and the call shape is the ordinary fenced tool block.
   const extra = (Array.isArray(extraTools) ? extraTools : []).slice(0, 40);
   const extraBlock = extra.length
-    ? "\nMCP tools (from connected local MCP servers; call them exactly like the built-in tools, with the same \`\`\`tool block and their full name, arguments following the listed parameters; each call asks for permission first):\n" +
+    ? "\nMCP tools (from connected MCP servers, local or remote; call them exactly like the built-in tools, with the same \`\`\`tool block and their full name, arguments following the listed parameters; each call asks for permission first):\n" +
       extra.map((t) => "- " + t.name + (t.params ? "(" + t.params + ")" : "") +
         (t.description ? " - " + String(t.description).replace(/\s+/g, " ").slice(0, 140) : "")).join("\n") +
       "\nReach for one of these only when the job is about the app or service it fronts; for reading files, searching, editing and running commands use the built-in tools, which are faster and cheaper.\n"

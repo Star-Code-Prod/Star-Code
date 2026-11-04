@@ -30,7 +30,7 @@ import { scanOpencode, applyImport } from "./lib/opencode-import.js";
 // Local MCP servers (Settings > MCP): one manager per process, speaking stdio
 // JSON-RPC to server commands the user configures. Tools surface as
 // mcp__<server>__<tool> and always ask for permission.
-import { createMcpManager, readMcpConfig, mcpToolName } from "./lib/mcp.js";
+import { createMcpManager, readMcpConfig, readMcpConfigText, writeMcpConfigText, parseMcpJson, mcpToolName } from "./lib/mcp.js";
 import { scanSkills, readSkillsConfig, writeSkillsConfig } from "./lib/skills.js";
 import { pluginManager, readPluginsConfig, writePluginsConfig, userPluginsDir } from "./lib/plugins.js";
 // Namespace import: chatSystemPrompt() / cheapModelFor() are being added to
@@ -329,7 +329,7 @@ function bumpSessionStats(session, evt) {
 
 function loadStore() {
   try {
-    const raw = JSON.parse(fs.readFileSync(STORE_FILE, "utf8"));
+    const raw = JSON.parse(fs.readFileSync(STORE_FILE, "utf8").replace(/^\uFEFF/, ""));
     if (Array.isArray(raw.sessions)) {
       for (const s of raw.sessions) {
         if (s && s.id) {
@@ -922,8 +922,42 @@ async function route(req, res) {
 
   /* --------------------------------- mcp --------------------------------- */
   // Settings > MCP speaks to these. The listing doubles as the status board
-  // (off/starting/ready/down + last error + tools per server).
+  // (off/starting/ready/idle/down + last error + tools per server).
   if (req.method === "GET" && url.pathname === "/api/mcp") {
+    const info = mcpManager.configInfo();
+    return sendJSON(res, 200, { ok: true, servers: mcpManager.list(), paths: info });
+  }
+  // The raw JSON files, for the Settings editor ("write it in myself").
+  if (req.method === "GET" && url.pathname === "/api/mcp/config") {
+    return sendJSON(res, 200, { ok: true, ...readMcpConfigText(ROOT), info: mcpManager.configInfo() });
+  }
+  // Save the raw JSON editor. Both scopes are validated before any write.
+  if (req.method === "PUT" && url.pathname === "/api/mcp/config") {
+    const body = await readBody(req);
+    const scope = body.scope === "project" ? "project" : "user";
+    const result = writeMcpConfigText(ROOT, scope, body.text);
+    if (!result.ok) return sendJSON(res, 400, result);
+    mcpManager.reload();
+    return sendJSON(res, 200, { ok: true, path: result.path, servers: mcpManager.list() });
+  }
+  // Paste a config from anywhere: Claude Desktop/Code, VS Code, Cursor,
+  // opencode or Star itself. Merged into the chosen scope by server name.
+  if (req.method === "POST" && url.pathname === "/api/mcp/import") {
+    const body = await readBody(req);
+    const parsed = parseMcpJson(body.text || body.json || "");
+    if (parsed.error) return sendJSON(res, 400, { ok: false, error: parsed.error, skipped: parsed.skipped || [] });
+    const result = mcpManager.importConfig(parsed, body.scope === "project" ? "project" : "user");
+    if (!result.ok) return sendJSON(res, 400, result);
+    return sendJSON(res, 200, {
+      ok: true,
+      imported: result.imported,
+      skipped: parsed.skipped || [],
+      path: result.path,
+      servers: mcpManager.list(),
+    });
+  }
+  if (req.method === "POST" && url.pathname === "/api/mcp/reload") {
+    mcpManager.reload();
     return sendJSON(res, 200, { ok: true, servers: mcpManager.list() });
   }
   if (req.method === "POST" && url.pathname === "/api/mcp") {
@@ -931,30 +965,33 @@ async function route(req, res) {
     const name = String(body.name || "").trim();
     if (!name) return sendJSON(res, 400, { ok: false, error: "a name is required" });
     const existing = readMcpConfig(ROOT).servers[name] || null;
-    if (!existing && body.command === undefined) {
-      return sendJSON(res, 400, { ok: false, error: "a command is required for a new server" });
+    if (!existing && body.command === undefined && body.url === undefined) {
+      return sendJSON(res, 400, { ok: false, error: "a command or a url is required for a new server" });
     }
-    const command = Array.isArray(body.command)
-      ? body.command.map(String).filter((x) => x.trim())
-      : typeof body.command === "string" && body.command.trim()
-        ? body.command.trim().split(/\s+/)
-        : (existing ? existing.command : []);
-    if (!command.length) return sendJSON(res, 400, { ok: false, error: "a command is required" });
-    const environment = body.environment && typeof body.environment === "object"
-      ? body.environment
-      : (existing ? existing.environment : {});
-    const enabled = typeof body.enabled === "boolean" ? body.enabled : (existing ? existing.enabled : true);
-    const okWrite = mcpManager.upsert(name, { command, environment, enabled });
-    if (!okWrite) return sendJSON(res, 500, { ok: false, error: "could not write the MCP config" });
-    return sendJSON(res, 200, { ok: true, name });
+    const cfg = {
+      command: body.command !== undefined ? body.command : existing ? existing.command : undefined,
+      args: body.args,
+      environment: body.environment !== undefined ? body.environment : existing ? existing.environment : undefined,
+      env: body.env,
+      url: body.url !== undefined ? body.url : existing ? existing.url : undefined,
+      headers: body.headers !== undefined ? body.headers : existing ? existing.headers : undefined,
+      cwd: body.cwd !== undefined ? body.cwd : existing ? existing.cwd : undefined,
+      type: body.type !== undefined ? body.type : existing ? existing.transport : undefined,
+      timeoutMs: body.timeoutMs !== undefined ? body.timeoutMs : existing ? existing.timeoutMs : undefined,
+      enabled: typeof body.enabled === "boolean" ? body.enabled : existing ? existing.enabled : true,
+    };
+    const okWrite = mcpManager.upsert(name, cfg);
+    if (!okWrite) return sendJSON(res, 400, { ok: false, error: "that server needs a command or a url (and a writable mcp.json)" });
+    return sendJSON(res, 200, { ok: true, name, servers: mcpManager.list() });
   }
   if (req.method === "DELETE" && url.pathname === "/api/mcp") {
     const name = String(url.searchParams.get("name") || "").trim();
     if (!name) return sendJSON(res, 400, { ok: false, error: "a name is required" });
-    if (!readMcpConfig(ROOT).servers[name]) return sendJSON(res, 400, { ok: false, error: "unknown server" });
-    const okWrite = mcpManager.remove(name);
-    if (!okWrite) return sendJSON(res, 500, { ok: false, error: "could not write the MCP config" });
-    return sendJSON(res, 200, { ok: true });
+    const result = readMcpConfig(ROOT).servers[name]
+      ? mcpManager.remove(name)
+      : { ok: false, error: "unknown server" };
+    if (!result.ok) return sendJSON(res, 400, result);
+    return sendJSON(res, 200, { ok: true, servers: mcpManager.list() });
   }
   if (req.method === "POST" && url.pathname === "/api/mcp/test") {
     const body = await readBody(req);
