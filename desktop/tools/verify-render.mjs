@@ -489,8 +489,10 @@ ok("the folded thinking pill carries a gist",
 ok("a pick per question sends; multiSelect still uses Submit",
   js.includes("const anyMulti = qs.some((q) => q.multiSelect)") &&
   js.includes("(qs.length === 1 && !multi) || (allSingle && ready)") &&
-  js.includes("the last pick sends") &&
-  js.includes("- pick one or more per question, then Submit.") &&
+  js.includes("the last answer sends") &&
+  js.includes("pick an option or type an answer, then Submit.") &&
+  js.includes('class="ask-other"') && js.includes("allowOther") &&
+  js.includes("others[i].trim()") &&
   js.includes('setActivity("waiting for your answer")') &&
   js.includes('setActivity("waiting for your permission")'));
 ok("ask options get a deliberate focus ring",

@@ -105,7 +105,13 @@ export const TOOL_SPECS = [
   },
   {
     name: "ask_user",
-    description: "Ask the user 1-4 questions with clickable options instead of asking in prose. Each question: a short header, the question text and 2-4 options (label + one-line description); put the recommended option first and add '(Recommended)' to its label. Set multiSelect when several answers may apply. Use it when you genuinely need a decision; never for things you can choose yourself.",
+    description: "Ask the user 1-4 questions with clickable options instead of asking in prose. Each question: a short header, the question text and 2-4 options (label + one-line description); put the recommended option first and add '(Recommended)' to its label. Set multiSelect when several answers may apply, and allowOther when a typed answer should be possible. Use it when you genuinely need a decision; never for things you can choose yourself.",
+    dangerous: false,
+    schema: { questions: "array" },
+  },
+  {
+    name: "question",
+    description: "Ask the user a structured question (alias of ask_user, preferred name). 1-4 questions, each with a header, question text, 2-4 clickable options and an optional freeform answer. Set allowOther:true to let the user type an answer, multiSelect:true when several options may apply, and required:false to allow skipping.",
     dangerous: false,
     schema: { questions: "array" },
   },
@@ -136,7 +142,8 @@ export const TOOL_SPECS = [
 ];
 
 /** Ask questions, clamped to something a clickable card can render: 1-4
- *  questions, each with 2-4 options. Exported for the suites. */
+ *  questions, each with 2-4 options. `allowOther` lets the card offer a
+ *  freeform answer too. Exported for the suites. */
 export function normalizeAskQuestions(questions) {
   const list = Array.isArray(questions) ? questions : [];
   const out = [];
@@ -148,11 +155,15 @@ export function normalizeAskQuestions(questions) {
       const src = o && typeof o === "object" ? o : { label: o };
       return { label: String(src.label || "").trim().slice(0, 80), description: String(src.description || "").trim().slice(0, 160) };
     }).filter((o) => o.label);
-    if (options.length < 2) continue;
+    const allowOther = q.allowOther === true;
+    if (options.length < 2 && !allowOther) continue;
     out.push({
+      id: String(q.id || ("q" + (out.length + 1))).trim().slice(0, 40),
       question,
       header: String(q.header || "").trim().slice(0, 24),
       multiSelect: !!q.multiSelect,
+      allowOther,
+      required: q.required !== false,
       options,
     });
   }
@@ -1268,7 +1279,7 @@ export function createToolRunner(root, opts = {}) {
 
   async function ask_user({ questions }) {
     const list = normalizeAskQuestions(questions);
-    if (!list.length) throw new Error("ask_user needs 1-4 questions, each with 2-4 options");
+    if (!list.length) throw new Error("question needs 1-4 questions, each with options or allowOther:true");
     if (!askUser) return "(this environment has no clickable questions - ask the user in plain prose instead)";
     const answers = await askUser(list);
     // null/undefined = nobody could click (no live turn): same prose fallback.
@@ -1331,7 +1342,7 @@ export function createToolRunner(root, opts = {}) {
   const impl = {
     read_file, list_dir, search_files, glob_files, write_file, edit_file, run_command, download,
     search_knowledge: ({ query }) => searchKnowledge(root, query),
-    fetch_url, websearch, multi_edit, task, ask_user, use_folder, suggest_session, preview,
+    fetch_url, websearch, multi_edit, task, ask_user, question: ask_user, use_folder, suggest_session, preview,
     skill: ({ name }) => loadSkill(root, name),
     self_knowledge: ({ topic }) => selfKnowledge(topic),
   };

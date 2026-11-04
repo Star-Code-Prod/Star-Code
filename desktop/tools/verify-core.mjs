@@ -632,6 +632,15 @@ ok("multi_edit is dangerous", mr.isDangerous("multi_edit") === true);
   ok("asking the user needs no permission in any mode",
     decisionFor("manual", "ask_user", empty) === "allow" && decisionFor("plan", "ask_user", empty) === "allow");
 
+  const free = normalizeAskQuestions([{ question: "What should I name it?", allowOther: true, options: [] }]);
+  ok("question supports a freeform answer with no options",
+    free.length === 1 && free[0].allowOther === true && free[0].options.length === 0 &&
+    free[0].required === true && free[0].id === "q1");
+  ok("the question alias is a first-class tool",
+    mr.isDangerous("question") === false && decisionFor("manual", "question", empty) === "allow");
+  const qAlias = await mr.run("question", { questions: [{ question: "Pick", options: [{ label: "A" }, { label: "B" }] }] });
+  ok("the question alias falls back to prose without a UI hook", /plain prose/.test(qAlias), qAlias);
+
   // Without a UI hook the tool falls back to prose instead of hanging.
   const bare = await mr.run("ask_user", { questions: [{ question: "Pick", options: [{ label: "A" }, { label: "B" }] }] });
   ok("ask_user without a hook asks for prose", /plain prose/.test(bare), bare);
