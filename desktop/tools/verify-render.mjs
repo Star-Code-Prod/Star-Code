@@ -464,8 +464,16 @@ ok("the titlebar carries the reference navigation, window controls and no brand 
   html.includes('data-win="minimize"') && html.includes('data-win="close"') &&
   /\.icon-btn\{[^}]*background:transparent/.test(html.replace(/\s+/g, "")) &&
   /\.wcbutton\{[^}]*background:transparent/.test(html.replace(/\s+/g, "")) &&
-  js.includes('$("btnTitleSettings").addEventListener("click", openSettings)') &&
+  js.includes('$("btnTitleSettings").addEventListener("click", () => openSettings("appearance"))') &&
   js.includes('$("btnSidebar").addEventListener("click", () => toggleSidebar())'));
+ok("the sidebar uses four English workspace rows instead of More",
+  !html.includes('id="btnMore"') && !js.includes('$("btnMore")') &&
+  ["New", "Search", "Projects", "Artifacts"].every(t => html.includes(">" + t + "</span>")) &&
+  html.includes('id="navNew"') && html.includes('id="navSearch"') &&
+  html.includes('id="navProjects"') && html.includes('id="navArtifacts"') &&
+  js.includes("function setSidebarNav(") &&
+  /\.sb-nav-row\{[^}]*height:36px/.test(html.replace(/\s+/g, "")) &&
+  /\.sb-nav-row\{[^}]*border-radius:10px/.test(html.replace(/\s+/g, "")));
 ok("fullscreen sits below the titlebar strip",
   /body\.preview-full \.pane-row\[data-pane="preview"\]\{[^}]*inset:40px 0 0 0/.test(html.replace(/\s+/g, " ")));
 ok("the folded thinking pill carries a gist",
@@ -561,7 +569,7 @@ ok("the + opens the composer menu and the arrow is gone",
 ok("the sidebar no longer carries a project picker",
   !html.includes('id="btnOpenFolder"') && !js.includes("btnOpenFolder") &&
   !html.includes('id="btnSettings2"') && !js.includes("btnSettings2") &&
-  js.includes('$("btnTitleSettings").addEventListener("click", openSettings)'));
+  js.includes('$("btnTitleSettings").addEventListener("click", () => openSettings("appearance"))'));
 ok("attach file picks through the bridge or a file input",
   js.includes("async function attachPick(") && js.includes("bridge.pickFile") &&
   js.includes('inp.type = "file"') && js.includes("[attached file") &&
