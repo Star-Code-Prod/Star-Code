@@ -287,7 +287,7 @@ function elide(text, maxChars, what) {
   );
 }
 
-const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "build", ".next", "__pycache__", ".venv", ".cache"]);
+const SKIP_DIRS = new Set(["node_modules", ".git", ".star-code", "dist", "build", ".next", "__pycache__", ".venv", ".cache"]);
 
 const rxEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 

@@ -2292,6 +2292,7 @@ const MODES = [
 const EFFORTS = ["low", "medium", "high"];
 const UNITS = [];
 
+const CHEV_SVG = '<svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg>';
 const ICONS = {
   read_file: ["Read", "Read"], list_dir: ["List", "Listed"], search_files: ["Search", "Searched code"],
   glob_files: ["Find", "Found files"], write_file: ["Write", "Wrote"], edit_file: ["Edit", "Edited"],
@@ -6825,7 +6826,6 @@ document.addEventListener("keydown", e => {
    Settings: showThinking off drops reasoning rows entirely; autoCollapseThinking
    on closes the card once the round ends. */
 const SPARK_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1.5c.7 5.6 4.9 9.8 10.5 10.5-5.6.7-9.8 4.9-10.5 10.5-.7-5.6-4.9-9.8-10.5-10.5C7.1 11.3 11.3 7.1 12 1.5Z"/></svg>';
-const CHEV_SVG = '<svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg>';
 
 /* ---- Process: a round's reasoning and tool calls as one list of rows ----
    Every think/tool run in a round lands in a single card that opens above the
