@@ -466,22 +466,31 @@ ok("the titlebar carries the reference navigation, window controls and no brand 
   /\.wcbutton\{[^}]*background:transparent/.test(html.replace(/\s+/g, "")) &&
   js.includes('$("btnTitleSettings").addEventListener("click", () => openSettings("appearance"))') &&
   js.includes('$("btnSidebar").addEventListener("click", () => toggleSidebar())'));
-ok("the sidebar uses four English workspace rows instead of More",
+ok("the sidebar uses three English workspace rows with modes beside the brand",
   !html.includes('id="btnMore"') && !js.includes('$("btnMore")') &&
-  ["New", "Search", "Projects", "Artifacts"].every(t => html.includes(">" + t + "</span>")) &&
+  !html.includes('id="btnNew"') && !html.includes('id="navArtifacts"') &&
+  ["New", "Search", "Projects"].every(t => html.includes(">" + t + "</span>")) &&
   html.includes('id="navNew"') && html.includes('id="navSearch"') &&
-  html.includes('id="navProjects"') && html.includes('id="navArtifacts"') &&
-  js.includes("function setSidebarNav(") &&
+  html.includes('id="navProjects"') &&
+  html.indexOf('id="modeSeg"') < html.indexOf('class="sb-links"') &&
+  html.includes('id="btnArtifacts"') &&
+  js.includes("function openProjects(") && js.includes("function switchProject(") &&
   /\.sb-nav-row\{[^}]*height:36px/.test(html.replace(/\s+/g, "")) &&
   /\.sb-nav-row\{[^}]*border-radius:10px/.test(html.replace(/\s+/g, "")));
+ok("the Projects row opens a project picker with known folders",
+  html.includes('id="projPop"') && html.includes('id="projList"') &&
+  html.includes('id="projInput"') && html.includes('id="projBrowse"') &&
+  js.includes("function projectPaths(") && js.includes("state.projects") &&
+  js.includes("sessionList) add(s.cwd") &&
+  /\.projpop-row\{/.test(html.replace(/\s+/g, "")));
 ok("boot and list loading use a visible spinner with a reduced-motion fallback",
   html.includes('id="boot"') && html.includes('class="spinner"') &&
   /\.spinner\{[^}]*animation:spin/.test(html.replace(/\s+/g, "")) &&
   js.includes("Loading sessions…") && js.includes("Loading files…") &&
   html.replace(/\s+/g, "").includes(".spinner,.boot-star{animation:none"));
 ok("toasts sit above the composer, not on it",
-  /\.toast\{[^}]*top:52px/.test(html.replace(/\s+/g, "")) &&
-  /\.toast\{[^}]*bottom:auto/.test(html.replace(/\s+/g, "")));
+  /\.toast\{[^}]*bottom:104px/.test(html.replace(/\s+/g, "")) &&
+  /\.toast\{[^}]*top:auto/.test(html.replace(/\s+/g, "")));
 ok("Office documents and PDFs preview in-app",
   html.includes('".docx": "office"') && html.includes('".xlsx": "office"') &&
   html.includes('".pptx": "office"') && html.includes('".pdf": "pdf"') &&

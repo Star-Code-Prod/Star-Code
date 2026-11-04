@@ -1,5 +1,11 @@
 # What's new in Star
 
+## 1.24.1 — 2026-11-04
+- **Cleaner sidebar.** The large New session button is gone (use **New**), and the Chat/Code switch now sits beside the Star wordmark. The workspace nav is **New / Search / Projects**. **Artifacts** moved to the title bar next to the theme button.
+- **Projects popup.** Clicking **Projects** opens a picker of every known project folder (current folder, saved projects, and folders from your sessions), with a path field, Browse and Open. Picking one binds the current session to it and refreshes the file tree.
+- **Faster launch.** Providers, sessions and local-key import now run in parallel; Settings rendering is deferred until after the first usable paint; the boot splash no longer waits for the full pane/tree setup. On a warm profile the app is interactive well under a second.
+- Toast placement moved above the composer so it no longer covers messages or controls.
+
 ## 1.24.0 — 2026-11-04
 - **New sidebar navigation.** The single More row is now **New / Search / Projects / Artifacts**, with the reference 36 px rows, currentColor icons, hover/active fills and keyboard focus. Projects expands and focuses the tree; Artifacts opens the activity panel at the artifacts section. The old menu actions live in a compact `⋯` menu next to the Sessions header.
 - **Settings opens Appearance.** The title-bar sliders button now goes straight to Settings → Appearance instead of reopening Providers.
