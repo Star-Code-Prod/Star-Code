@@ -1,8 +1,10 @@
 # Star desktop — TODO
 
-**Status:** in progress. 1.25.3 replaced the separate thinking pill and tool group with a single process card per round. 1.25.2 shipped the stream/empty-reply fixes, the wider tool-call parser, the rail and preview fixes, and the visual batch V-01…V-33 below.
+**Status:** in progress. 1.25.4 matched the process card to the Claude Code reference and cleared the right-pane and sidebar defects. 1.25.3 replaced the separate thinking pill and tool group with a single process card per round. 1.25.2 shipped the stream/empty-reply fixes, the wider tool-call parser, the rail and preview fixes, and the visual batch V-01…V-33 below.
 **Last updated:** 2026-11-04
 **Target releases:** 1.23.5 (sidebar, settings, motion), 1.24.x (question tool, tools, Office, UX), 1.25.x (desktop parity)
+
+**Done in 1.25.4:** process rows on a 13px / 34px rhythm with 11px rings and a hairline card, header dot only while live, chevron on hover; card keeps its height when the transcript overflows (`flex:none`); the pane grip no longer draws a phantom scrollbar under an empty card; empty Preview is one line; pane headers 42px at 13px with the close button on the far right; update log renders bold and inline code; session rows 46px with a small uppercase group label and no stray horizontal gutter.
 
 **Done in 1.25.3:** one process card per round — header counts “2 thoughts, 1 tool call”, rows list each thought (with a one-line gist) and each call (verb + target) in order, click a row to open its reasoning or output in place, click the header to fold the round; ring state per row (pulsing live, red for denied/failed, duration on the right); replay rebuilds the same card from the stored UI log. Replaced `.think` and the `.tools` group; `verify-render` assertions moved to the new shape.
 
@@ -346,6 +348,7 @@ Candidate bugs to reproduce and fix. Add a test or screenshot for each.
 | V-34 | Tool rows | Long command truncates with no tooltip | `text-overflow` | `title`/expand full args |
 
 **Status (1.25.2):** V-01, V-02, V-03, V-04, V-07, V-11, V-13, V-14, V-15, V-16, V-22, V-33 fixed and checked in a live build. V-09, V-17, V-18, V-19, V-20, V-21, V-23, V-25, V-26, V-27, V-28, V-29, V-30, V-31, V-32 and V-34 still need a pass.
+**Status (1.25.4):** V-09, V-17, V-23, V-25 and V-32 improved as part of the pane pass — headers keep the title on its own line with the icons grouped right, the close target sits on the row edge, and the rail no longer draws chrome it cannot fill. V-18, V-19, V-20, V-21, V-26, V-27, V-28, V-29, V-30 and V-31 still need a pass.
 **Status (1.25.3):** V-15 and V-34 are structural now: tool rows put the target on one line with a `title` and open their full output on click, so neither truncates silently. The old thinking-pill clipping rules are gone with the pill.
 
 ### Visual QA process

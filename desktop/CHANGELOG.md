@@ -1,5 +1,13 @@
 # What's new in Star
 
+## 1.25.4 — 2026-11-04
+- **Process rows, matched to the reference.** The round card now uses 13px rows on a 34px rhythm, 11px ring bullets, a hairline border and 9px header padding, so a round reads as the same process list as Claude Code Desktop instead of a tight table. The header dot only appears while the round is still running, and hover brings the fold chevron back.
+- **One card, always its full height.** The card is `flex:none` now: once a transcript grew taller than the viewport the flex column shrank every card to a two-pixel sliver while its rows stayed in the DOM. That was a real regression in 1.25.3 and it is gone.
+- **The phantom scrollbar under Preview is gone.** It was never a scrollbar — it was the card's drag grip drawing a 4px bar at full opacity. The grip now stays invisible until you hover the card, and an empty card hides it entirely.
+- **An empty Preview is one quiet line.** "Nothing to preview — start a dev server or open a file" replaces 157px of centred dead space, and the panel never holds a scroll gutter it cannot fill.
+- **Right rail chrome is calmer.** Pane headers are 42px at 13px instead of 46px at 14px, the close X moved to the far right where the other icons are, and the header row reads "Preview ⌄ … × +" instead of putting × between the title and +.
+- **The update log speaks markdown.** Bold lead-ins and inline code render as bold and code chips; before this the dialog printed literal `**` and backticks at you.
+- **Sessions read like a list.** Rows are 46px with 13px titles, the group label is a small uppercase eyebrow, and both the session list and the file tree stop reserving a horizontal scrollbar they never use.
 ## 1.25.3 — 2026-11-04
 - **One process card per round.** Thinking and tool calls no longer arrive as a stack of separate pills. Each round gets a single card whose header counts what happened — “2 thoughts, 1 tool call” — with every thought and call listed in order: `Thought · <gist>`, `Found files · *.md`, `Ran · npm run verify`. Click the header to fold the whole round; click a row to read its full reasoning or output in place.
 - **Rows carry their own state.** A ring pulses while a row runs, turns red for a denied call or a failure (`exit 1`, `failed`, `error`), and the right side shows how long it took. Reasoning rows show the duration, so “Thought — 4.2 s” is visible without opening anything.

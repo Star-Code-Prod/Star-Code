@@ -203,7 +203,7 @@ body.is-mac .wc{display:none}
 .sidebar{
   width:var(--sb-w);flex:none;background:var(--sidebar);border-right:1px solid var(--border);
   position:relative;
-  display:flex;flex-direction:column;overflow:hidden;min-height:0;
+  display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;min-height:0;
   padding:14px 12px 0;
 }
 .sb-top{display:flex;align-items:center;gap:2px;padding:8px 10px 0;flex:none}
@@ -307,12 +307,12 @@ body.mode-chat #navProjects{display:none}
 /* One scroll column per section, and neither is allowed to squeeze the other
    out of the rail - the session list gives way to the file tree instead of
    leaving a clipped row behind. */
-.sessions{flex:0 1 auto;max-height:min(42vh,380px);overflow-y:auto;overscroll-behavior:contain;min-height:0;padding:0;scrollbar-gutter:stable}
+.sessions{flex:0 1 auto;max-height:min(42vh,380px);min-height:88px;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding:0;scrollbar-gutter:stable}
 .sess-group{
-  padding:16px 6px 6px;font-size:var(--fs-12);color:var(--muted);
+  padding:10px 6px 4px;font-size:var(--fs-11);letter-spacing:.04em;text-transform:uppercase;color:var(--dim);
 }
 .sess{
-  display:flex;align-items:center;gap:12px;width:100%;padding:9px 10px;border-radius:10px;
+  display:flex;align-items:center;gap:10px;width:100%;padding:8px 9px;border-radius:9px;
   font-size:var(--fs-14);color:var(--text2);text-align:left;position:relative;
   transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease),transform var(--t-fast) var(--ease);
 }
@@ -354,7 +354,7 @@ body.mode-chat #navProjects{display:none}
 .attachchip button:hover{background:var(--hover);color:var(--text)}
 .sess.on .ico{color:var(--muted)}
 .sess .txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
-.sess .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.35;color:var(--text-strong,var(--text));font-size:var(--fs-14)}
+.sess .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.4;color:var(--text-strong,var(--text));font-size:var(--fs-13)}
 .sess .meta{
   font-size:var(--fs-12);color:var(--muted);line-height:1.35;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
@@ -377,7 +377,7 @@ body.mode-chat #navProjects{display:none}
 }
 
 /* ---------------- project files tree ---------------- */
-.sb-tree{flex:1 1 0;min-height:90px;overflow-y:auto;padding:0 8px 10px}
+.sb-tree{flex:1 1 0;min-height:90px;overflow-y:auto;overflow-x:hidden;padding:0 8px 10px}
 .ft-item{
   display:flex;align-items:center;gap:8px;width:100%;padding:5px 6px;border-radius:6px;
   color:var(--text);text-align:left;font-size:var(--fs-14);
@@ -513,38 +513,40 @@ body.mode-chat #navProjects{display:none}
    in arrival order, and each row opens in place. Replaced the old .think pill
    and .tools group so a turn reads as one block, not a stack of cards. */
 .proc{
-  display:flex;flex-direction:column;margin:0;align-self:stretch;
-  border:1px solid var(--border);border-radius:var(--r-lg);background:var(--panel);overflow:hidden;
+  display:flex;flex-direction:column;flex:none;margin:0;align-self:stretch;
+  border:1px solid var(--border2);border-radius:12px;background:var(--panel);overflow:hidden;
 }
 .proc-h{
-  display:flex;align-items:center;gap:9px;width:100%;padding:8px 13px;text-align:left;
-  font-size:var(--fs-12);color:var(--muted);
+  display:flex;align-items:center;gap:8px;width:100%;padding:9px 14px;text-align:left;
+  font-size:var(--fs-13);color:var(--muted);
   transition:color var(--t-fast) var(--ease),background var(--t-fast) var(--ease);
 }
 .proc-h:hover{color:var(--text2);background:var(--hover)}
-.proc-h .pdot{width:6px;height:6px;border-radius:50%;flex:none;background:var(--dim);transition:background var(--t-fast)}
-.proc.live .proc-h .pdot{background:var(--brand);animation:pulse 1.4s ease-in-out infinite}
+.proc-h .pdot{display:none;width:6px;height:6px;border-radius:50%;flex:none;background:var(--brand)}
+.proc.live .proc-h .pdot{display:block;animation:pulse 1.4s ease-in-out infinite}
 .proc-h .psum{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
-.proc-h .pchev{flex:none;display:flex;color:var(--dim);transition:transform var(--t-fast) var(--ease)}
+.proc-h .pchev{flex:none;display:flex;color:var(--dim);opacity:0;transition:transform var(--t-fast) var(--ease),opacity var(--t-fast) var(--ease)}
+.proc-h:hover .pchev,.proc.open .pchev{opacity:1}
 .proc.open .proc-h .pchev{transform:rotate(180deg)}
 .proc-b{display:none}
 .proc.open .proc-b{display:block}
 .pitem{border-top:1px solid var(--border)}
 .pitem:first-child{border-top:0}
 .prow{
-  display:flex;align-items:center;gap:9px;width:100%;padding:7px 13px;text-align:left;
-  font-size:var(--fs-125);color:var(--text2);transition:background var(--t-fast) var(--ease);
+  display:flex;align-items:center;gap:10px;width:100%;padding:8px 14px;text-align:left;
+  font-size:var(--fs-13);color:var(--text2);transition:background var(--t-fast) var(--ease);
 }
 .prow:hover{background:var(--hover)}
 .pib{flex:none;display:flex;align-items:center;justify-content:center;width:14px;height:14px}
-.pring{display:block;width:9px;height:9px;border-radius:50%;border:1.5px solid color-mix(in srgb,var(--dim) 85%,transparent);transition:border-color var(--t-fast),background var(--t-fast)}
+.pring{display:block;width:11px;height:11px;border-radius:50%;border:1.5px solid color-mix(in srgb,var(--muted) 62%,transparent);transition:border-color var(--t-fast),background var(--t-fast)}
 .pitem.run .pring{border-color:var(--brand);animation:pulse 1.4s ease-in-out infinite}
 .pitem.no .pring{border-color:var(--del-fg);background:var(--del-fg)}
 .plbl{flex:none;color:var(--text);font-weight:500}
 .pdsc{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
 .pdsc:not(:empty)::before{content:"· ";color:var(--dim)}
-.pmet{flex:none;color:var(--dim);font-family:var(--font-mono);font-size:var(--fs-11);font-variant-numeric:tabular-nums}
-.pdet{display:none;padding:0 13px 10px 36px}
+.pmet{display:none;flex:none;color:var(--dim);font-family:var(--font-mono);font-size:var(--fs-11);font-variant-numeric:tabular-nums}
+.pitem.run .pmet,.pitem.open .pmet{display:block}
+.pdet{display:none;padding:0 14px 12px 38px}
 .pitem.open .pdet{display:block}
 .pout{
   margin:0;padding:8px 10px;max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-word;
@@ -641,6 +643,8 @@ body.mode-chat #navProjects{display:none}
 .cventry .cvh .cvd{font-size:var(--fs-11);color:var(--dim);font-weight:400;margin-left:7px}
 .cventry ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px}
 .cventry li{font-size:var(--fs-125);color:var(--text2);line-height:1.6}
+.cventry li b{color:var(--text);font-weight:600}
+.cventry li code{font-family:var(--font-mono);font-size:.9em;padding:1px 4px;border-radius:4px;background:var(--code-bg);color:var(--text2)}
 .cvempty{color:var(--dim);font-size:var(--fs-125)}
 /* The preview host fills the pane; everything inside flexes from here. */
 #filePreview{min-height:100%;display:flex;flex-direction:column}
@@ -1156,9 +1160,9 @@ body.pane-drag .pane-grip{background:color-mix(in srgb,var(--accent) 45%,transpa
 .pane-row.active{border-color:color-mix(in srgb,var(--brand) 55%,var(--border))}
 #paneBody.solo .pane-row.open{flex:0 0 auto}
 .pane-sub{
-  display:flex;align-items:center;gap:6px;height:46px;padding:0 10px 0 18px;background:var(--panel);
+  display:flex;align-items:center;gap:6px;height:42px;padding:0 8px 0 14px;background:var(--panel);
   border-bottom:1px solid var(--border);flex:none;
-  font-size:var(--fs-14);font-weight:600;color:var(--text-strong,var(--text));
+  font-size:var(--fs-13);font-weight:600;color:var(--text-strong,var(--text));
 }
 .pane-row.collapsed .pane-sub{border-bottom:0}
 .pane-sub .btn{border-radius:var(--r-full);padding:5px 12px;font-size:var(--fs-12);background:transparent;border-color:var(--border)}
@@ -1185,9 +1189,11 @@ body.pane-drag .pane-grip{background:color-mix(in srgb,var(--accent) 45%,transpa
 }
 .pane-grip-b::after{
   content:"";position:absolute;left:50%;top:5px;width:44px;height:4px;transform:translateX(-50%);
-  border-radius:4px;background:var(--border);opacity:1;
+  border-radius:4px;background:var(--border);opacity:0;
   transition:opacity var(--t-fast) var(--ease),background var(--t-fast) var(--ease);
 }
+.pane-row:hover .pane-grip-b::after{opacity:1}
+.pane-row.empty .pane-grip-b{visibility:hidden}
 .pane-grip-b:hover{background:color-mix(in srgb,var(--accent) 12%,transparent)}
 .pane-grip-b:hover::after{opacity:1;background:var(--accent)}
 body.pane-hdrag{cursor:row-resize;user-select:none}
@@ -1254,7 +1260,15 @@ html[data-embed] #splitBox{display:none !important}
 .pane-row[data-pane="preview"] .pempty{font-size:var(--fs-15)}
 .pane-row[data-pane="preview"] .pempty span{font-size:var(--fs-13)}
 .pempty{padding:20px;text-align:center;color:var(--muted);font-size:var(--fs-13);line-height:1.7}
-.pane-row[data-pane="preview"] .pempty{height:auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:28px 22px}
+.pane-row[data-pane="preview"].empty .pempty{
+  display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:flex-start;gap:8px;
+  height:auto;padding:12px 15px;text-align:left;white-space:nowrap;overflow:hidden;
+  font-size:var(--fs-13);line-height:1.4;
+}
+.pane-row[data-pane="preview"].empty .pempty::before{font-size:12px;margin:0;flex:none}
+.pane-row[data-pane="preview"].empty .pempty span{
+  flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:var(--fs-125);color:var(--dim);
+}
 .pempty::before{
   content:"✦";display:block;font-size:20px;line-height:1;margin-bottom:4px;
   color:var(--brand);opacity:1;
@@ -1740,6 +1754,7 @@ body.mode-chat #bigProj{display:none}
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.8" y="4.2" width="12.4" height="9.4" rx="1.8"/><path d="M5.5 4.2V2.8h5v1.4M5.6 7.2h4.8"/></svg>
           <span>Projects</span>
         </button>
+
       </nav>
     </div>
     <div class="sb-sec">Sessions<span class="spacer"></span>
@@ -1909,7 +1924,7 @@ body.mode-chat #bigProj{display:none}
 
       <section class="pane-row" data-pane="preview">
         <div class="pane-sub"><span id="previewTitle">Preview</span><span class="spacer"></span><button class="pane-x" data-blender="1" title="Blender live view (needs a blender MCP server)" aria-label="Toggle Blender live view"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.6" y="3.2" width="12.8" height="9.6" rx="2"/><circle cx="8" cy="8" r="2.6"/></svg></button><button class="pane-x" data-panefull="preview" title="Fullscreen (Esc to exit)" aria-label="Fullscreen preview"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.2 2.5H2.5v3.7M9.8 2.5h3.7v3.7M6.2 13.5H2.5V9.8M9.8 13.5h3.7V9.8"/></svg></button><button class="pane-x" data-panex="preview" title="Close Preview" aria-label="Close Preview"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
-        <div class="pane-b"><div class="pempty" id="previewEmpty">Not running<br><span style="font-size:11.5px">Start a dev server, open an artifact, or click a file — previews appear here.</span></div><div id="filePreview" style="display:none"></div><div id="blenderView" style="display:none"><img id="blenderImg" alt="Blender viewport"><div class="bv-cap" id="blenderCap"></div></div></div>
+        <div class="pane-b"><div class="pempty" id="previewEmpty">Nothing to preview <span>start a dev server or open a file</span></div><div id="filePreview" style="display:none"></div><div id="blenderView" style="display:none"><img id="blenderImg" alt="Blender viewport"><div class="bv-cap" id="blenderCap"></div></div></div>
         <div class="pane-grip-b" data-panegrip="preview" title="Drag to resize · double-click to reset" aria-hidden="true"></div>
       </section>
 
@@ -2907,10 +2922,10 @@ function renderPaneTabs() {
       <span class="lb">${esc(active ? active.label : "Panes")}</span>${ab ? `<span class="badge">${ab > 9 ? "9+" : ab}</span>` : ""}
       <svg class="chev" width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4.5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>` +
+    `<span class="spacer"></span>` +
     (activePane
       ? `<button class="paneX" id="paneX" title="Close panel" aria-label="Close panel"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>`
       : "") +
-    `<span class="spacer"></span>` +
     `<button class="paneAdd" id="paneAdd" title="Open a pane" aria-label="Open a pane"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button>`;
   $("paneTitle").addEventListener("click", (e) => { e.stopPropagation(); paneTitleMenu($("paneTitle")); });
   const x = $("paneX");
@@ -6698,11 +6713,16 @@ async function loadChangelog() {
   try { changelog = await (await fetch("/api/changelog")).json(); } catch { changelog = null; }
   return changelog;
 }
+function inlineMd(s) {
+  return esc(s)
+    .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>")
+    .replace(/`([^`]+)`/g, "<code>$1</code>");
+}
 function changelogHtml(entries, onlyNewest) {
   const list = (entries || []).slice(0, onlyNewest ? 1 : (entries || []).length);
   return list.map((e) => `<div class="cventry">
       <div class="cvh">v${esc(e.version)}${e.date ? `<span class="cvd">${esc(e.date)}</span>` : ""}</div>
-      <ul>${(e.notes || []).map((n) => `<li>${esc(n)}</li>`).join("")}</ul>
+      <ul>${(e.notes || []).map((n) => `<li>${inlineMd(n)}</li>`).join("")}</ul>
     </div>`).join("");
 }
 function versionNewer(a, b) {
