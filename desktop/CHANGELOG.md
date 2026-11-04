@@ -1,5 +1,16 @@
 # What's new in Star
 
+## 1.25.5 — 2026-11-04
+- **The agent can now use git.** `git_status`, `git_diff`, `git_log` and `git_commit` work on the real repo: the status counts staged/modified/untracked and lists the files, the diff shows a unified patch (or `--stat`), and a commit stages everything and reports the new head. A missing author identity returns the two `git config` lines instead of a stack trace.
+- **It can verify its own work.** `test_run` finds the project's `verify`/`test`/`check`/`lint` script (npm, pnpm, yarn or bun), then cargo, go, pytest or make, runs it and answers `PASS`/`FAIL` with the duration and the output tail. That is the difference between claiming a fix and showing one.
+- **Real Office documents, both directions.** `office_read` turns .docx/.xlsx/.pptx into readable text; `office_write` builds genuine files from JSON (headings, paragraphs, bullets, sheets of rows, slides) and reads each one back so the reply can state what landed. No dependency, no LibreOffice.
+- **Memory that survives the session.** `memory` stores preferences and conventions in `.star-code/memory.json`, and the system prompt now opens with them, so a correction given once does not have to be given twice.
+- **House styles.** `template` saves reusable text — a report skeleton, a client-email voice — and the prompt lists what exists so the agent reads the right one before writing for you.
+- **Charts instead of adjectives.** `chart` renders bar, line and pie to an SVG at 560×300 in the app's palette, saved to `.star-code/charts/`.
+- **Recurring work.** `schedule` stores a task with a plain-language cadence ("every day at 09:00", "every 2 hours"); the app checks once a minute, runs what is due in a fresh session and moves the clock forward.
+- **Delivery and a paper trail.** `deliver_file` hands a finished file to the user with the link that opens or downloads it, and `trace` shows the last tool calls with duration and status (every call is written to `.star-code/trace.jsonl`).
+- **Connectors without a new protocol.** `connector` wires an MCP server for mail, calendar, drive, docs, issues, chat or CRM, with presets for gmail, google-calendar, google-drive, notion, linear, jira, slack and hubspot.
+- **A suite for all of it.** `tools/verify-tools.mjs` drives every new tool against a throwaway folder — 27 checks, including the round trip through the app's own document extractors — and runs in `npm run verify`.
 ## 1.25.4 — 2026-11-04
 - **Process rows, matched to the reference.** The round card now uses 13px rows on a 34px rhythm, 11px ring bullets, a hairline border and 9px header padding, so a round reads as the same process list as Claude Code Desktop instead of a tight table. The header dot only appears while the round is still running, and hover brings the fold chevron back.
 - **One card, always its full height.** The card is `flex:none` now: once a transcript grew taller than the viewport the flex column shrank every card to a two-pixel sliver while its rows stayed in the DOM. That was a real regression in 1.25.3 and it is gone.

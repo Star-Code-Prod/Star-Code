@@ -2300,10 +2300,45 @@ const ICONS = {
   task: ["Explore", "Explored"], self_knowledge: ["Learn", "Learned"],
   ask_user: ["Ask", "Asked"], skill: ["Study", "Studied"],
   search_knowledge: ["Knowledge", "Searched knowledge"], preview: ["Looked", "Looked at the preview"],
+  git_status: ["Status", "Checked the repo"], git_diff: ["Diff", "Compared"], git_log: ["Log", "Read the log"],
+  git_commit: ["Commit", "Committed"], test_run: ["Test", "Tested"],
+  office_read: ["Open", "Opened document"], office_write: ["Write", "Wrote document"],
+  memory: ["Recall", "Recalled"], template: ["Template", "Used template"],
+  chart: ["Chart", "Drew a chart"], schedule: ["Schedule", "Scheduled"],
+  trace: ["Trace", "Checked the trace"], connector: ["Connect", "Connected"],
+  deliver_file: ["Deliver", "Delivered"],
   error: ["Error", "Error"],
 };
 
 /* ============================ BOOT ============================ */
+let schedBusy = false;
+async function runDueSchedules() {
+  if (schedBusy) return;
+  let due = [];
+  try {
+    const r = await fetch("/api/schedules");
+    if (r.ok) due = (await r.json()).due || [];
+  } catch { return; }
+  if (!due.length) return;
+  schedBusy = true;
+  try {
+    for (const t of due) {
+      await fetch("/api/schedules/advance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: t.id }),
+      });
+      await newSession();
+      toast("Scheduled: " + t.title);
+      await sendToAgent(t.prompt);
+    }
+  } catch (e) {
+    toast("Scheduled task failed: " + (e.message || e));
+  } finally {
+    schedBusy = false;
+  }
+}
+
 const bridge = (typeof window !== "undefined" && window.desktop && window.desktop.isElectron) ? window.desktop : null;
 
 (async function boot() {
@@ -2326,6 +2361,8 @@ const bridge = (typeof window !== "undefined" && window.desktop && window.deskto
   }
   const sessionsPromise = Promise.resolve().then(() => loadSessions());
   const keysPromise = importLocalKeys();
+  setTimeout(runDueSchedules, 6000);
+  setInterval(runDueSchedules, 60000);
   meta = await (await fetch("/api/providers")).json();
   // A fresh profile follows the model the user last picked anywhere (the CLI
   // reports it as meta.lastModel); once a profile exists its own pick wins.

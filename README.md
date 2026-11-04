@@ -97,7 +97,8 @@ The **base URL is per provider and fully honored** — point it at a proxy or a 
 
 | | |
 |---|---|
-| **17 real tools** | `read_file` `list_dir` `search_files` `glob_files` `write_file` `edit_file` `multi_edit` `run_command` `download` `search_knowledge` `task` `fetch_url` `websearch` `self_knowledge` `ask_user` `skill` `use_folder` |
+| **Core tools** | `read_file` `list_dir` `search_files` `glob_files` `write_file` `edit_file` `multi_edit` `run_command` `download` `search_knowledge` `task` `fetch_url` `websearch` `self_knowledge` `ask_user` `skill` `use_folder` |
+| **Power tools** | Beyond the core set: `git_status` `git_diff` `git_log` `git_commit` · `test_run` (the project's own verify/test script, PASS/FAIL with the tail) · `office_read` `office_write` (real .docx/.xlsx/.pptx, written then read back) · `memory` (preferences that survive sessions) · `template` (house style) · `chart` (bar/line/pie to SVG) · `schedule` (recurring work) · `trace` (recent tool calls) · `connector` (MCP for mail, calendar, docs, issues, chat, CRM) · `deliver_file` |
 | **Clickable questions** | `ask_user` asks 1-4 questions with 2-4 options each — the card renders in the conversation with the recommended option first, and a click is the answer |
 | **Cards that persist** | Question, thinking, suggestion and permission cards survive switching sessions and restarting the app — answers and verdicts come back with them, and tool rows replay |
 | **Self-sorting sidebar** | Sessions group themselves: **Needs input** (a pending question or permission climbs to the top), **Working**, **Completed** — in the background too |

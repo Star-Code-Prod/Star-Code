@@ -48,6 +48,17 @@ fetch_url, websearch, self_knowledge, ask_user, skill, use_folder, preview,
 suggest_session. Independent calls in one step run as a parallel fleet when
 none needs a permission ask, a snapshot or an interactive answer; results
 settle in call order.
+The rest of the set: git_status, git_diff, git_log, git_commit (the repo, with
+a real commit when the user asks for one); test_run (runs the project's own
+verify/test/check script and returns PASS or FAIL with the output tail);
+office_read and office_write (real .docx/.xlsx/.pptx - write, then read back);
+memory (remember/recall preferences across sessions, surfaced in the system
+prompt); template (house style text; names are also listed in the prompt);
+chart (bar/line/pie rendered to an SVG file for numbers in a reply); schedule
+(recurring work - the app runs it when due and advances the clock); trace
+(recent tool calls with duration and status); connector (wire an MCP server for
+email, calendar, docs, issues, chat or CRM); deliver_file (hands a finished
+file to the user with the link that opens or downloads it).
 ask_user asks 1-4 questions with 2-4 clickable options each (recommended
 option first) and returns the clicks as the tool result; the desktop renders
 a card and a click is the answer, several single-select questions send on the

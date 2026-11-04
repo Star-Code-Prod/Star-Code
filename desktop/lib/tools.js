@@ -17,6 +17,10 @@ import { classifySource } from "./sources.js";
 import { reputationReport } from "./reputation.js";
 import { getAgent, listAgents } from "./agents.js";
 import { loadSkill } from "./skills.js";
+import {
+  gitStatus, gitDiff, gitLog, gitCommit, testRun, officeRead, officeWrite,
+  memoryOp, templateOp, chartWrite, scheduleOp, traceAppend, traceTail, connectorOp,
+} from "./extras.js";
 
 export const TOOL_SPECS = [
   {
@@ -138,6 +142,90 @@ export const TOOL_SPECS = [
     description: "Look at and drive the live Preview pane - what the user is actually looking at: an artifact (motion film, voxel build, html/svg/md page), a previewed file, or its rendered frame. action:\"look\" returns the rendered text, live state (time, angle, zoom) and a coarse luminance picture of the canvas, so you can judge composition, framing and contrast without guessing. action:\"act\" moves it in real time first (seek a motion, rotate/zoom a voxel build, click/scroll/type an html page), then reports the new state. Call it after publishing a visual artifact, or whenever the user talks about what is on screen.",
     dangerous: false,
     schema: { action: "string", seek: "number", rotate: "number", zoom: "number", click: "string", scroll: "number", type: "string", selector: "string" },
+  },
+  {
+    name: "git_status",
+    description: "Show the repo state: current branch, how many files are staged/modified/untracked, and the list. Call this before committing or when the user asks what changed.",
+    dangerous: false,
+    schema: {},
+  },
+  {
+    name: "git_diff",
+    description: "Show a unified diff of unstaged changes (or staged with staged=true). Pass path to narrow it to one file, stat=true for a summary instead of the patch.",
+    dangerous: false,
+    schema: { path: "string?", staged: "boolean?", stat: "boolean?" },
+  },
+  {
+    name: "git_log",
+    description: "Recent commits, one line each. Use it to see what landed recently or to pick a commit range.",
+    dangerous: false,
+    schema: { limit: "number?" },
+  },
+  {
+    name: "git_commit",
+    description: "Stage everything and commit with a message. Only commit when the user asked you to save the work - never on your own initiative.",
+    dangerous: true,
+    schema: { message: "string", all: "boolean?" },
+  },
+  {
+    name: "test_run",
+    description: "Run the project's test/build check and read the verdict. It detects npm/pnpm/yarn/bun verify|test|check|lint, cargo test, go test, pytest or make test; pass script to force a specific package.json script. Returns PASS/FAIL with the exit code and the output tail, so verify your own edits instead of guessing.",
+    dangerous: false,
+    schema: { script: "string?" },
+  },
+  {
+    name: "office_read",
+    description: "Read a .docx, .xlsx or .pptx as text: paragraphs with their style names, sheets as tab-separated rows, slides as numbered paragraphs. Use it whenever the user hands you a document or asks what is in one.",
+    dangerous: false,
+    schema: { path: "string" },
+  },
+  {
+    name: "office_write",
+    description: "Create a real .docx, .xlsx or .pptx that opens in Word/Excel/PowerPoint. content is JSON: docx {title, sections:[{heading, paragraphs:[...], bullets:[...]}]}, xlsx {sheets:[{name, rows:[[...]]}]}, pptx {slides:[{title, paragraphs:[...], bullets:[...]}]}. The file is read back after writing, so the reply can state what landed.",
+    dangerous: true,
+    schema: { path: "string", kind: "string?", content: "string" },
+  },
+  {
+    name: "memory",
+    description: "Long-term notes about this user and project that survive sessions. action:\"remember\" (key, value) saves or replaces one; \"recall\" (query) searches; \"list\" shows all; \"forget\" (key) removes one. Only store what the user would expect you to remember - preferences, conventions, ongoing decisions.",
+    dangerous: false,
+    schema: { action: "string", key: "string?", value: "string?", query: "string?" },
+  },
+  {
+    name: "template",
+    description: "House style profiles: reusable text, formats and voice rules for repeat output (a report skeleton, a client email voice, a document format). action:\"list\" | \"save\" (name, text) | \"get\" (name) | \"delete\" (name). Read the matching template before writing a document for this user.",
+    dangerous: false,
+    schema: { action: "string", name: "string?", text: "string?" },
+  },
+  {
+    name: "chart",
+    description: "Render a chart as an SVG file the user can open or embed: kind bar|line|pie, title, and series [{label, value}]. Use it for numbers in the conversation instead of describing a trend in prose.",
+    dangerous: false,
+    schema: { kind: "string?", title: "string?", series: "string", path: "string?" },
+  },
+  {
+    name: "schedule",
+    description: "Recurring tasks (weekly reports, morning briefs). action:\"add\" (title, prompt, when) | \"list\" | \"remove\" (id or title). when reads like \"every 2 hours\", \"every day at 09:00\" or \"daily at 08:30\"; prompt is the request that will run.",
+    dangerous: false,
+    schema: { action: "string", title: "string?", prompt: "string?", when: "string?", id: "string?" },
+  },
+  {
+    name: "trace",
+    description: "Recent tool calls with duration and status, newest first. Reach for it when the user asks what you did, or to check your own work in a long turn.",
+    dangerous: false,
+    schema: { limit: "number?" },
+  },
+  {
+    name: "connector",
+    description: "Connect the apps where the user's data lives, over MCP: email, calendar, drive, docs, issues, chat and CRM. action:\"list\" shows what is configured, \"add\" (name, command, args) wires one up, \"remove\" (name) drops it. Presets: gmail, google-calendar, google-drive, notion, linear, jira, slack, hubspot. Runs stay read-only unless the user asks otherwise.",
+    dangerous: false,
+    schema: { action: "string", name: "string?", command: "string?", args: "string?" },
+  },
+  {
+    name: "deliver_file",
+    description: "Hand a finished file to the user: checks it exists, reports its size and gives the link that opens or downloads it in Star. Call it once a document, image, archive or report is ready.",
+    dangerous: false,
+    schema: { path: "string", note: "string?" },
   },
 ];
 
@@ -773,6 +861,33 @@ export function blockedDownloadCommand(command) {
     "(winget install --id <Id> --exact, apt, brew, npm).";
 }
 
+function parseSeries(value) {
+  if (Array.isArray(value)) return value;
+  const text = String(value || "").trim();
+  if (!text) return [];
+  try {
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed)) return parsed;
+  } catch {}
+  const rows = [];
+  for (const part of text.split(/[\n;,]+/)) {
+    const m = /^\s*([^:]+?)\s*:\s*(-?[\d.]+)\s*$/.exec(part);
+    if (m) rows.push({ label: m[1], value: Number(m[2]) });
+  }
+  return rows;
+}
+
+function parseArgs(value) {
+  if (Array.isArray(value)) return value.map(String);
+  const text = String(value || "").trim();
+  if (!text) return [];
+  try {
+    const parsed = JSON.parse(text);
+    if (Array.isArray(parsed)) return parsed.map(String);
+  } catch {}
+  return text.split(/\s+/).filter(Boolean);
+}
+
 export function createToolRunner(root, opts = {}) {
   const resolve = (p) => (path.isAbsolute(p) ? path.normalize(p) : path.resolve(root, p || "."));
   const runSubagent = opts.runSubagent || null;
@@ -1339,41 +1454,92 @@ export function createToolRunner(root, opts = {}) {
     return lines.join("\n\n");
   }
 
+  async function deliver_file({ path: p, note }) {
+    const wanted = String(p || "").trim();
+    if (!wanted) throw new Error("deliver_file needs a path");
+    const abs = path.isAbsolute(wanted) ? wanted : path.resolve(root, wanted);
+    let stat;
+    try {
+      stat = await fs.stat(abs);
+    } catch {
+      throw new Error("no such file: " + wanted + " - write it first, then deliver it");
+    }
+    if (!stat.isFile()) throw new Error(wanted + " is a folder, not a file");
+    const size = stat.size >= 1024 * 1024 ? (stat.size / 1024 / 1024).toFixed(1) + " MB" : Math.max(1, Math.round(stat.size / 1024)) + " KB";
+    const shown = path.relative(root, abs) || path.basename(abs);
+    const link = "/api/file?path=" + encodeURIComponent(shown.split(path.sep).join("/"));
+    const lines = ["Delivered " + shown + " (" + size + ").", "Open or download: " + link];
+    if (note && String(note).trim()) lines.push(String(note).trim());
+    lines.push("The file stays on disk at " + abs + " - the user can also open it from the file tree or the preview pane.");
+    return lines.join("\n");
+  }
+
   const impl = {
     read_file, list_dir, search_files, glob_files, write_file, edit_file, run_command, download,
     search_knowledge: ({ query }) => searchKnowledge(root, query),
-    fetch_url, websearch, multi_edit, task, ask_user, question: ask_user, use_folder, suggest_session, preview,
+    fetch_url, websearch, multi_edit, task, ask_user, question: ask_user, use_folder, suggest_session, preview, deliver_file,
+    git_status: () => gitStatus(root),
+    git_diff: (a) => gitDiff(root, a),
+    git_log: (a) => gitLog(root, a),
+    git_commit: (a) => gitCommit(root, a),
+    test_run: (a) => testRun(root, a),
+    office_read: ({ path: p }) => officeRead(root, p),
+    office_write: (a) => officeWrite(root, a),
+    memory: (a) => memoryOp(root, a),
+    template: (a) => templateOp(root, a),
+    chart: (a) => chartWrite(root, { ...a, series: parseSeries(a && a.series) }),
+    schedule: (a) => scheduleOp(root, a),
+    trace: (a) => traceTail(root, a),
+    connector: (a) => connectorOp(root, { ...a, args: parseArgs(a && a.args) }),
     skill: ({ name }) => loadSkill(root, name),
     self_knowledge: ({ topic }) => selfKnowledge(topic),
   };
 
-  return {
-    async run(name, args) {
-      if (plugins && plugins.has(name)) {
-        if (allowedSet && !allowedSet.has(name)) {
-          throw new Error("Tool \"" + name + "\" is not available to this agent. Allowed tools: " +
-            (allowed.length ? allowed.join(", ") : "(none)") + ".");
-        }
-        return await plugins.call(name, args || {});
-      }
-      if (String(name).startsWith("mcp__")) {
-        if (allowedSet && !allowedSet.has(name)) {
-          throw new Error("Tool \"" + name + "\" is not available to this agent. Allowed tools: " +
-            (allowed.length ? allowed.join(", ") : "(none)") + ".");
-        }
-        if (!mcp || !mcp.has(name)) {
-          throw new Error("Tool \"" + name + "\" is not available to this agent." +
-            (allowed ? " Allowed tools: " + (allowed.length ? allowed.join(", ") : "(none)") + "." : ""));
-        }
-        return await mcp.call(name, args || {});
-      }
-      const fn = impl[name];
-      if (!fn) throw new Error("Unknown tool: " + name);
+  async function callTool(name, args) {
+    if (plugins && plugins.has(name)) {
       if (allowedSet && !allowedSet.has(name)) {
         throw new Error("Tool \"" + name + "\" is not available to this agent. Allowed tools: " +
           (allowed.length ? allowed.join(", ") : "(none)") + ".");
       }
-      return await fn(args || {});
+      return await plugins.call(name, args || {});
+    }
+    if (String(name).startsWith("mcp__")) {
+      if (allowedSet && !allowedSet.has(name)) {
+        throw new Error("Tool \"" + name + "\" is not available to this agent. Allowed tools: " +
+          (allowed.length ? allowed.join(", ") : "(none)") + ".");
+      }
+      if (!mcp || !mcp.has(name)) {
+        throw new Error("Tool \"" + name + "\" is not available to this agent." +
+          (allowed ? " Allowed tools: " + (allowed.length ? allowed.join(", ") : "(none)") + "." : ""));
+      }
+      return await mcp.call(name, args || {});
+    }
+    const fn = impl[name];
+    if (!fn) throw new Error("Unknown tool: " + name);
+    if (allowedSet && !allowedSet.has(name)) {
+      throw new Error("Tool \"" + name + "\" is not available to this agent. Allowed tools: " +
+        (allowed.length ? allowed.join(", ") : "(none)") + ".");
+    }
+    return await fn(args || {});
+  }
+
+  return {
+    async run(name, args) {
+      const started = Date.now();
+      try {
+        const out = await callTool(name, args);
+        await traceAppend(root, { at: new Date().toISOString(), tool: name, status: "ok", ms: Date.now() - started });
+        return out;
+      } catch (err) {
+        await traceAppend(root, {
+          at: new Date().toISOString(),
+          tool: name,
+          status: "error",
+          ms: Date.now() - started,
+          note: String((err && err.message) || err).slice(0, 200),
+        });
+        throw err;
+      }
     },
     isDangerous(name) {
       if (plugins && plugins.has(name)) return plugins.isDangerous(name); // plugin tools ask by default

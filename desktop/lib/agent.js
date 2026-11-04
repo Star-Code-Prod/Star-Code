@@ -3,6 +3,7 @@
 
 import { buildRequest, streamCompletion, PROVIDERS, getDiscoveredLimit, priceFor } from "./providers.js";
 import { readProjectMemory, TOOL_SPECS } from "./tools.js";
+import { memoryPrompt } from "./extras.js";
 import { knowledgeIndex } from "./knowledge.js";
 import { classifySource } from "./sources.js";
 import { scanSkills, catalogText } from "./skills.js";
@@ -432,6 +433,10 @@ function buildSystemPrompt(root, mode, extraTools = [], skillCatalog = "") {
   // Kept deliberately terse: this is re-sent on every step of every turn, so
   // every token here is paid for repeatedly.
   const memBlock = mem ? "\nProject instructions (" + mem.file + "):\n" + mem.text.slice(0, 8000) + "\n" : "";
+  let rememberBlock = "";
+  try {
+    rememberBlock = memoryPrompt(root);
+  } catch { /* memory is optional */ }
   let knBlock = "";
   try {
     const idx = knowledgeIndex(root);
@@ -468,7 +473,7 @@ function buildSystemPrompt(root, mode, extraTools = [], skillCatalog = "") {
     : "";
 
   return `You are a coding agent working in: ${root}
-${memBlock}${knBlock}${mapBlock}${skBlock}${planNote}
+${memBlock}${rememberBlock}${knBlock}${mapBlock}${skBlock}${planNote}
 Tools: read_file, list_dir, search_files, glob_files, write_file, edit_file, multi_edit, run_command, download, search_knowledge, task, fetch_url, websearch, self_knowledge, question (alias ask_user), skill, use_folder, preview.
 task spawns a read-only explorer subagent with fresh context for research: one call per mission, and independent calls in one step (missions, reads, searches) run in parallel. Send missions to verify facts that live outside this conversation - reference corpora, other projects, big codebases - with exact paths and precise questions, and demand evidence back (file, line, signature). Never state a checkable fact you could have sent a mission to verify, and never hand over a scaffold stamped "unverified" when a mission could have read the source first. fetch_url and websearch ask for permission and plan mode blocks them; download fetches a file with source, hash, signature and virus checks (see the doctrine below); self_knowledge answers questions about Star Code itself; ask_user shows the user 1-4 questions with 2-4 clickable options each (put the recommended option first, labelled "(Recommended)") or a freeform answer when allowOther is true - prefer a click over a prose question whenever a decision is needed; skill loads an available skill pack - when a skill's description matches the task, load it and follow its procedure exactly; use_folder sets this session's working folder when the user names one in chat - adopt it the moment they say it (never tell them to pick a project; they type the folder, you bind it); suggest_session offers a click-to-start card when the user's request clearly begins a DIFFERENT task than this session's work (another project, another idea) - offer it once with a real title and a one-sentence description, then keep helping here either way.
 

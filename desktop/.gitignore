@@ -88,6 +88,9 @@ desktop.ini
 \#*\#
 .\#*
 
+# --- app state written into the project (memory, templates, charts, traces) ---
+.star-code/
+
 # --- packaging config that can contain local paths ---
 builder-effective-config.yaml
 

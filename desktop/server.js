@@ -19,6 +19,7 @@ import { readAuth, writeAuthEntry, removeAuthEntry, resolveKey, mask } from "./l
 import { readConfig, writeLastModel } from "./lib/config.js";
 import { listKnowledge, readKnowledgeFile, saveKnowledgeFile, deleteKnowledgeFile, knowledgeDir } from "./lib/knowledge.js";
 import { createToolRunner, readProjectMemory } from "./lib/tools.js";
+import { schedulesDue, scheduleAdvance } from "./lib/extras.js";
 // Custom agents ("personas"): the same files the task tool resolves. The
 // desktop lists them for the agent picker, and a chat request may name one as
 // the turn's agent - never wider than the session itself.
@@ -1191,6 +1192,25 @@ async function route(req, res) {
       return res.end(buf);
     } catch (e) {
       return sendJSON(res, 404, { error: e.message });
+    }
+  }
+
+  // Recurring work: the app asks what is due, then runs it and advances the clock.
+  if (req.method === "GET" && url.pathname === "/api/schedules") {
+    try {
+      const due = await schedulesDue(ROOT);
+      return sendJSON(res, 200, { due });
+    } catch (e) {
+      return sendJSON(res, 500, { error: e.message, due: [] });
+    }
+  }
+  if (req.method === "POST" && url.pathname === "/api/schedules/advance") {
+    const { id } = await readBody(req);
+    try {
+      const task = await scheduleAdvance(ROOT, String(id || ""));
+      return sendJSON(res, task ? 200 : 404, task ? { ok: true, next: task.next } : { error: "unknown schedule" });
+    } catch (e) {
+      return sendJSON(res, 500, { error: e.message });
     }
   }
 
