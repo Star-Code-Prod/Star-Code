@@ -1,5 +1,17 @@
 # What's new in Star
 
+## 1.24.0 — 2026-11-04
+- **New sidebar navigation.** The single More row is now **New / Search / Projects / Artifacts**, with the reference 36 px rows, currentColor icons, hover/active fills and keyboard focus. Projects expands and focuses the tree; Artifacts opens the activity panel at the artifacts section. The old menu actions live in a compact `⋯` menu next to the Sessions header.
+- **Settings opens Appearance.** The title-bar sliders button now goes straight to Settings → Appearance instead of reopening Providers.
+- **Question tool.** `question` is now the preferred alias for `ask_user`, with IDs, required/skip flags, multi-select, and a freeform “Or type your own answer…” field. Answers are persisted, replayed, and shown as a summary.
+- **Better tool cards.** Tool rows show elapsed time, long arguments get tooltips, and completed output can be copied from the row.
+- **Office previews.** Word (`.docx`), Excel (`.xlsx`) and PowerPoint (`.pptx`) files render in the Preview pane without a sidecar: headings and tables, workbook tabs and cell grids, and slide text. PDFs open in the built-in viewer. The reader is a zero-dependency OOXML/ZIP implementation with size, entry and expansion limits.
+- **File editor.** Text files in the preview can be edited and saved with Ctrl/Cmd+S, Cancel and tab insertion; the save route stays inside the project root and caps files at 2 MB.
+- **Command palette.** Cmd/Ctrl+K searches commands, sessions and files with arrow/Enter/Escape navigation.
+- **Session filters.** Filter to Working / Needs input / Completed or group sessions by project; choices persist.
+- **Loading and motion.** A boot splash and spinner-backed session/file loading states replace blank areas, with static reduced-motion fallbacks. Toasts moved below the title bar so they no longer cover the composer. Added hover/press motion to sessions and navigation, and card/slide entrances.
+- **Visual fixes.** Long project paths and deep tree nesting no longer overflow; search-clear targets, attachment rows, code-copy contrast, thinking-pill truncation, pane-title overflow, unread-dot placement and light-theme muted contrast are fixed.
+
 ## 1.23.4 — 2026-11-04
 - **Sidebar cleanup.** The brand row is just the coral star and serif "Star" again; the working-folder selector moved into the Project files header, where it sits with the refresh button. The New session button and mode switch now share the same 42 px height, More uses the reference spacing, the active session's coral bar is visible inside the row, search text is 13 px, the tree uses the reference 14 px / 5 px rows, and the section header buttons are proper 26 px icon buttons.
 
