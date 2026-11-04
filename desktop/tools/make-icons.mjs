@@ -3,9 +3,9 @@
 //
 // Usage: node tools/make-icons.mjs
 //
-// The mark: a rounded neutral tile with a white prompt chevron, a white
-// four-point spark, and a grey cursor bar. Same geometry as assets/icon.svg
-// (shared 512-unit space).
+// The mark: a warm paper tile with a flat, four-point star in ink and a small
+// terracotta companion spark - the same geometry as assets/icon.svg (shared
+// 512-unit space), drawn flat so it stays crisp at 16px.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -87,14 +87,9 @@ function encodeICO(pngs) {
 }
 
 /* -------------------------------- RENDERER -------------------------------- */
-const TILE_TOP = [0x1a, 0x1a, 0x1a];
-const TILE_BOT = [0x0d, 0x0d, 0x0d];
-const CHEV_TOP = [0xf5, 0xf5, 0xf5];
-const CHEV_BOT = [0xbd, 0xbd, 0xbd];
-const SPK_TOP = [0xff, 0xff, 0xff];
-const SPK_BOT = [0xcf, 0xcf, 0xcf];
-const BAR = [0x9a, 0x9a, 0x9a];
-const BAR_ALPHA = 0.38;
+const TILE = [0xf4, 0xef, 0xe4];
+const STAR = [0x1e, 0x1c, 0x18];
+const SPARK = [0xc9, 0x64, 0x42];
 
 const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
 const clamp01 = v => (v < 0 ? 0 : v > 1 ? 1 : v);
@@ -106,39 +101,27 @@ function inTile(x, y, r) {
   const dx = x - cx, dy = y - cy;
   return dx * dx + dy * dy <= r * r;
 }
-/** Four-point spark: superellipse with exponent < 1 pinches the diagonals. */
-function inSpark(x, y, r, p = 0.5) {
-  const dx = Math.abs(x) / r, dy = Math.abs(y) / r;
+/** Four-point star: a superellipse with exponent < 1 pinches the diagonals. */
+function inStar(x, y, cx, cy, r, p = 0.55) {
+  const dx = Math.abs(x - cx) / r, dy = Math.abs(y - cy) / r;
   return Math.pow(dx, p) + Math.pow(dy, p) <= 1;
-}
-function inRoundedRect(x, y, cx, cy, hx, hy, r) {
-  const dx = Math.abs(x - cx), dy = Math.abs(y - cy);
-  if (dx > hx || dy > hy) return false;
-  const qx = Math.max(dx - (hx - r), 0), qy = Math.max(dy - (hy - r), 0);
-  return qx * qx + qy * qy <= r * r;
-}
-/** Distance from p to segment ab (capsule test for the chevron strokes). */
-function distToSeg(px, py, ax, ay, bx, by) {
-  const dx = bx - ax, dy = by - ay;
-  const t = clamp01(((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy));
-  const qx = ax + dx * t, qy = ay + dy * t;
-  return Math.hypot(px - qx, py - qy);
 }
 
 // Mark geometry, straight from assets/icon.svg, converted to unit space.
 const U = 1 / 512;
-const CHEV_HALF = 23 * U;                       // stroke-width 46
-const CHEV_A = [178 * U, 172 * U];
-const CHEV_B = [298 * U, 256 * U];
-const CHEV_C = [178 * U, 340 * U];
-const BAR_C = [238 * U, 398 * U], BAR_HX = 61 * U, BAR_HY = 13 * U, BAR_R = 10 * U;
-const SPK_C = [366 * U, 207 * U], SPK_R = 53 * U;
+const STAR_C = [256 * U, 256 * U], STAR_R = 182 * U;
+const SPARK_C = [392 * U, 344 * U], SPARK_R = 44 * U;
 
 function renderIcon(size) {
   const SS = 3;                       // supersample factor for anti-aliasing
   const S = size * SS;
   const out = Buffer.alloc(size * size * 4);
-  const radius = 0.219;               // 112 / 512
+  const radius = 0.2266;              // 116 / 512
+  // Below 32px the star's thin tips turn to mush and the companion spark
+  // becomes a blob: draw a chunkier single star there instead.
+  const small = size <= 32;
+  const starR = small ? 0.34 : STAR_R;
+  const starP = small ? 0.7 : 0.55;
 
   for (let py = 0; py < size; py++) {
     for (let px = 0; px < size; px++) {
@@ -151,28 +134,9 @@ function renderIcon(size) {
 
           if (!inTile(x, y, radius)) continue;
 
-          // tile base with vertical gradient
-          let col = mix(TILE_TOP, TILE_BOT, y);
-
-          // cursor bar
-          if (inRoundedRect(x, y, BAR_C[0], BAR_C[1], BAR_HX, BAR_HY, BAR_R)) {
-            col = mix(col, BAR, BAR_ALPHA);
-          }
-
-          // chevron: union of the two capsules gives round caps and join
-          const dc = Math.min(
-            distToSeg(x, y, CHEV_A[0], CHEV_A[1], CHEV_B[0], CHEV_B[1]),
-            distToSeg(x, y, CHEV_B[0], CHEV_B[1], CHEV_C[0], CHEV_C[1])
-          );
-          if (dc <= CHEV_HALF) {
-            col = mix(CHEV_TOP, CHEV_BOT, clamp01((x + y - 304 * U) / (380 * U)));
-          }
-
-          // spark, drawn last (it sits clear of the chevron tip)
-          const sdx = x - SPK_C[0], sdy = y - SPK_C[1];
-          if (inSpark(sdx, sdy, SPK_R)) {
-            col = mix(SPK_TOP, SPK_BOT, clamp01(0.5 + (sdx + sdy) / (4 * SPK_R)));
-          }
+          let col = TILE;
+          if (inStar(x, y, STAR_C[0], STAR_C[1], starR, starP)) col = STAR;
+          if (!small && inStar(x, y, SPARK_C[0], SPARK_C[1], SPARK_R, 0.5)) col = SPARK;
 
           r += col[0]; g += col[1]; b += col[2]; a += 255;
         }

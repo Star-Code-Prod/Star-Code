@@ -1,5 +1,10 @@
 # What's new in Star
 
+## 1.23.1 — 2026-11-04
+- **A new star.** The app icon and wordmark are redrawn as one flat, high-contrast mark: a four-point star in ink on a warm paper tile, with a small terracotta companion spark. It stays legible down to 16 px (a chunkier single star is drawn below 32 px), and the in-app logo uses the same geometry. The site, README screenshot and CLI ink now use the same coral.
+- **A warmer, editorial face — closer to the Claude Code desktop feel.** Parchment and warm charcoal surfaces replace the cool grays; headlines and the wordmark are set in a serif; terracotta is the single accent (active session, focus ring, send button, links, inline code, context ring); cards use soft ring shadows; the session header is flat instead of a floating card; sidebar labels are sentence case; and the file tree fills the sidebar instead of sitting in a fixed 240 px box. Light and dark were tuned together.
+- **Long MCP tool names are handled.** Names above the providers' 64-character limit are shortened with a stable suffix, and the shortened name still routes back to the exact server tool.
+
 ## 1.23.0 — 2026-11-04
 - **MCP just works now.** On Windows, `npx`/`uvx` shims are resolved through `PATH` + `PATHEXT` and run through `cmd.exe` — the `.cmd` layer that used to fail with "command not found" and made most Node MCP servers impossible to add. A first `npx -y …` run gets 45 seconds to download instead of 8. Servers also start with their configured `cwd`, and a tool that returns an error is no longer silently reconnected and run a second time.
 - **Remote MCP servers.** Star speaks streamable HTTP and legacy SSE, so a server with a `url` connects instead of being skipped. `type`, `headers`, `timeoutMs` and `cwd` are honored, and an auto remote tries HTTP first, then SSE. opencode imports now bring remote servers along too.

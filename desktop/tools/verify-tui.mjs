@@ -16,15 +16,15 @@ const ok = (label, pass, extra = "") =>
   results.push((pass ? "PASS  " : "FAIL  ") + label + (extra ? "  " + extra : ""));
 const noEsc = (s) => !/\x1b\[/.test(String(s));
 const strip = plain;
-const SEL = "48;2;36;43;59";
+const SEL = "48;2;52;47;41";
 
 /* ------------------------------- palette ------------------------------- */
 ok("palette copies the CLI card inks",
-  INK.gold === "38;2;240;185;90" && INK.green === "38;2;127;207;142" && INK.red === "38;2;240;141;141" &&
-  INK.dim === "38;2;121;131;154" && INK.fg === "38;2;216;220;230" && INK.nm === "1;38;2;216;220;230");
+  INK.gold === "38;2;217;119;87" && INK.green === "38;2;158;199;141" && INK.red === "38;2;235;138;116" &&
+  INK.dim === "38;2;150;144;132" && INK.fg === "38;2;236;231;219" && INK.nm === "1;38;2;236;231;219");
 ok("palette keeps the rules, bars and diff backgrounds",
-  INK.line === "38;2;58;64;82" && INK.goldLine === "38;2;131;110;74" && INK.bar === "48;2;23;27;36" &&
-  INK.sel === SEL && INK.addBg === "48;2;21;48;31" && INK.delBg === "48;2;56;28;32");
+  INK.line === "38;2;73;68;60" && INK.goldLine === "38;2;135;91;70" && INK.bar === "48;2;27;26;23" &&
+  INK.sel === SEL && INK.addBg === "48;2;32;54;37" && INK.delBg === "48;2;64;38;34");
 
 /* ---------------------------- ink helpers ------------------------------ */
 ok("paint wraps and unwraps", paint(INK.gold, "hi", true) === "\x1b[" + INK.gold + "mhi\x1b[0m" && plain(paint(INK.gold, "hi", true)) === "hi");

@@ -25,6 +25,15 @@ const TOOLS = [
   { name: "explode", description: "A tool that reports an error", inputSchema: { type: "object", properties: {} } },
 ];
 
+// A provider caps tool names at 64 characters; this one exercises the hash.
+if (process.env.MCP_STUB_LONG === "1") {
+  TOOLS.push({
+    name: "a_really_long_tool_name_that_keeps_going_to_prove_the_sixty_four_character_cap_is_respected",
+    description: "A long-named tool",
+    inputSchema: { type: "object", properties: { text: { type: "string" } } },
+  });
+}
+
 // A 2x2 red PNG - the shape real screenshot tools return (type: "image").
 const TINY_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAEklEQVR4nGP8z8Dwn4EIwDiqEAAyCwMBAAAAAElFTkSuQmCC";
 

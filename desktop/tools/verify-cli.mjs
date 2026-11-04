@@ -325,7 +325,7 @@ const demoRun = (scene) => spawnSync(process.execPath, [BIN, "--demo", scene, "-
 const dSlash = demoRun("slash");
 ok("demo slash exits 0 without any key", dSlash.status === 0, String(dSlash.status));
 ok("demo slash shows the palette", /\/model/.test(dSlash.stdout || "") && /\/connect/.test(dSlash.stdout || ""));
-ok("demo output carries real ink", /\x1b\[38;2;240;185;90/.test(dSlash.stdout || ""), "no 24-bit gold found");
+ok("demo output carries real ink", /\x1b\[38;2;217;119;87/.test(dSlash.stdout || ""), "no 24-bit brand ink found");
 
 const dModel = demoRun("model");
 ok("demo model renders the provider tree", /deepseek/.test(stripAnsi(dModel.stdout)) && /deepseek-chat/.test(stripAnsi(dModel.stdout)), stripAnsi(dModel.stdout).slice(0, 120));
@@ -552,7 +552,7 @@ const plainBare = stripAnsi(plainText);
 ok("plain --demo start keeps today's shape and modes",
   plainStart.status === 0 && /✦ Star Code/.test(plainBare) && /╭─+╮/.test(plainBare) &&
   /╰─+╯/.test(plainBare) && /│ > /.test(plainBare) && /▱▱▱▱▱ 0%/.test(plainBare) &&
-  /\x1b\[38;2;240;185;90/.test(plainText),
+  /\x1b\[38;2;217;119;87/.test(plainText),
   JSON.stringify(plainBare.slice(0, 60)));
 ok("plain output carries no alternate-screen or paste modes",
   !/\x1b\[\?/.test(plainText), JSON.stringify(plainText.match(/\x1b\[\?[^\x1b]*/g)));
@@ -599,7 +599,7 @@ if (!dTui) {
     text.split("\n").filter((l) => l.includes("Run ") || l.includes("debounce")).join(" / ").slice(0, 160));
   ok("demo tui opens the slash popup inside the prompt box",
     text.includes("Commands") && text.includes("/model") && text.includes("↑↓ move · enter choose · esc close"));
-  ok("demo tui carries real ink", /\x1b\[38;2;240;185;90/.test(ink) && /\x1b\[48;2;36;43;59/.test(ink));
+  ok("demo tui carries real ink", /\x1b\[38;2;217;119;87/.test(ink) && /\x1b\[48;2;52;47;41/.test(ink));
   const widths = rows.map((l) => stripAnsi(l).length);
   ok("demo tui is one full frame: 28 lines of 100 columns",
     rows.length === 28 && widths.every((w) => w <= 100) && Math.max(...widths) === 100,

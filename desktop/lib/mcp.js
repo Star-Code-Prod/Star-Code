@@ -56,9 +56,16 @@ const PATHEXT = isWin
 
 const slug = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
 
-/** The namespaced tool name the model calls: mcp__<server>__<tool>. */
+/** The namespaced tool name the model calls: mcp__<server>__<tool>.
+ *  Providers cap function names at 64 characters, so a very long pair is
+ *  shortened with a stable 4-character suffix instead of being rejected by
+ *  the provider. The manager matches the exact name it advertised. */
 export function mcpToolName(server, tool) {
-  return "mcp__" + slug(server) + "__" + slug(tool);
+  const base = "mcp__" + slug(server) + "__" + slug(tool);
+  if (base.length <= 64) return base;
+  let h = 2166136261;
+  for (let i = 0; i < base.length; i++) { h ^= base.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return base.slice(0, 59) + "_" + (h >>> 0).toString(36).slice(0, 4);
 }
 
 /** Split a namespaced name back into { server, tool } (slugs), or null. */
@@ -879,12 +886,17 @@ export function createMcpManager({ root, onChange, callTimeoutMs = CALL_TIMEOUT_
     if (!rec.conn || rec.state !== "ready") return;
     try {
       const tools = await fetchTools(rec.conn);
-      rec.tools = tools;
+      rec.tools = stampTools(rec, tools);
       fire();
     } catch { /* leave the last known list */ }
   }
 
   /** The protocol handshake and the first tools/list on an open connection. */
+  /** Stamp each tool with the exact public name this manager advertises. */
+  function stampTools(rec, tools) {
+    return tools.map((t) => ({ ...t, full: mcpToolName(rec.name, t.name) }));
+  }
+
   async function handshake(rec, conn, startup) {
     rec.conn = conn;
     const init = await conn.request("initialize", {
@@ -894,7 +906,7 @@ export function createMcpManager({ root, onChange, callTimeoutMs = CALL_TIMEOUT_
     }, startup);
     if (init && init.protocolVersion) conn.protocolVersion = String(init.protocolVersion);
     conn.notify("notifications/initialized");
-    return await fetchTools(conn);
+    return stampTools(rec, await fetchTools(conn));
   }
 
   /** Start (and handshake) one connection. Resolves when ready. An `auto`
@@ -1029,9 +1041,22 @@ export function createMcpManager({ root, onChange, callTimeoutMs = CALL_TIMEOUT_
 
   function has(full) {
     const p = parseToolName(full);
+    const hit = findTool(full);
+    if (hit) return hit.rec.cfg.enabled;
     if (!p) return false;
     const rec = findBySlug(p.server);
     return !!rec && rec.cfg.enabled && rec.tools.some((t) => t.name === p.tool);
+  }
+
+  /** Resolve the public tool name back to { rec, tool }. Names longer than
+   *  64 characters are hashed, so an exact match is tried before parsing. */
+  function findTool(full) {
+    const name = String(full || "");
+    for (const rec of servers.values()) {
+      const tool = rec.tools.find((t) => (t.full || mcpToolName(rec.name, t.name)) === name);
+      if (tool) return { rec, tool };
+    }
+    return null;
   }
 
   /* Bridge availability: probed against the app's own socket, cached, and
@@ -1089,31 +1114,42 @@ export function createMcpManager({ root, onChange, callTimeoutMs = CALL_TIMEOUT_
     }
     const out = [];
     for (const rec of servers.values()) {
+      if (!rec.cfg.enabled) continue;   // Test can connect a disabled server; it must not leak tools
       if (rec.state !== "ready" && rec.state !== "idle") continue;
       // A bridge to a closed app lists tools that cannot work: hide them.
       if (appClosed(rec, Date.now())) continue;
       for (const t of rec.tools) {
-        out.push({ name: mcpToolName(rec.name, t.name), description: t.description, params: t.params || "", schema: t.schema });
+        out.push({ name: t.full || mcpToolName(rec.name, t.name), description: t.description, params: t.params || "", schema: t.schema });
       }
     }
     return out;
   }
 
-  async function call(full, args, opts = {}) {
+  /** Resolve an advertised tool name to its server and the server's own tool
+   *  name. The exact advertised name wins; the slug parse is the fallback. */
+  function resolveInvocation(full) {
+    const hit = findTool(full);
+    if (hit) return { rec: hit.rec, toolName: hit.tool.name, p: { server: slug(hit.rec.name), tool: hit.tool.name } };
     const p = parseToolName(full);
     if (!p) throw new Error("not an MCP tool: " + full);
     const rec = findBySlug(p.server);
-    if (!rec || !rec.cfg.enabled) throw new Error("MCP server \"" + p.server + "\" is not configured or is disabled.");
-    if (rec.state !== "ready" || !rec.tools.some((t) => t.name === p.tool)) {
+    if (!rec) throw new Error("MCP server \"" + p.server + "\" is not configured or is disabled.");
+    return { rec, toolName: p.tool, p };
+  }
+
+  async function call(full, args, opts = {}) {
+    const { rec, toolName, p } = resolveInvocation(full);
+    if (!rec.cfg.enabled) throw new Error("MCP server \"" + p.server + "\" is not configured or is disabled.");
+    if (rec.state !== "ready" || !rec.tools.some((t) => t.name === toolName)) {
       await connectOnce(rec);
-      if (!rec.tools.some((t) => t.name === p.tool)) {
-        throw new Error("MCP tool \"" + p.tool + "\" is not offered by \"" + p.server + "\".");
+      if (!rec.tools.some((t) => t.name === toolName)) {
+        throw new Error("MCP tool \"" + toolName + "\" is not offered by \"" + p.server + "\".");
       }
     }
     scheduleIdle(rec);
     const timeout = Number(opts.timeoutMs) || serverTimeout(rec) || callTimeoutMs;
     try {
-      const res = await rec.conn.request("tools/call", { name: p.tool, arguments: args || {} }, timeout);
+      const res = await rec.conn.request("tools/call", { name: toolName, arguments: args || {} }, timeout);
       return resultText(rec, p, res);
     } catch (e) {
       if (e && (e.mcpTimeout || e.mcpToolError)) throw e;
@@ -1121,7 +1157,7 @@ export function createMcpManager({ root, onChange, callTimeoutMs = CALL_TIMEOUT_
       closeRec(rec);
       rec.state = "starting";
       await connectOnce(rec);
-      const res = await rec.conn.request("tools/call", { name: p.tool, arguments: args || {} }, timeout);
+      const res = await rec.conn.request("tools/call", { name: toolName, arguments: args || {} }, timeout);
       return resultText(rec, p, res);
     }
   }
@@ -1129,27 +1165,25 @@ export function createMcpManager({ root, onChange, callTimeoutMs = CALL_TIMEOUT_
   /** Like call(), but keeps image content blocks: { text, images }. The
    *  Preview pane's Blender live view goes through this. */
   async function callRaw(fullName, args, opts = {}) {
-    const p = parseToolName(fullName);
-    if (!p) throw new Error("not an MCP tool: " + fullName);
-    const rec = findBySlug(p.server);
-    if (!rec || !rec.cfg.enabled) throw new Error("MCP server \"" + p.server + "\" is not configured or is disabled.");
-    if (rec.state !== "ready" || !rec.tools.some((t) => t.name === p.tool)) {
+    const { rec, toolName, p } = resolveInvocation(fullName);
+    if (!rec.cfg.enabled) throw new Error("MCP server \"" + p.server + "\" is not configured or is disabled.");
+    if (rec.state !== "ready" || !rec.tools.some((t) => t.name === toolName)) {
       await connectOnce(rec);
-      if (!rec.tools.some((t) => t.name === p.tool)) {
-        throw new Error("MCP tool \"" + p.tool + "\" is not offered by \"" + p.server + "\".");
+      if (!rec.tools.some((t) => t.name === toolName)) {
+        throw new Error("MCP tool \"" + toolName + "\" is not offered by \"" + p.server + "\".");
       }
     }
     scheduleIdle(rec);
     const timeout = Number(opts.timeoutMs) || serverTimeout(rec) || callTimeoutMs;
     let res;
     try {
-      res = await rec.conn.request("tools/call", { name: p.tool, arguments: args || {} }, timeout);
+      res = await rec.conn.request("tools/call", { name: toolName, arguments: args || {} }, timeout);
     } catch (e) {
       if (e && e.mcpTimeout) throw e;
       closeRec(rec);
       rec.state = "starting";
       await connectOnce(rec);
-      res = await rec.conn.request("tools/call", { name: p.tool, arguments: args || {} }, timeout);
+      res = await rec.conn.request("tools/call", { name: toolName, arguments: args || {} }, timeout);
     }
     if (res && res.isError) throw new Error(resultText(rec, p, res).slice(0, RESULT_CAP));
     return { text: resultText(rec, p, res), images: imagesOf(res) };

@@ -518,7 +518,7 @@ ok("code renders as a language-titled canvas with a gutter",
   js.includes("function prettyLang(") && js.includes('class="cb-lang"') &&
   js.includes('class="cb-gutter"') && js.includes("${lines.length} line") &&
   js.includes("LANG_NAMES") && js.includes('ts: "TypeScript"') &&
-  html.replace(/\s+/g, "").includes(".cb-lang{color:#dcdcd8") &&
+  html.replace(/\s+/g, "").includes(".cb-lang{color:var(--code-fg)") &&
   html.replace(/\s+/g, "").includes(".cb-gutter{") &&
   html.replace(/\s+/g, "").includes(".cb-body{display:flex"));
 

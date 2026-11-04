@@ -34,19 +34,19 @@ const { PROVIDERS } = providers;
 const TTY = !!process.stdout.isTTY;                  // can we draw a live prompt and redraw a line?
 let ANSI = TTY && !("NO_COLOR" in process.env);      // may we use colour at all? (--demo forces it on)
 const INK = {
-  gold: "38;2;240;185;90",
-  green: "38;2;127;207;142",
-  red: "38;2;240;141;141",
-  blue: "38;2;141;183;242",
-  dim: "38;2;121;131;154",
-  fg: "38;2;216;220;230",
-  nm: "1;38;2;216;220;230",
-  line: "38;2;58;64;82",
-  goldLine: "38;2;131;110;74",
-  bar: "48;2;23;27;36",
-  sel: "48;2;36;43;59",
-  addBg: "48;2;21;48;31",
-  delBg: "48;2;56;28;32",
+  gold: "38;2;217;119;87",
+  green: "38;2;158;199;141",
+  red: "38;2;235;138;116",
+  blue: "38;2;168;180;196",
+  dim: "38;2;150;144;132",
+  fg: "38;2;236;231;219",
+  nm: "1;38;2;236;231;219",
+  line: "38;2;73;68;60",
+  goldLine: "38;2;135;91;70",
+  bar: "48;2;27;26;23",
+  sel: "48;2;52;47;41",
+  addBg: "48;2;32;54;37",
+  delBg: "48;2;64;38;34",
 };
 const paint = (code, s) => (ANSI && code ? `\x1b[${code}m${s}\x1b[0m` : s);
 const gold = (s) => paint(INK.gold, s);

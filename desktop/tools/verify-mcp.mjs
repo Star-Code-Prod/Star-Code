@@ -94,6 +94,12 @@ await withManager({ stub: { command: stubCmd, environment: {}, enabled: false } 
   ok("disabled servers stay off", mgr.list()[0].state === "off");
   ok("calling a disabled server throws", await rejects(() => mgr.call("mcp__stub__echo", {})));
   ok("calling an unknown tool name throws", await rejects(() => mgr.call("mcp__stub__ghost", {})));
+  // Test is allowed to connect a disabled server to prove it works, but its
+  // tools must stay out of the agent's list.
+  const t = await mgr.test("stub");
+  ok("a disabled server can still be tested", t.ok === true);
+  ok("testing a disabled server does not leak its tools", mgr.toolList().length === 0,
+    JSON.stringify(mgr.toolList().map((x) => x.name)));
 });
 
 // A missing binary: clean error, state down, call throws the same story.
@@ -271,6 +277,19 @@ writeUserMcpServers({ remote: { url: "http://127.0.0.1:9/mcp", type: "http", hea
     round.headers.Authorization === "Bearer t", JSON.stringify(round && { url: round.url, t: round.transport }));
 }
 writeUserMcpServers({});
+
+// A very long server+tool pair is shortened to the provider's 64-char cap,
+// and the shortened name still routes back to the real tool.
+{
+  const longName = mcpToolName("long-server-name", "a_really_long_tool_name_that_keeps_going_to_prove_the_sixty_four_character_cap_is_respected");
+  ok("a long tool name is capped at 64 characters", longName.length <= 64, String(longName.length));
+  await withManager({ long: { command: stubCmd, environment: { MCP_STUB_LONG: "1" } } }, async (mgr) => {
+    const t = mgr.toolList().find((x) => /long_tool_name/.test(x.name));
+    ok("the capped name is advertised", !!t && t.name.length <= 64, t && t.name);
+    const out = await mgr.call(t.name, {});
+    ok("a capped name still invokes the real tool", out === "a_really_long_tool_name_that_keeps_going_to_prove_the_sixty_four_character_cap_is_respected:done", out);
+  });
+}
 
 /* ------------------------- spawn + resolution -------------------------- */
 ok("a plain executable spawns directly",
