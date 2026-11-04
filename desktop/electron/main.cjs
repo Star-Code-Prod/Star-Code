@@ -49,25 +49,11 @@ function defaultRoot() {
 }
 
 /* -------------------------------- window --------------------------------- */
-function titlebarColors() {
-  // The overlay area (window controls) must follow the app's theme: with
-  // themeSource synced from the UI, shouldUseDarkColors is our own setting.
-  const dark = nativeTheme.shouldUseDarkColors;
-  return dark
-    ? { color: "#1c1c1a", symbolColor: "#c7c5bd" }
-    : { color: "#f7f7f4", symbolColor: "#6d6b65" };
-}
-
-// Registered once, not per-window, so repeated `activate` calls can't stack listeners.
-nativeTheme.on("updated", () => {
-  if (win && !win.isDestroyed() && process.platform !== "darwin") {
-    try { win.setTitleBarOverlay({ ...titlebarColors(), height: 38 }); } catch {}
-  }
-});
+// The app draws its own window controls in the title bar, so there is no
+// native overlay to recolor on a theme change.
 
 function createWindow(url) {
   const s = readStore();
-  const c = titlebarColors();
   const isMac = process.platform === "darwin";
 
   win = new BrowserWindow({
@@ -76,13 +62,13 @@ function createWindow(url) {
     x: s.x, y: s.y,
     minWidth: 900,
     minHeight: 560,
-    backgroundColor: "#1c1c1a",
+    backgroundColor: "#1b1a18",
     show: false,
     title: "Star",
     icon: process.platform === "win32" ? ICON : ICON_PNG,
     titleBarStyle: isMac ? "hiddenInset" : "hidden",
     trafficLightPosition: isMac ? { x: 16, y: 11 } : undefined,
-    titleBarOverlay: isMac ? undefined : { ...c, height: 38 },
+    titleBarOverlay: isMac ? undefined : false,
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,

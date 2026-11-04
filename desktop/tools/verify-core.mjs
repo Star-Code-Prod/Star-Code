@@ -163,6 +163,43 @@ line "two"</|DSML|parameter>
   const fenced = parseAssistantContent('```tool\n{"name":"read_file","args":{"path":"x"}}\n```');
   ok("the fenced dialect still works", fenced.calls.length === 1 && fenced.calls[0].name === "read_file");
 
+  // The XML dialect some providers emit: <dots_function_call><invoke …>. It
+  // used to leak into the transcript as plain text and never run. A malformed
+  // </parameter> closer and a stray </tool> are both seen in the wild.
+  const xmlDialect = [
+    "Review the uncommitted changes.",
+    "",
+    "<dots_function_call>",
+    '<invoke name="run_command">',
+    '<args>{"command": "git diff"}',
+    "</parameter>",
+    "</invoke>",
+    "</dots_function_call>",
+  ].join("\n");
+  const xmlParsed = parseAssistantContent(xmlDialect);
+  ok("the XML dots dialect parses as a real call",
+    xmlParsed.calls.length === 1 && xmlParsed.calls[0].name === "run_command" &&
+    xmlParsed.calls[0].args.command === "git diff", JSON.stringify(xmlParsed.calls));
+  ok("the XML dots markup never reaches the visible text",
+    xmlParsed.text === "Review the uncommitted changes." && !/function_call|<\/?invoke|<args>/i.test(xmlParsed.text),
+    JSON.stringify(xmlParsed.text));
+  const strayClose = parseAssistantContent("Let me look at that directory.\n\n</tool>\n\n</tool>");
+  ok("a stray </tool> is not shown to the user",
+    strayClose.text === "Let me look at that directory." && strayClose.calls.length === 0, JSON.stringify(strayClose.text));
+  const xmlParams = parseAssistantContent([
+    "<dots_function_call>",
+    '<invoke name="write_file">',
+    '<parameter name="path" string="true">a.txt</parameter>',
+    '<parameter name="content" string="true">hello</parameter>',
+    "</invoke>",
+    "</dots_function_call>",
+  ].join("\n"));
+  ok("XML parameter tags become arguments",
+    xmlParams.calls.length === 1 && xmlParams.calls[0].args.path === "a.txt" && xmlParams.calls[0].args.content === "hello",
+    JSON.stringify(xmlParams.calls));
+  ok("reasoning scrubbing drops the same XML markup",
+    scrubReasoning("Thinking about it\n<dots_function_call>\n<invoke name=\"list_dir\">\n<args>{\"path\": \".\"}</args>\n</invoke>\n</dots_function_call>") === "Thinking about it\n");
+
   // The spaced variant: a local proxy rewrites the special-token delimiters
   // with spaces, and Star used to both leak the markup to the screen and
   // never run the call. Normalization must make it parse AND vanish.

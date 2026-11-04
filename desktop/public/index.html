@@ -13,14 +13,14 @@
    blocks below and is never redefined here. */
 :root{
   --fs-11:11px; --fs-12:12px; --fs-125:12.5px; --fs-13:13px; --fs-14:14px;
-  --fs-15:15px; --fs-18:18px; --fs-22:22px; --fs-30:30px;
+  --fs-15:15px; --fs-16:16px; --fs-18:18px; --fs-22:22px; --fs-30:30px;
   --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px;
   --sp-8:32px; --sp-10:40px;
   --r-xs:6px; --r-sm:8px; --r-md:10px; --r-lg:14px; --r-xl:18px; --r-full:999px;
   --t-fast:150ms; --t-mid:200ms; --t-slow:280ms;
   --ease:cubic-bezier(.2,.8,.3,1);
-  --col:760px;      /* conversation column */
-  --sb-w:236px;     /* sidebar width */
+  --col:1000px;     /* conversation column */
+  --sb-w:300px;     /* sidebar width */
   --font-sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --font-mono:'JetBrains Mono',ui-monospace,"SF Mono",Consolas,monospace;
   --font-serif:"Iowan Old Style",Georgia,"Palatino Linotype",Palatino,serif;
@@ -29,53 +29,60 @@
 
 /* ============================ THEMES ============================ */
 :root[data-theme="dark"]{
-  --bg:#1c1c1a; --sidebar:#171716; --panel:#232321; --panel2:#282826;
-  --elev:#2b2b28; --bubble:#2f2f2c; --hover:#252523;
-  --border:#31312e; --border2:#3d3d39;
-  --text:#f0efea; --text2:#c7c5bd; --muted:#96938b; --dim:#77746c;
-  --accent:#ecebe4; --accent-h:#fffdf7; --accent-fg:#1c1c1a;
-  --add-bg:#1f2f23; --add-fg:#9ed3a4; --add-gut:#618c66;
+  --bg:#1b1a18; --sidebar:#1b1a18; --panel:#252421; --panel2:#2e2c28;
+  --elev:#2e2c28; --bubble:#252421; --hover:rgba(255,255,255,.07);
+  --border:#34322d; --border2:#3d3a34;
+  --text:#ece9e0; --text2:#c9c5b9; --muted:#9b988d; --dim:#77746b;
+  --accent:#ece9e0; --accent-h:#fffdf7; --accent-fg:#1b1a18;
+  --add-bg:#1f2f23; --add-fg:#8fd19e; --add-gut:#618c66;
   --del-bg:#3a2220; --del-fg:#f0a099; --del-gut:#a5645d;
   --purple:#2a2a27; --purple-fg:#ddd9cf;
-  --code-bg:#151513; --code-fg:#e6e3da;
+  --code-bg:#201f1c; --code-fg:#e8e4d9;
   --tok-k:#c586c0; --tok-s:#8fce8f; --tok-n:#b5cea8; --tok-c:#8f9b8f;
   --term-fg:#e6e3da; --term-dim:#9a9a94; --term-err:#f0a099;
   --shadow:0 18px 50px rgba(0,0,0,.5);
   --shadow-sm:0 1px 2px rgba(0,0,0,.35);
   --shadow-md:0 10px 30px -12px rgba(0,0,0,.7);
-  --chip:#2b2b28; --chip-on:#373734;
+  --chip:#2f2d29; --chip-on:#3a3731;
+  --sess-active:#33302b;
   --termbg:#151513;
-  /* The one chromatic accent - the star's terracotta. */
   --brand:#d97757; --brand-strong:#e68d70; --brand-dim:#8a5340;
   --brand-soft:color-mix(in srgb,var(--brand) 14%,transparent);
   --brand-line:color-mix(in srgb,var(--brand) 34%,transparent);
   --brand-fg:#1b120d;
+  --close-hover:#e5484d;
+  --hover-strong:rgba(255,255,255,.12);
+  --text-strong:#f5f3ec;
   --ambient:radial-gradient(900px 420px at 50% -10%,color-mix(in srgb,var(--brand) 7%,transparent),transparent 66%);
-  --title-font:var(--font-sans);
+  --title-font:var(--font-serif);
 }
 :root[data-theme="light"]{
-  --bg:#f7f7f4; --sidebar:#f2f2ee; --panel:#ffffff; --panel2:#f7f7f3;
-  --elev:#fbfbf9; --bubble:#f0efeb; --hover:#ecebe6;
-  --border:#e7e6e1; --border2:#d9d8d2;
-  --text:#1f1e1b; --text2:#3d3b36; --muted:#6d6b65; --dim:#97948c;
+  --bg:#faf9f5; --sidebar:#faf9f5; --panel:#f1efe7; --panel2:#e9e6db;
+  --elev:#e9e6db; --bubble:#f1efe7; --hover:rgba(0,0,0,.06);
+  --border:#e0dccf; --border2:#d4cfc0;
+  --text:#2b2a27; --text2:#3d3b36; --muted:#7a776d; --dim:#9a968c;
   --accent:#1f1e1b; --accent-h:#000000; --accent-fg:#ffffff;
   --add-bg:#e7f2e2; --add-fg:#255322; --add-gut:#4B7A44;
   --del-bg:#f9e4de; --del-fg:#7a2a17; --del-gut:#A5593F;
   --purple:#efeee9; --purple-fg:#3a3833;
-  --code-bg:#f7f7f3; --code-fg:#1f1e1b;
+  --code-bg:#f1efe7; --code-fg:#2b2a27;
   --tok-k:#8a3fa0; --tok-s:#2f6b2f; --tok-n:#8a5a00; --tok-c:#76736b;
   --term-fg:#e6e3da; --term-dim:#9a9a94; --term-err:#f0a099;
   --shadow:0 18px 50px rgba(31,30,27,.16);
   --shadow-sm:0 1px 2px rgba(31,30,27,.07);
   --shadow-md:0 10px 30px -14px rgba(31,30,27,.22);
-  --chip:#efefea; --chip-on:#e5e4de;
+  --chip:#e9e6db; --chip-on:#dedacd;
+  --sess-active:#ece8dc;
   --termbg:#1b1a17;
   --brand:#b45535; --brand-strong:#9c4629; --brand-dim:#cf8a70;
   --brand-soft:color-mix(in srgb,var(--brand) 9%,transparent);
   --brand-line:color-mix(in srgb,var(--brand) 24%,transparent);
   --brand-fg:#ffffff;
+  --close-hover:#e5484d;
+  --hover-strong:rgba(0,0,0,.10);
+  --text-strong:#1a1917;
   --ambient:radial-gradient(900px 420px at 50% -10%,color-mix(in srgb,var(--brand) 6%,transparent),transparent 66%);
-  --title-font:var(--font-sans);
+  --title-font:var(--font-serif);
 }
 
 /* ============================ BASE ============================ */
@@ -95,8 +102,8 @@ input,textarea,select{font-family:inherit}
 /* visible keyboard focus for controls; text fields carry their own ring */
 button:focus-visible,a:focus-visible,[tabindex]:focus-visible{box-shadow:var(--focus-ring)}
 input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
-::-webkit-scrollbar{width:10px;height:10px}
-::-webkit-scrollbar-thumb{background:var(--border2);border-radius:6px;border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:6px;border:2px solid transparent;background-clip:content-box}
 ::-webkit-scrollbar-thumb:hover{background:var(--dim);background-clip:content-box;border:3px solid transparent}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-corner{background:transparent}
@@ -123,15 +130,32 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
 
 /* ============================ TITLE BAR ============================ */
 .titlebar{
-  height:38px;flex:none;display:flex;align-items:center;gap:2px;padding:0 8px;
+  display:flex;align-items:center;height:40px;padding-left:10px;flex:none;
   background:var(--bg);border-bottom:1px solid var(--border);position:relative;z-index:5;
+  -webkit-app-region:drag;user-select:none;
 }
-/* Electron: the OS draws the frame, so our chrome must drag and drop */
-body.is-electron{-webkit-app-region:no-drag}
-body.is-electron .titlebar{-webkit-app-region:drag;padding-right:150px}
-body.is-electron .titlebar button,
-body.is-electron .titlebar .seg{ -webkit-app-region:no-drag}
-body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
+.titlebar .left,.titlebar .right{display:flex;align-items:center;gap:2px;-webkit-app-region:no-drag}
+.titlebar svg{display:block;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.titlebar .center{flex:1;text-align:center;color:var(--muted);font-size:var(--fs-12);padding:0 10px;min-width:0}
+.titlebar .center span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;-webkit-app-region:no-drag;cursor:text}
+.icon-btn{
+  width:32px;height:32px;display:grid;place-items:center;border-radius:8px;
+  color:var(--muted);background:transparent;flex:none;
+  transition:background var(--t-fast),color var(--t-fast);
+}
+.icon-btn:hover{background:var(--hover);color:var(--text-strong,var(--text))}
+.icon-btn:active{background:var(--hover-strong,var(--hover))}
+.icon-btn svg{width:16px;height:16px}
+/* Window controls: transparent until hovered, flush to the right edge. */
+.wc{display:flex;height:40px;-webkit-app-region:no-drag;margin-left:4px}
+.wc button{width:46px;height:40px;display:grid;place-items:center;color:var(--muted);background:transparent;border-radius:0;-webkit-app-region:no-drag;transition:background var(--t-fast),color var(--t-fast)}
+.wc button:hover{background:var(--hover);color:var(--text)}
+.wc button.close:hover{background:var(--close-hover);color:#fff}
+.wc svg{width:12px;height:12px;stroke-width:1.3}
+body.is-electron .titlebar{padding-right:0}
+body.is-electron .titlebar button,body.is-electron .titlebar .seg{-webkit-app-region:no-drag}
+body.is-mac.is-electron .titlebar{padding-left:78px}
+body.is-mac .wc{display:none}
 .tb-btn{
   width:26px;height:26px;border-radius:var(--r-xs);display:flex;align-items:center;justify-content:center;
   color:var(--muted);transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
@@ -154,14 +178,23 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
   width:var(--sb-w);flex:none;background:var(--sidebar);border-right:1px solid var(--border);
   position:relative;
   display:flex;flex-direction:column;overflow:hidden;min-height:0;
+  padding:14px 12px 0;
 }
-.sb-brand{display:flex;align-items:center;gap:7px;padding:10px 12px 6px;flex:none}
+.sb-top{display:flex;align-items:center;gap:2px;padding:8px 10px 0;flex:none}
+.sb-brand{display:flex;align-items:center;gap:10px;padding:0 6px 14px;flex:none}
 .sb-mark{
-  width:20px;height:20px;flex:none;
+  width:26px;height:26px;flex:none;
   display:flex;align-items:center;justify-content:center;
   color:var(--brand);
 }
-.sb-word{font-family:var(--font-sans);font-size:13.5px;font-weight:600;letter-spacing:-.01em;color:var(--text)}
+.sb-word{font-family:var(--font-serif);font-size:22px;font-weight:500;letter-spacing:-.01em;color:var(--text-strong,var(--text))}
+.sb-brand .proj{
+  font-size:var(--fs-11);color:var(--muted);max-width:110px;padding:3px 2px;border:0;
+  border-radius:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:text;background:transparent;
+  transition:color var(--t-fast);
+}
+.sb-brand .proj:hover{color:var(--text);background:transparent}
+.sb-brand .proj.editing{max-width:150px;padding:0;border-color:transparent;background:transparent}
 .sb-sub{margin-left:auto;font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--dim)}
 .seg{display:flex;gap:6px;margin:var(--sp-3) var(--sp-3) var(--sp-2);padding:4px;background:var(--chip);border-radius:var(--r-sm)}
 .seg button{
@@ -171,16 +204,10 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
 }
 .seg button:hover{background:var(--hover);color:var(--text2)}
 .seg button.on{background:var(--panel);color:var(--text);font-weight:500;box-shadow:var(--shadow-sm)}
-.sb-links{padding:0 6px 6px;display:flex;flex-direction:column;gap:1px}
+.sb-links{padding:0 0 8px;display:flex;flex-direction:column;gap:2px}
 .sb-link{
-  display:flex;align-items:center;gap:8px;width:100%;padding:6px 8px;border-radius:var(--r-xs);
-  font-size:var(--fs-125);color:var(--text2);text-align:left;
-  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
-}
-.sb-links{padding:0 6px 6px;display:flex;flex-direction:column;gap:1px}
-.sb-link{
-  display:flex;align-items:center;gap:8px;width:100%;padding:6px 8px;border-radius:var(--r-xs);
-  font-size:var(--fs-125);color:var(--text2);text-align:left;
+  display:flex;align-items:center;gap:9px;width:100%;padding:7px 9px;border-radius:var(--r-xs);
+  font-size:var(--fs-13);color:var(--text2);text-align:left;
   transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
 }
 .sb-link:hover{background:var(--hover);color:var(--text)}
@@ -192,28 +219,28 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
 .sb-link .chev{margin-left:auto;opacity:.5;transition:transform var(--t-mid) var(--ease)}
 .sb-link.open .chev{transform:rotate(90deg)}
 /* New session + the Chat|Code icon switch share one row */
-.sb-newrow{display:flex;align-items:center;gap:var(--sp-2)}
+.sb-newrow{display:flex;align-items:center;gap:10px;padding:0 0 8px}
 .sb-newrow .sb-link{
-  flex:1;min-width:0;background:transparent;border:0;
-  font-weight:500;color:var(--text2);
+  flex:1;min-width:0;height:42px;background:var(--panel);border:1px solid transparent;border-radius:12px;
+  font-size:var(--fs-14);font-weight:600;color:var(--text);padding:0 14px;
 }
-.sb-newrow .sb-link:hover{background:var(--hover);border-color:transparent;color:var(--text)}
-.sb-newrow .sb-link svg{color:var(--text2);opacity:.9}
-.sb-newrow .seg{margin:0;padding:3px;flex:none}
-.sb-newrow .seg button{padding:5px 7px;min-height:24px}
+.sb-newrow .sb-link:hover{background:var(--panel2);border-color:transparent;color:var(--text)}
+.sb-newrow .sb-link svg{color:var(--brand);opacity:1}
+.sb-newrow .seg{margin:0;padding:3px;flex:none;height:40px;align-items:center;border-radius:12px;background:var(--panel);border:1px solid var(--border)}
+.sb-newrow .seg button{width:36px;height:34px;padding:0;min-height:0;border-radius:9px}
 .seg-icons button{flex:none}
 .sb-sec{
-  display:flex;align-items:center;gap:6px;padding:10px 12px 4px;
-  font-size:var(--fs-11);color:var(--dim);
+  display:flex;align-items:center;gap:6px;padding:10px 6px 8px;
+  font-size:var(--fs-13);color:var(--muted);
 }
-.pf-sec{border-top:1px solid var(--border);margin-top:4px}
+.pf-sec{border-top:1px solid var(--border);margin:12px -12px 0;padding:14px 6px 8px}
 .sb-sec .spacer{flex:1}
 .sb-sec button{color:var(--dim);padding:3px;border-radius:var(--r-xs);display:flex}
 .sb-sec button:hover{background:var(--hover);color:var(--text2)}
-.sb-search{display:none;align-items:center;gap:7px;margin:0 8px 4px;padding:0 7px;
-  background:var(--panel);border:1px solid var(--border);border-radius:var(--r-xs);color:var(--dim);
+.sb-search{display:flex;align-items:center;gap:10px;margin:0 0 8px;padding:0 12px;height:40px;
+  background:transparent;border:1px solid var(--border);border-radius:12px;color:var(--muted);
   transition:border-color var(--t-fast) var(--ease)}
-.sb-search.on{display:flex}
+.sb-search:focus-within{border-color:var(--border2);color:var(--text2)}
 .sb-search:focus-within{border-color:var(--border2);color:var(--text2)}
 .sb-search svg{flex:none}
 .sb-search input{
@@ -223,22 +250,22 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
 .sb-search input::placeholder{color:var(--dim)}
 .sb-search .clr{color:var(--dim);display:flex;padding:2px;border-radius:4px}
 .sb-search .clr:hover{background:var(--hover);color:var(--text)}
-.sessions{flex:0 0 auto;max-height:min(38vh,360px);overflow-y:auto;min-height:0;padding:0 6px 8px}
+.sessions{flex:0 0 auto;max-height:260px;overflow-y:auto;min-height:0;padding:0}
 .sess-group{
-  padding:12px 9px 5px;font-size:var(--fs-11);color:var(--dim);
+  padding:16px 6px 6px;font-size:var(--fs-12);color:var(--muted);
 }
 .sess{
-  display:grid;grid-template-columns:15px minmax(0,1fr) auto;grid-template-rows:auto auto;
-  align-items:center;gap:0 7px;width:100%;padding:6px 7px;border-radius:var(--r-xs);
-  font-size:var(--fs-125);color:var(--text2);text-align:left;position:relative;
+  display:flex;align-items:center;gap:12px;width:100%;padding:9px 10px;border-radius:10px;
+  font-size:var(--fs-14);color:var(--text2);text-align:left;position:relative;
   transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
 }
 .sess:hover{background:var(--hover);color:var(--text)}
-.sess.on{background:color-mix(in srgb,var(--brand) 8%,var(--elev));color:var(--text);box-shadow:var(--shadow-sm)}
+.sess.on{background:var(--sess-active);color:var(--text);box-shadow:none}
 .sess.on::before{
-  content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;border-radius:var(--r-full);background:var(--brand);
+  content:"";position:absolute;left:-12px;top:6px;bottom:6px;width:3px;border-radius:0 3px 3px 0;background:var(--brand);
 }
-.sess .ico{grid-row:1 / span 2;flex:none;width:16px;display:flex;justify-content:center;color:var(--muted)}
+.sess .ico{grid-row:auto;flex:none;width:12px;height:12px;display:flex;justify-content:center;color:var(--muted)}
+.sess .ico svg{width:12px;height:12px}
 .sess.run .ico{color:var(--brand)}
 .sess.run .ico .runarc{animation:spin 1.1s linear infinite;transform-origin:50% 50%}
 /* Waiting on the user: the row climbs into "Needs input" with a warning mark. */
@@ -259,14 +286,15 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
   transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
 }
 .attachchip button:hover{background:var(--hover);color:var(--text)}
-.sess.on .ico{color:var(--accent)}
-.sess .lbl{grid-column:2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.35}
+.sess.on .ico{color:var(--muted)}
+.sess .txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.sess .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.35;color:var(--text-strong,var(--text));font-size:var(--fs-14)}
 .sess .meta{
-  grid-column:2;font-size:11px;color:var(--dim);line-height:1.3;
+  font-size:var(--fs-12);color:var(--muted);line-height:1.35;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 .sess .more{
-  grid-column:3;grid-row:1 / span 2;opacity:0;color:var(--muted);padding:3px;border-radius:var(--r-xs);display:flex;
+  flex:none;opacity:0;color:var(--muted);padding:3px;border-radius:var(--r-xs);display:flex;
   transition:opacity var(--t-fast) var(--ease),background var(--t-fast) var(--ease);
 }
 .sess:hover .more,.sess.on .more,.sess:focus-visible .more{opacity:1}
@@ -283,16 +311,10 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
 }
 
 /* ---------------- project files tree ---------------- */
-.sb-tree{flex:1 1 0;min-height:90px;overflow-y:auto;padding:0 6px 6px}
-.sb-foot{
-  flex:none;display:flex;align-items:center;gap:8px;margin-top:auto;
-  padding:6px 8px 7px;border-top:1px solid var(--border);
-}
-.sb-machine{display:flex;align-items:center;gap:6px;flex:1;min-width:0;font-size:var(--fs-12);color:var(--muted)}
-.sb-live{width:6px;height:6px;border-radius:var(--r-full);background:var(--add-fg);flex:none}
+.sb-tree{flex:1 1 0;min-height:90px;overflow-y:auto;padding:0 8px 10px}
 .ft-item{
-  display:flex;align-items:center;gap:6px;width:100%;padding:3px 5px;border-radius:var(--r-xs);
-  color:var(--text2);text-align:left;font-size:var(--fs-12);
+  display:flex;align-items:center;gap:6px;width:100%;padding:4px 6px;border-radius:var(--r-xs);
+  color:var(--text);text-align:left;font-size:var(--fs-14);
   transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
 }
 .ft-item:hover{background:var(--hover);color:var(--text)}
@@ -328,6 +350,11 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
   background:var(--elev);border:1px solid var(--border2);border-radius:var(--r-full);padding:4px 10px;outline:none;
 }
 .shead .proj .proj-inp:focus{border-color:var(--accent)}
+.proj-inp{
+  width:150px;max-width:40vw;font-family:var(--font-mono);font-size:var(--fs-11);color:var(--text);
+  background:var(--elev);border:1px solid var(--border2);border-radius:6px;padding:4px 8px;outline:none;
+}
+.proj-inp:focus{border-color:var(--brand)}
 .shead .acts{display:flex;align-items:center;gap:2px;flex:none}
 .hbtn{
   width:26px;height:26px;border-radius:var(--r-xs);display:flex;align-items:center;justify-content:center;color:var(--muted);
@@ -337,28 +364,29 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
 .hbtn.on{background:var(--chip-on);color:var(--text)}
 
 /* ============================ CONVERSATION ============================ */
-#stream{flex:1;min-height:0;overflow-y:auto;padding:18px 0 26px;overflow-anchor:none}
-/* One consistent centred column for every block type. `.msg-u` stays a flex
-   row, so its text still hugs the left edge of this column. */
-#stream > *{
-  width:100%;max-width:var(--col);margin-left:auto;margin-right:auto;
-  padding-left:20px;padding-right:20px;box-sizing:border-box;
-  animation:msgIn var(--t-slow) var(--ease);
+#stream{
+  flex:1;min-height:0;overflow-y:auto;padding:16px 14px;overflow-anchor:none;
+  display:flex;flex-direction:column;gap:14px;
 }
-#stream > .msg-u + .msg-a,#stream > .msg-a + .msg-a,#stream > .msg-a + .msg-u{margin-top:10px}
+/* The activity stream uses a wide, centred stack. */
+#stream > *{
+  width:100%;max-width:var(--col);margin:0 auto;
+  padding-left:0;padding-right:0;box-sizing:border-box;
+  animation:msgIn var(--t-fast) var(--ease);
+}
 
-.msg-u{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start}
+.msg-u{display:flex;flex-direction:column;align-items:flex-end;justify-content:flex-end}
 .msg-u .b{
-  max-width:100%;padding:0;border-radius:0;
-  background:transparent;border:0;
-  font-size:var(--fs-125);font-weight:500;line-height:1.55;color:var(--text);
+  max-width:80%;padding:10px 14px;border-radius:14px;
+  background:var(--panel);border:0;
+  font-size:var(--fs-14);font-weight:400;line-height:1.5;color:var(--text);
   white-space:pre-wrap;word-break:break-word;
 }
-.msg-a{font-size:var(--fs-125);line-height:1.72;color:var(--text);word-break:break-word;position:relative;max-width:var(--col)}
+.msg-a{font-size:var(--fs-16);line-height:1.5;color:var(--text-strong,var(--text));word-break:break-word;position:relative;max-width:none;padding:4px 2px}
 .msg-a p{margin:10px 0}.msg-a p:first-child{margin-top:0}.msg-a p:last-child{margin-bottom:0}
-.msg-a h1,.msg-a h2,.msg-a h3{font-family:var(--font-sans);font-size:var(--fs-14);font-weight:600;letter-spacing:-.01em;margin:18px 0 8px;line-height:1.35}
-.msg-a h1{font-size:var(--fs-18)}
-.msg-a h2{font-size:var(--fs-15)}
+.msg-a h1,.msg-a h2,.msg-a h3{font-family:var(--font-sans);font-size:var(--fs-15);font-weight:600;letter-spacing:-.01em;margin:18px 0 8px;line-height:1.35}
+.msg-a h1{font-size:var(--fs-22)}
+.msg-a h2{font-size:var(--fs-18)}
 .msg-a ul,.msg-a ol{margin:9px 0;padding-left:22px}.msg-a li{margin:5px 0}
 .msg-a strong{font-weight:600;color:var(--text)}
 .msg-a a{color:var(--brand);text-underline-offset:2px;text-decoration-thickness:1px}
@@ -421,16 +449,16 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
    root and .think-h pill stay as the hooks the transcript and export use.
    Motion: 300ms height, 200ms chevron, 2.4s star spin, 1.8s label shimmer —
    all disabled under prefers-reduced-motion. */
-.think{display:flex;flex-direction:column;gap:6px;align-items:flex-start;max-width:100%;margin:13px auto}
+.think{display:flex;flex-direction:column;gap:6px;align-items:flex-start;align-self:flex-start;max-width:92%;margin:0}
 .think-h{
-  display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 12px 0 10px;
-  border:0;border-radius:var(--r-full);background:var(--chip);color:var(--muted);
-  font-size:var(--fs-13);font-weight:500;cursor:pointer;
-  transition:color var(--t-fast) var(--ease),background var(--t-fast) var(--ease);
+  display:inline-flex;align-items:center;gap:9px;height:38px;padding:0 14px;
+  border:1px solid var(--border);border-radius:var(--r-md);background:var(--panel);color:var(--muted);
+  font-size:var(--fs-13);font-weight:500;cursor:pointer;max-width:90%;
+  transition:color var(--t-fast) var(--ease),background var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease);
 }
-.think-h:hover{color:var(--text)}
-.think-star{width:14px;height:14px;color:var(--brand);flex:none}
-.think-label{font-variant-numeric:tabular-nums}
+.think-h:hover{color:var(--text2);background:var(--hover);border-color:var(--border2)}
+.think-star{width:15px;height:15px;color:var(--brand);flex:none}
+.think-label{font-variant-numeric:tabular-nums;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .think-chev{width:12px;height:12px;flex:none;transition:transform 200ms var(--ease)}
 .think:not([data-mode="closed"]) .think-chev{transform:rotate(180deg)}
 .think-b{width:100%;max-height:0;overflow:hidden;transition:max-height 300ms ease}
@@ -455,34 +483,34 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
 @media (prefers-reduced-motion:reduce){.think *{animation:none!important;transition:none!important}}
 
 /* ================= TOOL SUMMARY (collapsed group) ================= */
-.tools{margin:13px auto}
+.tools{margin:0}
 .tools-h{
-  display:flex;align-items:center;gap:9px;padding:7px 11px;border-radius:var(--r-sm);
-  background:var(--panel);border:1px solid transparent;font-size:var(--fs-125);color:var(--muted);
+  display:flex;align-items:center;gap:10px;padding:0 14px;height:40px;border-radius:var(--r-md);
+  background:var(--panel);border:1px solid var(--border);font-size:var(--fs-13);color:var(--muted);
   width:100%;text-align:left;
   transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease);
 }
-.tools-h:hover{background:var(--panel2);color:var(--text2);border-color:var(--border)}
-.tools-h .dot{width:6px;height:6px;border-radius:50%;flex:none;background:var(--add-fg)}
+.tools-h:hover{background:var(--hover);color:var(--text2);border-color:var(--border2)}
+.tools-h .dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--add-fg)}
 .tools-h.err .dot{background:var(--del-fg)}
-.tools-h.run .dot{background:var(--brand);animation:pulse 1.2s ease-in-out infinite}
+.tools-h.run .dot{background:var(--add-fg);animation:pulse 1.2s ease-in-out infinite}
 .tools-h .txt{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tools-h .cnt{
-  font-family:var(--font-mono);font-size:10.5px;color:var(--dim);
-  background:var(--chip);border-radius:var(--r-full);padding:0 6px;min-width:18px;text-align:center;
+  font-family:var(--font-mono);font-size:var(--fs-11);color:var(--muted);
+  background:var(--chip);border-radius:var(--r-full);padding:1px 8px;min-width:20px;text-align:center;
 }
 .tools-h .cnt:empty{display:none}
 .tools-h .chev{color:var(--dim);display:flex;transition:transform var(--t-mid) var(--ease)}
 .tools.open .tools-h .chev{transform:rotate(90deg)}
-.tools-b{display:grid;grid-template-rows:0fr;transition:grid-template-rows var(--t-slow) var(--ease)}
-.tools.open .tools-b{grid-template-rows:1fr}
-.tools-bi{overflow:hidden;min-height:0}
-.tools-in{padding:6px 0 0}
+.tools-b{display:none;margin-top:-8px;padding:8px 14px;border:1px solid var(--border);border-radius:10px;background:var(--panel);font:12px var(--font-mono);color:var(--muted)}
+.tools.open .tools-b{display:block}
+.tools-bi{overflow:visible;min-height:0}
+.tools-in{padding:0}
 .trow{
-  display:flex;align-items:baseline;gap:9px;padding:4px 11px;font-family:var(--font-mono);
-  font-size:var(--fs-12);color:var(--muted);border-radius:var(--r-xs);
+  display:flex;align-items:baseline;gap:9px;padding:2px 0;font-family:var(--font-mono);
+  font-size:var(--fs-12);color:var(--muted);border-radius:0;
 }
-.trow:hover{background:var(--panel)}
+.trow:hover{background:transparent}
 .trow .v{color:var(--accent);font-weight:500;flex:none;min-width:52px}
 .trow .a{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2)}
 .trow .m{color:var(--dim);flex:none;font-size:var(--fs-11)}
@@ -803,36 +831,36 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
 .btn.sm{padding:5px 10px;font-size:var(--fs-12)}
 
 /* ================= COMPOSER ================= */
-.composer{flex:none;padding:0 20px 12px;position:relative;background:var(--bg)}
+.composer{flex:none;padding:0 14px 16px;position:relative;background:var(--bg)}
 .cwrap{
   max-width:var(--col);margin:0 auto;position:relative;
-  background:var(--panel);border:1px solid var(--border2);border-radius:var(--r-lg);
-  box-shadow:var(--shadow-sm);
-  transition:border-color var(--t-mid) var(--ease),box-shadow var(--t-mid) var(--ease);
+  background:var(--panel);border:1px solid var(--border);border-radius:16px;
+  padding:10px 12px;box-shadow:none;
+  transition:border-color var(--t-mid) var(--ease);
 }
-.cwrap:focus-within{border-color:var(--brand-line);box-shadow:0 0 0 3px var(--brand-soft)}
+.cwrap:focus-within{border-color:color-mix(in srgb,var(--brand) 60%,var(--border))}
 .cbox{
-  display:flex;align-items:flex-end;gap:6px;padding:7px 8px 2px;border-radius:0;
+  display:flex;align-items:flex-end;gap:4px;padding:0;border-radius:0;
   background:transparent;border:0;box-shadow:none;
   transition:none;
 }
 .cbox textarea{
   flex:1;border:0;outline:0;background:transparent;color:var(--text);resize:none;
-  font-size:var(--fs-125);line-height:22px;min-height:26px;max-height:200px;padding:2px 0;
+  font-size:var(--fs-14);line-height:20px;min-height:40px;max-height:200px;padding:4px 0;
   scrollbar-width:none;
 }
 .cbox textarea::-webkit-scrollbar{display:none}
 .cbox textarea::placeholder{color:var(--dim)}
 .cplus{
-  flex:none;width:26px;height:26px;border-radius:var(--r-xs);display:flex;align-items:center;justify-content:center;
+  flex:none;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;
   color:var(--muted);border:0;background:transparent;
   transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease),transform var(--t-fast) var(--ease);
 }
 .cplus:hover{background:var(--panel);color:var(--brand);border-color:var(--brand-line)}
 .cplus:active{transform:scale(.94)}
 .kbdh{
-  flex:none;width:26px;height:26px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center;
-  background:transparent;color:var(--muted);border:0;
+  flex:none;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+  background:var(--brand);color:#fff;border:0;
   transition:background var(--t-fast) var(--ease),transform var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
 }
 .kbdh:hover{background:var(--hover);color:var(--text)}
@@ -847,7 +875,7 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
 .kbdh.stop:hover{background:var(--panel)}
 .kbdh.stop .ic-send{display:none}
 .kbdh.stop .ic-stop{display:block}
-.crow{display:flex;align-items:center;gap:2px;margin:0;padding:2px 6px 5px;flex-wrap:wrap}
+.crow{display:flex;align-items:center;gap:4px;margin-top:2px;padding:0;flex-wrap:wrap}
 .cbtn{
   display:flex;align-items:center;gap:6px;padding:4px 7px;border-radius:var(--r-xs);
   font-size:var(--fs-11);color:var(--muted);
@@ -986,53 +1014,48 @@ body.is-mac.is-electron .titlebar{padding-left:78px;padding-right:14px}
 .si .n{font-family:var(--font-mono);font-size:var(--fs-125);color:var(--brand);min-width:92px}
 .si .d{font-size:var(--fs-125);color:var(--muted)}
 
-/* ================= RIGHT PANES (a split, not a floating card) ================= */
-/* Claude Code's split: flush against the conversation, one hairline border,
-   a compact header strip and stacked panes that share the height. */
+/* ================= RIGHT PANES (one rounded split panel) ================= */
 .panes{
   width:var(--pane-w,400px);flex:none;display:flex;flex-direction:column;
-  margin:0;border:0;border-left:1px solid var(--border);
-  overflow:hidden;background:var(--panel2);position:relative;
+  margin:20px 20px 20px 0;border:1px solid var(--border);border-radius:20px;
+  overflow:hidden;background:var(--bg);position:relative;
 }
 .panes.hide{display:none}
-/* One split: the pane's own header is the only title row, like Claude Code's
-   single split. With two or more, the tab strip returns to switch between them. */
-body.one-pane .pane-tabs{display:none}
 /* Preview fullscreen: the preview row covers the window BELOW the titlebar
    strip (46px = the Electron titleBarOverlay height) - its header buttons
    must never land under the OS window controls. Esc or the header button
    exits; closing the pane exits too. */
 body.preview-full .pane-row[data-pane="preview"]{
-  position:fixed;inset:38px 0 0 0;z-index:60;margin:0;border:none;border-radius:0;background:var(--bg);
+  position:fixed;inset:40px 0 0 0;z-index:60;margin:0;border:none;border-radius:0;background:var(--bg);
 }
 body.preview-full .pane-row[data-pane="preview"] .pane-grip-b{display:none}
 body.preview-full .pane-row[data-pane="preview"] .pane-sub{padding:0 14px}
 .pane-tabs{
-  display:flex;align-items:center;gap:2px;padding:0 8px;height:38px;background:var(--panel2);
+  display:flex;align-items:center;gap:4px;padding:0 16px;height:60px;background:var(--bg);
   border-bottom:1px solid var(--border);flex:none;overflow-x:auto;scrollbar-width:none;
 }
 .pane-tabs::-webkit-scrollbar{height:0}
 .paneTitle{
-  display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:var(--r-xs);
-  font-size:var(--fs-12);color:var(--text2);background:transparent;border:0;
+  display:flex;align-items:center;gap:7px;padding:8px 14px;border-radius:var(--r-full);
+  font-size:var(--fs-14);color:var(--text2);background:var(--elev);border:1px solid var(--border);
   flex:none;
-  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
+  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease);
 }
-.paneTitle:hover{background:var(--hover);color:var(--text)}
+.paneTitle:hover{background:var(--hover);border-color:var(--border2);color:var(--text)}
 .paneTitle .chev{opacity:.55;flex:none}
 .paneTitle .badge{
   font-family:var(--font-mono);font-size:10px;padding:0 5px;border-radius:var(--r-full);
   background:var(--chip-on);color:var(--text2);min-width:16px;text-align:center;
 }
 .paneX{
-  width:24px;height:24px;border-radius:var(--r-full);display:flex;align-items:center;justify-content:center;
-  color:var(--dim);flex:none;transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
+  width:26px;height:26px;border-radius:var(--r-xs);display:flex;align-items:center;justify-content:center;
+  color:var(--muted);flex:none;transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
 }
 .paneX:hover{background:var(--hover);color:var(--text)}
 .pane-tabs .spacer{flex:1}
 .paneAdd{
-  width:26px;height:26px;flex:none;display:flex;align-items:center;justify-content:center;
-  border-radius:var(--r-full);color:var(--muted);
+  width:32px;height:32px;flex:none;display:flex;align-items:center;justify-content:center;
+  border-radius:8px;color:var(--muted);
   transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
 }
 .paneAdd:hover{background:var(--hover);color:var(--text)}
@@ -1043,24 +1066,27 @@ body.preview-full .pane-row[data-pane="preview"] .pane-sub{padding:0 14px}
 .pane-grip:hover{background:color-mix(in srgb,var(--accent) 45%,transparent)}
 body.pane-drag{cursor:col-resize;user-select:none}
 body.pane-drag .pane-grip{background:color-mix(in srgb,var(--accent) 45%,transparent)}
-.pane-body{flex:1;min-height:0;display:flex;flex-direction:column;gap:0;overflow-y:auto;padding:0;background:var(--panel)}
-/* Every open pane stacks in the split; a single open pane fills it. */
+.pane-body{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;overflow-y:auto;padding:12px;background:var(--bg)}
+/* Stacked, collapsible cards inside one rounded panel. Preview is the tall
+   card; the rest are headers until they have something to show. */
 .pane-row{
-  flex:0 0 auto;display:none;flex-direction:column;min-height:200px;
-  border:0;border-bottom:1px solid var(--border);border-radius:0;background:var(--panel);overflow:hidden;
+  flex:0 0 auto;display:none;flex-direction:column;min-height:0;
+  border:1px solid var(--border);border-radius:12px;background:var(--panel);overflow:hidden;
 }
 .pane-row.open{display:flex;animation:fadeIn var(--t-mid) var(--ease)}
-/* Open panes share the leftover height; an empty one collapses to its header
-   and stops growing (the rule further down), so the rail never shows a stack
-   of empty boxes. */
-#paneBody .pane-row.open{flex:1 1 auto}
-.pane-row.active{border-color:var(--border)}
-#paneBody.solo .pane-row.open{flex:1;min-height:0}
+#paneBody .pane-row.open{flex:0 0 auto}
+#paneBody .pane-row[data-pane="preview"].open{flex:0 0 auto;min-height:0}
+.pane-row[data-pane="preview"] .pane-b{height:280px;flex:none;overflow:auto}
+.pane-row.active{border-color:color-mix(in srgb,var(--brand) 55%,var(--border))}
+#paneBody.solo .pane-row.open{flex:0 0 auto}
 .pane-sub{
-  display:flex;align-items:center;gap:7px;height:34px;padding:0 10px;background:var(--panel);
+  display:flex;align-items:center;gap:6px;height:46px;padding:0 10px 0 18px;background:var(--panel);
   border-bottom:1px solid var(--border);flex:none;
-  font-size:var(--fs-12);font-weight:500;color:var(--text2);
+  font-size:var(--fs-14);font-weight:600;color:var(--text-strong,var(--text));
 }
+.pane-row.collapsed .pane-sub{border-bottom:0}
+.pane-sub .btn{border-radius:var(--r-full);padding:5px 12px;font-size:var(--fs-12);background:transparent;border-color:var(--border)}
+.pane-sub .btn:hover{background:var(--hover)}
 .pane-sub>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* The pane label is a quiet uppercase eyebrow; a file name in the same row
    must keep its real case. */
@@ -1069,21 +1095,21 @@ body.pane-drag .pane-grip{background:color-mix(in srgb,var(--accent) 45%,transpa
 /* Per-pane controls: a close X in each header, a drag-to-resize grip along
    each card's bottom edge (double-click the grip to reset). The header
    itself is the drag handle for reordering the stack. */
-.pane-sub{cursor:grab}
-.pane-sub:active{cursor:grabbing}
+.pane-sub{cursor:pointer}
+.pane-sub:active{cursor:pointer}
 .pane-x{
-  width:22px;height:22px;flex:none;display:flex;align-items:center;justify-content:center;
-  border-radius:var(--r-full);color:var(--dim);cursor:pointer;
+  width:28px;height:28px;flex:none;display:flex;align-items:center;justify-content:center;
+  border-radius:8px;color:var(--muted);cursor:pointer;
   transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
 }
-.pane-x:hover{background:var(--chip-on);color:var(--text)}
+.pane-x:hover{background:var(--hover);color:var(--text)}
 .pane-grip-b{
-  height:8px;flex:none;cursor:row-resize;position:relative;
+  height:14px;flex:none;cursor:row-resize;position:relative;
   transition:background var(--t-fast) var(--ease);
 }
 .pane-grip-b::after{
-  content:"";position:absolute;left:50%;top:2px;width:36px;height:3px;transform:translateX(-50%);
-  border-radius:2px;background:var(--border2);opacity:.55;
+  content:"";position:absolute;left:50%;top:5px;width:44px;height:4px;transform:translateX(-50%);
+  border-radius:4px;background:var(--border);opacity:1;
   transition:opacity var(--t-fast) var(--ease),background var(--t-fast) var(--ease);
 }
 .pane-grip-b:hover{background:color-mix(in srgb,var(--accent) 12%,transparent)}
@@ -1149,18 +1175,20 @@ html[data-embed] #splitBox{display:none !important}
 #blenderView.hint .bv-cap{border-top:none;text-align:center;padding:0 22px;white-space:normal;line-height:1.6}
 [data-blender].on{color:var(--accent);background:var(--panel)}
 .pane-b.pad{padding:var(--sp-4)}
-.pempty{padding:28px 18px;text-align:center;color:var(--dim);font-size:var(--fs-12);line-height:1.7}
+.pane-row[data-pane="preview"] .pempty{font-size:var(--fs-15)}
+.pane-row[data-pane="preview"] .pempty span{font-size:var(--fs-13)}
+.pempty{padding:20px;text-align:center;color:var(--muted);font-size:var(--fs-13);line-height:1.7}
+.pane-row[data-pane="preview"] .pempty{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
 .pempty::before{
-  content:"✦";display:block;font-size:19px;line-height:1;margin-bottom:9px;
-  color:var(--brand);opacity:.65;
+  content:"✦";display:block;font-size:20px;line-height:1;margin-bottom:4px;
+  color:var(--brand);opacity:1;
 }
 .pempty[hidden]{display:none}
-/* A pane with nothing to show collapses to its title row, so the rail reads
-   as a stack of tools instead of a wall of empty boxes. Preview always keeps
-   its body (it explains how to fill it). */
-.pane-row:not([data-pane="preview"]):has(.pempty:not([hidden])) .pane-b{display:none}
-#paneBody .pane-row:not([data-pane="preview"]):has(.pempty:not([hidden])){flex:0 0 auto;min-height:0}
-.pane-row:not([data-pane="preview"]):has(.pempty:not([hidden])) .pane-grip-b{display:none}
+/* A card collapses to its header row; clicking the header expands it again.
+   Tasks, Plan and Changes start collapsed in the rail, like the desktop app. */
+.pane-row.collapsed .pane-b{display:none}
+.pane-row.collapsed .pane-grip-b{display:none}
+#paneBody .pane-row.collapsed{flex:0 0 auto;min-height:0}
 .term{
   background:var(--termbg);padding:10px 13px;font-family:var(--font-mono);font-size:var(--fs-11);
   line-height:1.7;color:var(--term-fg);flex:1;min-height:120px;overflow:auto;white-space:pre-wrap;
@@ -1271,7 +1299,7 @@ html[data-embed] #splitBox{display:none !important}
 .set-main .sh{font-size:var(--fs-12);color:var(--muted);margin:0 0 var(--sp-5);line-height:1.6}
 .set-main .sect{max-width:660px}
 .card{
-  background:var(--panel);border:1px solid var(--border);border-radius:var(--r-sm);
+  background:var(--panel);border:1px solid var(--border);border-radius:12px;
   padding:16px 18px;margin-bottom:12px;box-shadow:none;
 }
 .card .ct{display:flex;align-items:center;gap:8px;font-size:var(--fs-125);font-weight:600;margin-bottom:3px}
@@ -1502,20 +1530,35 @@ body.mode-chat #bigProj{display:none}
 <body>
 
 <!-- ==================== TITLE BAR ==================== -->
-<!-- A slim desktop strip: navigation on the left, the pane toggle on the
-     right. Settings lives with the machine identity at the bottom of the
-     sidebar, the way Claude Code's desktop app does it. -->
 <div class="titlebar">
-  <button class="tb-btn" id="btnSidebar" title="Toggle sidebar" aria-label="Toggle sidebar">
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M5.6 2.5v11"/></svg>
-  </button>
-  <button class="tb-btn" id="btnSearch" title="Search sessions (Ctrl+K)" aria-label="Search sessions">
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.4"/><path d="M10.4 10.4L14 14"/></svg>
-  </button>
-  <span class="spacer"></span>
-  <button class="tb-btn" id="btnPanes" title="Toggle panes" aria-label="Toggle panes">
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="5.6" height="11" rx="1.8"/><rect x="8.9" y="2.5" width="5.6" height="11" rx="1.8"/></svg>
-  </button>
+  <div class="left">
+    <button class="icon-btn" id="btnSidebar" title="Toggle sidebar" aria-label="Toggle sidebar">
+      <svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="2.5"/><path d="M6 2.5v11"/></svg>
+    </button>
+    <button class="icon-btn" id="btnTitleSettings" title="Settings" aria-label="Settings">
+      <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.5v1.6M8 12.9v1.6M1.5 8h1.6M12.9 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M3.4 12.6l1.1-1.1M11.5 4.5l1.1-1.1"/></svg>
+    </button>
+    <button class="icon-btn" id="btnBack" title="Back" aria-label="Back">
+      <svg viewBox="0 0 16 16"><path d="M10 3L5 8l5 5"/></svg>
+    </button>
+    <button class="icon-btn" id="btnForward" title="Forward" aria-label="Forward">
+      <svg viewBox="0 0 16 16"><path d="M6 3l5 5-5 5"/></svg>
+    </button>
+  </div>
+  <div class="center"><span id="sTitle" title="Double-click to rename">New session</span></div>
+  <div class="right">
+    <button class="icon-btn" id="btnTheme" title="Cycle theme" aria-label="Cycle theme">
+      <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11"/><path d="M8 2.5a5.5 5.5 0 010 11z" fill="currentColor"/></svg>
+    </button>
+    <button class="icon-btn" id="btnPanes" title="Toggle panel" aria-label="Toggle panel">
+      <svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="2.5"/><path d="M10 2.5v11"/></svg>
+    </button>
+  </div>
+  <div class="wc">
+    <button data-win="minimize" title="Minimize" aria-label="Minimize"><svg viewBox="0 0 12 12"><path d="M2 6h8"/></svg></button>
+    <button data-win="maximize" title="Maximize" aria-label="Maximize"><svg viewBox="0 0 12 12"><rect x="2" y="2" width="8" height="8" rx="1.2"/></svg></button>
+    <button class="close" data-win="close" title="Close" aria-label="Close"><svg viewBox="0 0 12 12"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7"/></svg></button>
+  </div>
 </div>
 
 <div class="updatebar" id="updateBar">
@@ -1535,9 +1578,11 @@ body.mode-chat #bigProj{display:none}
   <aside class="sidebar" id="sidebar">
     <div class="sb-brand">
       <span class="sb-mark" aria-hidden="true">
-        <svg width="21" height="21" viewBox="0 0 16 16" fill="currentColor"><path d="M8 .7C8.9 5.6 10.4 7.1 15.3 8 10.4 8.9 8.9 10.4 8 15.3 7.1 10.4 5.6 8.9.7 8 5.6 7.1 7.1 5.6 8 .7Z"/></svg>
+        <svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor"><path d="M8 .7C8.9 5.6 10.4 7.1 15.3 8 10.4 8.9 8.9 10.4 8 15.3 7.1 10.4 5.6 8.9.7 8 5.6 7.1 7.1 5.6 8 .7Z"/></svg>
       </span>
       <span class="sb-word">Star</span>
+      <span class="spacer"></span>
+      <span class="proj" id="sProj" title="Click to change the working folder">—</span>
     </div>
     <div class="sb-links">
       <div class="sb-newrow">
@@ -1578,45 +1623,12 @@ body.mode-chat #bigProj{display:none}
       </button>
     </div>
     <div class="sb-tree" id="fileTree"></div>
-    <div class="sb-foot">
-      <span class="sb-machine"><span class="sb-live" aria-hidden="true"></span>Local</span>
-      <button class="tb-btn" id="btnTitleSettings" title="Settings" aria-label="Settings">
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12.79 6.98L14.55 7.2A6.6 6.6 0 0 1 14.55 8.8L12.79 9.02A4.9 4.9 0 0 1 12.11 10.67L13.2 12.06A6.6 6.6 0 0 1 12.06 13.2L10.67 12.11A4.9 4.9 0 0 1 9.02 12.79L8.8 14.55A6.6 6.6 0 0 1 7.2 14.55L6.98 12.79A4.9 4.9 0 0 1 5.33 12.11L3.94 13.2A6.6 6.6 0 0 1 2.8 12.06L3.89 10.67A4.9 4.9 0 0 1 3.21 9.02L1.45 8.8A6.6 6.6 0 0 1 1.45 7.2L3.21 6.98A4.9 4.9 0 0 1 3.89 5.33L2.8 3.94A6.6 6.6 0 0 1 3.94 2.8L5.33 3.89A4.9 4.9 0 0 1 6.98 3.21L7.2 1.45A6.6 6.6 0 0 1 8.8 1.45L9.02 3.21A4.9 4.9 0 0 1 10.67 3.89L12.06 2.8A6.6 6.6 0 0 1 13.2 3.94L12.11 5.33A4.9 4.9 0 0 1 12.79 6.98Z"/><circle cx="8" cy="8" r="2"/></svg>
-      </button>
-    </div>
     <div class="sb-grip" id="sbGrip" title="Drag to resize" aria-hidden="true"></div>
   </aside>
   <div class="sb-scrim" id="sbScrim" aria-hidden="true"></div>
 
   <!-- ==================== SESSION ==================== -->
   <main class="session">
-    <div class="shead">
-      <span class="ico">
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M2 6h12M5 4.2h.01M7 4.2h.01"/></svg>
-      </span>
-      <span class="proj" id="sProj">—</span>
-      <span class="crumb-sep" aria-hidden="true">/</span>
-      <span class="ttl" id="sTitle" title="Double-click to rename">New session</span>
-      <span class="spacer"></span>
-      <span class="acts">
-        <button class="hbtn" id="hbFiles" title="Files, artifacts and progress" aria-label="Files, artifacts and progress">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M1.8 4.5A1.5 1.5 0 013.3 3h2.4l1.3 1.6h5.7a1.5 1.5 0 011.5 1.5v5.4a1.5 1.5 0 01-1.5 1.5H3.3a1.5 1.5 0 01-1.5-1.5z"/><path d="M5.6 9.4h4.8"/></svg>
-        </button>
-        <button class="hbtn" id="hbTerm" title="Terminal pane">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M4.4 6l2 2-2 2M8.4 10.2h3.2"/></svg>
-        </button>
-        <button class="hbtn" id="hbDiff" title="Diff pane">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M1.5 8h13"/><path d="M4.2 5.25h2.6M5.5 3.95v2.6M9.2 10.75h2.6"/></svg>
-        </button>
-        <button class="hbtn" id="hbBrowser" title="Browser pane">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="6"/><path d="M8 2c1.8 1.7 2.8 3.7 2.8 6S9.8 12.3 8 14c-1.8-1.7-2.8-3.7-2.8-6S6.2 3.7 8 2zM2.4 6h11.2M2.4 10h11.2"/></svg>
-        </button>
-        <button class="hbtn" id="hbPanes" title="More panes">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="3" cy="8" r="1.2"/><circle cx="8" cy="8" r="1.2"/><circle cx="13" cy="8" r="1.2"/></svg>
-        </button>
-      </span>
-    </div>
-
     <div id="stream" style="display:none"></div>
 
     <div class="landing" id="landing">
@@ -1741,7 +1753,7 @@ body.mode-chat #bigProj{display:none}
   </main>
 
   <!-- ==================== PANES (tabbed) ==================== -->
-  <div class="panes hide" id="panes">
+  <div class="panes" id="panes">
     <div class="pane-grip" id="paneGrip" title="Drag to resize" aria-hidden="true"></div>
     <div class="pane-tabs" id="paneTabs"></div>
     <div class="pane-body" id="paneBody">
@@ -1752,13 +1764,13 @@ body.mode-chat #bigProj{display:none}
         <div class="pane-grip-b" data-panegrip="preview" title="Drag to resize · double-click to reset" aria-hidden="true"></div>
       </section>
 
-      <section class="pane-row" data-pane="tasks">
+      <section class="pane-row collapsed" data-pane="tasks">
         <div class="pane-sub"><span>Tasks</span><span class="spacer"></span><button class="pane-x" data-panex="tasks" title="Close Tasks" aria-label="Close Tasks"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
         <div class="pane-b"><div class="pempty" id="tasksEmpty">No tasks yet.</div><div id="tasksList"></div></div>
         <div class="pane-grip-b" data-panegrip="tasks" title="Drag to resize · double-click to reset" aria-hidden="true"></div>
       </section>
 
-      <section class="pane-row" data-pane="plan">
+      <section class="pane-row collapsed" data-pane="plan">
         <div class="pane-sub"><span>Plan</span><span class="spacer"></span><button class="pane-x" data-panex="plan" title="Close Plan" aria-label="Close Plan"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
         <div class="pane-b">
           <div class="plan-body" id="planBody">
@@ -1774,7 +1786,7 @@ body.mode-chat #bigProj{display:none}
         <div class="pane-grip-b" data-panegrip="terminal" title="Drag to resize · double-click to reset" aria-hidden="true"></div>
       </section>
 
-      <section class="pane-row" data-pane="diff">
+      <section class="pane-row collapsed" data-pane="diff">
         <div class="pane-sub">Changes<span class="spacer"></span><button class="btn sm" data-act="review" style="font-size:11.5px;padding:3px 9px">Review code</button><button class="pane-x" data-panex="diff" title="Close Changes" aria-label="Close Changes"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
         <div class="pane-b"><div class="pempty" id="diffEmpty">No changes to show</div><div id="diffList"></div></div>
         <div class="pane-grip-b" data-panegrip="diff" title="Drag to resize · double-click to reset" aria-hidden="true"></div>
@@ -2038,6 +2050,9 @@ matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => { i
 let meta = null;
 let appVersion = "";
 let sessionId = null, todos = [], diffs = [], termLines = [];
+/* Session navigation history for the title bar's back/forward buttons. */
+const navHistory = [];
+let navPos = -1, navSuppress = false;
 let booting = true;   // silences navigation toasts while the shell restores itself
 /** Live turns, one per session: id -> { events, running, wasNew }. The SSE
  *  reader keeps consuming after you switch away; buffered events replay into
@@ -2673,9 +2688,9 @@ const PANE_DEFS = [
   { id: "diff", label: "Changes" },
   { id: "usage", label: "Usage" },
 ];
-const paneOpen = new Set();
+const paneOpen = new Set(["preview", "tasks", "plan", "diff"]);
 const paneBadges = { tasks: 0, diff: 0, terminal: 0 };
-let activePane = "preview";
+let activePane = "diff";
 
 function renderPaneTabs() {
   const host = $("paneTabs");
@@ -2689,14 +2704,14 @@ function renderPaneTabs() {
       <span class="lb">${esc(active ? active.label : "Panes")}</span>${ab ? `<span class="badge">${ab > 9 ? "9+" : ab}</span>` : ""}
       <svg class="chev" width="10" height="10" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4.5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </button>` +
-    (activePane && paneOpen.size > 1
-      ? `<button class="paneX" id="paneX" title="Close this pane" aria-label="Close this pane"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>`
+    (activePane
+      ? `<button class="paneX" id="paneX" title="Close panel" aria-label="Close panel"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>`
       : "") +
     `<span class="spacer"></span>` +
     `<button class="paneAdd" id="paneAdd" title="Open a pane" aria-label="Open a pane"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button>`;
   $("paneTitle").addEventListener("click", (e) => { e.stopPropagation(); paneTitleMenu($("paneTitle")); });
   const x = $("paneX");
-  if (x) x.addEventListener("click", () => closePaneTab(activePane));
+  if (x) x.addEventListener("click", () => { $("panes").classList.add("hide"); });
   const add = $("paneAdd");
   if (add) add.addEventListener("click", (e) => { e.stopPropagation(); paneMenu(add); });
 }
@@ -2808,15 +2823,16 @@ function wirePanes() {
   document.querySelectorAll(".pane-row").forEach(p => {
     const sub = p.querySelector(".pane-sub");
     if (sub) sub.addEventListener("click", (e) => {
-      if (!e.target.closest("button")) setActivePane(p.dataset.pane);
+      if (e.target.closest("button")) return;
+      setActivePane(p.dataset.pane);
+      // Header click expands or collapses the card, like the desktop app.
+      p.classList.toggle("collapsed");
     });
   });
   applyActivePane();
   renderPaneTabs();
 }
-$("hbPanes").addEventListener("click", e => { e.stopPropagation(); paneMenu($("hbPanes")); });
 $("cPanels").addEventListener("click", e => { e.stopPropagation(); paneMenu($("cPanels")); });
-$("hbTerm").addEventListener("click", () => showPane("terminal"));
 
 /* ---- session rename dialog ---- */
 let renamingId = null;
@@ -2959,10 +2975,10 @@ function toggleActPanel(show) {
   const el = $("actPanel");
   const on = show === undefined ? el.style.display === "none" : show;
   el.style.display = on ? "flex" : "none";
-  $("hbFiles").classList.toggle("on", on);
+  const hb = document.getElementById("hbFiles");
+  if (hb) hb.classList.toggle("on", on);
   if (on) renderActPanel();
 }
-$("hbFiles").addEventListener("click", (e) => { e.stopPropagation(); toggleActPanel(); });
 $("actClose").addEventListener("click", () => toggleActPanel(false));
 
 /* ---- right rail resize ---- */
@@ -3207,8 +3223,6 @@ document.addEventListener("visibilitychange", () => {
   if (document.hidden) { clearInterval(blenderTimer); blenderTimer = 0; }
   else if (!blenderTimer) { blenderFrame(); blenderTimer = setInterval(blenderFrame, 1800); }
 });
-$("hbDiff").addEventListener("click", () => showPane("diff"));
-$("hbBrowser").addEventListener("click", () => showPane("preview"));
 $("btnPanes").addEventListener("click", () => {
   // a narrow window slides the panes over the conversation instead of squeezing it
   if (innerWidth <= 1000) { document.body.classList.toggle("pane-open"); return; }
@@ -3224,14 +3238,26 @@ $("btnPanes").addEventListener("click", () => {
   syncMotionVisibility();
 });
 $("btnSidebar").addEventListener("click", () => toggleSidebar());
-$("btnSearch").addEventListener("click", () => focusSessionSearch());
+$("btnTheme").addEventListener("click", cycleTheme);
+function navGo(delta) {
+  const next = navPos + delta;
+  if (next < 0 || next >= navHistory.length) return;
+  navPos = next;
+  const id = navHistory[navPos];
+  if (!id || id === sessionId) return;
+  navSuppress = true;
+  switchSession(id).finally(() => { navSuppress = false; });
+}
+$("btnBack").addEventListener("click", () => navGo(-1));
+$("btnForward").addEventListener("click", () => navGo(1));
+document.querySelectorAll("[data-win]").forEach(b => b.addEventListener("click", () => {
+  if (bridge && bridge.window) bridge.window(b.dataset.win);
+}));
 $("sbScrim").addEventListener("click", () => toggleSidebar(false));
 /* Focus the sidebar's search box (the titlebar used to carry a button for
    this; the sidebar's own field and Cmd+K are the ways now). */
 function focusSessionSearch() {
   if (getComputedStyle($("sidebar")).display === "none") toggleSidebar(true);
-  const box = document.querySelector(".sb-search");
-  if (box) box.classList.add("on");
   const s = $("sessSearch");
   if (s) { s.focus(); s.select(); }
 }
@@ -3333,12 +3359,14 @@ function sessionRow(s) {
           ? '<svg class="runarc" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="8" cy="8" r="5" opacity=".28"/><path d="M8 3a5 5 0 0 1 5 5"/></svg>'
           : '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="5"/></svg>'
       }</span>
-      <span class="lbl">${esc(s.title)}</span>
+      <span class="txt">
+        <span class="lbl">${esc(s.title)}</span>
+        <span class="meta">${needs ? "Waiting for your answer" : esc(ago(s.updated)) + (s.turns ? " · " + s.turns + " turn" + (s.turns === 1 ? "" : "s") : "")}</span>
+      </span>
       ${unread ? '<span class="dotnew" title="Unread"></span>' : ""}
       <span class="more" data-more="${esc(s.id)}" title="More">
         <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="3.5" r="1.1"/><circle cx="8" cy="8" r="1.1"/><circle cx="8" cy="12.5" r="1.1"/></svg>
       </span>
-      <span class="meta">${needs ? "Waiting for your answer" : esc(ago(s.updated)) + (s.turns ? " · " + s.turns + " turn" + (s.turns === 1 ? "" : "s") : "")}</span>
     </button>`;
 }
 
@@ -3529,6 +3557,11 @@ async function switchSession(id) {
     save();
     $("sTitle").textContent = j.title || "Untitled";
     $("sProj").textContent = (j.cwd || state.root || "").split(/[\\/]/).filter(Boolean).pop() || "";
+    if (!navSuppress && navHistory[navPos] !== id) {
+      navHistory.splice(navPos + 1);
+      navHistory.push(id);
+      navPos = navHistory.length - 1;
+    }
     applyMode(j.mode || "manual");
     renderTranscript(j.messages || [], j.ui || []);
     // Stats survive reloads: hydrate from the store, then keep folding events.
@@ -3562,10 +3595,9 @@ async function switchSession(id) {
   }
 }
 
-/** Pull the control blocks (```tool JSON fences, the last ```todo checklist)
- *  out of a stored assistant message: the rebuild replays tool rows and the
- *  checklist from them. The server's parser reads the same fences plus DSML;
- *  DSML-heavy turns keep their prose and results, just no replay rows. */
+/** Pull the control blocks (```tool JSON fences, the last ```todo checklist,
+ *  and XML invoke blocks) out of a stored assistant message: the rebuild
+ *  replays tool rows and the checklist from them. */
 function parseStoredControls(content) {
   const src = String(content || "");
   const calls = [];
@@ -3576,6 +3608,21 @@ function parseStoredControls(content) {
       const obj = JSON.parse(m[1].trim());
       if (obj && obj.name) calls.push({ name: obj.name, args: obj.args || {} });
     } catch {}
+  }
+  // XML dialect: <invoke name="…"><args>{…}</args></invoke>
+  const invRe = /<(?:[\w.-]+:)?invoke\s+name\s*=\s*["']([^"']+)["'][^>]*>([\s\S]*?)<\/(?:[\w.-]+:)?invoke\s*>/gi;
+  while ((m = invRe.exec(src)) !== null) {
+    const name = String(m[1] || "").trim();
+    if (!name) continue;
+    let args = {};
+    const a = /<(?:[\w.-]+:)?args\b[^>]*>([\s\S]*?)(?:<\/(?:[\w.-]+:)?args>|<\/(?:[\w.-]+:)?parameter>|$)/i.exec(m[2]);
+    if (a) {
+      try {
+        const parsed = JSON.parse(a[1].trim());
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) args = parsed;
+      } catch { /* leave empty */ }
+    }
+    calls.push({ name, args });
   }
   let todos = null;
   const todoRe = /```todo\s*([\s\S]*?)```/g;
@@ -3620,6 +3667,8 @@ function renderTranscript(msgs, ui) {
     if (m.role === "user") { addUser(m.content); continue; }
     const parsed = parseStoredControls(m.content);
     const clean = stripBlocks(m.content);
+    // Tool rows lead their round, then the prose they produced.
+    for (const call of parsed.calls) addTool({ name: call.name, args: call.args, status: "ok" });
     if (clean.trim()) {
       startAssistant();
       currentMsg._t = clean;
@@ -3627,8 +3676,6 @@ function renderTranscript(msgs, ui) {
       wireCopy(currentMsg);
       endAssistant();
     }
-    // Tool rows follow their round's prose, exactly like the live stream.
-    for (const call of parsed.calls) addTool({ name: call.name, args: call.args, status: "running" });
     if (parsed.todos) renderTodos(parsed.todos);
     for (const a of parseArtifacts(m.content)) {
       artifacts.push({ lang: a.lang, code: a.code, title: a.title, desc: a.desc });
@@ -3666,7 +3713,7 @@ function renderUiEntry(e) {
     n.innerHTML = `
       <button class="think-h" type="button" aria-expanded="${mode !== "closed"}" aria-controls="${pid}">
         ${SPARK_SVG}
-        <span class="think-label">${secs < 1 ? "Thought for a moment" : "Thought for " + Math.max(1, Math.round(secs)) + "s"}${gist ? " · " + esc(gist) : ""}</span>
+        <span class="think-label">${secs < 2 ? "Thought for a moment" : "Thought for " + Math.max(2, Math.round(secs)) + "s"}${gist ? " · " + esc(gist) : ""}</span>
         ${THINK_CHEV}
       </button>
       <div class="think-b" id="${pid}" role="region" aria-label="Reasoning" aria-live="off" style="display:${mode === "closed" ? "none" : ""}"><div class="think-t">${esc(body)}</div></div>`;
@@ -3784,7 +3831,7 @@ function renderTree() {
       const el = document.createElement("button");
       const open = e.dir && !treeCollapsed.has(e.path);
       el.className = "ft-item" + (open ? " open" : "");
-      el.style.paddingLeft = (6 + e.depth * 14) + "px";
+      el.style.paddingLeft = (6 + e.depth * 20) + "px";
       el.innerHTML = `<span class="ft-caret">${e.dir ? CHEV_SVG : ""}</span><span class="nm">${esc(e.name)}</span>`;
       el.title = e.path;
       if (e.dir) {
@@ -4178,6 +4225,12 @@ function stripBlocks(s) {
   out = out.replace(/^`{3,}(?:tool|todo)\b[\s\S]*?^`{3,}[ \t]*$/gm, "");
   out = out.replace(/^(`{3,})artifact\b[\s\S]*$/m, "");
   out = out.replace(/^`{3,}(?:tool|todo)\b[\s\S]*$/m, "");
+  // XML tool-call dialects (<dots_function_call><invoke …>…</invoke>) and
+  // stray tags like a lone </tool> are control markup, not prose. Drop a
+  // complete wrapper, a still-streaming opener's tail, then any stray tags.
+  out = out.replace(/<(?:[\w.-]+:)?(?:dots_|dsml_)?(?:function_calls?|tool_calls?)\b[^>]*>[\s\S]*?<\/(?:[\w.-]+:)?(?:dots_|dsml_)?(?:function_calls?|tool_calls?)\s*>/gi, "");
+  out = out.replace(/<(?:[\w.-]+:)?(?:dots_|dsml_)?(?:function_calls?|tool_calls?)\b[^>]*>[\s\S]*$/i, "");
+  out = out.replace(/<\/?(?:[\w.-]+:)?(?:dots_|dsml_)?(?:function_calls?|tool_calls?|invoke|args|parameter|tool)\b[^>]*>/gi, "");
   // DeepSeek's native tool markup (<|DSML|…>) never belongs on screen. A
   // proxy may rewrite the delimiters with spaces (<| |DSML| |tool_calls>), so
   // normalize first, then drop the tool_calls wrapper, a still-streaming
@@ -4291,19 +4344,19 @@ function splitArtifactParts(code) {
 const SHELL_CSS = `
   :root{color-scheme:light dark}
   *{box-sizing:border-box}
-  body{margin:0;background:light-dark(#f7f7f4,#1b1a17);color:light-dark(#1f1e1b,#f0efea);
+  body{margin:0;background:light-dark(#faf9f5,#1b1a17);color:light-dark(#1f1e1b,#ece9e0);
     font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
   h1,h2,h3{font-family:Georgia,"Times New Roman",serif;font-weight:500;letter-spacing:-.01em;line-height:1.25;margin:.6em 0 .4em}
   h1{font-size:1.7em}h2{font-size:1.35em}h3{font-size:1.12em}
   p{margin:.5em 0}ul,ol{margin:.5em 0;padding-left:1.4em}li{margin:.2em 0}
   code,pre{font-family:"JetBrains Mono",Consolas,monospace;font-size:.85em}
-  pre{background:light-dark(#efefea,#151513);color:light-dark(#1f1e1b,#e6e3da);padding:12px 14px;border-radius:10px;overflow:auto}
-  code:not(pre code){background:light-dark(#efefea,#151513);padding:1px 5px;border-radius:6px}
+  pre{background:light-dark(#e9e6db,#151513);color:light-dark(#1f1e1b,#e6e3da);padding:12px 14px;border-radius:10px;overflow:auto}
+  code:not(pre code){background:light-dark(#e9e6db,#151513);padding:1px 5px;border-radius:6px}
   table{border-collapse:collapse;margin:.8em 0;width:100%}
-  th,td{border:1px solid light-dark(#e7e6e1,#31312e);padding:6px 10px;text-align:left}
-  th{background:light-dark(#efefea,#232321)}
+  th,td{border:1px solid light-dark(#e0dccf,#34322d);padding:6px 10px;text-align:left}
+  th{background:light-dark(#e9e6db,#252421)}
   img{max-width:100%}
-  blockquote{margin:.6em 0;padding:.2em 1em;border-left:3px solid light-dark(#e7e6e1,#31312e);color:light-dark(#6d6b65,#96938b)}
+  blockquote{margin:.6em 0;padding:.2em 1em;border-left:3px solid light-dark(#e0dccf,#34322d);color:light-dark(#7a776d,#9b988d)}
 `;
 
 /** A document artifact: markdown rendered on a page of comfortable width,
@@ -4331,18 +4384,18 @@ function deckIframeHtml(code) {
   html,body{height:100%;overflow:hidden}
   body{padding:18px 18px 56px}
   .slide{display:none;width:100%;max-width:980px;aspect-ratio:16/9;margin:0 auto;padding:48px 56px;
-    background:light-dark(#ffffff,#232321);border:1px solid light-dark(#e7e6e1,#31312e);border-radius:16px;
+    background:light-dark(#ffffff,#252421);border:1px solid light-dark(#e0dccf,#34322d);border-radius:16px;
     box-shadow:0 10px 30px light-dark(rgba(0,0,0,.07),rgba(0,0,0,.4));overflow:auto}
   .slide.on{display:block}
   .slide>*:first-child{margin-top:0}
   .slide h1{font-size:2.1em}.slide p,.slide li{font-size:1.02em}
   .bar{position:fixed;left:0;right:0;bottom:0;height:44px;display:flex;align-items:center;gap:10px;
     justify-content:center;background:light-dark(rgba(247,244,236,.92),rgba(27,26,23,.92));
-    border-top:1px solid light-dark(#e7e6e1,#31312e);font-size:13px}
-  .bar button{width:30px;height:30px;border-radius:999px;border:1px solid light-dark(#d9d8d2,#3d3d39);
+    border-top:1px solid light-dark(#e0dccf,#34322d);font-size:13px}
+  .bar button{width:30px;height:30px;border-radius:999px;border:1px solid light-dark(#d4cfc0,#3d3a34);
     background:transparent;color:inherit;font-size:16px;cursor:pointer;line-height:1}
-  .bar button:hover{background:light-dark(#ecebe6,#252523)}
-  .bar .hint{color:light-dark(#6d6b65,#96938b);margin-left:6px}
+  .bar button:hover{background:light-dark(#e9e6db,#2e2c28)}
+  .bar .hint{color:light-dark(#7a776d,#9b988d);margin-left:6px}
 </style></head><body>
 ${rendered}
 <div class="bar"><button id="prev" aria-label="Previous slide">‹</button><span id="count">1 / ${body.length}</span><button id="next" aria-label="Next slide">›</button><span class="hint">← → · space · F fullscreen</span></div>
@@ -4379,14 +4432,14 @@ function boardIframeHtml(code) {
     grid-template-columns:repeat(2,minmax(360px,1fr));gap:36px;align-content:start;cursor:grab}
   .canvas.drag{cursor:grabbing}
   .frame{margin:0}
-  figcaption{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:light-dark(#6d6b65,#96938b);margin:0 0 8px 2px}
-  .sheet{background:light-dark(#ffffff,#232321);border:1px solid light-dark(#e7e6e1,#31312e);
+  figcaption{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:light-dark(#7a776d,#9b988d);margin:0 0 8px 2px}
+  .sheet{background:light-dark(#ffffff,#252421);border:1px solid light-dark(#e0dccf,#34322d);
     border-radius:12px;box-shadow:0 8px 24px light-dark(rgba(0,0,0,.08),rgba(0,0,0,.45));
     padding:24px;min-height:200px;overflow:hidden}
   .sheet>*:first-child{margin-top:0}
   .hintbar{position:fixed;left:0;right:0;bottom:0;height:38px;display:flex;align-items:center;justify-content:center;
-    font-size:12px;color:light-dark(#6d6b65,#96938b);background:light-dark(rgba(247,244,236,.9),rgba(27,26,23,.9));
-    border-top:1px solid light-dark(#e7e6e1,#31312e)}
+    font-size:12px;color:light-dark(#7a776d,#9b988d);background:light-dark(rgba(247,244,236,.9),rgba(27,26,23,.9));
+    border-top:1px solid light-dark(#e0dccf,#34322d)}
 </style></head><body>
 <div class="canvas" id="canvas">${rendered}</div>
 <div class="hintbar">drag to pan · wheel to zoom · double-click to reset</div>
@@ -6336,7 +6389,7 @@ document.addEventListener("keydown", e => {
      folding to `closed`. On (the default): it folds 500ms after the end,
      unless the person touched it.
    No reasoning text at all → the (empty) card is removed again. */
-const SPARK_SVG = '<svg class="think-star" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1.5l2.9 6.6 7.1.7-5.4 4.7 1.6 7-6.2-3.7-6.2 3.7 1.6-7L2 8.8l7.1-.7z"/></svg>';
+const SPARK_SVG = '<svg class="think-star" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1.5c.7 5.6 4.9 9.8 10.5 10.5-5.6.7-9.8 4.9-10.5 10.5-.7-5.6-4.9-9.8-10.5-10.5C7.1 11.3 11.3 7.1 12 1.5Z"/></svg>';
 const CHEV_SVG = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 3.5l4.5 4.5L6 12.5"/></svg>';
 const THINK_CHEV = '<svg class="think-chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4.5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 let thinkSeq = 0;
@@ -6550,7 +6603,7 @@ function renderToolGroup(g) {
   const h = g.node.querySelector(".tools-h");
   h.className = "tools-h" + (running ? " run" : anyDenied ? " err" : "");
   g.node.querySelector("[data-txt]").textContent = running ? txt + "…" : txt;
-  g.node.querySelector("[data-cnt]").textContent = items.length > 1 ? items.length : "";
+  g.node.querySelector("[data-cnt]").textContent = String(items.length);
   g.node.querySelector("[data-in]").innerHTML = items.map((i, idx) => `
     <div class="trow" data-i="${idx}">
       <span class="v">${esc(i.verb)}</span>
@@ -9014,6 +9067,11 @@ $("btnTitleSettings").addEventListener("click", openSettings);
 $("btnMore").addEventListener("click", e => {
   e.stopPropagation();
   openMenu($("btnMore"), [
+    { label: "Files & progress", run: () => toggleActPanel() },
+    { label: "Preview pane", run: () => showPane("preview") },
+    { label: "Changes pane", run: () => showPane("diff") },
+    { label: "Terminal pane", run: () => showPane("terminal") },
+    { sep: true },
     { label: "Settings", k: "⌘,", run: openSettings },
     { label: "Keyboard shortcuts", run: () => { settingsSection = "keys"; openSettings(); document.querySelectorAll(".set-nav button").forEach(x => x.classList.toggle("on", x.dataset.s === "keys")); renderSettings(); } },
     { sep: true },

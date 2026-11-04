@@ -658,10 +658,80 @@ export function parseDsmlCalls(content) {
   }
   return calls;
 }
-/** The DSML markup, wrapper first (a still-streaming opener swallows the
- *  tail), then any standalone invoke, then stray tags the model left behind.
- *  Each pass matches its OWN closer - a generic closer would stop at the
- *  first inner </|DSML|invoke> and leave the rest behind. */
+/** The XML tool-call dialect some providers emit instead of the fenced
+ *  protocol (DeepSeek/Claude-style "dots" markup):
+ *
+ *    <dots_function_call>
+ *    <invoke name="run_command">
+ *    <args>{"command": "git diff"}</args>
+ *    </invoke>
+ *    </dots_function_call>
+ *
+ *  Some models close <args> with </parameter>, or leave a stray </tool>
+ *  behind. Parse the blocks so the call actually runs; the markup is stripped
+ *  from the visible text either way. */
+const XML_NS = "(?:[A-Za-z_][\\w.-]*:)?";
+const XML_CALL_NAME = "(?:dots_|dsml_)?(?:function_calls?|tool_calls?)";
+const XML_BLOCK_RE = new RegExp(
+  "<" + XML_NS + XML_CALL_NAME + "\\b[^>]*>[\\s\\S]*?</" + XML_NS + XML_CALL_NAME + "\\s*>", "gi");
+const XML_BLOCK_TAIL_RE = new RegExp(
+  "<" + XML_NS + XML_CALL_NAME + "\\b[^>]*>[\\s\\S]*$", "i");
+const XML_TAG_RE = new RegExp(
+  "</?" + XML_NS + "(?:" + XML_CALL_NAME + "|invoke|args|parameter|tool)\\b[^>]*>", "gi");
+const XML_INVOKE_RE = new RegExp(
+  "<" + XML_NS + "invoke\\s+name\\s*=\\s*[\"']([^\"']+)[\"'][^>]*>([\\s\\S]*?)(?:</" + XML_NS + "invoke\\s*>|$)", "gi");
+const XML_ARGS_RE = new RegExp("<" + XML_NS + "args\\b[^>]*>([\\s\\S]*?)(?:</" + XML_NS + "(?:args|parameter)\\s*>|$)", "i");
+const XML_PARAM_RE = new RegExp(
+  "<" + XML_NS + "parameter\\s+name\\s*=\\s*[\"']([^\"']+)[\"'](?:\\s+string\\s*=\\s*[\"'](true|false)[\"'])?[^>]*>([\\s\\S]*?)</" + XML_NS + "parameter\\s*>", "gi");
+
+function parseXmlArgs(raw) {
+  const text = String(raw || "").trim();
+  if (!text) return null;
+  try {
+    const val = JSON.parse(text);
+    if (val && typeof val === "object" && !Array.isArray(val)) return val;
+  } catch { /* fall through to parameter tags */ }
+  const args = {};
+  XML_PARAM_RE.lastIndex = 0;
+  let p;
+  while ((p = XML_PARAM_RE.exec(text)) !== null) {
+    const key = String(p[1] || "").trim();
+    if (!key) continue;
+    let val = p[3];
+    if (p[2] === "false") {
+      try { val = JSON.parse(val.trim()); } catch { val = val.trim(); }
+    }
+    args[key] = val;
+  }
+  return Object.keys(args).length ? args : null;
+}
+
+export function parseXmlCalls(content) {
+  const src = String(content || "");
+  const calls = [];
+  XML_INVOKE_RE.lastIndex = 0;
+  let m;
+  while ((m = XML_INVOKE_RE.exec(src)) !== null) {
+    const name = String(m[1] || "").trim();
+    if (!name) continue;
+    const body = m[2] || "";
+    XML_ARGS_RE.lastIndex = 0;
+    const a = XML_ARGS_RE.exec(body);
+    const args = (a && parseXmlArgs(a[1])) || parseXmlArgs(body) || {};
+    calls.push({ name, args });
+  }
+  return calls;
+}
+
+function stripXmlCallMarkup(text) {
+  let out = String(text || "");
+  out = out.replace(XML_BLOCK_RE, "");
+  out = out.replace(XML_BLOCK_TAIL_RE, "");
+  out = out.replace(XML_TAG_RE, "");
+  return out;
+}
+
+
 const DSML_BLOCK_RE = /<\|DSML\|tool_calls\b[\s\S]*?(?:<\/\|DSML\|tool_calls>|$)/g;
 const DSML_INVOKE_RE = /<\|DSML\|invoke\b[\s\S]*?(?:<\/\|DSML\|invoke>|$)/g;
 const DSML_TAG_RE = /<\/?\|DSML\|[^>]*>/g;
@@ -678,6 +748,7 @@ export function parseAssistantContent(content) {
     } catch {}
   }
   calls.push(...parseDsmlCalls(content));
+  calls.push(...parseXmlCalls(content));
 
   let todos = null;
   const todoRe = /```todo\s*([\s\S]*?)```/g;
@@ -688,8 +759,8 @@ export function parseAssistantContent(content) {
     } catch {}
   }
 
-  const text = content.replace(toolRe, "").replace(todoRe, "")
-    .replace(DSML_BLOCK_RE, "").replace(DSML_INVOKE_RE, "").replace(DSML_TAG_RE, "").trim();
+  const text = stripXmlCallMarkup(content.replace(toolRe, "").replace(todoRe, "")
+    .replace(DSML_BLOCK_RE, "").replace(DSML_INVOKE_RE, "").replace(DSML_TAG_RE, "")).trim();
   return { text, calls, todos };
 }
 
@@ -710,6 +781,7 @@ export function scrubReasoning(text) {
   out = out.replace(/<\|DSML\|parameter\b[^>]*>/g, "");
   out = out.replace(/<\/?\|DSML\|[^>]*>/g, "");
   out = out.replace(/<\|DSML\|[^>]*$/, "");
+  out = stripXmlCallMarkup(out);
   return out.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n");
 }
 

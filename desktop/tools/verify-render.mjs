@@ -105,6 +105,15 @@ ok("a still-streaming DSML block is stripped", fns.stripBlocks(dsmlMid) === "Bef
 ok("stray DSML tags vanish",
   !fns.stripBlocks('a </|DSML|invoke> <|DSML|parameter name="p"> b').includes("DSML"));
 
+// The XML dots dialect (and a stray </tool>) must never appear as prose.
+const xmlFull = 'Before.\n<dots_function_call>\n<invoke name="run_command">\n<args>{"command": "git diff"}</args>\n</invoke>\n</dots_function_call>\nAfter.';
+ok("a complete XML tool-call block is stripped",
+  fns.stripBlocks(xmlFull) === "Before.\n\nAfter.", JSON.stringify(fns.stripBlocks(xmlFull)));
+const xmlMid = 'Before.\n<dots_function_call>\n<invoke name="run_command">\n<args>{"command": "git';
+ok("a still-streaming XML block is stripped", fns.stripBlocks(xmlMid) === "Before.", JSON.stringify(fns.stripBlocks(xmlMid)));
+ok("a stray </tool> is stripped",
+  fns.stripBlocks("Let me look.\n\n</tool>\n\n</tool>") === "Let me look.", JSON.stringify(fns.stripBlocks("Let me look.\n\n</tool>\n\n</tool>")));
+
 // ---- 8. fence-aware artifacts (review fixes) ----
 const p3 = fns.parseArtifacts("text\n```artifact html\n<pre>```</pre>\n```\ndone");
 ok("mid-line fence stays inside the artifact", p3.length === 1 && p3[0].code.includes("<pre>```</pre>"));
@@ -232,8 +241,9 @@ ok("a finished background session is flagged unread",
 ok("every open pane stacks in the rail",
   /\.pane-row\.open\{display:flex/.test(html.replace(/\s+/g, "")) &&
   html.includes("#paneBody.solo") && fnBody("function applyActivePane(").includes("paneOpen.has("));
-ok("a single open pane still fills the rail",
-  /#paneBody\.solo \.pane-row\.open\{flex:1/.test(html.replace(/\s+/g, " ")));
+ok("a single open pane keeps the reference card height",
+  /#paneBody\.solo \.pane-row\.open\{flex:0 0 auto\}/.test(html.replace(/\s+/g, " ")) &&
+  /\.pane-row\[data-pane="preview"\] \.pane-b\{height:280px/.test(html.replace(/\s+/g, " ")));
 ok("clicking a pane header activates it",
   fnBody("function wirePanes(").includes("setActivePane(p.dataset.pane)"));
 ok("sessions stream in the background while you switch",
@@ -444,19 +454,20 @@ ok("the usage pane exists and the ring opens it",
 ok("a context limit override rides with every request",
   js.includes("contextLimit: Number(p.contextLimit) > 0 ? Number(p.contextLimit) : undefined") &&
   js.includes('id="fCtx"') && js.includes('on("fSaveCtx"'));
-ok("the titlebar carries navigation and panes; settings lives in the sidebar",
+ok("the titlebar carries the reference navigation, window controls and no brand text",
   !html.includes('id="brandVer"') && !html.includes('class="appbar"') &&
-  js.includes("function focusSessionSearch(") &&
   html.indexOf('id="btnSidebar"') > html.indexOf('class="titlebar"') &&
-  html.indexOf('id="btnSearch"') > html.indexOf('class="titlebar"') &&
+  html.indexOf('id="btnTitleSettings"') > html.indexOf('class="titlebar"') &&
+  html.indexOf('id="btnBack"') > html.indexOf('class="titlebar"') &&
+  html.indexOf('id="btnForward"') > html.indexOf('class="titlebar"') &&
   html.indexOf('id="btnPanes"') > html.indexOf('class="titlebar"') &&
-  html.indexOf('id="btnTitleSettings"') > html.indexOf('class="sb-foot"') &&
-  html.indexOf('id="btnSidebar"') < html.indexOf('class="updatebar"') &&
+  html.includes('data-win="minimize"') && html.includes('data-win="close"') &&
+  /\.icon-btn\{[^}]*background:transparent/.test(html.replace(/\s+/g, "")) &&
+  /\.wcbutton\{[^}]*background:transparent/.test(html.replace(/\s+/g, "")) &&
   js.includes('$("btnTitleSettings").addEventListener("click", openSettings)') &&
-  /\.titlebar\{[^}]*height:38px/.test(html.replace(/\s+/g, "")) &&
-  !/\.titlebar\{[^}]*margin-bottom:6px/.test(html.replace(/\s+/g, "")));
+  js.includes('$("btnSidebar").addEventListener("click", () => toggleSidebar())'));
 ok("fullscreen sits below the titlebar strip",
-  /body\.preview-full \.pane-row\[data-pane="preview"\]\{[^}]*inset:38px 0 0 0/.test(html.replace(/\s+/g, " ")));
+  /body\.preview-full \.pane-row\[data-pane="preview"\]\{[^}]*inset:40px 0 0 0/.test(html.replace(/\s+/g, " ")));
 ok("the folded thinking pill carries a gist",
   js.includes("function thinkingGist(") && js.includes('(gist ? " · " + gist : "")'));
 ok("a pick per question sends; multiSelect still uses Submit",
