@@ -65,6 +65,7 @@
       "electron/**/*",
       "assets/icon.png",
       "assets/icon.ico",
+      "assets/icon.svg",
       "package.json"
     ],
     "win": {
