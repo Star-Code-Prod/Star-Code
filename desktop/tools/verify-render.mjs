@@ -72,8 +72,8 @@ ok("hl emits tok spans", hl1.includes('class="tok-'));
 // ---- 6. CSS invariants that caused layout bugs ----
 ok("no dead .wrap rule", !/\.wrap\s*\{/.test(html));
 ok("stream children are width-constrained", html.includes("#stream > *"));
-ok("diff lines can scroll horizontally", /\.dl \.c\{[^}]*overflow-x:auto/.test(html.replace(/\s+/g, "")) ||
-   /\.dl\s+\.c\s*\{[^}]*overflow-x:\s*auto/.test(html));
+ok("diff lines can scroll horizontally", /\.diffcard\s+\.dbody\{[^}]*overflow-x:\s*auto/.test(html) &&
+   /\.dl\s+\.c\{[^}]*white-space:\s*pre/.test(html));
 
 // ---- 7. artifact parsing (W3) ----
 const p1 = fns.parseArtifacts("before\n```artifact html\n<b>x</b>\n```\nafter");
@@ -200,11 +200,11 @@ function fnBody(name) {
   }
   return "";
 }
-ok("a new assistant round keeps the turn's tool group", !fnBody("function startAssistant()").includes("toolGroup = null"));
-ok("thinking phases keep the group", !fnBody("function startThinking()").includes("toolGroup = null"));
-ok("a new tool moves the group back to the bottom", fnBody("function ensureToolGroup()").includes("appendChild(toolGroup.node)"));
-ok("visible prose ends the tool run", fnBody("function flushAnswer()").includes("toolGroup = null"));
-ok("local notes break the run too", fnBody("function say(").includes("toolGroup = null"));
+ok("a new assistant round starts a fresh process card", !fnBody("function startAssistant()").includes("proc = null"));
+ok("a reasoning phase never restarts the card", !fnBody("function startThinking()").includes("proc = null"));
+ok("the card opens above the message it explains", fnBody("function ensureProc(").includes("insertBefore(n, currentMsg)"));
+ok("visible prose ends the card", fnBody("function flushAnswer()").includes("proc = null"));
+ok("local notes end the card too", fnBody("function say(").includes("proc = null"));
 ok("the working state exists for pane and dialog",
   /\.apwork-cursor\{/.test(html) && js.includes("function renderWorkingInto(") && js.includes("Star is working…"));
 ok("syncArtifacts opens on the fence's first line",
@@ -212,14 +212,14 @@ ok("syncArtifacts opens on the fence's first line",
 ok("cards are committed with the artifact, not at message end",
   fnBody("function syncArtifacts(").includes("addArtifactCard("));
 ok("an unfinished fence never leaves the working state up", fnBody("function endAssistant()").includes("pendingArt = null"));
-ok("the thinking block sits above its message, not under it",
-  fnBody("function materializeThink()").includes("insertBefore(n, currentMsg)"));
-ok("every thinking phase gets its own card",
-  !js.includes("turnThink") && fnBody("function startThinking(").includes("currentThink = { node: null"));
-ok("the live card shows the reasoning, not a peek",
-  fnBody("function materializeThink(").includes('thinkMode(n, "open")'));
-ok("settled cards fold unless the person touched them",
-  fnBody("function endThinking(").includes("!cur.userTouched"));
+ok("the process card sits above its message, not under it",
+  fnBody("function ensureProc(").includes("insertBefore(n, currentMsg)"));
+ok("every reasoning phase reuses the round's card",
+  !js.includes("turnThink") && fnBody("function startThinking(").includes("currentThink = { it: null"));
+ok("live rows paint on the next frame",
+  fnBody("function addThinking(").includes("requestAnimationFrame(flushThink)"));
+ok("settled rows fold to a gist",
+  fnBody("function endThinking(").includes("thinkingGist(clean)"));
 ok("menu items hand focus back to the composer",
   fnBody("function closeMenuAndRun(").includes("runMenuItem(") &&
   js.includes("closeMenuAndRun(b, it.run)") && js.includes("closeMenuAndRun(b, real.run)"));
@@ -306,7 +306,8 @@ ok("the rail remembers its open panes and the active one",
   js.includes("function persistPanes(") && fnBody("function persistPanes(").includes("state.paneOpen") &&
   js.includes("state.paneActive") && fnBody("function closePaneTab(").includes("persistPanes()") &&
   fnBody("function showPane(").includes("persistPanes()"));
-ok("the rail restores at boot", js.includes("state.paneOpen) && state.paneOpen.length"));
+ok("the rail restores at boot", js.includes("Array.isArray(state.paneOpen)") &&
+  fnBody("function applyActivePane(").includes("paneOpen") && js.includes('classList.toggle("hide", paneOpen.size === 0)'));
 ok("the last session reopens on start, quietly",
   js.includes("state.lastSession") && js.includes("let booting = true") && js.includes("if (!booting) toast"));
 ok("a cut-off turn continues when its session opens",
@@ -514,8 +515,9 @@ ok("text files can be edited and saved from the preview",
   /\.fedit\{/.test(html.replace(/\s+/g, "")));
 ok("fullscreen sits below the titlebar strip",
   /body\.preview-full \.pane-row\[data-pane="preview"\]\{[^}]*inset:40px 0 0 0/.test(html.replace(/\s+/g, " ")));
-ok("the folded thinking pill carries a gist",
-  js.includes("function thinkingGist(") && js.includes('(gist ? " · " + gist : "")'));
+ok("the process header counts the round",
+  js.includes("function procCount(") && js.includes('" thought" + (t === 1 ? "" : "s")') &&
+  js.includes('" tool call" + (n === 1 ? "" : "s")'));
 ok("a pick per question sends; multiSelect still uses Submit",
   js.includes("const anyMulti = qs.some((q) => q.multiSelect)") &&
   js.includes("(qs.length === 1 && !multi) || (allSingle && ready)") &&
@@ -548,8 +550,8 @@ ok("cards survive session reloads via the persisted UI log",
   js.includes("{ historical: true, answers: e.answers }") &&
   js.includes("function renderAsk(evt, opts = {})") && js.includes("function renderSuggest(evt, opts = {})") &&
   js.includes("renderTranscript(j.messages || [], j.ui || [])"));
-ok("restored thinking is scrubbed of stored markup",
-  js.includes("const body = stripBlocks(String(e.text || \"\"))") && js.includes("const gist = thinkingGist(body)"));
+ok("restored reasoning is scrubbed of stored markup",
+  js.includes("const body = stripBlocks(String(e.text || \"\"))") && js.includes("it.out.textContent = body"));
 ok("the agent can see and drive the live preview",
   js.includes("function handlePreviewOp(") && js.includes("star-preview-state") &&
   js.includes('case "preview_op": handlePreviewOp(evt); break;') &&
@@ -573,8 +575,8 @@ ok("usage shows real tokens and money",
   js.includes("liveUsageSeen") && js.includes("const sCost = costOf(sIn, sOut, priceIn, priceOut)") &&
   js.includes("all sessions:") && js.includes('id="fPriceIn"') && js.includes('on("fSavePrice"') &&
   js.includes("priceIn: evt.priceIn ?? null"));
-ok("thinking cards scrub at settle too",
-  js.includes("const clean = stripBlocks(cur.text)") && js.includes("cur.panel.textContent = clean"));
+ok("reasoning rows scrub at settle too",
+  js.includes("const clean = stripBlocks(cur.text)") && js.includes("it.out.textContent = clean"));
 ok("code renders as a language-titled canvas with a gutter",
   js.includes("function prettyLang(") && js.includes('class="cb-lang"') &&
   js.includes('class="cb-gutter"') && js.includes("${lines.length} line") &&

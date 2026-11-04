@@ -18,8 +18,9 @@
   --sp-8:32px; --sp-10:40px;
   --r-xs:6px; --r-sm:8px; --r-md:10px; --r-lg:14px; --r-xl:18px; --r-full:999px;
   --t-fast:150ms; --t-mid:200ms; --t-slow:280ms;
+  --motion-fast:var(--t-fast); --motion-base:var(--t-mid); --motion-slow:var(--t-slow);
   --ease:cubic-bezier(.2,.8,.3,1);
-  --col:1000px;     /* conversation column */
+  --col:780px;      /* conversation column */
   --sb-w:300px;     /* sidebar width */
   --font-sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --font-mono:'JetBrains Mono',ui-monospace,"SF Mono",Consolas,monospace;
@@ -44,6 +45,7 @@
   --shadow-sm:0 1px 2px rgba(0,0,0,.35);
   --shadow-md:0 10px 30px -12px rgba(0,0,0,.7);
   --chip:#2f2d29; --chip-on:#3a3731;
+  --scroll:#55504a;
   --sess-active:#33302b;
   --termbg:#151513;
   --brand:#d97757; --brand-strong:#e68d70; --brand-dim:#8a5340;
@@ -72,6 +74,7 @@
   --shadow-sm:0 1px 2px rgba(31,30,27,.07);
   --shadow-md:0 10px 30px -14px rgba(31,30,27,.22);
   --chip:#e9e6db; --chip-on:#dedacd;
+  --scroll:#948e80;
   --sess-active:#ece8dc;
   --termbg:#1b1a17;
   --brand:#b45535; --brand-strong:#9c4629; --brand-dim:#cf8a70;
@@ -103,7 +106,7 @@ input,textarea,select{font-family:inherit}
 button:focus-visible,a:focus-visible,[tabindex]:focus-visible{box-shadow:var(--focus-ring)}
 input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
 ::-webkit-scrollbar{width:8px;height:8px}
-::-webkit-scrollbar-thumb{background:var(--border2);border-radius:6px;border:2px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb{background:var(--scroll);border-radius:6px;border:2px solid transparent;background-clip:content-box}
 ::-webkit-scrollbar-thumb:hover{background:var(--dim);background-clip:content-box;border:3px solid transparent}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-corner{background:transparent}
@@ -166,12 +169,15 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
 .icon-btn:hover{background:var(--hover);color:var(--text-strong,var(--text))}
 .icon-btn:active{background:var(--hover-strong,var(--hover))}
 .icon-btn svg{width:16px;height:16px}
+/* A group that has nothing to do right now (no history to go back to). */
+.icon-btn.off{opacity:.32;pointer-events:none}
+.tb-div{width:1px;height:15px;flex:none;background:var(--border);margin:0 7px;border-radius:1px}
 /* Window controls: transparent until hovered, flush to the right edge. */
 .wc{display:flex;height:40px;-webkit-app-region:no-drag;margin-left:4px}
-.wc button{width:46px;height:40px;display:grid;place-items:center;color:var(--muted);background:transparent;border-radius:0;-webkit-app-region:no-drag;transition:background var(--t-fast),color var(--t-fast)}
+.wc button{width:44px;height:40px;display:grid;place-items:center;color:var(--muted);background:transparent;border-radius:0;-webkit-app-region:no-drag;transition:background var(--t-fast),color var(--t-fast)}
 .wc button:hover{background:var(--hover);color:var(--text)}
 .wc button.close:hover{background:var(--close-hover);color:#fff}
-.wc svg{width:12px;height:12px;stroke-width:1.3}
+.wc svg{width:14px;height:14px;stroke-width:1.45}
 body.is-electron .titlebar{padding-right:0}
 body.is-electron .titlebar button,body.is-electron .titlebar .seg{-webkit-app-region:no-drag}
 body.is-mac.is-electron .titlebar{padding-left:78px}
@@ -296,9 +302,12 @@ body.mode-chat #navProjects{display:none}
   font-size:var(--fs-13);padding:5px 0;
 }
 .sb-search input::placeholder{color:var(--dim)}
-.sb-search .clr{color:var(--dim);display:flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border-radius:6px;flex:none}
+.sb-search .clr{color:var(--dim);display:flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;border-radius:6px;flex:none}
 .sb-search .clr:hover{background:var(--hover);color:var(--text)}
-.sessions{flex:0 0 auto;max-height:260px;overflow-y:auto;min-height:0;padding:0}
+/* One scroll column per section, and neither is allowed to squeeze the other
+   out of the rail - the session list gives way to the file tree instead of
+   leaving a clipped row behind. */
+.sessions{flex:0 1 auto;max-height:min(42vh,380px);overflow-y:auto;overscroll-behavior:contain;min-height:0;padding:0;scrollbar-gutter:stable}
 .sess-group{
   padding:16px 6px 6px;font-size:var(--fs-12);color:var(--muted);
 }
@@ -377,7 +386,7 @@ body.mode-chat #navProjects{display:none}
 .ft-item:hover{background:var(--hover);color:var(--text)}
 .ft-item .ft-caret{width:12px;flex:none;color:var(--dim);display:flex;transition:transform var(--t-mid) var(--ease)}
 .ft-item.open .ft-caret{transform:rotate(90deg)}
-.ft-item .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ft-item .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fpre{
   margin:0;padding:var(--sp-4);font-family:var(--font-mono);font-size:var(--fs-12);line-height:1.65;
   white-space:pre;overflow:auto;color:var(--code-fg);background:var(--code-bg);min-height:100%;
@@ -422,8 +431,8 @@ body.mode-chat #navProjects{display:none}
 
 /* ============================ CONVERSATION ============================ */
 #stream{
-  flex:1;min-height:0;overflow-y:auto;padding:16px 14px;overflow-anchor:none;
-  display:flex;flex-direction:column;gap:14px;
+  flex:1;min-height:0;overflow-y:auto;padding:22px 20px 26px;overflow-anchor:none;
+  display:flex;flex-direction:column;gap:20px;
 }
 /* The activity stream uses a wide, centred stack. */
 #stream > *{
@@ -459,9 +468,10 @@ body.mode-chat #navProjects{display:none}
   border-radius:4px;background:var(--accent);animation:blink 1.05s steps(2,end) infinite;
 }
 /* hover actions (icon-only: never leaks text into exports) */
-.msg-acts{display:flex;align-items:center;gap:2px;height:22px;opacity:0;transition:opacity var(--t-mid) var(--ease)}
-.msg-u .msg-acts{justify-content:flex-start}
-#stream > :hover > .msg-acts,#stream > :focus-within > .msg-acts{opacity:1}
+.msg-acts{position:absolute;bottom:-19px;left:0;display:flex;align-items:center;gap:2px;height:20px;opacity:0;pointer-events:none;transition:opacity var(--t-mid) var(--ease)}
+.msg-u{position:relative}
+.msg-u .msg-acts{justify-content:flex-end;left:auto;right:0}
+#stream > :hover > .msg-acts,#stream > :focus-within > .msg-acts{opacity:1;pointer-events:auto}
 .ma-btn{
   width:24px;height:24px;border-radius:var(--r-xs);display:flex;align-items:center;justify-content:center;
   color:var(--muted);transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
@@ -498,90 +508,58 @@ body.mode-chat #navProjects{display:none}
 .cp{font-family:var(--font-mono);font-size:var(--fs-12);color:var(--text2);padding:2px 6px;border-radius:var(--r-xs);transition:color var(--t-fast),background var(--t-fast)}
 .cp:hover{color:var(--code-fg);background:color-mix(in srgb,var(--code-fg) 7%,transparent)}
 
-/* ================= THINKING (reasoning pill) ================= */
-/* The reference "Star Thinking Block" component: a 30px pill, a live peek
-   (68px, top fade) while the model works, folded to one line after, and a
-   click-open panel capped at 240px. `data-mode` is the single switch:
-   peek | closed | open; `data-live` marks the streaming state. The .think
-   root and .think-h pill stay as the hooks the transcript and export use.
-   Motion: 300ms height, 200ms chevron, 2.4s star spin, 1.8s label shimmer —
-   all disabled under prefers-reduced-motion. */
-.think{display:flex;flex-direction:column;gap:6px;align-items:flex-start;align-self:flex-start;max-width:92%;margin:0}
-.think-h{
-  display:inline-flex;align-items:center;gap:9px;height:38px;padding:0 14px;
-  border:1px solid var(--border);border-radius:var(--r-md);background:var(--panel);color:var(--muted);
-  font-size:var(--fs-13);font-weight:500;cursor:pointer;max-width:90%;
-  transition:color var(--t-fast) var(--ease),background var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease);
+/* ================= PROCESS (a round's thoughts + tool calls) ================= */
+/* One card per round: the header counts what happened, the body lists the rows
+   in arrival order, and each row opens in place. Replaced the old .think pill
+   and .tools group so a turn reads as one block, not a stack of cards. */
+.proc{
+  display:flex;flex-direction:column;margin:0;align-self:stretch;
+  border:1px solid var(--border);border-radius:var(--r-lg);background:var(--panel);overflow:hidden;
 }
-.think-h:hover{color:var(--text2);background:var(--hover);border-color:var(--border2)}
-.think-star{width:15px;height:15px;color:var(--brand);flex:none}
-.think-label{font-variant-numeric:tabular-nums;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.think-chev{width:12px;height:12px;flex:none;transition:transform 200ms var(--ease)}
-.think:not([data-mode="closed"]) .think-chev{transform:rotate(180deg)}
-.think-b{width:100%;max-height:0;overflow:hidden;transition:max-height 300ms ease}
-.think[data-mode="peek"] .think-b{
-  max-height:68px;
-  -webkit-mask-image:linear-gradient(transparent,var(--text) 45%);
-  mask-image:linear-gradient(transparent,var(--text) 45%);
+.proc-h{
+  display:flex;align-items:center;gap:9px;width:100%;padding:8px 13px;text-align:left;
+  font-size:var(--fs-12);color:var(--muted);
+  transition:color var(--t-fast) var(--ease),background var(--t-fast) var(--ease);
 }
-.think[data-mode="open"] .think-b{max-height:240px;overflow-y:auto}
-.think-t{
-  margin-left:12px;padding:2px 0 2px 14px;border-left:2px solid var(--border);
-  color:var(--muted);font-size:var(--fs-13);line-height:1.6;white-space:pre-wrap;word-break:break-word;
-  contain:content;
+.proc-h:hover{color:var(--text2);background:var(--hover)}
+.proc-h .pdot{width:6px;height:6px;border-radius:50%;flex:none;background:var(--dim);transition:background var(--t-fast)}
+.proc.live .proc-h .pdot{background:var(--brand);animation:pulse 1.4s ease-in-out infinite}
+.proc-h .psum{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
+.proc-h .pchev{flex:none;display:flex;color:var(--dim);transition:transform var(--t-fast) var(--ease)}
+.proc.open .proc-h .pchev{transform:rotate(180deg)}
+.proc-b{display:none}
+.proc.open .proc-b{display:block}
+.pitem{border-top:1px solid var(--border)}
+.pitem:first-child{border-top:0}
+.prow{
+  display:flex;align-items:center;gap:9px;width:100%;padding:7px 13px;text-align:left;
+  font-size:var(--fs-125);color:var(--text2);transition:background var(--t-fast) var(--ease);
 }
-.think[data-live] .think-star{animation:spin 2.4s linear infinite}
-.think[data-live] .think-label{
-  background:linear-gradient(90deg,var(--muted) 30%,var(--text) 50%,var(--muted) 70%);
-  background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
-  animation:shimmer 1.8s linear infinite;
+.prow:hover{background:var(--hover)}
+.pib{flex:none;display:flex;align-items:center;justify-content:center;width:14px;height:14px}
+.pring{display:block;width:9px;height:9px;border-radius:50%;border:1.5px solid color-mix(in srgb,var(--dim) 85%,transparent);transition:border-color var(--t-fast),background var(--t-fast)}
+.pitem.run .pring{border-color:var(--brand);animation:pulse 1.4s ease-in-out infinite}
+.pitem.no .pring{border-color:var(--del-fg);background:var(--del-fg)}
+.plbl{flex:none;color:var(--text);font-weight:500}
+.pdsc{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+.pdsc:not(:empty)::before{content:"· ";color:var(--dim)}
+.pmet{flex:none;color:var(--dim);font-family:var(--font-mono);font-size:var(--fs-11);font-variant-numeric:tabular-nums}
+.pdet{display:none;padding:0 13px 10px 36px}
+.pitem.open .pdet{display:block}
+.pout{
+  margin:0;padding:8px 10px;max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-word;
+  background:var(--code-bg);color:var(--muted);border:1px solid var(--border);border-radius:var(--r-sm);
+  font-family:var(--font-mono);font-size:var(--fs-11);line-height:1.6;
 }
-@keyframes shimmer{from{background-position:100% 0}to{background-position:-100% 0}}
-@media (prefers-reduced-motion:reduce){.think *{animation:none!important;transition:none!important}}
+.pitem.thought .pout{background:transparent;border:0;border-left:2px solid var(--border);border-radius:0;padding:2px 0 2px 12px;color:var(--text2);font-family:var(--font-sans);font-size:var(--fs-13);line-height:1.62}
+.proc-b{padding-bottom:2px}
+@media (prefers-reduced-motion:reduce){.proc *{animation:none!important;transition:none!important}}
 
-/* ================= TOOL SUMMARY (collapsed group) ================= */
-.tools{margin:0}
-.tools-h{
-  display:flex;align-items:center;gap:10px;padding:0 14px;height:40px;border-radius:var(--r-md);
-  background:var(--panel);border:1px solid var(--border);font-size:var(--fs-13);color:var(--muted);
-  width:100%;text-align:left;
-  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease);
-}
-.tools-h:hover{background:var(--hover);color:var(--text2);border-color:var(--border2)}
-.tools-h .dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--add-fg)}
-.tools-h.err .dot{background:var(--del-fg)}
-.tools-h.run .dot{background:var(--add-fg);animation:pulse 1.2s ease-in-out infinite}
-.tools-h .txt{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tools-h .cnt{
-  font-family:var(--font-mono);font-size:var(--fs-11);color:var(--muted);
-  background:var(--chip);border-radius:var(--r-full);padding:1px 8px;min-width:20px;text-align:center;
-}
-.tools-h .cnt:empty{display:none}
-.tools-h .chev{color:var(--dim);display:flex;transition:transform var(--t-mid) var(--ease)}
-.tools.open .tools-h .chev{transform:rotate(90deg)}
-.tools-b{display:none;margin-top:-8px;padding:8px 14px;border:1px solid var(--border);border-radius:10px;background:var(--panel);font:12px var(--font-mono);color:var(--muted)}
-.tools.open .tools-b{display:block}
-.tools-bi{overflow:visible;min-height:0}
-.tools-in{padding:0}
-.trow{
-  display:flex;align-items:baseline;gap:9px;padding:2px 0;font-family:var(--font-mono);
-  font-size:var(--fs-12);color:var(--muted);border-radius:0;
-}
-.trow:hover{background:transparent}
-.trow .v{color:var(--accent);font-weight:500;flex:none;min-width:52px}
+/* Compact key/value rows: model lists inside settings previews. */
+.trow{display:flex;align-items:baseline;gap:9px;padding:2px 0;font-family:var(--font-mono);font-size:var(--fs-12);color:var(--muted)}
+.trow .v{flex:none;min-width:52px;color:var(--accent);font-weight:500}
 .trow .a{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text2)}
-.trow .m{color:var(--dim);flex:none;font-size:var(--fs-11)}
-.trow .m.ok{color:var(--add-fg)}.trow .m.no{color:var(--del-fg)}
-.tcopy{flex:none;display:flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:4px;color:var(--dim);opacity:0;transition:opacity var(--t-fast),background var(--t-fast),color var(--t-fast)}
-.trow:hover .tcopy,.tcopy:focus-visible{opacity:1}
-.tcopy:hover{background:var(--hover);color:var(--text)}
-.tout{
-  margin:2px 11px 6px 72px;padding:10px 12px;border-radius:var(--r-sm);background:var(--code-bg);
-  color:var(--code-fg);font-family:var(--font-mono);font-size:var(--fs-11);line-height:1.6;
-  white-space:pre-wrap;max-height:260px;overflow:auto;display:none;
-  border:1px solid var(--border);
-}
-.tout.show{display:block}
+.trow .m{flex:none;font-size:var(--fs-11);color:var(--dim)}
 
 /* ================= DIFF CARD ================= */
 .diffcard{
@@ -599,10 +577,13 @@ body.mode-chat #navProjects{display:none}
 .diffcard .dc-h .s{flex:none;white-space:nowrap;font-variant-numeric:tabular-nums}
 .diffcard .dc-h .s i{font-style:normal;color:var(--add-fg)}
 .diffcard .dc-h .s b{font-weight:400;color:var(--del-fg)}
-.dl{display:flex;white-space:pre;font-family:var(--font-mono);font-size:var(--fs-125);line-height:1.75}
+/* One horizontal scroller for the whole hunk: rows are as wide as the longest
+   line so the numbers stay aligned and the header never moves. */
+.diffcard .dbody{overflow-x:auto;overflow-y:hidden}
+.dl{display:flex;white-space:pre;font-family:var(--font-mono);font-size:var(--fs-125);line-height:1.75;min-width:100%;width:max-content}
 .dl .n{width:46px;flex:none;text-align:right;padding-right:10px;color:var(--dim);user-select:none}
 .dl .sg{width:16px;flex:none;color:var(--dim);user-select:none}
-.dl .c{flex:1;min-width:0;overflow-x:auto;white-space:pre}
+.dl .c{flex:1;min-width:0;white-space:pre;padding-right:14px}
 .dl.add{background:var(--add-bg);color:var(--add-fg)}.dl.add .n,.dl.add .sg{color:var(--add-gut)}
 .dl.del{background:var(--del-bg);color:var(--del-fg)}.dl.del .n,.dl.del .sg{color:var(--del-gut)}
 .dl.ctx{color:var(--muted)}
@@ -964,14 +945,16 @@ body.mode-chat #navProjects{display:none}
 .kbdh.stop:hover{background:var(--panel)}
 .kbdh.stop .ic-send{display:none}
 .kbdh.stop .ic-stop{display:block}
-.crow{display:flex;align-items:center;gap:4px;margin-top:2px;padding:0;flex-wrap:wrap}
+.crow{display:flex;align-items:center;gap:2px;margin-top:4px;padding:0;flex-wrap:wrap}
 .cbtn{
-  display:flex;align-items:center;gap:6px;padding:4px 7px;border-radius:var(--r-xs);
-  font-size:var(--fs-11);color:var(--muted);
+  display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:var(--r-sm);
+  font-size:var(--fs-12);color:var(--muted);
   transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
 }
 .cbtn:hover{background:var(--panel);color:var(--text)}
-.cbtn.ico{padding:4px 6px}
+.cbtn.ico{width:24px;height:24px;padding:0;justify-content:center;color:var(--dim)}
+.cbtn.ico:hover{color:var(--text)}
+.cbtn.ico svg{width:15px;height:15px}
 .cbtn.send{
   width:26px;height:26px;padding:0;justify-content:center;border-radius:var(--r-full);
   background:var(--accent);color:var(--accent-fg);
@@ -1166,7 +1149,10 @@ body.pane-drag .pane-grip{background:color-mix(in srgb,var(--accent) 45%,transpa
 .pane-row.open{display:flex;animation:fadeIn var(--t-mid) var(--ease)}
 #paneBody .pane-row.open{flex:0 0 auto}
 #paneBody .pane-row[data-pane="preview"].open{flex:0 0 auto;min-height:0}
-.pane-row[data-pane="preview"] .pane-b{height:280px;flex:none;overflow:auto}
+.pane-row[data-pane="preview"] .pane-b{height:280px;flex:none;overflow:auto;overflow-x:hidden}
+/* Nothing to preview: the card shrinks to its empty state instead of holding
+   a 280px grey box that reads as broken. */
+.pane-row[data-pane="preview"].empty .pane-b{height:auto;overflow:visible}
 .pane-row.active{border-color:color-mix(in srgb,var(--brand) 55%,var(--border))}
 #paneBody.solo .pane-row.open{flex:0 0 auto}
 .pane-sub{
@@ -1268,7 +1254,7 @@ html[data-embed] #splitBox{display:none !important}
 .pane-row[data-pane="preview"] .pempty{font-size:var(--fs-15)}
 .pane-row[data-pane="preview"] .pempty span{font-size:var(--fs-13)}
 .pempty{padding:20px;text-align:center;color:var(--muted);font-size:var(--fs-13);line-height:1.7}
-.pane-row[data-pane="preview"] .pempty{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
+.pane-row[data-pane="preview"] .pempty{height:auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:28px 22px}
 .pempty::before{
   content:"✦";display:block;font-size:20px;line-height:1;margin-bottom:4px;
   color:var(--brand);opacity:1;
@@ -1327,7 +1313,7 @@ html[data-embed] #splitBox{display:none !important}
   margin:0;font-family:var(--font-sans);font-size:var(--fs-22);font-weight:600;
   letter-spacing:-.02em;line-height:1.25;text-align:center;
 }
-.landing .lsub{margin:-4px 0 0;font-size:var(--fs-125);color:var(--muted);text-align:center;max-width:520px;line-height:1.6}
+.landing .lsub{margin:-4px 0 0;font-size:var(--fs-125);color:var(--muted);text-align:center;max-width:520px;line-height:1.6;text-wrap:balance}
 .bigbox{
   width:min(660px,100%);background:var(--panel);border:1px solid var(--border2);border-radius:var(--r-lg);
   padding:10px 12px;display:flex;flex-direction:column;gap:6px;
@@ -1680,6 +1666,7 @@ body.mode-chat #bigProj{display:none}
     <button class="icon-btn" id="btnSidebar" title="Toggle sidebar" aria-label="Toggle sidebar">
       <svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="2.5"/><path d="M6 2.5v11"/></svg>
     </button>
+    <span class="tb-div" aria-hidden="true"></span>
     <button class="icon-btn" id="btnTitleSettings" title="Settings" aria-label="Settings" aria-haspopup="dialog">
       <svg viewBox="0 0 16 16"><path d="M2.5 5h11M2.5 11h11"/><circle cx="6" cy="5" r="1.6"/><circle cx="10" cy="11" r="1.6"/></svg>
     </button>
@@ -1701,6 +1688,7 @@ body.mode-chat #bigProj{display:none}
     <button class="icon-btn" id="btnPanes" title="Toggle panel" aria-label="Toggle panel">
       <svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="2.5"/><path d="M10 2.5v11"/></svg>
     </button>
+    <span class="tb-div" aria-hidden="true"></span>
   </div>
   <div class="wc">
     <button data-win="minimize" title="Minimize" aria-label="Minimize"><svg viewBox="0 0 12 12"><path d="M2 6h8"/></svg></button>
@@ -1796,7 +1784,7 @@ body.mode-chat #bigProj{display:none}
         <img src="assets/icon.svg" alt="" width="52" height="52">
       </span>
       <h1 id="landingTitle">What should we build today?</h1>
-      <p class="lsub">Star works in your project folder — it reads, searches, edits, and runs commands on this machine.</p>
+      <p class="lsub">Reads, searches, edits, and runs commands in this folder — right here on your machine.</p>
       <div class="bigbox">
         <textarea id="bigInput" rows="2" placeholder="Describe a task or ask a question about the project" aria-label="Describe a task"></textarea>
         <div class="crow">
@@ -2251,6 +2239,9 @@ let booting = true;   // silences navigation toasts while the shell restores its
  *  the transcript when you come back - so sessions keep working in the
  *  background and you can switch while one is streaming. */
 let liveTurns = new Map();
+/** Set by the stop button for the turn that is being killed, so the end of its
+ *  stream is not reported back as a failed reply. */
+let userAborted = false;
 /** Sessions waiting on the user right now (an ask_user question or a
  *  permission prompt is pending). Set live from the event stream, cleared on
  *  the answer, and seeded from the server's listing on load - this is what
@@ -2274,7 +2265,7 @@ function finishLive(sid) {
   }
   renderSessions();
 }
-let currentMsg = null, currentThink = null, toolGroup = null, thinkStart = 0, thinkTimer = null, thinkFlush = 0, answerFlush = 0, answerDirty = false, answerLast = 0;
+let currentMsg = null, proc = null, currentThink = null, toolGroup = null, toolTickTimer = 0, thinkStart = 0, thinkTimer = null, thinkFlush = 0, answerFlush = 0, answerDirty = false, answerLast = 0;
 let slashIdx = 0, slashMatches = [], planText = "", lastUsage = null;
 
 const MODES = [
@@ -2366,16 +2357,19 @@ const bridge = (typeof window !== "undefined" && window.desktop && window.deskto
     switchSession(EMBED_SID);
   } else {
     // The rail reopens exactly as it was left: the open panes and the active
-    // one are part of the saved state now.
-    if (Array.isArray(state.paneOpen) && state.paneOpen.length) {
-      const known = new Set(["preview", "tasks", "plan", "terminal", "diff"]);
+    // one are part of the saved state now. A rail the user emptied on purpose
+    // stays closed instead of springing back to the default four cards.
+    if (Array.isArray(state.paneOpen)) {
+      const known = new Set(["preview", "tasks", "plan", "terminal", "diff", "usage"]);
       paneOpen.clear();
       for (const id of state.paneOpen) if (known.has(id)) paneOpen.add(id);
-      if (!paneOpen.size) ["preview", "tasks", "plan", "diff"].forEach((id) => paneOpen.add(id));
-      activePane = state.paneActive && paneOpen.has(state.paneActive) ? state.paneActive : [...paneOpen][0];
-      $("panes").classList.toggle("hide", paneOpen.size === 0);
+      activePane = state.paneActive && paneOpen.has(state.paneActive) ? state.paneActive : ([...paneOpen][0] || null);
       applyActivePane();
+      renderPaneTabs();
+      $("panes").classList.toggle("hide", paneOpen.size === 0);
     }
+    setPreviewEmpty(!currentFile);
+    syncNavBtns();
     loadTree();
     // A persisted split reopens on the side, exactly as it was left.
     if (state.split) openSplit(state.split);
@@ -2515,7 +2509,7 @@ function modeMenu(anchor) {
 const UI_COPY = {
   code: {
     title: "What should we build today?",
-    sub: "Star works in your project folder — it reads, searches, edits, and runs commands on this machine.",
+    sub: "Reads, searches, edits, and runs commands in this folder — right here on your machine.",
     placeholder: "Type / for commands",
     bigPlaceholder: "Describe a task or ask a question about the project",
   },
@@ -2920,7 +2914,7 @@ function renderPaneTabs() {
     `<button class="paneAdd" id="paneAdd" title="Open a pane" aria-label="Open a pane"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg></button>`;
   $("paneTitle").addEventListener("click", (e) => { e.stopPropagation(); paneTitleMenu($("paneTitle")); });
   const x = $("paneX");
-  if (x) x.addEventListener("click", () => { $("panes").classList.add("hide"); });
+  if (x) x.addEventListener("click", () => closePaneTab(activePane));
   const add = $("paneAdd");
   if (add) add.addEventListener("click", (e) => { e.stopPropagation(); paneMenu(add); });
 }
@@ -3004,6 +2998,16 @@ function toggleSidebar(show) {
   document.body.classList.toggle("sb-over", next && innerWidth <= 820);
 }
 function hidePane(id) { closePaneTab(id); }
+
+/** The preview card is either showing something or saying "not running".
+ *  Everything that swaps the body calls this so the card can shrink when it
+ *  is empty instead of holding a tall blank box. */
+function setPreviewEmpty(on) {
+  const e = $("previewEmpty");
+  if (e) e.hidden = !on;
+  const row = document.querySelector('.pane-row[data-pane="preview"]');
+  if (row) row.classList.toggle("empty", !!on);
+}
 
 function paneMenu(anchor) {
   openMenu(anchor, PANE_DEFS.map(d => ({
@@ -3418,7 +3422,7 @@ function blenderOn(on) {
   clearInterval(blenderTimer);
   blenderTimer = 0;
   if (blenderActive) {
-    $("previewEmpty").style.display = "none";
+    setPreviewEmpty(false);
     blenderFrame();
     blenderTimer = setInterval(blenderFrame, 1800);
   } else {
@@ -3426,7 +3430,7 @@ function blenderOn(on) {
     if (img) img.removeAttribute("src");
     host.classList.remove("hint");
     // Hand the pane back to whatever preview was showing.
-    if ($("filePreview") && $("filePreview").style.display === "none") $("previewEmpty").style.display = "block";
+    if ($("filePreview") && $("filePreview").style.display === "none") setPreviewEmpty(true);
   }
 }
 document.querySelectorAll("[data-blender]").forEach(b => b.addEventListener("click", () => blenderOn(!blenderActive)));
@@ -3451,10 +3455,16 @@ $("btnPanes").addEventListener("click", () => {
 });
 $("btnSidebar").addEventListener("click", () => toggleSidebar());
 $("btnTheme").addEventListener("click", cycleTheme);
+function syncNavBtns() {
+  const back = $("btnBack"), fwd = $("btnForward");
+  if (back) back.classList.toggle("off", navPos <= 0);
+  if (fwd) fwd.classList.toggle("off", navPos >= navHistory.length - 1);
+}
 function navGo(delta) {
   const next = navPos + delta;
   if (next < 0 || next >= navHistory.length) return;
   navPos = next;
+  syncNavBtns();
   const id = navHistory[navPos];
   if (!id || id === sessionId) return;
   navSuppress = true;
@@ -3795,6 +3805,7 @@ async function switchSession(id) {
       navHistory.push(id);
       navPos = navHistory.length - 1;
     }
+    syncNavBtns();
     applyMode(j.mode || "manual");
     renderTranscript(j.messages || [], j.ui || []);
     // Stats survive reloads: hydrate from the store, then keep folding events.
@@ -3875,7 +3886,7 @@ function parseStoredControls(content) {
  *  permission verdicts. */
 function renderTranscript(msgs, ui) {
   $("stream").innerHTML = "";
-  currentMsg = null; currentThink = null; toolGroup = null; lastDiff = []; diffs = [];
+  currentMsg = null; currentThink = null; toolGroup = null; proc = null; lastDiff = []; diffs = [];
   if (thinkFlush) { cancelAnimationFrame(thinkFlush); thinkFlush = 0; }
   if (answerFlush) { cancelAnimationFrame(answerFlush); answerFlush = 0; }
   answerDirty = false;
@@ -3936,21 +3947,17 @@ function renderUiEntry(e) {
     // Old sessions stored reasoning before the server scrubbed it: run the
     // stored text through the same strip the rest of the transcript uses.
     const body = stripBlocks(String(e.text || ""));
-    const gist = thinkingGist(body);
-    const pid = "think-b-" + (++thinkSeq);
-    // The live card folds once settled; a person who turned that off sees
-    // restored cards open too.
-    const mode = state.autoCollapseThinking && state.verbosity !== "verbose" ? "closed" : "open";
-    const n = node("think");
-    thinkMode(n, mode);
-    n.innerHTML = `
-      <button class="think-h" type="button" aria-expanded="${mode !== "closed"}" aria-controls="${pid}">
-        ${SPARK_SVG}
-        <span class="think-label">${secs < 2 ? "Thought for a moment" : "Thought for " + Math.max(2, Math.round(secs)) + "s"}${gist ? " · " + esc(gist) : ""}</span>
-        ${THINK_CHEV}
-      </button>
-      <div class="think-b" id="${pid}" role="region" aria-label="Reasoning" aria-live="off" style="display:${mode === "closed" ? "none" : ""}"><div class="think-t">${esc(body)}</div></div>`;
-    n.querySelector(".think-h").addEventListener("click", () => thinkMode(n, n.dataset.mode === "open" ? "closed" : "open"));
+    if (!body.trim()) return;
+    const p = ensureProc(true);
+    if (state.autoCollapseThinking && state.verbosity !== "verbose") p.node.classList.remove("open");
+    const it = procRow("thought", "Thought");
+    it.text = body;
+    it.out.textContent = body;
+    it.dsc.textContent = thinkingGist(body);
+    it.elapsed = Number(e.ms) || secs * 1000;
+    it.state = "ok";
+    procPaint(it);
+    procSummary();
     return;
   }
   if (e.type === "question") return renderAsk({ id: e.id, questions: e.questions }, { historical: true, answers: e.answers });
@@ -4073,7 +4080,7 @@ function renderTree() {
       const el = document.createElement("button");
       const open = e.dir && !treeCollapsed.has(e.path);
       el.className = "ft-item" + (open ? " open" : "");
-      el.style.paddingLeft = (6 + Math.min(e.depth, 7) * 20) + "px";
+      el.style.paddingLeft = (6 + Math.min(e.depth, 6) * 14) + "px";
       el.innerHTML = `<span class="ft-caret">${e.dir ? CHEV_SVG : ""}</span><span class="nm">${esc(e.name)}</span>`;
       el.title = e.path;
       if (e.dir) {
@@ -4102,7 +4109,7 @@ async function previewFile(path) {
   currentFile = { path, kind, content: j.content, error: j.error, office: j.office, pdf: !!j.pdf };
   fileView = { mode: kind === "source" ? "code" : "render" };
   $("previewTitle").textContent = path;
-  $("previewEmpty").style.display = "none";
+  setPreviewEmpty(false);
   $("filePreview").style.display = "flex";
   renderFilePreview();
 }
@@ -4287,7 +4294,7 @@ function resetPreview() {
   currentFile = null;
   motionCtx = null;
   $("previewTitle").textContent = "Preview";
-  $("previewEmpty").style.display = "block";
+  setPreviewEmpty(true);
   const host = $("filePreview");
   host.style.display = "none";
   host.innerHTML = "";
@@ -4564,7 +4571,7 @@ function addUser(text) {
   bubble.textContent = text;
   n.appendChild(bubble);
   msgActs(n, () => text);
-  toolGroup = null;
+  toolGroup = null; proc = null;
 }
 
 function startAssistant() {
@@ -4580,15 +4587,19 @@ function startAssistant() {
 function stripBlocks(s) {
   let out = String(s || "");
   out = out.replace(/^(`{3,})artifact\b[^\n]*\n[\s\S]*?^\1[ \t]*$/gm, "");
-  out = out.replace(/^`{3,}(?:tool|todo)\b[\s\S]*?^`{3,}[ \t]*$/gm, "");
+  out = out.replace(/^`{3,}(?:tool|todo|tool_?calls?|tool-?use|function_?calls?|invoke|call)\b[\s\S]*?^`{3,}[ \t]*$/gm, "");
   out = out.replace(/^(`{3,})artifact\b[\s\S]*$/m, "");
-  out = out.replace(/^`{3,}(?:tool|todo)\b[\s\S]*$/m, "");
+  out = out.replace(/^`{3,}(?:tool|todo|tool_?calls?|tool-?use|function_?calls?|invoke|call)\b[\s\S]*$/m, "");
+  // A ```json fence that is really a call (body opens with {"name": …) is
+  // control markup too; a json fence holding data stays a code block.
+  out = out.replace(/^(`{3,})(?:json|jsonc)\b[^\n]*\n\s*\{\s*"(?:name|tool|tool_name)"\s*:[\s\S]*?^\1[ \t]*$/gm, "");
+  out = out.replace(/^[ \t]*\{\s*"(?:name|tool|tool_name)"\s*:\s*"[^"\n]{1,64}"\s*,\s*"(?:args|arguments|parameters|input)"\s*:\s*\{[^\n]*\}[^\n]*\}[ \t]*$/gm, "");
   // XML tool-call dialects (<dots_function_call><invoke …>…</invoke>) and
   // stray tags like a lone </tool> are control markup, not prose. Drop a
   // complete wrapper, a still-streaming opener's tail, then any stray tags.
-  out = out.replace(/<(?:[\w.-]+:)?(?:dots_|dsml_)?(?:function_calls?|tool_calls?)\b[^>]*>[\s\S]*?<\/(?:[\w.-]+:)?(?:dots_|dsml_)?(?:function_calls?|tool_calls?)\s*>/gi, "");
-  out = out.replace(/<(?:[\w.-]+:)?(?:dots_|dsml_)?(?:function_calls?|tool_calls?)\b[^>]*>[\s\S]*$/i, "");
-  out = out.replace(/<\/?(?:[\w.-]+:)?(?:dots_|dsml_)?(?:function_calls?|tool_calls?|invoke|args|parameter|tool)\b[^>]*>/gi, "");
+  out = out.replace(/<(?:[\w.-]+:)?(?:dots_|dsml_)?(?:function_calls?|tool_calls?|tool_uses?)\b[^>]*>[\s\S]*?<\/(?:[\w.-]+:)?(?:dots_|dsml_)?(?:function_calls?|tool_calls?|tool_uses?)\s*>/gi, "");
+  out = out.replace(/<(?:[\w.-]+:)?(?:dots_|dsml_)?(?:function_calls?|tool_calls?|tool_uses?)\b[^>]*>[\s\S]*$/i, "");
+  out = out.replace(/<\/?(?:[\w.-]+:)?(?:dots_|dsml_)?(?:function_calls?|tool_calls?|tool_uses?|invoke|args|parameter|tool)\b[^>]*>/gi, "");
   // DeepSeek's native tool markup (<|DSML|…>) never belongs on screen. A
   // proxy may rewrite the delimiters with spaces (<| |DSML| |tool_calls>), so
   // normalize first, then drop the tool_calls wrapper, a still-streaming
@@ -4927,7 +4938,7 @@ function addArtifactCard(i) {
     prev.indices.push(i);
     renderCardVersions(prev, i);
     updateCardFace(prev, i);
-    toolGroup = null;
+    toolGroup = null; proc = null;
     return;
   }
   const n = node("artifactcard");
@@ -4971,7 +4982,7 @@ function addArtifactCard(i) {
   });
   const saveBtn = n.querySelector("[data-save]");
   if (saveBtn) saveBtn.addEventListener("click", () => saveArtifactFile(artifacts[i], saveBtn));
-  toolGroup = null;
+  toolGroup = null; proc = null;
 }
 
 /* ---- Save: the self-contained page goes to <root>/artifacts/<name>.html.
@@ -5095,7 +5106,7 @@ function renderArtifact() {
   const group = artifactGroup(artifactView.i);
   $("previewTitle").textContent = artifactName(a) +
     (group.length > 1 ? " · v" + (group.indexOf(artifactView.i) + 1) : "");
-  $("previewEmpty").style.display = "none";
+  setPreviewEmpty(false);
   const host = $("filePreview");
   host.style.display = "flex";
   renderArtifactInto(host, a);
@@ -5123,7 +5134,7 @@ function flushAnswer() {
   currentMsg.style.display = "";
   // Visible prose ends the tool run: tools after it start a NEW group, so one
   // turn reads as prose - its tools - prose - its tools, like a written log.
-  toolGroup = null;
+  toolGroup = null; proc = null;
   setMsgHtml(currentMsg, md(shown));
   wireCopy(currentMsg);
   scrollDownSoon();
@@ -5145,7 +5156,7 @@ function endAssistant() {
     if (host.dataset.working) {
       host.dataset.working = "";
       if (artifacts.length) renderArtifact();
-      else { $("previewEmpty").style.display = "block"; host.style.display = "none"; }
+      else { setPreviewEmpty(true); host.style.display = "none"; }
     }
     if ($("artBody").dataset.working) {
       $("artBody").dataset.working = "";
@@ -6610,7 +6621,7 @@ function autoOpenArtifactView() {
   }
   showPane("preview");
   $("previewTitle").textContent = "Star is working…";
-  $("previewEmpty").style.display = "none";
+  setPreviewEmpty(false);
   const host = $("filePreview");
   host.style.display = "flex";
   renderWorkingInto(host, lang);
@@ -6751,90 +6762,145 @@ document.addEventListener("keydown", e => {
   e.preventDefault(); e.stopPropagation();
   items[next].focus();
 }, true);
-/* ---- thinking card (the reference "Star Thinking Block" component) ----
-   One card PER PHASE. While a phase streams, the card is `open` - the
-   reasoning is visible (capped at 240px, auto-scrolls) instead of a tiny
-   peek - and `data-live` marks it. Modes: `open` while live or once the
-   person clicks, `peek` if the person shrinks it while live, `closed`
-   (pill only, "Thought for Ns") once it settles.
-   Settings mapping — the two switches in Settings → Appearance:
-   - showThinking off: no card is ever created (handle() gates the
-     thinking_* events on state.showThinking).
-   - autoCollapseThinking off: a settled card keeps its mode instead of
-     folding to `closed`. On (the default): it folds 500ms after the end,
-     unless the person touched it.
-   No reasoning text at all → the (empty) card is removed again. */
-const SPARK_SVG = '<svg class="think-star" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1.5c.7 5.6 4.9 9.8 10.5 10.5-5.6.7-9.8 4.9-10.5 10.5-.7-5.6-4.9-9.8-10.5-10.5C7.1 11.3 11.3 7.1 12 1.5Z"/></svg>';
-const CHEV_SVG = '<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 3.5l4.5 4.5L6 12.5"/></svg>';
-const THINK_CHEV = '<svg class="think-chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4.5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-let thinkSeq = 0;
+/* ---- process card: a round's reasoning and tool calls in one list ----
+   Rows arrive in order and each one opens in place, so a turn reads as one
+   "2 thoughts, 1 tool call" block instead of a stack of separate pills.
+   Settings: showThinking off drops reasoning rows entirely; autoCollapseThinking
+   on closes the card once the round ends. */
+const SPARK_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1.5c.7 5.6 4.9 9.8 10.5 10.5-5.6.7-9.8 4.9-10.5 10.5-.7-5.6-4.9-9.8-10.5-10.5C7.1 11.3 11.3 7.1 12 1.5Z"/></svg>';
+const CHEV_SVG = '<svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3.5L10.5 8 6 12.5"/></svg>';
 
-/** Set the mode and keep the pill's aria state truthful. */
-function thinkMode(n, mode) {
-  n.dataset.mode = mode;
-  const pill = n.querySelector(".think-h");
-  if (pill) pill.setAttribute("aria-expanded", mode === "closed" ? "false" : "true");
+/* ---- Process: a round's reasoning and tool calls as one list of rows ----
+   Every think/tool run in a round lands in a single card that opens above the
+   answer it explains, so a turn reads "2 thoughts, 1 tool call" instead of a
+   stack of separate pills. Rows stay in arrival order; each one expands in
+   place to its full reasoning or output. */
+function fmtDur(ms) {
+  return ms < 1000 ? Math.round(ms) + "ms" : (ms / 1000).toFixed(1) + "s";
 }
 
+function procCount() {
+  if (!proc) return "";
+  const t = proc.items.filter(i => i.kind === "thought").length;
+  const n = proc.items.filter(i => i.kind === "tool").length;
+  const parts = [];
+  if (t) parts.push(t + " thought" + (t === 1 ? "" : "s"));
+  if (n) parts.push(n + " tool call" + (n === 1 ? "" : "s"));
+  return parts.join(", ");
+}
+
+function procLive() {
+  return !!proc && proc.items.some(i => i.state === "running" || i.state === "thinking");
+}
+
+function procSummary() {
+  if (!proc) return;
+  const txt = procCount();
+  proc.sum.textContent = txt || "Working…";
+  const live = procLive();
+  proc.node.classList.toggle("live", live);
+  proc.node.classList.toggle("empty", !proc.items.length);
+}
+
+/* The card is created lazily: a phase that never streams text and never calls a
+   tool must not flash an empty box that removes itself a moment later. */
+function ensureProc(append) {
+  if (proc && proc.node.isConnected) return proc;
+  const n = node("proc");
+  n.innerHTML = `
+    <button class="proc-h" type="button" aria-expanded="true">
+      <span class="pdot"></span>
+      <span class="psum">Working…</span>
+      <span class="pchev"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5l4 4 4-4"/></svg></span>
+    </button>
+    <div class="proc-b"></div>`;
+  if (!append && currentMsg && currentMsg.parentNode === $("stream")) $("stream").insertBefore(n, currentMsg);
+  n.classList.add("open");
+  n.querySelector(".proc-h").addEventListener("click", () => {
+    n.classList.toggle("open");
+    n.querySelector(".proc-h").setAttribute("aria-expanded", n.classList.contains("open") ? "true" : "false");
+  });
+  proc = {
+    node: n,
+    body: n.querySelector(".proc-b"),
+    head: n.querySelector(".proc-h"),
+    sum: n.querySelector(".psum"),
+    items: [],
+  };
+  return proc;
+}
+
+function procRow(kind, label) {
+  const p = ensureProc();
+  const el = document.createElement("div");
+  el.className = "pitem " + kind;
+  el.innerHTML = `
+    <button class="prow" type="button" aria-expanded="false">
+      <span class="pib"><span class="pring"></span></span>
+      <span class="plbl"></span>
+      <span class="pdsc"></span>
+      <span class="pmet"></span>
+    </button>
+    <div class="pdet"><pre class="pout"></pre></div>`;
+  const row = el.querySelector(".prow");
+  const it = {
+    kind,
+    el,
+    out: el.querySelector(".pout"),
+    det: el.querySelector(".pdet"),
+    lbl: el.querySelector(".plbl"),
+    dsc: el.querySelector(".pdsc"),
+    met: el.querySelector(".pmet"),
+    state: kind === "thought" ? "thinking" : "running",
+    started: Date.now(),
+    elapsed: 0,
+    text: "",
+  };
+  it.lbl.textContent = label;
+  row.addEventListener("click", () => {
+    const open = !el.classList.contains("open");
+    el.classList.toggle("open", open);
+    row.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+  p.body.appendChild(el);
+  p.items.push(it);
+  procSummary();
+  scrollDownSoon();
+  return it;
+}
+
+function procMeta(it) {
+  if (it.state === "running") return "… · " + fmtDur(Date.now() - it.started);
+  if (it.state === "thinking") return "thinking";
+  const dur = it.elapsed ? " · " + fmtDur(it.elapsed) : "";
+  return it.state === "denied" ? "denied" + dur : it.state === "failed" ? "failed" + dur : dur.replace(/^ · /, "");
+}
+
+function procPaint(it) {
+  it.el.classList.toggle("ok", it.state === "ok");
+  it.el.classList.toggle("no", it.state === "denied" || it.state === "failed");
+  it.el.classList.toggle("run", it.state === "running" || it.state === "thinking");
+  it.met.textContent = procMeta(it);
+}
+
+/* ---- reasoning phases ---- */
 function startThinking() {
   thinkStart = performance.now();
-  // Every phase gets its OWN card, right where it happens: the transcript
-  // reads think - answer - tools - think - answer, never one reused block.
-  // Deferred DOM: an empty phase never flashes a card that removes itself.
-  currentThink = { node: null, text: "", body: null, panel: null, label: null, userScrolled: false, userTouched: false };
+  currentThink = { it: null, text: "", pending: "" };
   clearInterval(thinkTimer);
   thinkTimer = setInterval(() => {
-    if (!currentThink || !currentThink.label) return;
+    if (!currentThink || !currentThink.it) return;
     const s = Math.floor((performance.now() - thinkStart) / 1000);
-    currentThink.label.textContent = s > 0 ? "Thinking… " + s + "s" : "Thinking…";
-  }, 250);
+    currentThink.it.met.textContent = s > 0 ? "thinking · " + s + "s" : "thinking";
+  }, 500);
   scrollDown();
 }
 
-/** First delta of a phase builds the block (and wires its interactions). */
 function materializeThink() {
   const cur = currentThink;
-  if (!cur || cur.node) return;
-  const pid = "think-b-" + (++thinkSeq);
-  const n = node("think");
-  // The round's message node opens before its reasoning streams, so a plain
-  // append would park the thinking UNDER the answer it explains: insert the
-  // block directly above the message it belongs to.
-  if (currentMsg && currentMsg.parentNode === $("stream")) $("stream").insertBefore(n, currentMsg);
-  // The live card shows the reasoning itself, not a peek of the newest lines.
-  thinkMode(n, "open");
-  n.setAttribute("data-live", "");
-  n.innerHTML = `
-    <button class="think-h" type="button" aria-expanded="true" aria-controls="${pid}">
-      ${SPARK_SVG}
-      <span class="think-label">Thinking…</span>
-      ${THINK_CHEV}
-    </button>
-    <div class="think-b" id="${pid}" role="region" aria-label="Reasoning" aria-live="off">
-      <div class="think-t" data-body></div>
-    </div>`;
-  cur.node = n;
-  cur.body = n.querySelector(".think-b");
-  cur.panel = n.querySelector(".think-t");
-  cur.label = n.querySelector(".think-label");
-  if (cur.text) cur.panel.textContent = cur.text;   // one write, then appends
-  cur.pending = "";
-  const pill = n.querySelector(".think-h");
-  pill.addEventListener("click", () => {
-    const live = n.hasAttribute("data-live");
-    const open = n.dataset.mode === "open";
-    cur.userTouched = true;
-    thinkMode(n, open ? (live ? "peek" : "closed") : "open");
-    if (n.dataset.mode === "peek") setTimeout(() => { cur.body.scrollTop = cur.body.scrollHeight; }, 320);
-    if (n.dataset.mode === "open" && currentThink === cur && !cur.userScrolled) {
-      cur.body.scrollTop = cur.body.scrollHeight;
-    }
-  });
-  cur.body.addEventListener("scroll", () => {
-    const up = cur.body.scrollTop + cur.body.clientHeight < cur.body.scrollHeight - 8;
-    cur.userScrolled = up;
-  });
-  scrollDown();
+  if (!cur || cur.it) return;
+  cur.it = procRow("thought", "Thought");
+  procPaint(cur.it);
 }
 
 function addThinking(t) {
@@ -6842,118 +6908,76 @@ function addThinking(t) {
   materializeThink();
   const cur = currentThink;
   cur.text += t;
-  // Append per frame instead of rewriting the whole text per delta: a long
-  // thinking stream used to re-set textContent thousands of times (O(n^2)).
-  cur.pending = (cur.pending || "") + t;
+  cur.pending += t;
   if (!thinkFlush) thinkFlush = requestAnimationFrame(flushThink);
 }
 
-/** The rAF callback: appends whatever text arrived this frame, then scrolls
- *  once. Also called directly (no scheduling) from endThinking. */
 function flushThink() {
   thinkFlush = 0;
   writeThinkNow();
 }
+
 function writeThinkNow() {
   const cur = currentThink;
-  if (!cur || !cur.node) return;
-  if (cur.pending) { cur.panel.appendChild(document.createTextNode(cur.pending)); cur.pending = ""; }
-  if (!cur.userScrolled) cur.body.scrollTop = cur.body.scrollHeight;
+  if (!cur || !cur.it) return;
+  if (cur.pending) { cur.it.out.appendChild(document.createTextNode(cur.pending)); cur.pending = ""; }
+  cur.it.dsc.textContent = thinkingGist(cur.text);
+  cur.it.det.scrollTop = cur.it.det.scrollHeight;
   scrollDownSoon();
 }
 
-/** One-line gist of a reasoning block for the folded pill: the first line
- *  that says what is being done, trimmed to fit. */
+/** One-line gist of a reasoning block for its row: the first line that says
+ *  what is being done, trimmed to fit. */
 function thinkingGist(text) {
   const lines = String(text || "").split("\n")
     .map(l => l.replace(/^[\s>*#-]+/, "").trim())
     .filter(Boolean);
   const pick = lines.find(l => /^(let me|i'?ll|i will|first|now|next|check|look|the plan|plan:|start|need to|let's)/i.test(l)) || lines[0] || "";
   const t = pick.replace(/\*\*|__|`/g, "").replace(/\s+/g, " ").trim();
-  return t.length > 92 ? t.slice(0, 89) + "…" : t;
+  return t.length > 84 ? t.slice(0, 81) + "…" : t;
 }
 
 function endThinking(ms) {
-  if (!currentThink) return;   // idempotent: the server may close a block twice
-  // Flush any text still waiting for a frame so the last words render.
+  const cur = currentThink;
+  if (!cur) return;   // idempotent: the server may close a block twice
   if (thinkFlush) { cancelAnimationFrame(thinkFlush); thinkFlush = 0; }
   writeThinkNow();
   clearInterval(thinkTimer);
   thinkTimer = null;
-  const cur = currentThink;
+  const it = cur.it;
   currentThink = null;
-  // A phase with no text never built its DOM: nothing to settle, nothing to
-  // flash. The turn's block (if any) stays as it was for later phases.
-  if (!cur.node) return;
-  const n = cur.node;
-  const secs = Math.max(0, (ms != null ? ms : performance.now() - thinkStart) / 1000);
-
-  // The model skipped reasoning: no text ever arrived, so no card either.
-  if (!cur.text.trim()) { n.remove(); return; }
-
-  // Belt and braces: the server already scrubs tool markup out of reasoning,
-  // but a card must never be able to show it - an old build, a new provider
-  // dialect or a stored transcript should all settle clean. stripBlocks is
-  // the same scrub the transcript uses, applied once at settle.
+  if (!it) return;
+  // The server already scrubs reasoning, but a replay or an older build can
+  // still hand over control markup; the row shows prose or nothing.
   const clean = stripBlocks(cur.text);
-  if (clean !== cur.text) {
-    cur.text = clean;
-    if (cur.panel) cur.panel.textContent = clean;
-  }
-
-  n.removeAttribute("data-live");
-  // The folded pill keeps the duration AND a one-line gist, so a collapsed
-  // card still says what the model was working through.
-  const gist = thinkingGist(cur.text);
-  cur.label.textContent = (secs < 1 ? "Thought for a moment" : "Thought for " + Math.max(1, Math.round(secs)) + "s") + (gist ? " · " + gist : "");
-  cur.body.scrollTop = cur.body.scrollHeight;
-
-  // autoCollapseThinking on → fold after half a second (unless the person
-  // touched this card, or a newer phase went live in the meantime);
-  // off → the settled card keeps its mode.
-  if (state.autoCollapseThinking && state.verbosity !== "verbose") {
-    setTimeout(() => { if (!cur.userTouched && n.isConnected && !n.hasAttribute("data-live")) thinkMode(n, "closed"); }, 500);
-  }
+  if (clean !== it.out.textContent) it.out.textContent = clean;
+  if (!clean.trim()) { it.el.remove(); proc.items.splice(proc.items.indexOf(it), 1); procSummary(); return; }
+  it.elapsed = Math.max(0, ms || (performance.now() - thinkStart));
+  it.state = "ok";
+  it.dsc.textContent = thinkingGist(clean);
+  procPaint(it);
+  procSummary();
   scrollDown();
 }
 
-/** The turn is over (send finished, session changed): whatever card was
- *  live is settled; the next phase starts fresh on its own. */
+/** The turn is over (send finished, session changed): whatever card was live is
+ *  settled; the next round starts its own. */
 function endTurnThink() {
   clearInterval(thinkTimer);
   thinkTimer = null;
   currentThink = null;
 }
 
-/* ---- tool summary group ---- */
+/* ---- tool calls ---- */
 function ensureToolGroup() {
-  if (toolGroup) {
-    // The turn's tools stay ONE group across rounds and thinking phases. If
-    // anything landed after it since (thinking, a diff card), move it back to
-    // the end so the transcript keeps reading top-to-bottom.
-    const stream = $("stream");
-    if (toolGroup.node && toolGroup.node.parentNode === stream && stream.lastElementChild !== toolGroup.node) {
-      stream.appendChild(toolGroup.node);
-    }
-    return toolGroup;
-  }
-  const n = node("tools");
-  n.innerHTML = `
-    <button class="tools-h run">
-      <span class="dot"></span>
-      <span class="txt" data-txt>Working…</span>
-      <span class="cnt" data-cnt></span>
-      <span class="chev"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 3.5l4.5 4.5L6 12.5"/></svg></span>
-    </button>
-    <div class="tools-b"><div class="tools-bi"><div class="tools-in" data-in></div></div></div>`;
-  n.querySelector(".tools-h").addEventListener("click", () => n.classList.toggle("open"));
-  toolGroup = { node: n, items: [] };
-  currentMsg = null;
+  ensureProc();
+  if (!toolGroup) toolGroup = { items: [] };
   return toolGroup;
 }
+
 function addTool({ name, args, status, detail }) {
-  const g = ensureToolGroup();
-  const [verb, past] = ICONS[name] || [name, name];
+  ensureToolGroup();
+  const [, past] = ICONS[name] || [name, name];
   let arg = "";
   if (args && state.verbosity !== "minimal") {
     if (name === "run_command") arg = args.command || "";
@@ -6961,55 +6985,47 @@ function addTool({ name, args, status, detail }) {
     else if (args.pattern) arg = args.pattern;
     else arg = Object.entries(args).map(([k, v]) => `${k}=${String(v).slice(0, 36)}`).join(" ");
   }
-  const item = { name, verb, past, arg, status, detail, started: Date.now(), elapsed: 0 };
-  g.items.push(item);
-  renderToolGroup(g);
+  const it = procRow("tool", past);
+  it.name = name;
+  it.arg = arg;
+  it.dsc.textContent = arg;
+  it.dsc.title = arg;
+  it.state = status === "running" || status === "ok" ? "running" : status;
+  it.elapsed = 0;
+  procPaint(it);
   if (name === "run_command" && args?.command) pushTerm(args.command, status === "denied" ? "er" : "pr");
-  return item;
+  toolGroup.items.push(it);
+  if (!toolTickTimer) toolTickTimer = setInterval(tickTools, 400);
+  procSummary();
+  return it;
 }
-function renderToolGroup(g) {
-  const items = g.items;
-  const running = items.some(i => i.status === "running");
-  const anyDenied = items.some(i => i.status === "denied");
-  const verbs = [...new Set(items.map(i => i.past))];
-  let txt;
-  if (verbs.length === 1) txt = verbs[0] + (items.length > 1 ? ` ${items.length} times` : "");
-  else txt = verbs.slice(0, 3).join(", ") + (verbs.length > 3 ? ` +${verbs.length - 3} more` : "");
-  const h = g.node.querySelector(".tools-h");
-  h.className = "tools-h" + (running ? " run" : anyDenied ? " err" : "");
-  g.node.querySelector("[data-txt]").textContent = running ? txt + "…" : txt;
-  g.node.querySelector("[data-cnt]").textContent = String(items.length);
-  g.node.querySelector("[data-in]").innerHTML = items.map((i, idx) => `
-    <div class="trow" data-i="${idx}">
-      <span class="v">${esc(i.verb)}</span>
-      <span class="a" title="${esc(i.arg)}">${esc(i.arg)}</span>
-      <span class="m ${i.status === "ok" ? "ok" : i.status === "denied" ? "no" : ""}">${
-        i.status === "running" ? "…" : i.status === "denied" ? "denied" : "done"}${
-        i.elapsed ? " · " + (i.elapsed < 1000 ? i.elapsed + "ms" : (i.elapsed / 1000).toFixed(1) + "s") : ""}</span>
-      ${i.detail ? `<button class="tcopy" data-copy="${idx}" title="Copy output" aria-label="Copy tool output"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V3.5A1.5 1.5 0 009 2H3.5A1.5 1.5 0 002 3.5V9a1.5 1.5 0 001.5 1.5h2"/></svg></button>` : ""}
-    </div>
-    <pre class="tout${state.verbosity === "verbose" ? " show" : ""}" data-out="${idx}">${esc(i.detail || "")}</pre>`).join("");
-  g.node.querySelectorAll(".trow").forEach(r => r.addEventListener("click", () => {
-    const out = g.node.querySelector(`[data-out="${r.dataset.i}"]`);
-    if (out && out.textContent.trim()) out.classList.toggle("show");
-  }));
-  g.node.querySelectorAll("[data-copy]").forEach((b) => b.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const item = items[Number(b.dataset.copy)];
-    const text = String((item && item.detail) || "");
-    if (!text) return;
-    navigator.clipboard?.writeText(text).then(() => toast("Tool output copied"), () => toast("Could not copy"));
-  }));
+
+function tickTools() {
+  if (!proc || !proc.node.isConnected) { clearInterval(toolTickTimer); toolTickTimer = 0; return; }
+  let live = false;
+  for (const it of proc.items) {
+    if (it.state !== "running") continue;
+    live = true;
+    it.met.textContent = "… · " + fmtDur(Date.now() - it.started);
+  }
+  if (!live) { clearInterval(toolTickTimer); toolTickTimer = 0; }
+  procSummary();
 }
+
 function finishTool(status, preview) {
   if (!toolGroup || !toolGroup.items.length) return;
-  const last = [...toolGroup.items].reverse().find(i => i.status === "running");
-  if (last) {
-    last.status = status;
-    last.detail = state.verbosity === "minimal" ? "" : (preview || "");
-    last.elapsed = Math.max(0, Date.now() - (last.started || Date.now()));
-  }
-  renderToolGroup(toolGroup);
+  const last = [...toolGroup.items].reverse().find(i => i.state === "running");
+  if (!last) return;
+  const body = state.verbosity === "minimal" ? "" : (preview || "");
+  last.detail = body;
+  last.elapsed = Math.max(0, Date.now() - (last.started || Date.now()));
+  last.state = status === "denied" ? "denied"
+    : /^(error|failed|exit\s+[1-9])/i.test(String(body).trim()) ? "failed" : "ok";
+  if (body) last.out.textContent = body;
+  if (!last.dsc.textContent) { last.dsc.textContent = body.split("\n")[0].slice(0, 120); }
+  procPaint(last);
+  procSummary();
+  scrollDownSoon();
 }
 
 /* ---- diff card ---- */
@@ -7042,9 +7058,10 @@ function renderDiff({ path: p, before, after }) {
     <div class="dc-h">
       <span class="p" title="${esc(full)}">${dirShort ? `<span class="dir">${esc(dirShort)}</span>` : ""}<span class="base">${esc(baseName)}</span></span>
       <span class="s"><i>+${adds}</i>${dels > 0 ? ` <b>−${dels}</b>` : ""}</span>
-    </div>` +
-    rows.map(r => `<div class="dl ${r.t}"><span class="n">${r.n}</span><span class="sg">${r.t === "add" ? "+" : r.t === "del" ? "−" : ""}</span><span class="c">${hl(r.x || "")}</span></div>`).join("");
-  currentMsg = null; toolGroup = null;
+    </div>
+    <div class="dbody">` +
+    rows.map(r => `<div class="dl ${r.t}"><span class="n">${r.n}</span><span class="sg">${r.t === "add" ? "+" : r.t === "del" ? "−" : ""}</span><span class="c">${hl(r.x || "")}</span></div>`).join("") + `</div>`;
+  currentMsg = null; toolGroup = null; proc = null;
   renderDiffPane();
 }
 function renderDiffPane() {
@@ -7056,7 +7073,7 @@ function renderDiffPane() {
       <div class="dc-h" style="border-bottom:1px solid var(--border)">
         <span class="p" title="${esc(d.path)}">${esc(d.path)}</span><span class="s"><i>+${adds}</i> <b>−${dels}</b></span>
       </div>
-      ${rows.map(r => `<div class="dl ${r.t}"><span class="n">${r.n}</span><span class="sg">${r.t === "add" ? "+" : r.t === "del" ? "−" : ""}</span><span class="c">${hl(r.x || "")}</span></div>`).join("")}
+      <div class="dbody">${rows.map(r => `<div class="dl ${r.t}"><span class="n">${r.n}</span><span class="sg">${r.t === "add" ? "+" : r.t === "del" ? "−" : ""}</span><span class="c">${hl(r.x || "")}</span></div>`).join("")}</div>
     </div>`;
   }).join("");
   paneBadges.diff = diffs.length;
@@ -7294,7 +7311,7 @@ function askPermission({ id, name, args, dangerous }) {
       <button class="btn pri" data-scope="once">Allow once</button>
       <button class="btn" data-scope="session">Allow for session</button>
     </div>`;
-  toolGroup = null; currentMsg = null;
+  toolGroup = null; proc = null; currentMsg = null;
   n.querySelectorAll("[data-scope]").forEach(b => b.addEventListener("click", async () => {
     const scope = b.dataset.scope;
     n.classList.add("answered");
@@ -7571,7 +7588,7 @@ async function handleCommand(text) {
   say(j.text || j.error || "(no output)");
   if (name === "memory" && j.text) renderPlan(j.text);
 }
-function say(t) { startAssistant(); toolGroup = null; currentMsg._t = t; setMsgHtml(currentMsg, md(t)); wireCopy(currentMsg); endAssistant(); }
+function say(t) { startAssistant(); toolGroup = null; proc = null; currentMsg._t = t; setMsgHtml(currentMsg, md(t)); wireCopy(currentMsg); endAssistant(); }
 
 async function sendToAgent(message, opts = {}) {
   const resume = !!opts.resume;
@@ -7606,6 +7623,8 @@ async function sendToAgent(message, opts = {}) {
   const wasNew = !sid && !resume;
   const live = { events: [], running: true, wasNew };
   let sawDone = false;   // the queue only fires for turns that actually completed
+  let streamError = false;
+  userAborted = false;
   if (sid) { liveTurns.set(sid, live); renderSessions(); }   // its circle starts spinning now
   try {
     const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -7637,12 +7656,20 @@ async function sendToAgent(message, opts = {}) {
       if (liveTurns.get(sid) !== live) break;        // aborted or superseded
     }
   } catch (e) {
+    streamError = true;
     if (sid === sessionId) addTool({ name: "error", args: {}, status: "denied", detail: e.message });
   } finally {
     if (sid && liveTurns.get(sid) === live) live.running = false;
     if (sid === sessionId) {
       // Only the visible turn owns the DOM: close it out and clear the line.
       endAssistant(); endThinking(); endTurnThink();
+      // A body that ends without a done event means the turn died mid-flight
+      // (server crash, dropped connection). Say so instead of leaving a
+      // half-written answer that looks finished.
+      if (!sawDone && !streamError && !userAborted) {
+        addTool({ name: "error", args: {}, status: "denied",
+          detail: "The reply stopped before it finished - the stream closed early. Send it again." });
+      }
       setWorking(false); showWorkLine(false); setActivity("");
       $("input").focus();
     } else if (sid) {
@@ -7761,7 +7788,7 @@ async function newSession(opts = {}) {
   sessStats = emptySessStats();
   artifacts = []; msgArtifacts = []; msgCards = 0; artifactView = { i: 0, mode: "render" };
   artifactCards = new Map();
-  currentMsg = null; currentThink = null; toolGroup = null;
+  currentMsg = null; currentThink = null; toolGroup = null; proc = null;
   if (thinkFlush) { cancelAnimationFrame(thinkFlush); thinkFlush = 0; }
   if (answerFlush) { cancelAnimationFrame(answerFlush); answerFlush = 0; }
   answerDirty = false;
@@ -7775,7 +7802,7 @@ async function newSession(opts = {}) {
   await loadSessions();
 }
 function exportConv() {
-  const text = [...$("stream").querySelectorAll(".msg-u,.msg-a,.think,.tools,.diffcard,.tasklist,.perm")].map(e => e.innerText).join("\n\n");
+  const text = [...$("stream").querySelectorAll(".msg-u,.msg-a,.proc,.diffcard,.tasklist,.perm")].map(e => e.innerText).join("\n\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
   a.download = "star-code-session.txt"; a.click();
@@ -7963,7 +7990,7 @@ $("bigSend").addEventListener("click", () => {
 $("bigInput").addEventListener("keydown", e => {
   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("bigSend").click(); }
 });
-function abort() { fetch("/api/abort", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId }) }); }
+function abort() { userAborted = true; fetch("/api/abort", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId }) }); }
 
 /* ---- composer state: send/stop button + the working indicator ---- */
 let workTimer = null, workStart = 0;
@@ -9606,9 +9633,24 @@ function wireSettings() {
 }
 
 /* ============================ MISC UI ============================ */
+/* Toasts queue instead of clobbering each other, and they sit above the
+   composer no matter how tall it has grown (attachments, queue row). */
+const toastQ = [];
+let toastTimer = 0;
 function toast(msg) {
-  const t = $("toast"); t.textContent = msg; t.classList.add("on");
-  clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove("on"), 1900);
+  if (toastQ[toastQ.length - 1] !== msg) toastQ.push(msg);
+  if (!toastTimer) nextToast();
+}
+function nextToast() {
+  const t = $("toast");
+  const msg = toastQ.shift();
+  if (!msg) { toastTimer = 0; t.classList.remove("on"); return; }
+  const c = $("composer");
+  const r = c ? c.getBoundingClientRect() : null;
+  t.style.bottom = r && r.height ? Math.round(innerHeight - r.top + 14) + "px" : "104px";
+  t.textContent = msg;
+  t.classList.add("on");
+  toastTimer = setTimeout(nextToast, 1900);
 }
 $("btnTitleSettings").addEventListener("click", () => openSettings("appearance"));
 function setSidebarNav(id) {

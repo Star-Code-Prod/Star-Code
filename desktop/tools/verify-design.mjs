@@ -110,6 +110,7 @@ for (const m of html.matchAll(/<button\b([^>]*)>([\s\S]*?)<\/button>/g)) {
   const inner = m[2];
   if (/\baria-hidden\b/.test(attrs)) continue;
   if (/<title\b/i.test(inner)) continue; // the svg names the button
+  if (/class="plbl"/.test(inner)) continue; // a row whose text JS fills in
   let interpIsText = false;
   const stripped = inner
     .replace(/<[^>]*>/g, "")

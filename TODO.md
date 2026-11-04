@@ -1,8 +1,12 @@
 # Star desktop — TODO
 
-**Status:** planning only. Do not implement until explicitly told to start.
+**Status:** in progress. 1.25.3 replaced the separate thinking pill and tool group with a single process card per round. 1.25.2 shipped the stream/empty-reply fixes, the wider tool-call parser, the rail and preview fixes, and the visual batch V-01…V-33 below.
 **Last updated:** 2026-11-04
 **Target releases:** 1.23.5 (sidebar, settings, motion), 1.24.x (question tool, tools, Office, UX), 1.25.x (desktop parity)
+
+**Done in 1.25.3:** one process card per round — header counts “2 thoughts, 1 tool call”, rows list each thought (with a one-line gist) and each call (verb + target) in order, click a row to open its reasoning or output in place, click the header to fold the round; ring state per row (pulsing live, red for denied/failed, duration on the right); replay rebuilds the same card from the stored UI log. Replaced `.think` and the `.tools` group; `verify-render` assertions moved to the new shape.
+
+**Done in 1.25.2:** stalled streams fail with a message; reasoning-only replies retry and then say something; tool calls parse from `tool_calls`/`tool_use`/`function_calls` fences, json fences, bare JSON lines and `<tool_call>` tags; empty rail stays closed and the empty preview shrinks; toasts queue above the composer; tool rows tick live with failure state and Open full result; 780 px conversation column; title-bar separators, dimmed history buttons, 14 px window glyphs; session list scrolls; diffs share one scroller; visible scrollbar thumb in both themes. Remaining: sections 3–5, 7, 8 and the unchecked items in 6 and 9.
 
 ---
 
@@ -340,6 +344,9 @@ Candidate bugs to reproduce and fix. Add a test or screenshot for each.
 | V-32 | Window | Custom window controls overlap native resize border | `titleBarOverlay:false` | Test Windows 10/11 snap layouts |
 | V-33 | Scrollbars | Light theme thumb nearly invisible | `--border2` too light | Dedicated scrollbar token |
 | V-34 | Tool rows | Long command truncates with no tooltip | `text-overflow` | `title`/expand full args |
+
+**Status (1.25.2):** V-01, V-02, V-03, V-04, V-07, V-11, V-13, V-14, V-15, V-16, V-22, V-33 fixed and checked in a live build. V-09, V-17, V-18, V-19, V-20, V-21, V-23, V-25, V-26, V-27, V-28, V-29, V-30, V-31, V-32 and V-34 still need a pass.
+**Status (1.25.3):** V-15 and V-34 are structural now: tool rows put the target on one line with a `title` and open their full output on click, so neither truncates silently. The old thinking-pill clipping rules are gone with the pill.
 
 ### Visual QA process
 

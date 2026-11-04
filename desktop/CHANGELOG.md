@@ -1,5 +1,22 @@
 # What's new in Star
 
+## 1.25.3 — 2026-11-04
+- **One process card per round.** Thinking and tool calls no longer arrive as a stack of separate pills. Each round gets a single card whose header counts what happened — “2 thoughts, 1 tool call” — with every thought and call listed in order: `Thought · <gist>`, `Found files · *.md`, `Ran · npm run verify`. Click the header to fold the whole round; click a row to read its full reasoning or output in place.
+- **Rows carry their own state.** A ring pulses while a row runs, turns red for a denied call or a failure (`exit 1`, `failed`, `error`), and the right side shows how long it took. Reasoning rows show the duration, so “Thought — 4.2 s” is visible without opening anything.
+- **Replays keep the same shape.** Sessions restored from disk rebuild the card with their stored reasoning and tool results instead of one throwaway card per phase, and they settle to the same folded state the live card ends in.
+
+## 1.25.2 — 2026-11-04
+- **A stalled stream now fails instead of hanging.** If the provider accepts the request and then goes quiet, Star aborts after two minutes (or `STAR_STREAM_STALL_MS`) with “the model stopped mid-stream — retry, or pick another model.” Before, the turn sat on “thinking” forever.
+- **No more silent turns.** A reply that arrives empty — reasoning text only, a dead connection, a dropped stream — is retried once, then nudged, and finally replaced by a visible message telling you what happened. An SSE body that ends without a `done` event now reports “the reply stopped before it finished” instead of quietly clearing the spinner.
+- **Tool calls in more shapes are understood.** Fences named `tool_calls`, `tool_use`, `function_calls`, `invoke` or `call`; a ```json block that is really a call; a bare single-line `{"name": …}`; `<tool_use name="…">` and `<tool_call>{…}</tool_call>`; `dots_`/`dsml_` prefixed wrappers. All are parsed into real tool rows and stripped from prose, live and on replay.
+- **The side panel stops lying about being closed.** An emptied rail stays closed on the next launch, its × now clears the saved state, and an empty Preview card shrinks to its message instead of holding a 280 px grey box with a phantom scrollbar.
+- **Tool cards feel alive.** Running rows count up in place (no re-render, so hover and focus survive), failures say “failed” in red, and long output gets an **Open full result** button next to Copy.
+- **Conversation readability.** The column is 780 px instead of 1000, turns breathe at 20 px, the thinking pill is capped at 620 px, and message actions no longer reserve 22 px of empty space under every turn.
+- **Title bar and sidebar.** Thin separators split the workspace controls from history and from the window buttons, back/forward dim when there is nowhere to go, window glyphs are 14 px inside 44 px targets, the session list scrolls and yields to the project tree, and deep folders indent 14 px per level instead of 20.
+- **Diffs scroll as one block.** The file header stays put while every row shares a single horizontal scroller instead of each line scrolling by itself.
+- **Smaller fixes.** Toasts queue above the composer instead of stacking over the right panel; the scrollbar thumb is actually visible in both themes; the landing subtitle is one line; the composer's pane and shell buttons are proper 24 px targets.
+- The CLI mirror is resynced with `lib/agent.js` and `lib/providers.js`, so `star-code` gets the same stream and parser behaviour.
+
 ## 1.25.1 — 2026-11-04
 - **Update log now shows everything you missed.** On launch it lists every version released since the last one you saw, not just the newest entry; **About → Update log** still shows the full history. The 1.25.0 notes were expanded to cover the sidebar, Projects popup, boot speed and mode-switch spacing.
 

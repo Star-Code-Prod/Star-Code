@@ -534,19 +534,47 @@ export function extractDelta(provider, obj) {
   return { text, thinking };
 }
 
+/** How long a stream may sit without a single byte before the turn gives up.
+ *  Providers occasionally accept a request and then go quiet; without this the
+ *  reading loop waits forever and the UI shows a thinking card that never
+ *  turns into an answer. */
+const STALL_MS = Math.max(15000, Number(process.env.STAR_STREAM_STALL_MS || 120000));
+
 export async function* streamCompletion(req, fetchImpl = fetch) {
-  const doFetch = (body) => fetchImpl(req.url, {
-    method: "POST",
-    headers: req.headers,
-    body: JSON.stringify(body),
-  });
-  let res = await doFetch(req.body);
-  // stream_options is the one field some older OpenAI-compatible servers
-  // reject outright: ask for usage, but never lose the turn over it.
-  if (!res.ok && req.body && req.body.stream_options && res.status >= 400 && res.status < 500) {
-    const { stream_options, ...plain } = req.body;
-    res = await doFetch(plain);
+  const ctrl = new AbortController();
+  let stalled = false;
+  let timer = 0;
+  const arm = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => { stalled = true; ctrl.abort(); }, STALL_MS);
+  };
+  const doFetch = (body) => {
+    arm();
+    return fetchImpl(req.url, {
+      method: "POST",
+      headers: req.headers,
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    });
+  };
+  const stallError = () => new Error(
+    "No output from " + (req.provider || "the provider") + " for " +
+    Math.round(STALL_MS / 1000) + "s - the model stopped mid-stream. Retry, or pick another model.");
+
+  let res;
+  try {
+    res = await doFetch(req.body);
+    // stream_options is the one field some older OpenAI-compatible servers
+    // reject outright: ask for usage, but never lose the turn over it.
+    if (!res.ok && req.body && req.body.stream_options && res.status >= 400 && res.status < 500) {
+      const { stream_options, ...plain } = req.body;
+      res = await doFetch(plain);
+    }
+  } catch (e) {
+    clearTimeout(timer);
+    throw stalled ? stallError() : e;
   }
+  clearTimeout(timer);
 
   if (!res.ok) {
     let detail = "";
@@ -565,8 +593,15 @@ export async function* streamCompletion(req, fetchImpl = fetch) {
   const kind = PROVIDERS[req.provider]?.kind;
 
   while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
+    let value, done;
+    try {
+      ({ value, done } = await reader.read());
+    } catch (e) {
+      clearTimeout(timer);
+      throw stalled ? stallError() : e;
+    }
+    if (done) { clearTimeout(timer); break; }
+    arm();
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split("\n");
     buffer = lines.pop() || "";
@@ -574,7 +609,7 @@ export async function* streamCompletion(req, fetchImpl = fetch) {
       const trimmed = line.trim();
       if (!trimmed || !trimmed.startsWith("data:")) continue;
       const payload = trimmed.slice(5).trim();
-      if (payload === "[DONE]") return;
+      if (payload === "[DONE]") { clearTimeout(timer); return; }
       let obj;
       try {
         obj = JSON.parse(payload);

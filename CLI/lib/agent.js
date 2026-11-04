@@ -173,6 +173,12 @@ export function hasIdenticalToolResult(messages, body, minChars = DEDUPE_MIN_CHA
   return messages.some((m) => m.content === body);
 }
 
+/** Sent once when a step produced neither prose nor a tool call. Models that
+ *  spend the whole reply in a reasoning channel recover from this line; the
+ *  turn otherwise ends with an empty bubble and looks frozen. */
+const EMPTY_REPLY_NUDGE = "You sent no visible answer. Reply now with a short " +
+  "sentence, or call a tool - do not send another empty or reasoning-only message.";
+
 export const PERMISSION_MODES = ["manual", "acceptEdits", "plan", "bypass"];
 
 // Derived, not hand-listed: whatever TOOL_SPECS calls non-dangerous is a
@@ -671,7 +677,7 @@ export function parseDsmlCalls(content) {
  *  behind. Parse the blocks so the call actually runs; the markup is stripped
  *  from the visible text either way. */
 const XML_NS = "(?:[A-Za-z_][\\w.-]*:)?";
-const XML_CALL_NAME = "(?:dots_|dsml_)?(?:function_calls?|tool_calls?)";
+const XML_CALL_NAME = "(?:dots_|dsml_)?(?:function_calls?|tool_calls?|tool_use|tool_uses|function_call)";
 const XML_BLOCK_RE = new RegExp(
   "<" + XML_NS + XML_CALL_NAME + "\\b[^>]*>[\\s\\S]*?</" + XML_NS + XML_CALL_NAME + "\\s*>", "gi");
 const XML_BLOCK_TAIL_RE = new RegExp(
@@ -706,6 +712,11 @@ function parseXmlArgs(raw) {
   return Object.keys(args).length ? args : null;
 }
 
+const XML_USE_RE = new RegExp(
+  "<" + XML_NS + "(?:tool_use|tool_call)\\s+name\\s*=\\s*[\"']([^\"']+)[\"'][^>]*>([\\s\\S]*?)</" + XML_NS + "(?:tool_use|tool_call)\\s*>", "gi");
+const XML_JSON_RE = new RegExp(
+  "<" + XML_NS + "(?:tool_use|tool_call)\\b[^>]*>\\s*(\\{[\\s\\S]*?\\})\\s*</" + XML_NS + "(?:tool_use|tool_call)\\s*>", "gi");
+
 export function parseXmlCalls(content) {
   const src = String(content || "");
   const calls = [];
@@ -719,6 +730,22 @@ export function parseXmlCalls(content) {
     const a = XML_ARGS_RE.exec(body);
     const args = (a && parseXmlArgs(a[1])) || parseXmlArgs(body) || {};
     calls.push({ name, args });
+  }
+  XML_USE_RE.lastIndex = 0;
+  while ((m = XML_USE_RE.exec(src)) !== null) {
+    const name = String(m[1] || "").trim();
+    if (!name) continue;
+    XML_ARGS_RE.lastIndex = 0;
+    const a = XML_ARGS_RE.exec(m[2] || "");
+    const args = (a && parseXmlArgs(a[1])) || parseXmlArgs(m[2] || "") || {};
+    calls.push({ name, args });
+  }
+  XML_JSON_RE.lastIndex = 0;
+  while ((m = XML_JSON_RE.exec(src)) !== null) {
+    try {
+      const call = callFrom(JSON.parse(m[1]));
+      if (call) calls.push(call);
+    } catch {}
   }
   return calls;
 }
@@ -736,30 +763,85 @@ const DSML_BLOCK_RE = /<\|DSML\|tool_calls\b[\s\S]*?(?:<\/\|DSML\|tool_calls>|$)
 const DSML_INVOKE_RE = /<\|DSML\|invoke\b[\s\S]*?(?:<\/\|DSML\|invoke>|$)/g;
 const DSML_TAG_RE = /<\/?\|DSML\|[^>]*>/g;
 
+const TOOL_FENCE_RE = /```(?:tool|tool_?calls?|tool-?calls?|tool-?use|function_?calls?|function-?calls?|invoke|call)\b\s*([\s\S]*?)```/gi;
+const JSON_FENCE_RE = /```(?:json|jsonc)\b\s*([\s\S]*?)```/gi;
+/** A fence body, a bare object, or a <tool_use> body becomes a call only when
+ *  it actually names a tool: anything else stays prose. Providers disagree on
+ *  the arg key (args / arguments / parameters / input), so accept them all. */
+function callFrom(obj) {
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return null;
+  const raw = obj.name || obj.tool || obj.tool_name || (typeof obj.function === "string" ? obj.function : "");
+  if (typeof raw !== "string" || !/^[\w.:-]+$/.test(raw.trim())) return null;
+  let args = obj.args ?? obj.arguments ?? obj.parameters ?? obj.input ?? obj.tool_args;
+  if (typeof args === "string") {
+    try { args = JSON.parse(args); } catch { args = {}; }
+  }
+  if (!args || typeof args !== "object" || Array.isArray(args)) args = {};
+  return { name: raw.trim(), args };
+}
+
+function callsInFences(src, re, into) {
+  re.lastIndex = 0;
+  let m;
+  let out = src;
+  while ((m = re.exec(src)) !== null) {
+    const body = String(m[1] || "").trim();
+    if (!body) continue;
+    let obj = null;
+    try { obj = JSON.parse(body); } catch { continue; }
+    const call = callFrom(obj && obj.tool_calls ? obj.tool_calls[0] : obj);
+    if (!call) continue;
+    into.push(call);
+    out = out.replace(m[0], "");
+  }
+  return out;
+}
+
+const ARG_KEYS = ["name", "tool", "tool_name", "args", "arguments", "parameters", "input", "tool_args"];
+
 export function parseAssistantContent(content) {
   content = normalizeDsml(content);
   const calls = [];
-  const toolRe = /```tool\s*([\s\S]*?)```/g;
-  let m;
-  while ((m = toolRe.exec(content)) !== null) {
-    try {
-      const obj = JSON.parse(m[1].trim());
-      if (obj && obj.name) calls.push({ name: obj.name, args: obj.args || {} });
-    } catch {}
+  let rest = callsInFences(content, TOOL_FENCE_RE, calls);
+  // A ```json fence is a call only when it holds nothing but a name and args.
+  JSON_FENCE_RE.lastIndex = 0;
+  let jm;
+  while ((jm = JSON_FENCE_RE.exec(rest)) !== null) {
+    let obj = null;
+    try { obj = JSON.parse(String(jm[1] || "").trim()); } catch { continue; }
+    const call = callFrom(obj);
+    const keys = obj && typeof obj === "object" ? Object.keys(obj) : [];
+    if (!call || !keys.every((k) => ARG_KEYS.includes(k))) continue;
+    calls.push(call);
+    rest = rest.replace(jm[0], "");
+  }
+  // Last resort: the model wrote the call as bare JSON with no fence at all.
+  const bareRe = /^[ \t]*(\{[ \t]*"(?:name|tool|tool_name)"[ \t]*:[\s\S]*?\})[ \t]*$/gm;
+  let bm;
+  while ((bm = bareRe.exec(rest)) !== null) {
+    let obj = null;
+    try { obj = JSON.parse(bm[1]); } catch { continue; }
+    const call = callFrom(obj);
+    if (!call) continue;
+    calls.push(call);
+    rest = rest.replace(bm[0], "");
+    bareRe.lastIndex = 0;
   }
   calls.push(...parseDsmlCalls(content));
   calls.push(...parseXmlCalls(content));
 
   let todos = null;
   const todoRe = /```todo\s*([\s\S]*?)```/g;
-  while ((m = todoRe.exec(content)) !== null) {
+  let m;
+  while ((m = todoRe.exec(rest)) !== null) {
     try {
       const parsed = JSON.parse(m[1].trim());
       if (Array.isArray(parsed)) todos = parsed;
     } catch {}
   }
+  rest = rest.replace(todoRe, "");
 
-  const text = stripXmlCallMarkup(content.replace(toolRe, "").replace(todoRe, "")
+  const text = stripXmlCallMarkup(rest
     .replace(DSML_BLOCK_RE, "").replace(DSML_INVOKE_RE, "").replace(DSML_TAG_RE, "")).trim();
   return { text, calls, todos };
 }
@@ -855,6 +937,8 @@ export async function runAgentTurn({
   effort = "", contextLimitTokens = 0,
 }) {
   let interrupted = false;
+  let softRetries = 0;    // stream dropped before the first byte
+  let silentRetries = 0;  // model answered with neither prose nor a tool call
 
   /** Shared tail of tool handling: clip, dedupe, emit and record one result.
    *  The sequential path and parallel fleets both settle through here. */
@@ -962,6 +1046,15 @@ export async function runAgentTurn({
       }
     } catch (e) {
       if (thinkingStarted) closeThinking();
+      // Nothing arrived yet: a dropped connection or a provider hiccup usually
+      // clears on the second attempt, so retry one silent time before the red
+      // card. Anything that already streamed is surfaced as-is.
+      if (!full.trim() && !interrupted && !controller.abort && softRetries < 1) {
+        softRetries += 1;
+        emit({ type: "assistant_end" });
+        await new Promise((r) => setTimeout(r, 700));
+        continue;
+      }
       emit({ type: "error", message: e.message });
       emit({ type: "done", text: "" });
       return;
@@ -979,10 +1072,24 @@ export async function runAgentTurn({
     }
 
     const { text, calls, todos } = parseAssistantContent(full);
-    messages.push({ role: "assistant", content: full });
+    if (full.trim()) messages.push({ role: "assistant", content: full });
 
     if (todos) emit({ type: "todos", todos });
     emitUsage();
+
+    if (!calls.length && !text) {
+      // A reasoning-only reply leaves nothing on screen: ask once, then say so.
+      if (silentRetries < 1) {
+        silentRetries += 1;
+        messages.push({ role: "user", content: EMPTY_REPLY_NUDGE });
+        continue;
+      }
+      const note = "Nothing came back from " + (model || "the model") +
+        " - the reply was empty. Send that again, or switch models in the composer.";
+      emit({ type: "delta", text: note });
+      emit({ type: "done", text: note });
+      return;
+    }
 
     if (!calls.length) {
       emit({ type: "done", text });
