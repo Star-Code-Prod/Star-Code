@@ -54,14 +54,14 @@ function titlebarColors() {
   // themeSource synced from the UI, shouldUseDarkColors is our own setting.
   const dark = nativeTheme.shouldUseDarkColors;
   return dark
-    ? { color: "#1a1a1a", symbolColor: "#b9b9b5" }
-    : { color: "#faf9f5", symbolColor: "#55534c" };
+    ? { color: "#1c1c1a", symbolColor: "#c7c5bd" }
+    : { color: "#f7f7f4", symbolColor: "#6d6b65" };
 }
 
 // Registered once, not per-window, so repeated `activate` calls can't stack listeners.
 nativeTheme.on("updated", () => {
   if (win && !win.isDestroyed() && process.platform !== "darwin") {
-    try { win.setTitleBarOverlay({ ...titlebarColors(), height: 46 }); } catch {}
+    try { win.setTitleBarOverlay({ ...titlebarColors(), height: 38 }); } catch {}
   }
 });
 
@@ -76,13 +76,13 @@ function createWindow(url) {
     x: s.x, y: s.y,
     minWidth: 900,
     minHeight: 560,
-    backgroundColor: "#1a1a1a",
+    backgroundColor: "#1c1c1a",
     show: false,
     title: "Star",
     icon: process.platform === "win32" ? ICON : ICON_PNG,
     titleBarStyle: isMac ? "hiddenInset" : "hidden",
-    trafficLightPosition: isMac ? { x: 16, y: 15 } : undefined,
-    titleBarOverlay: isMac ? undefined : { ...c, height: 46 },
+    trafficLightPosition: isMac ? { x: 16, y: 11 } : undefined,
+    titleBarOverlay: isMac ? undefined : { ...c, height: 38 },
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,

@@ -1,5 +1,10 @@
 # What's new in Star
 
+## 1.23.2 — 2026-11-04
+- **The whole desktop shell now follows Claude Code's V2 layout.** A slim 38 px top bar (sidebar, search, pane toggle), settings moved into the sidebar footer beside the machine identity, a 236 px sidebar with compact navigation and a folded file tree, a flat project / session breadcrumb, a narrower 760 px conversation column with plain user turns instead of bubbles, a unified compact composer with the controls inside the card, and a flush split pane in place of the floating tabbed rail. The split starts closed; opening it shows one pane, and the tab strip only appears when two or more are open.
+- **Neutral, sans-serif surfaces.** The app drops the cream/serif treatment for near-white and warm-charcoal panels, smaller UI type, neutral light-mode code blocks, and quiet borders — with the terracotta star kept as the single accent. The redesigned logo stays.
+- The run-mode cards on the empty state are gone; permission modes live in the composer's mode chip, as in the desktop app.
+
 ## 1.23.1 — 2026-11-04
 - **A new star.** The app icon and wordmark are redrawn as one flat, high-contrast mark: a four-point star in ink on a warm paper tile, with a small terracotta companion spark. It stays legible down to 16 px (a chunkier single star is drawn below 32 px), and the in-app logo uses the same geometry. The site, README screenshot and CLI ink now use the same coral.
 - **A warmer, editorial face — closer to the Claude Code desktop feel.** Parchment and warm charcoal surfaces replace the cool grays; headlines and the wordmark are set in a serif; terracotta is the single accent (active session, focus ring, send button, links, inline code, context ring); cards use soft ring shadows; the session header is flat instead of a floating card; sidebar labels are sentence case; and the file tree fills the sidebar instead of sitting in a fixed 240 px box. Light and dark were tuned together.

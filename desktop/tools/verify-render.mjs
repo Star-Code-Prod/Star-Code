@@ -444,17 +444,19 @@ ok("the usage pane exists and the ring opens it",
 ok("a context limit override rides with every request",
   js.includes("contextLimit: Number(p.contextLimit) > 0 ? Number(p.contextLimit) : undefined") &&
   js.includes('id="fCtx"') && js.includes('on("fSaveCtx"'));
-ok("the titlebar carries the three icon buttons and no brand text",
+ok("the titlebar carries navigation and panes; settings lives in the sidebar",
   !html.includes('id="brandVer"') && !html.includes('class="appbar"') &&
-  !html.includes('id="btnSearch"') && js.includes("function focusSessionSearch(") &&
+  js.includes("function focusSessionSearch(") &&
   html.indexOf('id="btnSidebar"') > html.indexOf('class="titlebar"') &&
-  html.indexOf('id="btnTitleSettings"') > html.indexOf('class="titlebar"') &&
+  html.indexOf('id="btnSearch"') > html.indexOf('class="titlebar"') &&
   html.indexOf('id="btnPanes"') > html.indexOf('class="titlebar"') &&
+  html.indexOf('id="btnTitleSettings"') > html.indexOf('class="sb-foot"') &&
   html.indexOf('id="btnSidebar"') < html.indexOf('class="updatebar"') &&
   js.includes('$("btnTitleSettings").addEventListener("click", openSettings)') &&
-  /\.titlebar\{[^}]*margin-bottom:6px/.test(html.replace(/\s+/g, "")));
+  /\.titlebar\{[^}]*height:38px/.test(html.replace(/\s+/g, "")) &&
+  !/\.titlebar\{[^}]*margin-bottom:6px/.test(html.replace(/\s+/g, "")));
 ok("fullscreen sits below the titlebar strip",
-  /body\.preview-full \.pane-row\[data-pane="preview"\]\{[^}]*inset:46px 0 0 0/.test(html.replace(/\s+/g, " ")));
+  /body\.preview-full \.pane-row\[data-pane="preview"\]\{[^}]*inset:38px 0 0 0/.test(html.replace(/\s+/g, " ")));
 ok("the folded thinking pill carries a gist",
   js.includes("function thinkingGist(") && js.includes('(gist ? " · " + gist : "")'));
 ok("a pick per question sends; multiSelect still uses Submit",

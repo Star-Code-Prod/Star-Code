@@ -117,7 +117,7 @@ The **base URL is per provider and fully honored** — point it at a proxy or a 
 | **Diff review** | Syntax-highlighted inline diffs, plus a Changes pane that reads like a file tab |
 | **Reasoning view** | Live thinking block with a timer and a one-line gist; folds when the answer starts — and stays readable when you come back later |
 | **Task checklist** | The model maintains its own plan and updates it as it works |
-| **Panes** | Tabbed right rail: Preview · Tasks · Plan · Terminal · Changes — badges, drag-to-reorder, per-pane height, fullscreen preview, remembered per session |
+| **Split panes** | Preview · Tasks · Plan · Terminal · Changes open as a flush split beside the chat (closed until you open one; tabs appear when several are open) — badges, drag-to-reorder, per-pane height, fullscreen preview, remembered per session |
 | **Knowledge** | Markdown notes in `.star-code/knowledge` — indexed in the prompt, searchable by the agent |
 | **Project files** | Sidebar tree; click a file to preview it, syntax-highlighted |
 | **Slash commands** | `/clear` `/compact` `/init` `/diff` `/context` `/status` `/memory` `/plan` `/review` `/btw` `/model` `/models` `/connect` `/agents` `/knowledge` `/theme` `/settings` `/export` `/help` |
