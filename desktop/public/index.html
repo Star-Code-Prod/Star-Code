@@ -1322,6 +1322,32 @@ html[data-embed] #splitBox{display:none !important}
 .chip svg{flex:none;color:var(--dim)}
 .chip:hover svg{color:var(--text2)}
 
+/* ============================ COMMAND PALETTE ============================ */
+.cmdp{
+  position:fixed;inset:0;z-index:240;display:flex;align-items:flex-start;justify-content:center;
+  padding:12vh 16px 16px;background:rgba(0,0,0,.38);animation:fadeIn var(--t-fast) var(--ease);
+}
+.cmdp-box{
+  width:min(580px,100%);max-height:min(560px,72vh);display:flex;flex-direction:column;overflow:hidden;
+  background:var(--panel);border:1px solid var(--border2);border-radius:14px;box-shadow:var(--shadow);
+  animation:cardIn var(--t-mid) var(--ease);
+}
+.cmdp-in{display:flex;align-items:center;gap:10px;padding:0 14px;height:52px;border-bottom:1px solid var(--border);color:var(--muted);flex:none}
+.cmdp-in input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--text);font-size:var(--fs-14)}
+.cmdp-in kbd{font-family:var(--font-mono);font-size:10px;color:var(--dim);border:1px solid var(--border);border-radius:4px;padding:2px 5px}
+.cmdp-list{flex:1;min-height:0;overflow-y:auto;padding:6px}
+.cmdp-row{
+  display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border-radius:8px;
+  color:var(--text2);text-align:left;font-size:var(--fs-13);
+}
+.cmdp-row .cic{width:18px;display:flex;justify-content:center;color:var(--muted);flex:none}
+.cmdp-row .lb{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cmdp-row .hint{font-size:var(--fs-11);color:var(--dim);flex:none}
+.cmdp-row.on{background:var(--panel2);color:var(--text)}
+.cmdp-row.on .cic{color:var(--brand)}
+.cmdp-empty{padding:22px 14px;text-align:center;color:var(--muted);font-size:var(--fs-12)}
+.cmdp-foot{display:flex;gap:14px;padding:8px 14px;border-top:1px solid var(--border);color:var(--dim);font-size:var(--fs-11);flex:none}
+
 /* ================= SETTINGS DIALOG ================= */
 .settings{
   position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;
@@ -1684,6 +1710,9 @@ body.mode-chat #bigProj{display:none}
       </nav>
     </div>
     <div class="sb-sec">Sessions<span class="spacer"></span>
+      <button title="Filter sessions" aria-label="Filter sessions" id="btnSessFilter">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 3.5h11l-4.2 5v4.2l-2.6 1.3V8.5z"/></svg>
+      </button>
       <button title="Sidebar options" aria-label="Sidebar options" id="btnSidebarMenu">
         <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3" cy="8" r="1.2"/><circle cx="8" cy="8" r="1.2"/><circle cx="13" cy="8" r="1.2"/></svg>
       </button>
@@ -1916,6 +1945,19 @@ body.mode-chat #bigProj{display:none}
       <button class="btn sm" id="renameCancel">Cancel</button>
       <button class="btn pri sm" id="renameSave">Save</button>
     </div>
+  </div>
+</div>
+
+<!-- ==================== COMMAND PALETTE ==================== -->
+<div class="cmdp" id="cmdPalette" style="display:none">
+  <div class="cmdp-box" role="dialog" aria-modal="true" aria-label="Command palette">
+    <div class="cmdp-in">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+      <input id="cmdInput" type="text" placeholder="Search commands, sessions and files…" autocomplete="off" spellcheck="false" aria-label="Search commands">
+      <kbd>esc</kbd>
+    </div>
+    <div class="cmdp-list" id="cmdList" role="listbox" aria-label="Results"></div>
+    <div class="cmdp-foot"><span>↑↓ navigate</span><span>↵ run</span><span>esc close</span></div>
   </div>
 </div>
 
@@ -3501,7 +3543,11 @@ function renderSessions() {
   });
 
   const q = sessQuery.trim().toLowerCase();
-  const matches = q ? list.filter((s) => String(s.title || "").toLowerCase().includes(q)) : list;
+  let matches = q ? list.filter((s) => String(s.title || "").toLowerCase().includes(q)) : list;
+  const filter = state.sessFilter || "all";
+  if (filter === "working") matches = matches.filter((s) => !needsInputOf(s) && workingOf(s));
+  else if (filter === "needs") matches = matches.filter(needsInputOf);
+  else if (filter === "completed") matches = matches.filter((s) => !needsInputOf(s) && !workingOf(s));
 
   if (!list.length) {
     box.innerHTML = sessionsLoading
@@ -3510,13 +3556,25 @@ function renderSessions() {
     return;
   }
   if (!matches.length) {
-    box.innerHTML = '<div class="sess-empty">No sessions match “' + esc(sessQuery.trim()) + '”.</div>';
+    box.innerHTML = q
+      ? '<div class="sess-empty">No sessions match “' + esc(sessQuery.trim()) + '”.</div>'
+      : '<div class="sess-empty">No sessions in this filter.</div>';
     return;
   }
 
   let html = "";
   if (q) {
     html = matches.map(sessionRow).join("");    // a flat list reads better while searching
+  } else if (state.sessGroupProject) {
+    const groups = new Map();
+    for (const s of matches) {
+      const key = s.cwd ? String(s.cwd).split(/[\\/]/).filter(Boolean).pop() : "No project";
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(s);
+    }
+    for (const [name, rows] of [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+      html += `<div class="sess-group">${esc(name)} · ${rows.length}</div>` + rows.map(sessionRow).join("");
+    }
   } else {
     const pinned = matches.filter((s) => pinnedIds.includes(s.id));
     const rest = matches.filter((s) => !pinnedIds.includes(s.id));
@@ -7795,19 +7853,96 @@ document.querySelectorAll("[data-starter]").forEach((b) => b.addEventListener("c
 
 /* ============================ SHORTCUTS ============================ */
 const SHORTCUTS = [
-  ["Open settings", "⌘,"], ["New session", "⌘N"], ["Search sessions", "⌘K"], ["Cycle permission mode", "⇧Tab"],
+  ["Open settings", "⌘,"], ["New session", "⌘N"], ["Command palette", "⌘K"], ["Cycle permission mode", "⇧Tab"],
   ["Toggle panes", "⇧⌘D"], ["Terminal pane", "⌃`"], ["Icons: Preview / Diff / Browser", "⇧⌘P / ⇧⌘D / ⇧⌘B"],
   ["Stop response", "Esc"], ["Send", "⏎"], ["Newline", "⇧⏎"],
   ["Command menu", "/"], ["Mention a file", "@"], ["Shell command", "!"],
   ["Side chat", "⌘;"], ["Clear transcript", "⌘L"], ["Cycle theme", "⌘⇧T"],
 ];
+const CMDP_ICONS = {
+  new: '<path d="M8 3v10M3 8h10"/>',
+  search: '<circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/>',
+  projects: '<rect x="1.8" y="4.2" width="12.4" height="9.4" rx="1.8"/><path d="M5.5 4.2V2.8h5v1.4"/>',
+  artifacts: '<rect x="1.8" y="2.8" width="8.6" height="10.4" rx="1.6"/><path d="M5.4 5.4h8.8v7.8H6.6"/>',
+  settings: '<path d="M2.5 5h11M2.5 11h11"/><circle cx="6" cy="5" r="1.6"/><circle cx="10" cy="11" r="1.6"/>',
+  panes: '<rect x="1.5" y="2.5" width="13" height="11" rx="2.5"/><path d="M10 2.5v11"/>',
+  theme: '<circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11"/>',
+  session: '<rect x="2" y="3" width="12" height="10" rx="2"/><path d="M4.5 6.5h7M4.5 9.5h4"/>',
+  trash: '<path d="M3 4.5h10M6 4.5V3h4v1.5M4.5 4.5l.6 8h5.8l.6-8"/>',
+  keys: '<rect x="1.5" y="3.5" width="13" height="9" rx="1.8"/><path d="M4 6h.01M6.5 6h.01M9 6h.01M11.5 6h.01M4 9h6"/>',
+};
+let cmdItems = [], cmdIndex = 0;
+function cmdActions() {
+  const items = [
+    { id: "new", label: "New session", hint: "⌘N", icon: "new", run: () => newSession() },
+    { id: "search", label: "Search sessions", icon: "search", run: () => focusSessionSearch() },
+    { id: "projects", label: "Open Projects", icon: "projects", run: () => $("navProjects").click() },
+    { id: "artifacts", label: "Open Artifacts", icon: "artifacts", run: () => $("navArtifacts").click() },
+    { id: "settings", label: "Settings · Appearance", hint: "⌘,", icon: "settings", run: () => openSettings("appearance") },
+    { id: "panes", label: "Toggle split panel", hint: "⌘O", icon: "panes", run: () => $("btnPanes").click() },
+    { id: "theme", label: "Cycle theme", hint: "⌘⇧T", icon: "theme", run: () => cycleTheme() },
+    { id: "shortcuts", label: "Keyboard shortcuts", icon: "keys", run: () => { settingsSection = "keys"; openSettings(); } },
+    { id: "clear", label: "Clear this transcript", hint: "⌘L", icon: "trash", run: () => { $("stream").innerHTML = ""; showLanding(); } },
+  ];
+  for (const s of sessionList) {
+    items.push({ id: "sess:" + s.id, label: "Open session · " + s.title, icon: "session", run: () => switchSession(s.id) });
+  }
+  return items;
+}
+function renderCmd() {
+  const q = $("cmdInput").value.trim().toLowerCase();
+  const all = cmdActions();
+  cmdItems = q ? all.filter((i) => i.label.toLowerCase().includes(q)) : all;
+  if (cmdIndex >= cmdItems.length) cmdIndex = Math.max(0, cmdItems.length - 1);
+  $("cmdList").innerHTML = cmdItems.length
+    ? cmdItems.map((i, n) => `<button class="cmdp-row${n === cmdIndex ? " on" : ""}" data-cmd="${n}" role="option" aria-selected="${n === cmdIndex}">
+        <span class="cic"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${CMDP_ICONS[i.icon] || CMDP_ICONS.session}</svg></span>
+        <span class="lb">${esc(i.label)}</span>${i.hint ? `<span class="hint">${esc(i.hint)}</span>` : ""}
+      </button>`).join("")
+    : '<div class="cmdp-empty">No matching commands.</div>';
+  $("cmdList").querySelectorAll("[data-cmd]").forEach((b) => {
+    b.addEventListener("mousemove", () => { cmdIndex = Number(b.dataset.cmd); renderCmd(); });
+    b.addEventListener("click", () => runCmd(Number(b.dataset.cmd)));
+  });
+  const on = $("cmdList").querySelector(".cmdp-row.on");
+  if (on) on.scrollIntoView({ block: "nearest" });
+}
+function runCmd(i) {
+  const item = cmdItems[i];
+  if (!item) return;
+  closeCmd();
+  item.run();
+}
+function openCmd() {
+  const el = $("cmdPalette");
+  if (el.style.display !== "none") return;
+  el.style.display = "flex";
+  $("cmdInput").value = "";
+  cmdIndex = 0;
+  renderCmd();
+  $("cmdInput").focus();
+}
+function closeCmd() {
+  $("cmdPalette").style.display = "none";
+  $("cmdInput").blur();
+}
+$("cmdInput").addEventListener("input", () => { cmdIndex = 0; renderCmd(); });
+$("cmdInput").addEventListener("keydown", (e) => {
+  if (e.key === "ArrowDown") { e.preventDefault(); cmdIndex = Math.min(cmdItems.length - 1, cmdIndex + 1); renderCmd(); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); cmdIndex = Math.max(0, cmdIndex - 1); renderCmd(); }
+  else if (e.key === "Enter") { e.preventDefault(); runCmd(cmdIndex); }
+  else if (e.key === "Escape") { e.preventDefault(); closeCmd(); }
+});
+$("cmdPalette").addEventListener("click", (e) => { if (e.target === $("cmdPalette")) closeCmd(); });
+
 document.addEventListener("keydown", e => {
   const mod = e.metaKey || e.ctrlKey;
   if (e.key === "Tab" && e.shiftKey) { e.preventDefault(); const i = MODES.findIndex(m => m.id === state.defaultMode); applyMode(MODES[(i + 1) % MODES.length].id); save(); return; }
   if (mod && e.key === ",") { e.preventDefault(); openSettings(); return; }
   if (mod && (e.key === "n" || e.key === "N")) { e.preventDefault(); newSession(); return; }
   if (mod && (e.key === "k" || e.key === "K")) {
-    if (!$("settings").classList.contains("on")) { e.preventDefault(); focusSessionSearch(); }
+    e.preventDefault();
+    if ($("cmdPalette").style.display === "none") openCmd(); else closeCmd();
     return;
   }
   if (mod && (e.key === "l" || e.key === "L")) { e.preventDefault(); $("stream").innerHTML = ""; return; }
@@ -7815,7 +7950,8 @@ document.addEventListener("keydown", e => {
   if (mod && !e.shiftKey && (e.key === "o" || e.key === "O")) { e.preventDefault(); $("panes").classList.toggle("hide"); return; }
   if (e.key === "Escape") {
     closeMenus(); hideSlash();
-    if ($("renameDlg").style.display !== "none") closeRenameDialog();
+    if ($("cmdPalette").style.display !== "none") closeCmd();
+    else if ($("renameDlg").style.display !== "none") closeRenameDialog();
     else if ($("actPanel").style.display !== "none") toggleActPanel(false);
     else if ($("newDlg").classList.contains("on")) closeWhatsNew();
     else if ($("artDlg").classList.contains("on")) closeArtifactDialog();
@@ -9328,6 +9464,19 @@ $("btnSort").addEventListener("click", () => {
   save();
   renderSessions();
   toast(state.sortAsc ? "Oldest first" : "Newest first");
+});
+$("btnSessFilter").addEventListener("click", (e) => {
+  e.stopPropagation();
+  const cur = state.sessFilter || "all";
+  const set = (f) => { state.sessFilter = f; save(); renderSessions(); };
+  openMenu($("btnSessFilter"), [
+    { label: (cur === "all" ? "✓ " : "") + "All sessions", run: () => set("all") },
+    { label: (cur === "working" ? "✓ " : "") + "Working", run: () => set("working") },
+    { label: (cur === "needs" ? "✓ " : "") + "Needs input", run: () => set("needs") },
+    { label: (cur === "completed" ? "✓ " : "") + "Completed", run: () => set("completed") },
+    { sep: true },
+    { label: (state.sessGroupProject ? "✓ " : "") + "Group by project", run: () => { state.sessGroupProject = !state.sessGroupProject; save(); renderSessions(); } },
+  ]);
 });
 $("btnTreeRefresh").addEventListener("click", () => { loadTree(); toast("File list refreshed"); });
 </script>

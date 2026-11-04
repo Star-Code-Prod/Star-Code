@@ -487,6 +487,15 @@ ok("Office documents and PDFs preview in-app",
   html.includes('".pptx": "office"') && html.includes('".pdf": "pdf"') &&
   js.includes("function officeHtml(") && js.includes('f.kind === "office"') &&
   /\.office-table\{/.test(html.replace(/\s+/g, "")) && /\.fpdf\{/.test(html.replace(/\s+/g, "")));
+ok("a command palette opens on Cmd/Ctrl+K",
+  html.includes('id="cmdPalette"') && html.includes('id="cmdInput"') &&
+  js.includes("function openCmd(") && js.includes("function renderCmd(") &&
+  js.includes("e.key === \"k\"") && js.includes("openCmd()") &&
+  /\.cmdp-box\{/.test(html.replace(/\s+/g, "")));
+ok("session filters and project grouping are wired",
+  html.includes('id="btnSessFilter"') && js.includes("state.sessFilter") &&
+  js.includes('"Group by project"') && js.includes("state.sessGroupProject") &&
+  js.includes("No sessions in this filter."));
 ok("fullscreen sits below the titlebar strip",
   /body\.preview-full \.pane-row\[data-pane="preview"\]\{[^}]*inset:40px 0 0 0/.test(html.replace(/\s+/g, " ")));
 ok("the folded thinking pill carries a gist",
