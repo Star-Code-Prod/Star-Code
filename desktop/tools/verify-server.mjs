@@ -588,7 +588,8 @@ try {
   const b6 = turnBodies[6] || {};
   ok("a chat persona is intersected with the chat allowlist",
     ev4.some((e) => e.type === "session" && e.agent === "explorer") &&
-    /Allowed tools: self_knowledge, task, skill/.test(JSON.stringify(b6.messages || [])) && said(ev4, "explorer-ok"));
+    /Allowed tools: [^"]*self_knowledge/.test(JSON.stringify(b6.messages || [])) &&
+    /Allowed tools: [^"]*skill/.test(JSON.stringify(b6.messages || [])) && said(ev4, "explorer-ok"));
 
   const ev5 = await personaTurn({ sessionId: codeNew.id, kind: "code", message: "plain", agent: "plain", mode: "bypass" });
   const b8 = turnBodies[8] || {};

@@ -1,5 +1,10 @@
 # What's new in Pulse Harness
 
+## 1.29.1 — 2026-11-05
+- **A much smarter system prompt.** Both Chat and Code prompts now teach the full operating loop (orient, plan, act, verify, report), a skill-first rule, a complete tools-by-job map, the call shape for tool blocks, the permission modes and the app's real surfaces. Chat also learns `search_knowledge` and the 40 built-in skills; the `skill` and `question` tools explain when to use them.
+- **The self manual is current again** with `pulse web`, the new repo, the worked-for process timeline and the card markdown.
+- **Update log** includes these notes.
+
 ## 1.29.0 — 2026-11-05
 - **Connectors now feel like a real app directory.** Search, categories, branded icons, connected state, hover lift and a compact count replace the old plain card list. Connected apps move into their own section with a green status dot and a Manage action.
 - **A proper setup sheet.** Connect/Manage opens a focused dialog with the app icon, a plain-language explanation, one labeled field per credential (Client ID, Bot token, API key, etc.), a collapsible Advanced connection section, inline errors and a loading state. Connecting reloads MCP automatically; editing a connected app preserves its existing credentials.

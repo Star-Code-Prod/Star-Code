@@ -474,6 +474,14 @@ ok("reuse stub names the tool and size", stub.includes("read_file") && stub.incl
 const chat = chatSystemPrompt();
 ok("chatSystemPrompt is a string", typeof chat === "string" && chat.length > 300);
 ok("chat prompt introduces Pulse", chat.includes("You are Pulse"));
+ok("the chat prompt teaches its tools and the built-in skills",
+  chat.includes("search_knowledge") && chat.includes("40 built-in packs") &&
+  chat.includes("Load the matching skill first"));
+ok("the coding prompt carries the operating loop and tool guide",
+  systemPrompt(process.cwd(), "manual").includes("## Operating loop") &&
+  systemPrompt(process.cwd(), "manual").includes("## Tools by job") &&
+  systemPrompt(process.cwd(), "manual").includes("## Calling tools") &&
+  systemPrompt(process.cwd(), "manual").includes("## Permissions"));
 ok("both prompts teach the question protocol",
   chat.includes("Asking and answering") && chat.includes("ask 1-3 short questions") &&
   systemPrompt(process.cwd(), "manual").includes("Asking and answering") &&

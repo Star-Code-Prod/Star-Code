@@ -115,13 +115,13 @@ export const TOOL_SPECS = [
   },
   {
     name: "question",
-    description: "Ask the user a structured question (alias of ask_user, preferred name). 1-4 questions, each with a header, question text, 2-4 clickable options and an optional freeform answer. Set allowOther:true to let the user type an answer, multiSelect:true when several options may apply, and required:false to allow skipping.",
+    description: "Ask the user a structured question (alias of ask_user, preferred name). 1-4 questions, each with a header, question text, 2-4 clickable options and an optional freeform answer. Set allowOther:true to let the user type an answer, multiSelect:true when several options may apply, and required:false to allow skipping. Use it for decisions only the user can make; never ask for facts you can read or discover yourself.",
     dangerous: false,
     schema: { questions: "array" },
   },
   {
     name: "skill",
-    description: "Load a skill - a SKILL.md pack of exact instructions for a specialized task - when a skill in the catalog matches what you are doing. Returns the full instructions plus its resource files; follow the procedure, reading resources with read_file when it points at them.",
+    description: "Load a skill - a SKILL.md pack of exact instructions for a specialized task - when a skill in the catalog matches what you are doing. Pulse ships 40 built-in packs (asking-questions, pulse-harness, debugging, code-review, git, release, security, tests, office, research and more); load the matching one BEFORE starting the specialized work and follow its procedure exactly, reading its resource files with read_file.",
     dangerous: false,
     schema: { name: "string" },
   },

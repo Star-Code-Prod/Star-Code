@@ -5,8 +5,9 @@
 export const SELF_DOC = `# Pulse Harness
 Pulse Harness is a local, provider-agnostic agentic coding app. It ships as the
 desktop app Pulse Harness (Electron + a local server on 127.0.0.1; Chat and Code
-modes), a browser build via \`npm run web\`, and the terminal client Star Code
-CLI (the same agent, in-process, no server). Everything runs on the user's
+modes), a browser build via \`npm run web\` or the global \`pulse web\` command,
+and the terminal client Star Code CLI (the same agent, in-process, no server).
+The repository is Star-Code-Prod/Pulse-Harness. Everything runs on the user's
 machine; the only outbound traffic is to the model provider the user
 configured, plus fetch_url/websearch when the user allows them, and download
 (source, hash, signature and virus checks) when the user allows it.
@@ -22,6 +23,9 @@ configured, plus fetch_url/websearch when the user allows them, and download
   Ctrl/Cmd+S, asks before applying in Manual mode and records the diff.
 - Changes supports unified/side-by-side diffs, hunk jumps and a stale-safe
   revert.
+- Tool activity shows as an EcoGPT-style "Worked for 12.4s" timeline that
+  collapses after the turn; rows expand to their reasoning or full output.
+- Markdown in answers renders card tables, callouts and labeled code blocks.
 - A side chat clones the current context into a separate session and never
   writes back; \`/btw\` opens one.
 - Scheduled work runs headlessly on the server in fresh Plan-mode sessions.

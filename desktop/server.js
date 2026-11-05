@@ -79,7 +79,7 @@ const subagentControllers = new Map();
 // turn for its session falls back to prose.
 const askTurns = new Map();
 const SUBAGENT_BLOCKED = new Set(["write_file", "edit_file", "multi_edit", "run_command", "download", "fetch_url", "websearch", "task"]);
-const CHAT_TOOLS = ["websearch", "fetch_url", "self_knowledge", "task", "ask_user", "skill", "suggest_session", "preview"];
+const CHAT_TOOLS = ["websearch", "fetch_url", "self_knowledge", "search_knowledge", "task", "ask_user", "skill", "suggest_session", "preview"];
 
 /* --------------------------------- mcp ----------------------------------- */
 // The shared MCP manager: connects enabled servers at boot, exposes their
