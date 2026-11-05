@@ -1,8 +1,8 @@
 # Star desktop — TODO
 
-**Status:** in progress. 1.25.5 added the missing harness tools (git, test runner, Office read/write, memory, templates, charts, schedules, traces, connectors, delivery) and folds saved memories into the system prompt. 1.25.4 matched the process card to the Claude Code reference and cleared the right-pane and sidebar defects. 1.25.3 replaced the separate thinking pill and tool group with a single process card per round. 1.25.2 shipped the stream/empty-reply fixes, the wider tool-call parser, the rail and preview fixes, and the visual batch V-01…V-33 below.
-**Last updated:** 2026-11-04
-**Target releases:** 1.23.5 (sidebar, settings, motion), 1.24.x (question tool, tools, Office, UX), 1.25.x (desktop parity)
+**Status:** in progress. Desktop releases 1.26.0–1.26.7 shipped worktree sessions, the Tree pane, project config/hooks, headless schedules, terminal, side chats, permission-aware editing, diff review controls, signature-checked updates, extra tool-call dialects and live evals. The remaining items are listed first below.
+**Last updated:** 2026-11-05
+**Target releases:** 1.27.0 (remaining local desktop work), 1.28.0 (remote/signing/eval infrastructure)
 
 **Done in 1.25.5:** `git_status` / `git_diff` / `git_log` / `git_commit`; `test_run` (detects npm/pnpm/yarn/bun verify|test|check|lint, then cargo, go, pytest, make); `office_read` + `office_write` for real .docx/.xlsx/.pptx, written then read back through the app's extractors; `memory` (`.star-code/memory.json`, surfaced in the system prompt) and `template` (house styles, names listed in the prompt); `chart` (bar/line/pie SVG); `schedule` (plain-language cadence, `/api/schedules` + `/api/schedules/advance`, the app runs due work once a minute in a fresh session); `trace` (`.star-code/trace.jsonl`, every tool call with duration and status); `connector` (MCP presets for mail, calendar, drive, docs, issues, chat, CRM); `deliver_file`. New suite `tools/verify-tools.mjs` (27 checks) is in `npm run verify`; `.star-code/` is git-ignored.
 
@@ -14,9 +14,99 @@
 
 ---
 
+## Remaining from the 11-feature goal (after 1.26.7)
+
+### 1. Worktrees — done
+- [x] Create `~/.star-code/worktrees/<project>/<session>` with a `star/<id>` branch.
+- [x] Clean up on session delete, non-git fallback, branch in the sidebar.
+- [ ] Optional: a worktree management view showing disk usage and stale worktrees.
+- [ ] Optional: a “new worktree” toggle directly in the project picker.
+
+### 2. Process Tree — mostly done
+- [x] Session → turn → thought/tool hierarchy.
+- [x] Subagent branches with instructions/status/duration/tools.
+- [x] OS `run_command` PIDs with individual Stop.
+- [x] Cooperative subagent Stop.
+- [ ] Persist the tree across reloads (currently live-session memory only).
+- [ ] Show permission/question cards as “waiting on you” tree rows.
+- [ ] Lay parallel subagents side by side rather than vertically.
+- [ ] Kill arbitrary child processes started inside a shell, not only the direct `exec` child.
+
+### 3. In-app editing — done
+- [x] Edit/save with Ctrl/Cmd+S, dirty indicator, discard warning.
+- [x] Plan mode refuses saves; Manual asks for confirmation; server enforces Plan.
+- [x] Saved edits are recorded in Changes.
+- [ ] Conflict handling when the agent edits the same file while the editor is open.
+- [ ] Rich editor features (find/replace, multi-cursor, syntax-aware indentation).
+
+### 4. Diff review — partial
+- [x] Unified and side-by-side layouts.
+- [x] Previous/next hunk navigation.
+- [x] Safe file revert that refuses if the file changed since the diff.
+- [ ] True hunk-level accept/reject (currently revert is at the change/file level).
+- [ ] Keyboard shortcuts for hunk navigation and accept/reject.
+- [ ] Merge conflict markers and “apply suggested fix” from review findings.
+
+### 5. Project configuration — mostly done
+- [x] `STAR.md`, `AGENTS.md`, `CLAUDE.md` loaded together.
+- [x] `.star-code/settings.json` / `.claude/settings.json` for default mode, model, tool allow/deny and hooks.
+- [x] Allowed/denied tools enforced by the runner; Usage shows loaded files.
+- [ ] Apply the configured preferred model to new sessions/picker.
+- [ ] Validate config with readable errors instead of silently ignoring malformed files.
+- [ ] A Settings UI for viewing/editing project config and hooks.
+
+### 6. Lifecycle hooks — mostly done
+- [x] `sessionStart`, `beforeTool`, `afterTool`, `turnEnd`, `stop`.
+- [x] Timeout, blocking `beforeTool`, project/user merge.
+- [ ] Show successful hook output in the session (currently only blocking errors surface).
+- [ ] Hook editor/validator in Settings.
+- [ ] Per-hook timeout/environment docs and tests.
+
+### 7. Remote and background work — partial
+- [x] Headless scheduled runs on the server in safe Plan mode; results saved as sessions.
+- [x] Scheduled runs cannot escalate permissions.
+- [ ] SSH sessions: actual remote execution for tools, files, terminal, preview (design in `docs/SSH.md`).
+- [ ] SSH connection manager, host-key flow and port forwarding.
+- [ ] Cloud sessions that survive app exit.
+- [ ] Scheduled-run completion notification (the session list refreshes, but there is no OS toast).
+- [ ] Scheduled run retry/error history.
+
+### 8. Integrated terminal — partial
+- [x] Zero-dependency command runner with per-session cwd, stdout/stderr and history.
+- [x] Per-PID stop for `run_command`.
+- [ ] Full PTY (optional `node-pty` dev dependency) with ANSI colors, interactive programs and resize.
+- [ ] Persistent shell across commands.
+- [ ] Multiple terminal tabs.
+- [ ] Document why the zero-dependency fallback exists and how to enable the PTY build.
+
+### 9. Side chats — done
+- [x] Clone context into a separate session, no write-back.
+- [x] `/btw <question>` opens and seeds the composer.
+- [ ] Mark side chats visually in the session list and tree.
+- [ ] Delete/merge a side chat back explicitly.
+
+### 10. Distribution and updates — partial
+- [x] sha512 verification, atomic `.part` staging, incomplete-install detection.
+- [x] Windows/macOS signature check at install time (`STAR_REQUIRE_SIGNATURE=1` refuses unsigned).
+- [x] Signing/secrets documentation (`docs/SIGNING.md`).
+- [ ] Actual Windows/macOS certificates and CI secrets.
+- [ ] Signed release artifacts in CI.
+- [ ] “Reinstall previous version” rollback action.
+- [ ] Automated signature-verification test with fixture installers.
+
+### 11. Reference-model evals — partial
+- [x] Deterministic contract (`verify-evals.mjs`) and live runner (`npm run eval`).
+- [x] Recorded live run: 2/2 on `openrouter/free`.
+- [ ] Run the reference `deepseek-chat` model and record results.
+- [ ] Add search-summarize and multi-step refactor fixtures to the live runner.
+- [ ] Store per-commit results and compare pass counts.
+- [ ] CI threshold/regression gate for the reference model.
+
+---
+
 ## 0. Ground rules
 
-- Only edit this file until the user says “start working”.
+- Only work on the desktop app; the CLI is not a target. Mirror sync is maintenance only.
 - Keep all existing functionality; no redesign regressions.
 - Every new feature needs loading, empty, error and reduced-motion states.
 - Every visual change needs a dark + light screenshot and a 1024/1280/1440 px check.
