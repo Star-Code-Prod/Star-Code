@@ -1,5 +1,9 @@
 # What's new in Star
 
+## 1.26.7 — 2026-11-05
+- **Installer signatures are checked.** Windows uses `Get-AuthenticodeSignature`, macOS uses `codesign --verify`; an invalid signature is rejected, and unsigned builds are refused when `STAR_REQUIRE_SIGNATURE=1`. Combined with the sha512 and atomic staging checks, an update now fails loudly before handing anything to the OS.
+- **Update log** includes these notes.
+
 ## 1.26.6 — 2026-11-05
 - **Project config now enforces tool policy.** `.star-code/settings.json` can restrict the tool runner with `permissions.allowedTools` / `denyTools`; unknown Claude-style pattern entries are ignored instead of accidentally disabling every tool. A project can narrow the session's tools, never widen them.
 - **Update log** includes these notes.

@@ -649,7 +649,8 @@ ok("diffs support unified/split views, hunk jumps and safe revert",
     /Images and videos/.test(mainSrc) && /"mp4"/.test(mainSrc));
   ok("updates verify sha512, stage atomically and remember failed installs",
     mainSrc.includes("sha512 mismatch") && mainSrc.includes('file + ".part"') &&
-    mainSrc.includes("pending-update.json") && mainSrc.includes("Update did not complete"));
+    mainSrc.includes("pending-update.json") && mainSrc.includes("Update did not complete") &&
+    mainSrc.includes("verifyInstallerSignature") && mainSrc.includes("STAR_REQUIRE_SIGNATURE"));
 }
 ok("the rail can take 60% of the window",
   js.includes("innerWidth * 0.6") && js.includes("function paneWMax(") &&

@@ -27,8 +27,11 @@ Windows and macOS signing; do not commit certificate material or passwords.
 
 ## Auto-update safety
 
-- electron-builder emits `latest.yml` with SHA-512; the updater must verify it
+- electron-builder emits `latest.yml` with SHA-512; the updater verifies it
   before installing.
+- The app also checks the platform signature at install time: Windows
+  `Get-AuthenticodeSignature`, macOS `codesign --verify`. An invalid signature
+  is rejected; set `STAR_REQUIRE_SIGNATURE=1` to reject unsigned builds too.
 - A failed download leaves no partial installer; a failed install keeps the
   previous version and surfaces the error instead of restarting into a broken
   build.

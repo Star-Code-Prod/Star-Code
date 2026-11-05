@@ -8,7 +8,7 @@ const { app, BrowserWindow, ipcMain, dialog, shell, nativeTheme, Notification } 
 const path = require("node:path");
 const fs = require("node:fs");
 const crypto = require("node:crypto");
-const { spawn } = require("node:child_process");
+const { spawn, execFileSync } = require("node:child_process");
 const { pathToFileURL } = require("node:url");
 
 const APP_DIR = path.join(__dirname, "..");
@@ -181,6 +181,31 @@ function semverGt(a, b) {
  * already signed in. If the repo is ever made public this starts reporting
  * versions with no change needed.
  */
+/** Check the platform signature when it exists. Returns
+ *  { ok, signed } or { ok:false, error }. Unsigned builds are allowed unless
+ *  STAR_REQUIRE_SIGNATURE=1. */
+function verifyInstallerSignature(file) {
+  if (process.platform === "win32") {
+    try {
+      const status = execFileSync("powershell.exe", ["-NoProfile", "-Command",
+        "(Get-AuthenticodeSignature -LiteralPath '" + String(file).replace(/'/g, "''") + "').Status"],
+        { encoding: "utf8", timeout: 30000 }).trim();
+      if (status === "Valid") return { ok: true, signed: true };
+      if (status === "NotSigned") return { ok: true, signed: false };
+      return { ok: false, error: "installer signature is " + status };
+    } catch { return { ok: true, signed: false }; }
+  }
+  if (process.platform === "darwin") {
+    try {
+      execFileSync("codesign", ["--verify", "--deep", "--strict", file], { timeout: 30000 });
+      return { ok: true, signed: true };
+    } catch {
+      return { ok: true, signed: false };
+    }
+  }
+  return { ok: true, signed: false };
+}
+
 async function checkForUpdates() {
   const current = app.getVersion();
   const base = { current, url: RELEASES_URL, repo: `${REPO_OWNER}/${REPO_NAME}` };
@@ -295,6 +320,11 @@ function wire() {
       const part = file + ".part";
       fs.writeFileSync(part, buf);
       try { fs.renameSync(part, file); } catch { try { fs.rmSync(part, { force: true }); } catch {} throw new Error("could not stage the installer"); }
+      const sig = verifyInstallerSignature(file);
+      if (!sig.ok) return { ok: false, error: sig.error };
+      if (!sig.signed && process.env.STAR_REQUIRE_SIGNATURE === "1") {
+        return { ok: false, error: "installer is unsigned and STAR_REQUIRE_SIGNATURE is set" };
+      }
       try {
         fs.writeFileSync(path.join(app.getPath("userData"), "pending-update.json"),
           JSON.stringify({ from: app.getVersion(), asset: asset.name, at: Date.now() }), "utf8");
