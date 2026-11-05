@@ -261,10 +261,10 @@ ok("the About panel links the full log", html.includes('id="aboutNew"'));
 
 /* ------------------- rail controls: X, reorder, sizes ------------------- */
 ok("every pane header carries its own close X",
-  (html.match(/data-panex="/g) || []).length === 6 && js.includes("closePaneTab(b.dataset.panex)"));
+  (html.match(/data-panex="/g) || []).length === 7 && js.includes("closePaneTab(b.dataset.panex)"));
 ok("a closed pane hands focus back", js.includes("setTimeout(refocusComposerIfIdle, 0)"));
 ok("every pane card has a bottom resize grip",
-  (html.match(/data-panegrip="/g) || []).length === 6 && js.includes("setPaneHeight(") && /\.pane-grip-b\{/.test(html.replace(/\s+/g, "")));
+  (html.match(/data-panegrip="/g) || []).length === 7 && js.includes("setPaneHeight(") && /\.pane-grip-b\{/.test(html.replace(/\s+/g, "")));
 ok("pane cards reorder by dragging their header",
   js.includes("function applyPaneOrder(") && js.includes('state.paneOrder = [...body.querySelectorAll(".pane-row")]') &&
   js.includes('drag.row.classList.add("dragging")'));
@@ -620,6 +620,22 @@ ok("files can be dropped or pasted into the composer",
   html.includes('id="dropNote"') && js.includes("function attachMany(") &&
   js.includes("getPathForFile") && js.includes('addEventListener("drop"') &&
   js.includes('addEventListener("paste"') && /\.cwrap\.dragover/.test(html.replace(/\s+/g, "")));
+ok("the terminal accepts commands and talks to /api/term",
+  html.includes('id="termForm"') && html.includes('id="termInput"') &&
+  js.includes("function runTermCommand(") && js.includes('"/api/term"') &&
+  js.includes("termHistory") && /\.termform\{/.test(html.replace(/\s+/g, "")));
+ok("side chats clone context without writing back",
+  js.includes("async function openSideChat(") && js.includes("contextSessionId") &&
+  js.includes("star-side-seed") && !js.includes('sendToAgent("(side question'));
+ok("worktree sessions are available from the sidebar menu",
+  js.includes("async function newWorktreeSession(") && js.includes('worktree: true') &&
+  js.includes('"New worktree session"'));
+ok("edited files report unsaved changes and add a diff",
+  js.includes("Unsaved changes") && js.includes("renderDiff({ path: f.path, before, after: f.content })"));
+ok("the Tree pane mirrors the live process card",
+  html.includes('data-pane="tree"') && html.includes('id="treeBody"') &&
+  js.includes("function renderTreePane(") && js.includes("ptstop") &&
+  html.includes('"tree"') && /\.ptnode\{/.test(html.replace(/\s+/g, "")));
 {
   const preloadSrc = fs.readFileSync("electron/preload.cjs", "utf8");
   const mainSrc = fs.readFileSync("electron/main.cjs", "utf8");

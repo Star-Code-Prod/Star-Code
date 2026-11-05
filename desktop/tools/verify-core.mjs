@@ -567,7 +567,7 @@ fs.rmSync(kdir, { recursive: true, force: true });
 /* ------------------------------- new tools ------------------------------- */
 const http = await import("node:http");
 const {
-  createToolRunner, htmlToText, parseDuckDuckGo, readProjectMemory, normalizeAskQuestions,
+  createToolRunner, htmlToText, parseDuckDuckGo, readProjectMemory, readProjectConfig, normalizeAskQuestions,
 } = await import(pathToFileURL(path.resolve("lib/tools.js")).href);
 const { SELF_DOC, selfKnowledge } = await import(pathToFileURL(path.resolve("lib/selfdoc.js")).href);
 
@@ -946,22 +946,53 @@ ok("task returns the subagent text", t1 === "found: look aroun", t1);
 fs.rmSync(med, { recursive: true, force: true });
 
 /* --------------------------- project memory --------------------------- */
-// The project guide is STAR.md (AGENTS.md stays as the neutral cross-tool
-// fallback). Claude's CLAUDE.md is not this product's convention and must
-// never reach the prompt.
+// STAR.md and AGENTS.md are the native guides; CLAUDE.md is supported for
+// compatibility. All present files are concatenated into the prompt.
 const memRoot = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-mem-"));
 fs.writeFileSync(path.join(memRoot, "CLAUDE.md"), "# Claude convention\nclaude-memory-text\n");
-ok("a lone CLAUDE.md is not project memory", readProjectMemory(memRoot) === null);
+ok("a lone CLAUDE.md is supported for compatibility",
+  (readProjectMemory(memRoot) || {}).file === "CLAUDE.md");
 fs.writeFileSync(path.join(memRoot, "AGENTS.md"), "# Agents convention\nagents-memory-text\n");
-ok("AGENTS.md is the cross-tool fallback", (readProjectMemory(memRoot) || {}).file === "AGENTS.md");
+ok("AGENTS.md joins CLAUDE.md", (readProjectMemory(memRoot) || {}).file === "AGENTS.md, CLAUDE.md");
 fs.writeFileSync(path.join(memRoot, "STAR.md"), "# Star project guide\nstar-memory-text\n");
-ok("STAR.md is the project memory file", (readProjectMemory(memRoot) || {}).file === "STAR.md");
+ok("STAR.md leads the project memory files", (readProjectMemory(memRoot) || {}).file === "STAR.md, AGENTS.md, CLAUDE.md");
 const memPrompt = systemPrompt(memRoot, "manual");
-ok("the system prompt carries STAR.md as Project instructions",
-  memPrompt.includes("Project instructions (STAR.md)") &&
-  memPrompt.includes("star-memory-text") &&
-  !memPrompt.includes("claude-memory-text") && !memPrompt.includes("agents-memory-text"));
+ok("the system prompt carries every project guide",
+  memPrompt.includes("Project instructions (STAR.md, AGENTS.md, CLAUDE.md)") &&
+  memPrompt.includes("star-memory-text") && memPrompt.includes("agents-memory-text") &&
+  memPrompt.includes("claude-memory-text"));
+fs.mkdirSync(path.join(memRoot, ".star-code"), { recursive: true });
+fs.writeFileSync(path.join(memRoot, ".star-code", "settings.json"), JSON.stringify({
+  permissions: { defaultMode: "plan", allowedTools: ["read_file", "grep"] },
+  model: { provider: "deepseek", model: "deepseek-chat" },
+  hooks: { beforeTool: "echo ok" },
+}));
+const cfg = readProjectConfig(memRoot);
+ok("project settings.json exposes permissions, model and hooks",
+  cfg && cfg.defaultMode === "plan" && cfg.allowedTools.includes("read_file") &&
+  cfg.model.provider === "deepseek" && !!cfg.hooks.beforeTool);
+ok("project config reaches the system prompt",
+  (resetSystemPromptCache(), systemPrompt(memRoot, "manual")).includes("Project config (.star-code/settings.json)") &&
+  (resetSystemPromptCache(), systemPrompt(memRoot, "manual")).includes("default permission mode: plan"));
 fs.rmSync(memRoot, { recursive: true, force: true });
+
+/* --------------------------- lifecycle hooks -------------------------- */
+const hookRoot = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-hooks-"));
+fs.mkdirSync(path.join(hookRoot, ".star-code"), { recursive: true });
+fs.writeFileSync(path.join(hookRoot, ".star-code", "settings.json"), JSON.stringify({
+  hooks: {
+    beforeTool: ['node -e "process.exit(1)"'],
+    afterTool: ['node -e "console.log(\'after-ok\')"'],
+  },
+}));
+const { readHooks, runHook } = await import(pathToFileURL(path.resolve("lib/hooks.js")).href);
+const hooks = readHooks(hookRoot);
+ok("shell hooks load by event", Array.isArray(hooks.beforeTool) && hooks.beforeTool.length === 1);
+const blocked = await runHook(hookRoot, "beforeTool", { tool: "write_file" });
+ok("a failing beforeTool hook blocks the call", blocked.ok === false && blocked.blocked === true);
+const after = await runHook(hookRoot, "afterTool", { tool: "write_file", ok: true });
+ok("an afterTool hook runs and reports output", after.ok === true && /after-ok/.test(after.output));
+fs.rmSync(hookRoot, { recursive: true, force: true });
 
 /* ------------------------------- report ------------------------------ */
 fs.rmSync(dir, { recursive: true, force: true });

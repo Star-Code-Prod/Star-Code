@@ -57,7 +57,9 @@ const badKind = await fetch(base + "/api/sessions/new", {
 ok("invalid kind is rejected", badKind.status === 400, "HTTP " + badKind.status);
 
 // 1b-2. the system message a turn runs with: chat uses chatSystemPrompt(),
-// code keeps the coding prompt.
+// code keeps the coding prompt. Loading the chat session moved the server
+// root to home, so put it back to the project before comparing.
+await post("/api/setroot", { root: process.cwd() });
 ok("chat turns use chatSystemPrompt()",
    sessionSystemContent({ kind: "chat", mode: "manual" }) === chatSystemPrompt());
 ok("code turns keep the coding prompt",

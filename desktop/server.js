@@ -9,7 +9,7 @@ import os from "node:os";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { randomUUID } from "node:crypto";
 import zlib from "node:zlib";
-import { exec } from "node:child_process";
+import { exec, execFileSync } from "node:child_process";
 // Namespace import: cheapModelFor() was added to providers.js alongside this
 // work; destructuring keeps every existing use, and the lookup accepts the
 // function from agent.js too in case it surfaces there.
@@ -18,7 +18,7 @@ const { PROVIDERS, discoverModels, detectLocals } = providersLib;
 import { readAuth, writeAuthEntry, removeAuthEntry, resolveKey, mask } from "./lib/auth.js";
 import { readConfig, writeLastModel } from "./lib/config.js";
 import { listKnowledge, readKnowledgeFile, saveKnowledgeFile, deleteKnowledgeFile, knowledgeDir } from "./lib/knowledge.js";
-import { createToolRunner, readProjectMemory } from "./lib/tools.js";
+import { createToolRunner, readProjectMemory, readProjectConfig } from "./lib/tools.js";
 import { schedulesDue, scheduleAdvance } from "./lib/extras.js";
 // Custom agents ("personas"): the same files the task tool resolves. The
 // desktop lists them for the agent picker, and a chat request may name one as
@@ -35,6 +35,7 @@ import { createMcpManager, readMcpConfig, readMcpConfigText, writeMcpConfigText,
 import { scanSkills, readSkillsConfig, writeSkillsConfig } from "./lib/skills.js";
 import { pluginManager, readPluginsConfig, writePluginsConfig, userPluginsDir } from "./lib/plugins.js";
 import { extractOffice, officeKind } from "./lib/office.js";
+import { runHook } from "./lib/hooks.js";
 // Namespace import: chatSystemPrompt() / cheapModelFor() are being added to
 // agent.js alongside this work, and the server must keep booting (and code
 // sessions keep working) whether or not they have landed yet. The chat path
@@ -252,7 +253,26 @@ function makeRunner(r, allowed, session = null) {
       return { text };
     },
   });
-  return allowed ? restrictRunner(toolRunner, allowed) : toolRunner;
+  const hooked = {
+    async run(name, args) {
+      const before = await runHook(r, "beforeTool", { tool: name, args });
+      if (!before.ok) {
+        throw new Error("Blocked by beforeTool hook: " + (before.output || "hook exited " + before.code));
+      }
+      try {
+        const out = await toolRunner.run(name, args);
+        await runHook(r, "afterTool", { tool: name, args, ok: true });
+        return out;
+      } catch (e) {
+        await runHook(r, "afterTool", { tool: name, args, ok: false, error: String(e && e.message || e) });
+        throw e;
+      }
+    },
+    isDangerous(name) { return toolRunner.isDangerous(name); },
+    root: toolRunner.root,
+    allowed,
+  };
+  return allowed ? restrictRunner(hooked, allowed) : hooked;
 }
 /* ------------------------------ persistence ------------------------------ */
 // Sessions live in memory for speed and are mirrored to disk so they survive a
@@ -435,6 +455,8 @@ function summarise(s) {
     kind: s.kind,
     mode: s.mode,
     cwd: s.cwd,
+    worktree: s.worktree || "",
+    branch: s.branch || "",
     created: s.created,
     updated: s.updated,
     turns,
@@ -479,7 +501,7 @@ function sessionSystemContent(s) {
   return s.kind === "chat" ? chatSystemContent() : systemPrompt(sessionRoot(s), s.mode, mcpManager.toolList().concat(pluginManager.toolList()));
 }
 
-function newSession(title, kind) {
+function newSession(title, kind, opts = {}) {
   const sid = randomUUID();
   const k = normalizeKind(kind);
   // Created before agent.js exports chatSystemPrompt()? Keep the placeholder
@@ -493,7 +515,7 @@ function newSession(title, kind) {
     title: title || "New session",
     kind: k,
     mode: "manual",
-    cwd: k === "chat" ? os.homedir() : ROOT,
+    cwd: opts.cwd ? path.resolve(opts.cwd) : (k === "chat" ? os.homedir() : ROOT),
     created: Date.now(),
     updated: Date.now(),
     messages: [{ role: "system", content: system }],
@@ -505,9 +527,63 @@ function newSession(title, kind) {
     aborts: new Set(),
     autoAllow: new Set(),
   };
+  if (opts.worktree) {
+    const wt = createWorktree(s.cwd, sid);
+    s.cwd = wt.path;
+    s.worktree = wt.path;
+    s.branch = wt.branch;
+    s.worktreeBase = wt.base;
+  }
+  try {
+    const cfg = readProjectConfig(s.cwd);
+    if (cfg && ["manual", "acceptEdits", "plan", "bypass"].includes(cfg.defaultMode)) {
+      s.mode = cfg.defaultMode;
+    }
+  } catch { /* malformed project config never blocks a session */ }
+  if (opts.worktree || s.mode !== "manual") s.messages[0] = { role: "system", content: sessionSystemContent(s) };
+  if (opts.contextSessionId) {
+    const src = sessions.get(opts.contextSessionId);
+    if (src) {
+      s.sideOf = src.id;
+      s.messages = [s.messages[0], ...src.messages.filter((m) => m.role !== "system").slice(-40).map((m) => ({ role: m.role, content: m.content }))];
+    }
+  }
   sessions.set(sid, s);
   persist();
+  void runHook(s.cwd, "sessionStart", { sessionId: sid, title: s.title });
   return s;
+}
+
+/** Create an isolated git worktree for a session, under ~/.star-code. */
+function createWorktree(baseCwd, sid) {
+  let base = "";
+  try {
+    base = execFileSync("git", ["-C", baseCwd, "rev-parse", "--show-toplevel"], { encoding: "utf8" }).trim();
+  } catch {
+    throw new Error("This folder is not inside a git repository, so a worktree cannot be created. Use a normal session instead.");
+  }
+  const project = path.basename(base).replace(/[^A-Za-z0-9._-]+/g, "-") || "project";
+  const worktreePath = path.join(os.homedir(), ".star-code", "worktrees", project, sid);
+  const branch = "star/" + sid.slice(0, 8);
+  try {
+    fs.mkdirSync(path.dirname(worktreePath), { recursive: true });
+    execFileSync("git", ["-C", base, "worktree", "add", "-b", branch, worktreePath, "HEAD"], { encoding: "utf8" });
+  } catch (e) {
+    throw new Error("Could not create worktree: " + String((e && e.stderr) || e.message || e).trim().slice(0, 300));
+  }
+  return { path: worktreePath, branch, base };
+}
+
+/** Remove a session's worktree when the session is deleted. */
+function removeWorktree(session) {
+  if (!session || !session.worktree) return;
+  const base = session.worktreeBase || session.cwd;
+  try {
+    execFileSync("git", ["-C", base, "worktree", "remove", "--force", session.worktree], { encoding: "utf8" });
+  } catch { /* already gone */ }
+  try {
+    execFileSync("git", ["-C", base, "branch", "-D", session.branch], { encoding: "utf8" });
+  } catch { /* branch may be checked out elsewhere */ }
 }
 
 function getSession(id, kind) {
@@ -1076,6 +1152,16 @@ async function route(req, res) {
     return sendJSON(res, 200, { ok: true, plugins });
   }
 
+  if (req.method === "GET" && url.pathname === "/api/project") {
+    const mem = readProjectMemory(ROOT);
+    const cfg = readProjectConfig(ROOT);
+    return sendJSON(res, 200, {
+      root: ROOT,
+      memory: mem ? { file: mem.file, chars: mem.text.length } : null,
+      config: cfg ? { file: cfg.file, defaultMode: cfg.defaultMode, model: cfg.model, allowedTools: cfg.allowedTools, denyTools: cfg.denyTools, hooks: Object.keys(cfg.hooks) } : null,
+    });
+  }
+
   /* --------------------------------- changelog --------------------------------- */
   // What's new: CHANGELOG.md parsed once per boot. Newest entry first.
   if (req.method === "GET" && url.pathname === "/api/changelog") {
@@ -1136,6 +1222,29 @@ async function route(req, res) {
     }
     await walk(ROOT, "", 0);
     return sendJSON(res, 200, { root: ROOT, entries: out.slice(0, 300) });
+  }
+
+  // Interactive terminal: a shell command in the session folder. This is a
+  // command runner, not a full PTY; it keeps the zero-dependency desktop app
+  // working without node-pty while still supporting line-oriented shells.
+  if (req.method === "POST" && url.pathname === "/api/term") {
+    const { sessionId: sid, command } = await readBody(req);
+    const cmd = String(command || "").trim();
+    if (!cmd) return sendJSON(res, 400, { error: "empty command" });
+    if (cmd.length > 4000) return sendJSON(res, 413, { error: "command is too long" });
+    const session = sessions.get(sid);
+    const cwd = session && session.cwd ? session.cwd : ROOT;
+    return await new Promise((resolve) => {
+      exec(cmd, { cwd, timeout: 30_000, maxBuffer: 256 * 1024, windowsHide: true }, (err, stdout, stderr) => {
+        resolve(sendJSON(res, 200, {
+          ok: !err,
+          code: err ? (err.code || 1) : 0,
+          stdout: String(stdout || "").slice(0, 120_000),
+          stderr: String(stderr || "").slice(0, 120_000),
+          cwd,
+        }));
+      });
+    });
   }
 
   // Save a text file edited in the preview pane. Scoped to the project root,
@@ -1245,6 +1354,11 @@ async function route(req, res) {
   if (req.method === "GET" && url.pathname === "/api/sessions/messages") {
     const s = sessions.get(url.searchParams.get("id"));
     if (!s) return sendJSON(res, 404, { error: "no such session" });
+    // The file tree, previews and terminal follow the session the user opens.
+    if (s.cwd && fs.existsSync(s.cwd)) {
+      ROOT = s.cwd;
+      mcpManager.setRoot(ROOT);
+    }
     // The client rebuilds the transcript from this: no system prompt; tool
     // results stay (flagged) so tool rows and ask-card answers replay, and
     // `ui` carries the cards that were never model messages (thinking,
@@ -1262,12 +1376,17 @@ async function route(req, res) {
   }
 
   if (req.method === "POST" && url.pathname === "/api/sessions/new") {
-    const { title, kind } = await readBody(req);
+    const { title, kind, worktree, cwd, contextSessionId } = await readBody(req);
     if (kind != null && !SESSION_KINDS.has(kind)) {
       return sendJSON(res, 400, { error: 'kind must be "chat" or "code"' });
     }
-    const s = newSession(title, kind);
-    return sendJSON(res, 200, { id: s.id, title: s.title, kind: s.kind });
+    let s;
+    try {
+      s = newSession(title, kind, { worktree: !!worktree, cwd: cwd || undefined, contextSessionId });
+    } catch (e) {
+      return sendJSON(res, 400, { error: e.message });
+    }
+    return sendJSON(res, 200, { id: s.id, title: s.title, kind: s.kind, cwd: s.cwd, worktree: s.worktree || "", branch: s.branch || "", sideOf: s.sideOf || "" });
   }
 
   // The folder chip in the chat header types a path here; use_folder reaches
@@ -1305,6 +1424,7 @@ async function route(req, res) {
     const s = sessions.get(id);
     if (!s) return sendJSON(res, 404, { error: "no such session" });
     for (const c of s.aborts) c.abort = true;
+    removeWorktree(s);
     sessions.delete(id);
     persist();
     return sendJSON(res, 200, { ok: true });
@@ -1426,6 +1546,9 @@ async function route(req, res) {
     } catch (e) {
       emit({ type: "error", message: e.message });
     }
+    void runHook(session.cwd, controller.abort ? "stop" : "turnEnd", {
+      sessionId: session.id, aborted: !!controller.abort,
+    });
     // The persona lived for this turn only: the stored session keeps the
     // plain base prompt, so the agent selection is never persisted.
     session.messages[0] = { role: "system", content: sessionSystemContent(session) };

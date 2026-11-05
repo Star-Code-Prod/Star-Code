@@ -1,5 +1,16 @@
 # What's new in Star
 
+## 1.26.0 — 2026-11-05
+- **Git worktree sessions.** The sidebar menu can create a session in its own `~/.star-code/worktrees/<project>/<session>` worktree and `star/<id>` branch, so parallel sessions stop stepping on each other. Deleting the session removes the worktree and branch; non-git folders get a clear fallback message. Session rows show the branch.
+- **Process Tree pane.** A new **Tree** pane mirrors the live round: session → turn → each thought/tool call, with status, duration, expandable context and a Stop-turn action.
+- **Project files and config.** `STAR.md`, `AGENTS.md` and `CLAUDE.md` are all loaded into the system prompt; `.star-code/settings.json` (or `.claude/settings.json`) can set the default permission mode, model, allowed/denied tools and hooks. Usage shows the loaded files.
+- **Lifecycle hooks.** Shell commands configured under `hooks` run for `sessionStart`, `beforeTool`, `afterTool`, `turnEnd` and `stop`, with a timeout. A failing `beforeTool` blocks the call and its reason becomes the tool error. The JS plugin hook system is unchanged.
+- **Interactive terminal (zero-dependency).** The Terminal pane accepts commands, keeps per-project cwd, shows stdout/stderr and command history. It is a command runner rather than a full PTY so the desktop app keeps its no-dependency install.
+- **Side chats with context.** A side chat clones the current conversation context into a separate session and never writes back; `/btw <question>` opens one and seeds the question in its composer.
+- **Better file editing.** The preview editor shows unsaved changes, warns before discarding, saves with Ctrl/Cmd+S, and records the change in the Changes pane through the normal diff flow.
+- **Signing/update and eval docs.** Added `docs/SIGNING.md` (Windows/macOS secrets, verification, rollback) and `docs/EVALS.md` plus a deterministic eval contract (`tools/verify-evals.mjs`) for the reference `deepseek-chat` model.
+- **Attachments and notifications from 1.25.0** remain: drag/drop and paste attachments, Electron notifications for finished background sessions.
+
 ## 1.25.5 — 2026-11-04
 - **The agent can now use git.** `git_status`, `git_diff`, `git_log` and `git_commit` work on the real repo: the status counts staged/modified/untracked and lists the files, the diff shows a unified patch (or `--stat`), and a commit stages everything and reports the new head. A missing author identity returns the two `git config` lines instead of a stack trace.
 - **It can verify its own work.** `test_run` finds the project's `verify`/`test`/`check`/`lint` script (npm, pnpm, yarn or bun), then cargo, go, pytest or make, runs it and answers `PASS`/`FAIL` with the duration and the output tail. That is the difference between claiming a fix and showing one.

@@ -234,7 +234,7 @@ try {
   })).json()).text) || "";
   fs.writeFileSync(claudePath, "# Claude convention\nclaude-memory-text\n");
   const memClaude = await commandText("memory");
-  ok("a CLAUDE.md is not served as project memory", !memClaude.includes("claude-memory-text"));
+  ok("a CLAUDE.md is served for compatibility", memClaude.includes("claude-memory-text"));
   fs.writeFileSync(starPath, "# Star project guide\nstar-memory-text\n");
   const memStar = await commandText("memory");
   ok("/memory serves STAR.md as the project memory",
@@ -351,6 +351,10 @@ try {
   const kindListing = await (await fetch(s.url + "/api/agents?kind=chat")).json();
   ok("kind=chat lists home-level agents before any session exists",
     !namesOf(kindListing).includes("verify-proj") && namesOf(kindListing).includes("reviewer"));
+  await fetch(s.url + "/api/setroot", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ root: process.cwd() }),
+  });
   const ghostListing = await (await fetch(s.url + "/api/agents?sessionId=ghost-session")).json();
   ok("an unknown session id falls back to the server root",
     namesOf(ghostListing).includes("verify-proj"));

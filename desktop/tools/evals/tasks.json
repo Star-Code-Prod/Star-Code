@@ -1,0 +1,29 @@
+{
+  "referenceModel": "deepseek-chat",
+  "tasks": [
+    {
+      "id": "edit-file",
+      "title": "Edit a file",
+      "prompt": "In src/greeting.js change the exported greeting to \"Hello, Star\" and keep the formatting.",
+      "checks": ["file contains Hello, Star", "no unrelated files changed"]
+    },
+    {
+      "id": "fix-test",
+      "title": "Fix a failing test",
+      "prompt": "Run the test suite, find the failing assertion, fix the source (not the test), and re-run it.",
+      "checks": ["test passes", "source changed", "test file unchanged"]
+    },
+    {
+      "id": "search-summarize",
+      "title": "Search and summarize",
+      "prompt": "Find every place that reads STAR_HOME and summarize the precedence rules with file and line references.",
+      "checks": ["all occurrences found", "line references valid", "no invented files"]
+    },
+    {
+      "id": "refactor",
+      "title": "Multi-step refactor",
+      "prompt": "Extract the duplicated path normalization in src/paths.js and src/tree.js into one helper, update both callers, and run the verify suite.",
+      "checks": ["both callers use the helper", "tests pass", "public behavior unchanged"]
+    }
+  ]
+}

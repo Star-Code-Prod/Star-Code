@@ -1580,17 +1580,48 @@ export function createToolRunner(root, opts = {}) {
   };
 }
 
-/** Read a STAR.md (or the cross-tool AGENTS.md) project guide, if present. */
+/** Read project instruction files: STAR.md, AGENTS.md and CLAUDE.md (all
+ *  existing files are concatenated, in that order). */
 export function readProjectMemory(root) {
-  const candidates = ["STAR.md", "AGENTS.md"];
+  const candidates = ["STAR.md", "AGENTS.md", "CLAUDE.md"];
+  const parts = [];
+  const names = [];
   for (const c of candidates) {
     const full = path.join(root, c);
     try {
       if (fssync.existsSync(full)) {
-        const text = fssync.readFileSync(full, "utf8");
-        return { file: c, text: text.slice(0, 20000) };
+        const text = fssync.readFileSync(full, "utf8").trim();
+        if (text) { parts.push("--- " + c + " ---\n" + text.slice(0, 12000)); names.push(c); }
       }
     } catch {}
+  }
+  if (!parts.length) return null;
+  return { file: names.join(", "), text: parts.join("\n\n").slice(0, 30000) };
+}
+
+/** Load a project-level settings.json-style config. Unknown keys are kept
+ *  for display but only known fields are surfaced to the prompt. */
+export function readProjectConfig(root) {
+  const candidates = [".star-code/settings.json", ".claude/settings.json", ".star-code/config.json"];
+  for (const c of candidates) {
+    try {
+      const full = path.join(root, c);
+      if (!fssync.existsSync(full)) continue;
+      const raw = JSON.parse(fssync.readFileSync(full, "utf8").replace(/^\uFEFF/, ""));
+      if (!raw || typeof raw !== "object") continue;
+      const perms = raw.permissions && typeof raw.permissions === "object" ? raw.permissions : {};
+      const model = raw.model && typeof raw.model === "object" ? raw.model : {};
+      const hooks = raw.hooks && typeof raw.hooks === "object" ? raw.hooks : {};
+      return {
+        file: c,
+        raw,
+        defaultMode: String(perms.defaultMode || perms.default || raw.defaultMode || "").trim(),
+        allowedTools: Array.isArray(perms.allowedTools) ? perms.allowedTools.map(String).slice(0, 100) : [],
+        denyTools: Array.isArray(perms.denyTools) ? perms.denyTools.map(String).slice(0, 100) : [],
+        model: { provider: String(model.provider || "").trim(), model: String(model.model || "").trim(), effort: String(model.effort || "").trim() },
+        hooks,
+      };
+    } catch { /* malformed config is ignored, never crashes a turn */ }
   }
   return null;
 }

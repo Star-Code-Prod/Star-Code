@@ -1286,6 +1286,23 @@ html[data-embed] #splitBox{display:none !important}
 .term .rt{color:var(--term-dim)}
 .term .pr{color:var(--term-fg)}
 .term .er{color:var(--term-err)}
+.termform{display:flex;align-items:center;gap:8px;padding:7px 13px;border-top:1px solid var(--border);background:var(--termbg);flex:none}
+.termform span{font-family:var(--font-mono);color:var(--brand);font-size:12px}
+.termform input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--term-fg);font-family:var(--font-mono);font-size:11.5px}
+.ptree{padding:8px;overflow:auto;flex:1;min-height:0;font-size:var(--fs-12);color:var(--text2)}
+.ptnode{display:flex;align-items:center;gap:7px;min-height:30px;padding:4px 8px;border-radius:6px;padding-left:calc(8px + var(--d,0)*18px)}
+.ptnode:hover{background:var(--hover)}
+.ptnode.root{font-weight:600;color:var(--text)}
+.ptnode.turn{color:var(--text2)}
+.ptnode .pdot{width:7px;height:7px;border-radius:50%;background:var(--border2);flex:none}
+.ptnode .pdot.live{background:var(--brand);animation:pulse 1.2s ease-in-out infinite}
+.ptnode .pdot.ok{background:var(--add-fg)}
+.ptnode .pdot.failed,.ptnode .pdot.denied{background:var(--del-fg)}
+.ptnode .ptn{flex:none;max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ptnode .ptm{flex:1;min-width:0;color:var(--muted);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--fs-11)}
+.ptnode.empty{color:var(--muted)}
+.ptstop{margin:8px;padding:5px 10px;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:var(--fs-11)}
+.ptstop:hover{background:var(--hover);color:var(--text)}
 .plan-body{padding:var(--sp-4);font-size:var(--fs-13);line-height:1.65;color:var(--text2)}
 .plan-body h1,.plan-body h2,.plan-body h3{font-size:var(--fs-13);font-weight:600;color:var(--text);margin:15px 0 6px;letter-spacing:-.01em}
 .plan-body h1:first-child,.plan-body h2:first-child,.plan-body h3:first-child{margin-top:0}
@@ -1928,6 +1945,12 @@ body.mode-chat #bigProj{display:none}
         <div class="pane-grip-b" data-panegrip="preview" title="Drag to resize · double-click to reset" aria-hidden="true"></div>
       </section>
 
+      <section class="pane-row collapsed" data-pane="tree">
+        <div class="pane-sub"><span>Tree</span><span class="spacer"></span><button class="pane-x" data-panex="tree" title="Close Tree" aria-label="Close Tree"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
+        <div class="pane-b"><div class="ptree" id="treeBody"></div></div>
+        <div class="pane-grip-b" data-panegrip="tree" title="Drag to resize · double-click to reset" aria-hidden="true"></div>
+      </section>
+
       <section class="pane-row collapsed" data-pane="tasks">
         <div class="pane-sub"><span>Tasks</span><span class="spacer"></span><button class="pane-x" data-panex="tasks" title="Close Tasks" aria-label="Close Tasks"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
         <div class="pane-b"><div class="pempty" id="tasksEmpty">No tasks yet.</div><div id="tasksList"></div></div>
@@ -1947,6 +1970,10 @@ body.mode-chat #bigProj{display:none}
       <section class="pane-row" data-pane="terminal">
         <div class="pane-sub"><span>Terminal</span><span class="spacer"></span><button class="pane-x" data-panex="terminal" title="Close Terminal" aria-label="Close Terminal"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
         <div class="term" id="term">[shell] ready — commands Star runs appear here</div>
+        <form class="termform" id="termForm">
+          <span>$</span>
+          <input id="termInput" type="text" placeholder="Run a command in this project…" autocomplete="off" spellcheck="false" aria-label="Terminal command">
+        </form>
         <div class="pane-grip-b" data-panegrip="terminal" title="Drag to resize · double-click to reset" aria-hidden="true"></div>
       </section>
 
@@ -2123,6 +2150,14 @@ const LS = "ccd.state.v4";
    boot binds straight to that session. */
 const EMBED_SID = (() => { try { return new URLSearchParams(location.search).get("embed") || ""; } catch { return ""; } })();
 if (EMBED_SID) document.documentElement.dataset.embed = "1";
+if (EMBED_SID) window.addEventListener("message", (e) => {
+  if (!e.data || e.data.type !== "star-side-seed") return;
+  const input = document.getElementById("input");
+  if (!input) return;
+  input.value = String(e.data.text || "");
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  input.focus();
+});
 
 /* ============================ STATE ============================ */
 const DEFAULT_STATE = {
@@ -2413,7 +2448,7 @@ const bridge = (typeof window !== "undefined" && window.desktop && window.deskto
     // one are part of the saved state now. A rail the user emptied on purpose
     // stays closed instead of springing back to the default four cards.
     if (Array.isArray(state.paneOpen)) {
-      const known = new Set(["preview", "tasks", "plan", "terminal", "diff", "usage"]);
+      const known = new Set(["preview", "tasks", "plan", "terminal", "diff", "usage", "tree"]);
       paneOpen.clear();
       for (const id of state.paneOpen) if (known.has(id)) paneOpen.add(id);
       activePane = state.paneActive && paneOpen.has(state.paneActive) ? state.paneActive : ([...paneOpen][0] || null);
@@ -2941,11 +2976,12 @@ const PANE_DEFS = [
   { id: "tasks", label: "Tasks" },
   { id: "plan", label: "Plan" },
   { id: "terminal", label: "Terminal" },
+  { id: "tree", label: "Tree" },
   { id: "diff", label: "Changes" },
   { id: "usage", label: "Usage" },
 ];
 const paneOpen = new Set(["preview", "tasks", "plan", "diff"]);
-const paneBadges = { tasks: 0, diff: 0, terminal: 0 };
+const paneBadges = { tasks: 0, diff: 0, terminal: 0, tree: 0 };
 let activePane = "diff";
 
 function renderPaneTabs() {
@@ -3554,15 +3590,53 @@ $("sessClear").addEventListener("click", () => {
 $("prClose").addEventListener("click", () => $("prbar").style.display = "none");
 
 /* ============================ TERMINAL ============================ */
-function pushTerm(cmd, kind) {
-  termLines.push({ cmd, kind });
+function pushTerm(cmd, kind, out = "", err = "") {
+  termLines.push({ cmd, kind, out, err });
   if (termLines.length > 80) termLines.shift();
-  $("term").innerHTML = `<span class="rt">[shell] ready — commands Star runs appear here</span>\n` +
-    termLines.map(l => `<span class="${l.kind === "er" ? "er" : l.kind === "rt" ? "rt" : "pr"}">$ ${esc(l.cmd)}</span>`).join("\n");
+  $("term").innerHTML = `<span class="rt">[shell] ready — commands run in this project</span>\n` +
+    termLines.map(l => {
+      const head = l.cmd ? `<span class="${l.kind === "er" ? "er" : l.kind === "rt" ? "rt" : "pr"}">$ ${esc(l.cmd)}</span>` : "";
+      const body = (l.out ? `<span class="pr">${esc(l.out)}</span>` : "") + (l.err ? `<span class="er">${esc(l.err)}</span>` : "");
+      return [head, body].filter(Boolean).join("\n");
+    }).join("\n");
   $("term").scrollTop = $("term").scrollHeight;
   paneBadges.terminal = termLines.length;
   renderPaneTabs();
 }
+let termHistory = [], termHistIdx = -1;
+async function runTermCommand(raw) {
+  const cmd = String(raw || "").trim();
+  if (!cmd) return;
+  termHistory.push(cmd); termHistIdx = termHistory.length;
+  pushTerm(cmd, "pr");
+  try {
+    const r = await (await fetch("/api/term", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId, command: cmd }),
+    })).json();
+    if (r.error) pushTerm("", "er", "", r.error);
+    else pushTerm("", r.ok ? "pr" : "er", r.stdout || "", r.stderr || "");
+  } catch (e) {
+    pushTerm("", "er", "", e.message);
+  }
+}
+$("termForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const input = $("termInput");
+  runTermCommand(input.value);
+  input.value = "";
+});
+$("termInput").addEventListener("keydown", (e) => {
+  if (e.key === "ArrowUp") {
+    e.preventDefault();
+    termHistIdx = Math.max(0, termHistIdx - 1);
+    $("termInput").value = termHistory[termHistIdx] || "";
+  } else if (e.key === "ArrowDown") {
+    e.preventDefault();
+    termHistIdx = Math.min(termHistory.length, termHistIdx + 1);
+    $("termInput").value = termHistory[termHistIdx] || "";
+  }
+});
 
 /* ============================ SESSIONS ============================ */
 // Real sessions, served by the backend and persisted to disk, so they survive
@@ -3639,7 +3713,7 @@ function sessionRow(s) {
       }</span>
       <span class="txt">
         <span class="lbl">${esc(s.title)}</span>
-        <span class="meta">${needs ? "Waiting for your answer" : esc(ago(s.updated)) + (s.turns ? " · " + s.turns + " turn" + (s.turns === 1 ? "" : "s") : "")}</span>
+        <span class="meta">${needs ? "Waiting for your answer" : esc(ago(s.updated)) + (s.turns ? " · " + s.turns + " turn" + (s.turns === 1 ? "" : "s") : "") + (s.branch ? " · " + esc(s.branch) : "")}</span>
       </span>
       ${unread ? '<span class="dotnew" title="Unread"></span>' : ""}
       <span class="more" data-more="${esc(s.id)}" title="More">
@@ -3831,6 +3905,24 @@ function openSplit(id) {
   const want = "/?embed=" + encodeURIComponent(id);
   if (frame.getAttribute("src") !== want) frame.setAttribute("src", want);
   document.body.classList.add("split-on");
+}
+async function openSideChat(seed = "") {
+  try {
+    const j = await (await fetch("/api/sessions/new", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: state.mode, contextSessionId: sessionId || undefined, title: "Side chat" }),
+    })).json();
+    if (!j.id) throw new Error(j.error || "Could not open the side chat");
+    openSplit(j.id);
+    await loadSessions();
+    if (seed) {
+      const frame = $("splitFrame");
+      setTimeout(() => { try { frame.contentWindow.postMessage({ type: "star-side-seed", text: seed }, "*"); } catch { /* iframe not ready */ } }, 700);
+    }
+    toast("Side chat opened with this session's context");
+  } catch (e) {
+    toast(e.message);
+  }
 }
 function closeSplit() {
   state.split = "";
@@ -4228,11 +4320,18 @@ function startFileEdit(host, f) {
   ta.setAttribute("aria-label", "Edit " + f.path);
   pre.replaceWith(ta);
   ta.focus();
+  let dirty = false;
+  const original = f.content;
   const msg = (text, bad) => {
     const el = host.querySelector("#fpMsg");
     if (el) { el.textContent = text; el.classList.toggle("bad", !!bad); }
   };
+  ta.addEventListener("input", () => {
+    dirty = ta.value !== original;
+    msg(dirty ? "Unsaved changes · Ctrl+S to save" : "No changes");
+  });
   const save = async () => {
+    if (!dirty) return;
     const btn = host.querySelector("#fpSave");
     if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
     try {
@@ -4241,7 +4340,10 @@ function startFileEdit(host, f) {
         body: JSON.stringify({ path: f.path, content: ta.value }),
       })).json();
       if (!r.ok) throw new Error(r.error || "Could not save");
+      const before = f.content;
       f.content = ta.value;
+      dirty = false;
+      if (before !== f.content && !isStreaming(sessionId)) renderDiff({ path: f.path, before, after: f.content });
       toast("Saved " + f.path);
       renderFilePreview();
     } catch (e) {
@@ -4250,7 +4352,10 @@ function startFileEdit(host, f) {
     }
   };
   host.querySelector("#fpSave").addEventListener("click", save);
-  host.querySelector("#fpCancel").addEventListener("click", () => renderFilePreview());
+  host.querySelector("#fpCancel").addEventListener("click", () => {
+    if (dirty && !confirm("Discard unsaved changes to " + f.path + "?")) return;
+    renderFilePreview();
+  });
   ta.addEventListener("keydown", (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") { e.preventDefault(); save(); }
     if (e.key === "Escape") { e.preventDefault(); renderFilePreview(); }
@@ -6922,6 +7027,7 @@ function procRow(kind, label) {
   p.body.appendChild(el);
   p.items.push(it);
   procSummary();
+  renderTreePane();
   scrollDownSoon();
   return it;
 }
@@ -6938,6 +7044,32 @@ function procPaint(it) {
   it.el.classList.toggle("no", it.state === "denied" || it.state === "failed");
   it.el.classList.toggle("run", it.state === "running" || it.state === "thinking");
   it.met.textContent = procMeta(it);
+  renderTreePane();
+}
+
+/** A compact session -> turn -> tool view, fed by the live process card. */
+function renderTreePane() {
+  const box = $("treeBody");
+  if (!box) return;
+  const s = sessionList.find((x) => x.id === sessionId);
+  const items = (proc && proc.items) || [];
+  const live = items.some((i) => i.state === "running" || i.state === "thinking");
+  const status = (i) => i.state === "running" || i.state === "thinking" ? "running"
+    : i.state === "denied" ? "denied" : i.state === "failed" ? "failed" : "done";
+  const dur = (i) => i.state === "running" || i.state === "thinking"
+    ? fmtDur(Date.now() - i.started) : i.elapsed ? fmtDur(i.elapsed) : "";
+  box.innerHTML = `
+    <div class="ptnode root"><span class="pdot ${live ? "live" : ""}"></span><span class="ptn">Session</span><span class="ptm">${esc((s && s.title) || "Current session")}</span></div>
+    <div class="ptnode turn"><span class="pdot ${live ? "live" : ""}"></span><span class="ptn">Turn</span><span class="ptm">${live ? "running" : "done"}</span></div>
+    ${items.length ? items.map((i) => `
+      <div class="ptnode item ${status(i)}" style="--d:1">
+        <span class="pdot ${status(i)}"></span>
+        <span class="ptn">${esc(i.lbl ? i.lbl.textContent : i.kind)}</span>
+        <span class="ptm">${esc(i.dsc ? i.dsc.textContent : "")}${dur(i) ? " · " + dur(i) : ""}</span>
+      </div>`).join("") : '<div class="ptnode empty"><span class="ptn">No tool activity in this turn.</span></div>'}
+    ${live ? '<button class="ptstop" type="button">Stop turn</button>' : ""}`;
+  const stop = box.querySelector(".ptstop");
+  if (stop) stop.addEventListener("click", () => { try { $("kbdHint").click(); } catch { /* idle */ } });
 }
 
 /* ---- reasoning phases ---- */
@@ -7460,7 +7592,30 @@ function renderUsage() {
       <div class="ud">${s.calls || 0} model call${(s.calls || 0) === 1 ? "" : "s"} · ${totalTools} tool call${totalTools === 1 ? "" : "s"}${state.mode === "chat" ? "" : " · " + esc(state.defaultMode)}</div>
       ${totalTools ? `<div class="ud">${groups.map(g => g.count + " " + g.group).join(" · ")}</div>` : ""}
       ${s.compact && (s.compact.passes || s.compact.charsSaved) ? `<div class="ud">free compaction: ${s.compact.passes || 0} pass${(s.compact.passes || 0) === 1 ? "" : "es"} · ${k(s.compact.charsSaved || 0)} chars saved</div>` : ""}
+    </div>
+    <div class="ucard" id="usageProject">
+      <div class="ut">Project configuration</div>
+      <div class="ud" id="usageProjectBody">Loading…</div>
     </div>`;
+  loadProjectUsage();
+}
+async function loadProjectUsage() {
+  const el = $("usageProjectBody");
+  if (!el) return;
+  try {
+    const j = await (await fetch("/api/project")).json();
+    const bits = [];
+    if (j.memory) bits.push("Instructions: " + j.memory.file + " (" + j.memory.chars + " chars)");
+    if (j.config) {
+      bits.push("Config: " + j.config.file);
+      if (j.config.defaultMode) bits.push("default mode: " + j.config.defaultMode);
+      if (j.config.allowedTools?.length) bits.push("allowed: " + j.config.allowedTools.join(", "));
+      if (j.config.hooks?.length) bits.push("hooks: " + j.config.hooks.join(", "));
+    }
+    el.textContent = bits.length ? bits.join(" · ") : "No STAR.md / AGENTS.md / CLAUDE.md or .star-code/settings.json in this project.";
+  } catch {
+    el.textContent = "Could not read the project configuration.";
+  }
 }
 $("cRing").addEventListener("click", () => { if (paneOpen.size === 0) $("panes").classList.remove("hide"); showPane("usage"); });
 
@@ -7636,7 +7791,7 @@ async function handleCommand(text) {
   if (name === "export") { exportConv(); return; }
   if (name === "settings") { openSettings(); return; }
   if (name === "theme") { cycleTheme(); return; }
-  if (name === "btw") { return sendToAgent("(side question, do not modify files) " + arg); }
+  if (name === "btw") { return openSideChat(arg); }
   if (name === "compact") return sendToAgent("Summarize our conversation into a compact brief preserving decisions, file paths, and open tasks.");
   if (name === "init") return sendToAgent("Create a STAR.md file documenting this project: purpose, structure, how to build/test, and conventions. Write the file.");
   if (name === "review") return sendToAgent("Review the uncommitted changes: run `git diff`, then report correctness issues, risks, and suggested fixes grouped by file.");
@@ -8023,15 +8178,7 @@ async function attachPick() {
 $("cPlus").addEventListener("click", e => {
   e.stopPropagation();
   openMenu($("cPlus"), [
-    { label: "Side chat", run: async () => {
-      try {
-        const j = await (await fetch("/api/sessions/new", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ kind: state.mode }),
-        })).json();
-        if (j && j.id) { openSplit(j.id); renderSessions(); }
-      } catch { toast("Could not open the side chat"); }
-    } },
+    { label: "Side chat", run: () => openSideChat() },
     { label: "Attach file", run: attachPick },
     { label: "Run shell command", k: "!", run: () => { $("input").value = "! "; $("input").focus(); } },
     { sep: true },
@@ -9799,6 +9946,20 @@ $("projBrowse").addEventListener("click", async () => {
     $("projInput").focus();
   }
 });
+async function newWorktreeSession() {
+  try {
+    const r = await (await fetch("/api/sessions/new", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "code", worktree: true, cwd: state.root, title: "New worktree session" }),
+    })).json();
+    if (!r.id) throw new Error(r.error || "Could not create a worktree session");
+    await loadSessions();
+    await switchSession(r.id);
+    toast("Worktree: " + (r.branch || "created"));
+  } catch (e) {
+    toast(e.message);
+  }
+}
 $("navNew").addEventListener("click", () => {
   setSidebarNav("");
   if (innerWidth <= 820) toggleSidebar(false);
@@ -9820,6 +9981,7 @@ $("btnSidebarMenu").addEventListener("click", e => {
   e.stopPropagation();
   openMenu($("btnSidebarMenu"), [
     { label: "Files & progress", run: () => toggleActPanel() },
+    { label: "New worktree session", run: () => newWorktreeSession() },
     { label: "Change working folder…", run: () => $("sProj").click() },
     { label: "Preview pane", run: () => showPane("preview") },
     { label: "Changes pane", run: () => showPane("diff") },
