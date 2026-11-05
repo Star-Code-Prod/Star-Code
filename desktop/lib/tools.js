@@ -265,6 +265,15 @@ export function normalizeAskQuestions(questions) {
 // ---------------------------------------------------------------------------
 const MAX_READ_CHARS = 24_000;   // ~6.7k tokens (was 400 KB, ~111k tokens)
 const MAX_OUTPUT_CHARS = 12_000; // shell output, ~3.3k tokens (was 60 KB)
+/** Live commands started by run_command, keyed by OS pid. */
+export const activeProcesses = new Map();
+export function killProcess(pid) {
+  const entry = activeProcesses.get(Number(pid));
+  if (!entry) return false;
+  try { entry.child.kill("SIGTERM"); } catch { try { entry.child.kill(); } catch {} }
+  activeProcesses.delete(Number(pid));
+  return true;
+}
 const MAX_LIST_ENTRIES = 250;
 const MAX_SEARCH_HITS = 60;      // was 200
 const MAX_HIT_LINE = 140;        // was 200
@@ -1088,10 +1097,11 @@ export function createToolRunner(root, opts = {}) {
     if (blocked) throw new Error(blocked);
     const isWin = process.platform === "win32";
     return new Promise((res) => {
-      exec(
+      const child = exec(
         command,
         { cwd: root, maxBuffer: 8 * 1024 * 1024, timeout: 120_000, shell: isWin ? "powershell.exe" : "/bin/sh" },
         (err, stdout, stderr) => {
+          if (child.pid) activeProcesses.delete(child.pid);
           let text = "";
           if (stdout) text += stdout;
           if (stderr) text += (text ? "\n" : "") + stderr;
@@ -1100,6 +1110,7 @@ export function createToolRunner(root, opts = {}) {
           res(elide(text, MAX_OUTPUT_CHARS, "command output"));
         }
       );
+      if (child.pid) activeProcesses.set(child.pid, { pid: child.pid, command: String(command).slice(0, 300), started: Date.now(), child });
     });
   }
 

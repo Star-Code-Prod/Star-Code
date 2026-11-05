@@ -646,6 +646,9 @@ ok("diffs support unified/split views, hunk jumps and safe revert",
   ok("the desktop shell carries the attach picker",
     mainSrc.includes('"desktop:pick-file"') && preloadSrc.includes("pickFile: () =>") &&
     /Images and videos/.test(mainSrc) && /"mp4"/.test(mainSrc));
+  ok("updates verify sha512, stage atomically and remember failed installs",
+    mainSrc.includes("sha512 mismatch") && mainSrc.includes('file + ".part"') &&
+    mainSrc.includes("pending-update.json") && mainSrc.includes("Update did not complete"));
 }
 ok("the rail can take 60% of the window",
   js.includes("innerWidth * 0.6") && js.includes("function paneWMax(") &&

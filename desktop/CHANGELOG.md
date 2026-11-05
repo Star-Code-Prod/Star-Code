@@ -1,5 +1,11 @@
 # What's new in Star
 
+## 1.26.3 — 2026-11-05
+- **Process Tree shows OS processes.** Commands started by the agent appear with their PID, command, duration and a **Stop** button; killing one removes it from the live list. The tree still shows the current session → turn → thought/tool rows.
+- **Update downloads are atomic and verified.** Installers are staged as `.part` and renamed only after a matching sha512; a missing checksum is refused. If an installer never reaches the new version, the next launch shows “Update did not complete” and keeps the current build.
+- **Scheduled work runs on the server** in fresh Plan-mode sessions (no browser required, no permission escalation) and the sidebar refreshes to show results.
+- **Diff review** keeps unified/split views, hunk navigation and stale-safe revert.
+
 ## 1.26.2 — 2026-11-05
 - **Scheduled work now runs headlessly.** The server checks due schedules once a minute and runs each in a fresh, **plan-mode** session with the configured provider/key; results are saved as normal sessions, so a scheduled prompt cannot escalate its own permissions. The sidebar refreshes every 20 seconds to surface them.
 - **Diff review** from 1.26.1 is included: unified/split views, hunk navigation and safe revert.

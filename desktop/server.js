@@ -18,7 +18,7 @@ const { PROVIDERS, discoverModels, detectLocals } = providersLib;
 import { readAuth, writeAuthEntry, removeAuthEntry, resolveKey, mask } from "./lib/auth.js";
 import { readConfig, writeLastModel } from "./lib/config.js";
 import { listKnowledge, readKnowledgeFile, saveKnowledgeFile, deleteKnowledgeFile, knowledgeDir } from "./lib/knowledge.js";
-import { createToolRunner, readProjectMemory, readProjectConfig } from "./lib/tools.js";
+import { createToolRunner, readProjectMemory, readProjectConfig, activeProcesses, killProcess } from "./lib/tools.js";
 import { schedulesDue, scheduleAdvance } from "./lib/extras.js";
 // Custom agents ("personas"): the same files the task tool resolves. The
 // desktop lists them for the agent picker, and a chat request may name one as
@@ -1150,6 +1150,19 @@ async function route(req, res) {
   if (req.method === "POST" && url.pathname === "/api/plugins/reload") {
     const plugins = await pluginManager.load({ version: VERSION });
     return sendJSON(res, 200, { ok: true, plugins });
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/processes") {
+    return sendJSON(res, 200, {
+      processes: [...activeProcesses.values()].map((p) => ({
+        pid: p.pid, command: p.command, started: p.started,
+        ms: Date.now() - p.started,
+      })),
+    });
+  }
+  if (req.method === "POST" && url.pathname === "/api/process/kill") {
+    const { pid } = await readBody(req);
+    return sendJSON(res, 200, { ok: killProcess(pid) });
   }
 
   if (req.method === "GET" && url.pathname === "/api/project") {

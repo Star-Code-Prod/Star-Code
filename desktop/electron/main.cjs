@@ -275,22 +275,30 @@ function wire() {
             redirect: "follow",
             signal: AbortSignal.timeout(20000),
           });
+          if (!ymlRes.ok) return { ok: false, error: "could not read latest.yml (HTTP " + ymlRes.status + ")" };
           if (ymlRes.ok) {
             const yml = await ymlRes.text();
             const esc = asset.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
             const m = yml.match(new RegExp(esc + "[\\s\\S]*?sha512:\\s*([A-Za-z0-9+/=]+)"));
-            if (m) {
-              const actual = crypto.createHash("sha512").update(buf).digest("base64");
-              if (actual !== m[1]) return { ok: false, error: "sha512 mismatch - download corrupted or tampered with" };
-            }
+            if (!m) return { ok: false, error: "latest.yml has no sha512 for " + asset.name + " - refusing to install" };
+            const actual = crypto.createHash("sha512").update(buf).digest("base64");
+            if (actual !== m[1]) return { ok: false, error: "sha512 mismatch - download corrupted or tampered with" };
           }
-        } catch { /* best effort: https + auth still applied */ }
+        } catch (e) {
+          return { ok: false, error: "could not verify the download: " + e.message };
+        }
       }
 
       const dir = path.join(app.getPath("temp"), "star-code-update");
       fs.mkdirSync(dir, { recursive: true });
       const file = path.join(dir, asset.name);
-      fs.writeFileSync(file, buf);
+      const part = file + ".part";
+      fs.writeFileSync(part, buf);
+      try { fs.renameSync(part, file); } catch { try { fs.rmSync(part, { force: true }); } catch {} throw new Error("could not stage the installer"); }
+      try {
+        fs.writeFileSync(path.join(app.getPath("userData"), "pending-update.json"),
+          JSON.stringify({ from: app.getVersion(), asset: asset.name, at: Date.now() }), "utf8");
+      } catch { /* non-fatal */ }
 
       if (process.platform === "win32" && asset.kind === "nsis") {
         const child = spawn(file, ["/S"], { detached: true, stdio: "ignore" });
@@ -487,7 +495,29 @@ async function boot() {
   createWindow(srv.url);
 }
 
-app.whenReady().then(boot).catch((e) => {
+/** If we recorded an update that never reached the new version, say so once. */
+async function checkPendingUpdate() {
+  const file = path.join(app.getPath("userData"), "pending-update.json");
+  try {
+    if (!fs.existsSync(file)) return;
+    const pending = JSON.parse(fs.readFileSync(file, "utf8"));
+    fs.rmSync(file, { force: true });
+    if (pending && pending.from === app.getVersion()) {
+      await dialog.showMessageBox({
+        type: "warning",
+        title: "Update did not complete",
+        message: "Star is still running " + app.getVersion() + ".",
+        detail: "The installer " + (pending.asset || "download") + " did not install. Your current version was kept. You can retry from the update banner.",
+        buttons: ["OK"],
+      });
+    }
+  } catch { /* best effort */ }
+}
+
+app.whenReady().then(async () => {
+  await checkPendingUpdate();
+  await boot();
+}).catch((e) => {
   const detail = String(e && e.stack ? e.stack : e);
   console.error("[main] startup failed:", detail);
   try { fs.appendFileSync(path.join(app.getPath("userData"), "startup-error.log"), detail + "\n"); } catch {}

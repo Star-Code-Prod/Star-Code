@@ -7082,9 +7082,34 @@ function renderTreePane() {
         <span class="ptn">${esc(i.lbl ? i.lbl.textContent : i.kind)}</span>
         <span class="ptm">${esc(i.dsc ? i.dsc.textContent : "")}${dur(i) ? " · " + dur(i) : ""}</span>
       </div>`).join("") : '<div class="ptnode empty"><span class="ptn">No tool activity in this turn.</span></div>'}
-    ${live ? '<button class="ptstop" type="button">Stop turn</button>' : ""}`;
+    ${live ? '<button class="ptstop" type="button">Stop turn</button>' : ""}
+    <div class="ptnode root" style="margin-top:8px"><span class="pdot"></span><span class="ptn">OS processes</span></div>
+    <div id="treeProcs"><div class="ptnode empty"><span class="ptn">No child processes.</span></div></div>`;
   const stop = box.querySelector(".ptstop");
   if (stop) stop.addEventListener("click", () => { try { $("kbdHint").click(); } catch { /* idle */ } });
+  loadTreeProcesses();
+}
+async function loadTreeProcesses() {
+  const box = $("treeProcs");
+  if (!box) return;
+  try {
+    const j = await (await fetch("/api/processes")).json();
+    const list = j.processes || [];
+    box.innerHTML = list.length ? list.map((p) => `
+      <div class="ptnode item running" style="--d:1">
+        <span class="pdot failed"></span>
+        <span class="ptn">PID ${p.pid}</span>
+        <span class="ptm">${esc(String(p.command || "").slice(0, 70))} · ${fmtDur(p.ms)}</span>
+        <button class="dbtn danger" data-kill="${p.pid}" title="Stop process">Stop</button>
+      </div>`).join("") : '<div class="ptnode empty"><span class="ptn">No child processes.</span></div>';
+    box.querySelectorAll("[data-kill]").forEach((b) => b.addEventListener("click", async () => {
+      await fetch("/api/process/kill", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pid: Number(b.dataset.kill) }),
+      }).catch(() => {});
+      loadTreeProcesses();
+    }));
+  } catch { /* server may be restarting */ }
 }
 
 /* ---- reasoning phases ---- */
