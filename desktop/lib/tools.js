@@ -103,7 +103,7 @@ export const TOOL_SPECS = [
   },
   {
     name: "self_knowledge",
-    description: "Read Star Code's own manual: features, commands, providers, permission modes, artifacts, knowledge, file locations and troubleshooting.",
+    description: "Read Pulse Harness's own manual: features, commands, providers, permission modes, artifacts, skills, connectors, knowledge, file locations and troubleshooting.",
     dangerous: false,
     schema: { topic: "string?" },
   },
@@ -233,7 +233,13 @@ export const TOOL_SPECS = [
  *  questions, each with 2-4 options. `allowOther` lets the card offer a
  *  freeform answer too. Exported for the suites. */
 export function normalizeAskQuestions(questions) {
-  const list = Array.isArray(questions) ? questions : [];
+  let list = [];
+  if (Array.isArray(questions)) list = questions;
+  else if (typeof questions === "string") {
+    try { const parsed = JSON.parse(questions); list = Array.isArray(parsed) ? parsed : parsed && parsed.question ? [parsed] : []; } catch { list = []; }
+  } else if (questions && typeof questions === "object") {
+    list = questions.question || questions.options ? [questions] : [];
+  }
   const out = [];
   for (const q of list.slice(0, 4)) {
     if (!q || typeof q !== "object") continue;

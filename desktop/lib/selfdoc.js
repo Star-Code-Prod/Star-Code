@@ -1,16 +1,47 @@
-// Star Code's own manual, exposed to the agent as the self_knowledge tool.
+// Pulse Harness's own manual, exposed to the agent as the self_knowledge tool.
 // Keep this current when features land - it is the first thing a curious
 // model reads about its own harness.
 
-export const SELF_DOC = `# Star Code
-Star Code is a local, provider-agnostic agentic coding agent. It ships as the
-desktop app Star (Electron + a local server on 127.0.0.1; Chat and Code modes)
-and the terminal client Star Code CLI (the same agent, in-process, no server).
-Everything runs on the user's machine; the only outbound traffic is to the
-model provider the user configured, plus fetch_url/websearch when the user
-allows them, and download (source, hash, signature and virus checks) when the
-user allows it. One README lives at the repo root (desktop/ and CLI/ carry no
-READMEs of their own).
+export const SELF_DOC = `# Pulse Harness
+Pulse Harness is a local, provider-agnostic agentic coding app. It ships as the
+desktop app Pulse Harness (Electron + a local server on 127.0.0.1; Chat and Code
+modes), a browser build via \`npm run web\`, and the terminal client Star Code
+CLI (the same agent, in-process, no server). Everything runs on the user's
+machine; the only outbound traffic is to the model provider the user
+configured, plus fetch_url/websearch when the user allows them, and download
+(source, hash, signature and virus checks) when the user allows it.
+
+## Desktop surfaces
+- Sessions are the left rail. A worktree session gets its own
+  ~/.star-code/worktrees/<project>/<session> checkout and star/<id> branch.
+- Right rail: Tasks/Plan/Changes, Tree (turn, tools, subagents and OS PIDs),
+  Terminal, Preview and Usage.
+- Chat is a general assistant; Code is the project agent. Both share the same
+  session storage, model picker and permission modes.
+- Files open in the Preview pane. The editor marks unsaved changes, saves with
+  Ctrl/Cmd+S, asks before applying in Manual mode and records the diff.
+- Changes supports unified/side-by-side diffs, hunk jumps and a stale-safe
+  revert.
+- A side chat clones the current context into a separate session and never
+  writes back; \`/btw\` opens one.
+- Scheduled work runs headlessly on the server in fresh Plan-mode sessions.
+
+## Skills and connectors
+- Skills are SKILL.md packs. Pulse ships 40 built-ins in \`desktop/skills\`
+  (asking-questions, pulse-harness, debugging, git, tests, release, frontend,
+  office, MCP connectors and more). Project, user, plugin and extra-path skills
+  override a built-in with the same name.
+- Settings > Connectors wires Outlook, Slack, Notion, Linear, GitHub, Canvas or
+  Ekonomi through a local MCP server; tokens stay in the user's MCP config.
+- Plugins are local JS modules for tools/hooks/skill folders; MCP servers can be
+  local or remote.
+
+## Project configuration
+- STAR.md, AGENTS.md and CLAUDE.md are loaded into the system prompt.
+- .star-code/settings.json or .claude/settings.json can set the default
+  permission mode, preferred model, allowed/denied tools and lifecycle hooks.
+- Hooks run sessionStart, beforeTool, afterTool, turnEnd and stop shell
+  commands; a failing beforeTool blocks the call.
 
 ## Providers and models
 Thirteen built-in providers (OpenAI, Anthropic, DeepSeek, Google, xAI, Groq,

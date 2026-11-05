@@ -474,6 +474,10 @@ ok("reuse stub names the tool and size", stub.includes("read_file") && stub.incl
 const chat = chatSystemPrompt();
 ok("chatSystemPrompt is a string", typeof chat === "string" && chat.length > 300);
 ok("chat prompt introduces Pulse", chat.includes("You are Pulse"));
+ok("both prompts teach the question protocol",
+  chat.includes("Asking and answering") && chat.includes("ask 1-3 short questions") &&
+  systemPrompt(process.cwd(), "manual").includes("Asking and answering") &&
+  systemPrompt(process.cwd(), "manual").includes("pulse-harness skill"));
 for (const t of ["websearch", "fetch_url", "self_knowledge", "task"]) ok("chat prompt mentions " + t, chat.includes(t));
 ok("chat prompt carries no coding doctrine", !/Execution doctrine/.test(chat) && !/PLAN MODE/.test(chat));
 
@@ -648,6 +652,9 @@ ok("multi_edit is dangerous", mr.isDangerous("multi_edit") === true);
   ok("question supports a freeform answer with no options",
     free.length === 1 && free[0].allowOther === true && free[0].options.length === 0 &&
     free[0].required === true && free[0].id === "q1");
+  ok("a single question object or JSON string is accepted",
+    normalizeAskQuestions({ question: "Pick one", options: [{ label: "A" }, { label: "B" }] }).length === 1 &&
+    normalizeAskQuestions('{"question":"Pick one","options":[{"label":"A"},{"label":"B"}]}').length === 1);
   ok("the question alias is a first-class tool",
     mr.isDangerous("question") === false && decisionFor("manual", "question", empty) === "allow");
   const qAlias = await mr.run("question", { questions: [{ question: "Pick", options: [{ label: "A" }, { label: "B" }] }] });
@@ -760,8 +767,12 @@ ok("multi_edit is dangerous", mr.isDangerous("multi_edit") === true);
 
   const found = scanSkills(sroot);
   ok("skills scan finds every SKILL.md folder",
-    found.length === 2 && found.some((s) => s.name === "deploy") && found.some((s) => s.name === "plain"),
+    found.length >= 2 && found.some((s) => s.name === "deploy") && found.some((s) => s.name === "plain"),
     JSON.stringify(found.map((s) => s.name)));
+  ok("the 40 built-in skills are included as the fallback",
+    found.filter((s) => s.origin === "builtin").length === 40 &&
+    found.some((s) => s.name === "asking-questions" && s.origin === "builtin") &&
+    found.some((s) => s.name === "pulse-harness" && s.origin === "builtin"));
   const dep = found.find((s) => s.name === "deploy");
   ok("frontmatter drives name and description",
     dep.origin === "project" && dep.description === "Ship it: build, sign, upload, verify",

@@ -1,5 +1,10 @@
 # What's new in Pulse Harness
 
+## 1.27.3 — 2026-11-05
+- **40 built-in skills.** Pulse now ships 40 SKILL.md packs in `desktop/skills`: asking-questions, requirements, explaining-code, pulse-harness, debugging, error-messages, tests, fixing-tests, code-review, refactoring, git, git-conflicts, release, api-design, databases, frontend, css-layout, accessibility, performance, security, dependencies, powershell, shell, python, nodejs, typescript, react, regex, json-yaml, markdown, technical-writing, research, summarizing, planning, estimation, data-analysis, spreadsheets, documents, presentations and mcp-connectors. They appear in Settings > Skills as `built-in`; project/user/plugin skills can override any of them.
+- **Questions and app knowledge.** Both system prompts now carry an explicit asking protocol: identify the target, outcome and constraint; ask 1-3 clickable questions only when the answer changes the work; never ask what the repo already answers. `ask_user` also accepts a single question object or a JSON string instead of silently dropping a malformed call. Pulse-specific questions route to `self_knowledge` and the `pulse-harness` skill, and the self manual now documents the real desktop/web surfaces, sessions, worktrees, skills, connectors, hooks and config.
+- **Update log** includes these notes.
+
 ## 1.27.2 — 2026-11-05
 - **New Pulse Harness artwork.** The desktop app uses the supplied dark **Pulse Harness BG** mark in the sidebar, landing page, boot screen and app icon; the web build uses the light **Pulse Harness** mark on a white tile, with a matching favicon. The old generated P logo is no longer used by the UI.
 - **Update log** includes these notes.

@@ -9453,7 +9453,7 @@ async function loadSkills() {
 }
 
 function skillOriginPill(origin) {
-  const map = { project: ["ok", "project"], user: ["dim", "user"], plugin: ["warn", "plugin"], path: ["dim", "path"] };
+  const map = { project: ["ok", "project"], user: ["dim", "user"], plugin: ["warn", "plugin"], path: ["dim", "path"], builtin: ["ok", "built-in"] };
   const [cls, label] = map[origin] || ["dim", origin];
   return `<span class="pill ${cls}" style="margin-left:6px">${esc(label)}</span>`;
 }

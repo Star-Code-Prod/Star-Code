@@ -7,16 +7,20 @@
 //   $STAR_CODE_DATA/skills/<name>/SKILL.md     user skills (else ~/.star-code)
 //   plugin dirs (addSkillDir - lib/plugins.js)
 //   $STAR_CODE_DATA/skills.json {"paths":[]}   extra paths (Settings, import)
+//   desktop/skills/<name>/SKILL.md             bundled fallback (40 packs)
 //
 // Scanning is per call (small dirs, cached prompts above), bodies are read
 // fresh when loaded, and every list is capped so the prompt stays cheap.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const BUILTIN_SKILLS = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "skills");
 
 const MAX_DEPTH = 3;
 const DESC_CAP = 220;
-const CATALOG_CAP = 4500;
+const CATALOG_CAP = 12_000;
 const BODY_CAP = 12_000;
 const RESOURCE_CAP = 24;
 const CONFIG_PATHS_CAP = 24;
@@ -70,6 +74,9 @@ export function skillDirs(root) {
     { dir: path.join(dataDir(), "skills"), origin: "user" },
     ...pluginDirs.map((d) => ({ dir: d, origin: "plugin" })),
     ...readSkillsConfig().paths.map((p) => ({ dir: path.resolve(p), origin: "path" })),
+    // Built-ins are the fallback: project/user/plugin/extra skills with the
+    // same name win, so a team can override any of these 40 packs.
+    { dir: BUILTIN_SKILLS, origin: "builtin" },
   ];
 }
 
