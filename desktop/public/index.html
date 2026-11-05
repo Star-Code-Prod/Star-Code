@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Star</title>
+<title>Pulse Harness</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -214,6 +214,7 @@ body.is-mac .wc{display:none}
   color:var(--brand);
 }
 .sb-word{font-family:var(--font-serif);font-size:22px;font-weight:500;letter-spacing:-.01em;color:var(--text-strong,var(--text))}
+.sb-mini{font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin:4px 0 0 5px}
 .sb-sub{margin-left:auto;font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--dim)}
 .seg{display:flex;gap:6px;margin:var(--sp-3) var(--sp-3) var(--sp-2);padding:4px;background:var(--chip);border-radius:var(--r-sm)}
 .seg button{
@@ -993,7 +994,7 @@ body.mode-chat #navProjects{display:none}
 .workbar .wact,.workline .wact{font-size:var(--fs-11);color:var(--dim)}
 .workbar .wact:empty,.workline .wact:empty{display:none}
 
-/* the live working line in the transcript: spinner + "Star is working" + the
+/* the live working line in the transcript: spinner + "Pulse is working" + the
    small activity word, always trailing the newest content */
 .workline{
   display:flex;align-items:center;gap:8px;margin:14px auto 4px;
@@ -1465,6 +1466,21 @@ html[data-embed] #splitBox{display:none !important}
 .set-main .h{font-family:var(--font-sans);font-size:var(--fs-22);font-weight:600;letter-spacing:-.02em;margin:0 0 6px}
 .set-main .sh{font-size:var(--fs-12);color:var(--muted);margin:0 0 var(--sp-5);line-height:1.6}
 .set-main .sect{max-width:660px}
+.conn-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:760px}
+.conn-card{display:flex;align-items:center;gap:11px;padding:13px 14px;border:1px solid var(--border);border-radius:12px;background:var(--panel)}
+.conn-ico{width:38px;height:38px;flex:none;border-radius:9px;display:grid;place-items:center;background:var(--cc);color:#fff;font:600 16px/1 var(--font-sans);letter-spacing:-.02em}
+.conn-txt{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.conn-txt b{font-size:var(--fs-13);font-weight:600;color:var(--text)}
+.conn-txt span{font-size:var(--fs-115);color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cmodal-back{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 38%,transparent);backdrop-filter:blur(3px);z-index:200;display:grid;place-items:center;padding:24px}
+.cmodal{width:min(480px,calc(100vw - 48px));background:var(--panel);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-lg);padding:18px}
+.cm-h{display:flex;align-items:center;gap:11px;margin-bottom:14px}
+.cm-h b{display:block;font-size:var(--fs-14)}
+.cm-h span{display:block;font-size:var(--fs-115);color:var(--muted);margin-top:2px}
+.cm-l{display:flex;flex-direction:column;gap:5px;font-size:var(--fs-12);color:var(--muted);margin-bottom:10px}
+.cm-l .set-sub{color:var(--dim);font-size:var(--fs-11)}
+.cm-l input,.cm-l textarea{font-family:var(--font-mono);font-size:var(--fs-12);padding:8px 9px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);resize:vertical}
+.cm-f{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
 .card{
   background:var(--panel);border:1px solid var(--border);border-radius:12px;
   padding:16px 18px;margin-bottom:12px;box-shadow:none;
@@ -1698,9 +1714,9 @@ body.mode-chat #bigProj{display:none}
 
 <div class="boot" id="boot" role="status" aria-live="polite">
   <div class="boot-in">
-    <span class="boot-star" aria-hidden="true">✦</span>
+    <span class="boot-star" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 16 16" fill="none"><path d="M5.3 13.2V2.8h3a3.1 3.1 0 010 6.2h-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="11.4" cy="11.4" r="1" fill="currentColor"/></svg></span>
     <span class="spinner" aria-hidden="true"></span>
-    <span class="boot-txt">Starting Star…</span>
+    <span class="boot-txt">Starting Pulse Harness…</span>
   </div>
 </div>
 
@@ -1745,7 +1761,7 @@ body.mode-chat #bigProj{display:none}
   <span class="ic">
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 2.5v7M8 9.5L5 6.5M8 9.5l3-3M3 12.5h10"/></svg>
   </span>
-  <span><b>Star <span class="rel" id="updateVer">—</span></b> is available — you have <span class="rel" id="updateCur">—</span>.</span>
+  <span><b>Pulse Harness <span class="rel" id="updateVer">—</span></b> is available — you have <span class="rel" id="updateCur">—</span>.</span>
   <span class="spacer"></span>
   <span class="rel" id="updateState"></span>
   <button class="btn pri sm" id="updateNow">Update now</button>
@@ -1758,9 +1774,9 @@ body.mode-chat #bigProj{display:none}
   <aside class="sidebar" id="sidebar">
     <div class="sb-brand">
       <span class="sb-mark" aria-hidden="true">
-        <svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor"><path d="M8 .7C8.9 5.6 10.4 7.1 15.3 8 10.4 8.9 8.9 10.4 8 15.3 7.1 10.4 5.6 8.9.7 8 5.6 7.1 7.1 5.6 8 .7Z"/></svg>
+        <svg width="24" height="24" viewBox="0 0 16 16" fill="none"><path d="M5.3 13.2V2.8h3a3.1 3.1 0 010 6.2h-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="11.4" cy="11.4" r="1" fill="var(--accent)"/></svg>
       </span>
-      <span class="sb-word">Star</span>
+      <span class="sb-word">Pulse</span><span class="sb-mini">Harness</span>
       <div class="seg seg-icons sb-modes" id="modeSeg" role="group" aria-label="Mode">
         <button type="button" data-mode="chat" aria-pressed="false" aria-label="Chat mode" title="Chat mode">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3.3c3.2 0 5.7 2 5.7 4.5S11.2 12.3 8 12.3c-.5 0-1.1-.1-1.6-.2l-2.9.9.8-2.2c-1.3-.8-2.1-1.9-2.1-3C2.2 5.3 4.8 3.3 8 3.3z"/></svg>
@@ -1897,7 +1913,7 @@ body.mode-chat #bigProj{display:none}
         <button class="cplus" id="cPlus" type="button" title="More: side chat, attach a file, shell command, export, new session" aria-label="More actions">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M8 3.2v9.6M3.2 8h9.6"/></svg>
         </button>
-        <textarea id="input" rows="1" placeholder="Type / for commands" aria-label="Message Star"></textarea>
+        <textarea id="input" rows="1" placeholder="Type / for commands" aria-label="Message Pulse Harness"></textarea>
         <button class="kbdh" id="kbdHint" type="button" title="Send" aria-label="Send message">
           <svg class="ic-send" width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13.5V3M3.5 7.5L8 3l4.5 4.5"/></svg>
           <svg class="ic-stop" width="12" height="12" viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="3.5" width="9" height="9" rx="2" fill="currentColor"/></svg>
@@ -1974,7 +1990,7 @@ body.mode-chat #bigProj{display:none}
         <div class="pane-sub"><span>Plan</span><span class="spacer"></span><button class="pane-x" data-panex="plan" title="Close Plan" aria-label="Close Plan"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
         <div class="pane-b">
           <div class="plan-body" id="planBody">
-            <div class="pempty" id="planEmpty">No plan yet.<br><span style="font-size:11.5px">Star writes the plan here as it explores. Keep chatting.</span></div>
+            <div class="pempty" id="planEmpty">No plan yet.<br><span style="font-size:11.5px">Pulse writes the plan here as it explores. Keep chatting.</span></div>
           </div>
         </div>
         <div class="pane-grip-b" data-panegrip="plan" title="Drag to resize · double-click to reset" aria-hidden="true"></div>
@@ -1982,7 +1998,7 @@ body.mode-chat #bigProj{display:none}
 
       <section class="pane-row" data-pane="terminal">
         <div class="pane-sub"><span>Terminal</span><span class="spacer"></span><button class="pane-x" data-panex="terminal" title="Close Terminal" aria-label="Close Terminal"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
-        <div class="term" id="term">[shell] ready — commands Star runs appear here</div>
+        <div class="term" id="term">[shell] ready — commands Pulse runs appear here</div>
         <form class="termform" id="termForm">
           <span>$</span>
           <input id="termInput" type="text" placeholder="Run a command in this project…" autocomplete="off" spellcheck="false" aria-label="Terminal command">
@@ -2108,6 +2124,10 @@ body.mode-chat #bigProj{display:none}
         <button data-s="plugins">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6.4 2.4h3.2v3.2h3.2v3.2h-3.2v3.2H6.4v-3.2H3.2V5.6h3.2z"/></svg>
           Plugins
+        </button>
+        <button data-s="connectors">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3.2H4.2A2.2 2.2 0 0 0 2 5.4v1.4M10 3.2h1.8A2.2 2.2 0 0 1 14 5.4v1.4"/><path d="M5.2 8h5.6v2.2a2.8 2.8 0 0 1-5.6 0z"/><path d="M8 13v1"/></svg>
+          Connectors
         </button>
         <button data-s="keys">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><rect x="1.5" y="4" width="13" height="8" rx="2"/><path d="M4.5 7h2M8 7h3.5M4.5 9.5h5"/></svg>
@@ -2325,7 +2345,7 @@ function finishLive(sid) {
     saveLocalSessionFlags();
     if (document.hidden && bridge && bridge.notify) {
       const s = sessionList.find((x) => x.id === sid);
-      try { bridge.notify({ title: "Star", body: (s && s.title ? s.title : "Session") + " finished" }); } catch { /* fine */ }
+      try { bridge.notify({ title: "Pulse Harness", body: (s && s.title ? s.title : "Session") + " finished" }); } catch { /* fine */ }
     }
   }
   renderSessions();
@@ -2334,7 +2354,7 @@ let currentMsg = null, proc = null, currentThink = null, toolGroup = null, toolT
 let slashIdx = 0, slashMatches = [], planText = "", lastUsage = null;
 
 const MODES = [
-  { id: "manual", label: "Ask permissions", d: "Star asks before editing files or running commands" },
+  { id: "manual", label: "Ask permissions", d: "Pulse Harness asks before editing files or running commands" },
   { id: "acceptEdits", label: "Accept edits", d: "File edits are auto-accepted; commands still ask" },
   { id: "plan", label: "Plan mode", d: "Read-only exploration; proposes a plan first" },
   { id: "bypass", label: "Bypass permissions", d: "Runs everything without asking" },
@@ -2618,10 +2638,10 @@ const UI_COPY = {
     bigPlaceholder: "Describe a task or ask a question about the project",
   },
   chat: {
-    title: "Chat with Star",
+    title: "Chat with Pulse",
     sub: "Questions, drafts, and ideas — answers stream right here.",
-    placeholder: "Ask Star anything",
-    bigPlaceholder: "Ask Star anything",
+    placeholder: "Ask Pulse anything",
+    bigPlaceholder: "Ask Pulse anything",
   },
 };
 
@@ -4132,7 +4152,7 @@ function renderUiEntry(e) {
     n.innerHTML = `
       <div class="ph">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.8l5 2.2v4.2c0 3-2.1 5.4-5 6-2.9-.6-5-3-5-6V4z"/></svg>
-        Star wanted to ${kind}
+        Pulse wanted to ${kind}
       </div>
       <div class="pb">${esc(String((e.args && (e.args.command || e.args.path || e.args.url)) || e.ask || ""))}</div>
       <div class="pa"><span class="pill ${v && v.allowed ? "ok" : v ? "no" : "dim"}">${esc(label)}</span></div>`;
@@ -6636,7 +6656,7 @@ function renderMotionArtifact(body, a) {  const idx = artifactView.i;
         <span class="mo-note-at" id="moNoteAt"></span>
         <input class="inp" id="moNoteText" placeholder="It's supposed to be…" autocomplete="off" aria-label="Comment text">
         <button class="btn sm" id="moNoteAdd">Add</button>
-        <button class="btn sm pri" id="moNoteSend">Send to Star</button>
+        <button class="btn sm pri" id="moNoteSend">Send to Pulse</button>
       </div>`;
     syncNoteAt();
     const chip = panel.querySelector("#moPick");
@@ -6685,7 +6705,7 @@ function renderMotionArtifact(body, a) {  const idx = artifactView.i;
       renderMarks();
       if (send) {
         closePanel();
-        toast("Sent to Star");
+        toast("Sent to Pulse");
         sendToAgent(motionNoteMessage(artifactName(a), n.t, text, n));
       } else {
         input.value = "";
@@ -6755,7 +6775,7 @@ const WORK_CURSOR_SVG = '<svg class="apwork-cursor" width="20" height="20" viewB
 
 /** The working state: shown in the viewer from the first line of an artifact
  *  fence until the finished artifact replaces it. Skeleton + a cursor moving
- *  around like Star is working on the page. */
+ *  around like Pulse is working on the page. */
 function renderWorkingInto(host, lang) {
   motionCtx = null;   // any previous player is gone with this rebuild
   host.dataset.working = "1";
@@ -6763,7 +6783,7 @@ function renderWorkingInto(host, lang) {
   host.innerHTML = `
     <div class="apwork">
       <div class="apwork-in">
-        <div class="apwork-head">${SPARK_SVG}<span>Star is working</span><span class="apwork-el" data-el></span></div>
+        <div class="apwork-head">${SPARK_SVG}<span>Pulse is working</span><span class="apwork-el" data-el></span></div>
         <div class="apwork-sub">Writing your ${esc(label)} — it appears here finished, nothing to click.</div>
         <div class="apwork-sk">
           <div class="sk" style="width:42%"></div>
@@ -6796,13 +6816,13 @@ function autoOpenArtifactView() {
     const wasOpen = el.classList.contains("on");
     if (!wasOpen) artDlgReturnFocus = document.activeElement;
     el.classList.add("on");
-    $("artTitle").textContent = "Star is working…";
+    $("artTitle").textContent = "Pulse is working…";
     renderWorkingInto($("artBody"), lang);
     if (!wasOpen) { const b = $("artClose"); if (b) b.focus(); }
     return;
   }
   showPane("preview");
-  $("previewTitle").textContent = "Star is working…";
+  $("previewTitle").textContent = "Pulse is working…";
   setPreviewEmpty(false);
   const host = $("filePreview");
   host.style.display = "flex";
@@ -6827,7 +6847,7 @@ function openArtifactDialog() {
     const wasOpen = el.classList.contains("on");
     if (!wasOpen) artDlgReturnFocus = document.activeElement;
     el.classList.add("on");
-    $("artTitle").textContent = "Star is working…";
+    $("artTitle").textContent = "Pulse is working…";
     renderWorkingInto($("artBody"), pendingArt.lang);
     if (!wasOpen) { const b = $("artClose"); if (b) b.focus(); }
     return;
@@ -6954,7 +6974,7 @@ document.addEventListener("keydown", e => {
    "2 thoughts, 1 tool call" block instead of a stack of separate pills.
    Settings: showThinking off drops reasoning rows entirely; autoCollapseThinking
    on closes the card once the round ends. */
-const SPARK_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 1.5c.7 5.6 4.9 9.8 10.5 10.5-5.6.7-9.8 4.9-10.5 10.5-.7-5.6-4.9-9.8-10.5-10.5C7.1 11.3 11.3 7.1 12 1.5Z"/></svg>';
+const SPARK_SVG = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M7 20V4h5a5 5 0 010 10H7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="17" cy="17" r="1.6" fill="currentColor" opacity=".85"/></svg>';
 
 /* ---- Process: a round's reasoning and tool calls as one list of rows ----
    Every think/tool run in a round lands in a single card that opens above the
@@ -7398,7 +7418,7 @@ function renderAsk(evt, opts = {}) {
   const picks = qs.map(() => new Set());
   const others = qs.map(() => "");
   n.innerHTML = `
-    <div class="ask-h">${SPARK_SVG}<span>Star has a question</span></div>
+    <div class="ask-h">${SPARK_SVG}<span>Pulse has a question</span></div>
     ${qs.map((q, qi) => `
       <div class="ask-q" data-q="${qi}">
         ${q.header ? `<span class="ask-tag">${esc(q.header)}</span>` : ""}
@@ -7528,7 +7548,7 @@ function renderSuggest(evt, opts = {}) {
   const n = node("askcard suggest");
   n.dataset.sg = evt.id;
   n.innerHTML = `
-    <div class="ask-h">${SPARK_SVG}<span>Star suggests a new session</span></div>
+    <div class="ask-h">${SPARK_SVG}<span>Pulse suggests a new session</span></div>
     <div class="ask-q">
       <div class="ask-t"><b>${esc(evt.title)}</b></div>
       <div class="ask-d">${esc(evt.description)}</div>
@@ -8139,7 +8159,7 @@ async function newSession(opts = {}) {
   if (answerFlush) { cancelAnimationFrame(answerFlush); answerFlush = 0; }
   answerDirty = false;
   $("stream").innerHTML = "";
-  $("term").innerHTML = '<span class="rt">[shell] ready — commands Star runs appear here</span>';
+  $("term").innerHTML = '<span class="rt">[shell] ready — commands Pulse runs appear here</span>';
   $("sTitle").textContent = opts.title || "New session";
   $("prbar").style.display = "none";
   renderTodos([]); renderDiffPane();
@@ -8334,7 +8354,7 @@ function abort() { userAborted = true; fetch("/api/abort", { method: "POST", hea
 let workTimer = null, workStart = 0;
 
 /* ---- the live activity word ("thinking", "reading a file") ----
-   Shown small beside "Star is working" in the transcript, and in the
+   Shown small beside "Pulse is working" in the transcript, and in the
    composer's work bar. One string, updated by the event stream. */
 const ACTIVITY_VERBS = {
   read_file: "reading a file", list_dir: "listing files", search_files: "searching",
@@ -8371,7 +8391,7 @@ function showWorkLine(on) {
     line = document.createElement("div");
     line.className = "workline";
     line.setAttribute("role", "status");
-    line.innerHTML = '<span class="wspin" aria-hidden="true"></span><span class="wlbl2">Star is working</span><span class="wact"></span>';
+    line.innerHTML = '<span class="wspin" aria-hidden="true"></span><span class="wlbl2">Pulse is working</span><span class="wact"></span>';
   }
   const wa = line.querySelector(".wact");
   if (wa) wa.textContent = activity;
@@ -8635,6 +8655,7 @@ function renderSettings() {
   else if (settingsSection === "mcp") host.innerHTML = settingsMcp();
   else if (settingsSection === "skills") host.innerHTML = settingsSkills();
   else if (settingsSection === "plugins") host.innerHTML = settingsPlugins();
+  else if (settingsSection === "connectors") host.innerHTML = settingsConnectors();
   else if (settingsSection === "keys") host.innerHTML = settingsKeys();
   else host.innerHTML = settingsAbout();
   wireSettings();
@@ -8679,6 +8700,11 @@ function renderSettings() {
   if (settingsSection === "skills") {
     loadSkills().then(changed => {
       if (changed && settingsSection === "skills" && $("settings").classList.contains("on")) settingsAutoRender();
+    });
+  }
+  if (settingsSection === "connectors") {
+    loadConnectors().then(changed => {
+      if (changed && settingsSection === "connectors" && $("settings").classList.contains("on")) settingsAutoRender();
     });
   }
   if (settingsSection === "plugins") {
@@ -8888,7 +8914,7 @@ function settingsProviders() {
     </div>
     <div class="card">
       <div class="ct">Online reputation</div>
-      <div class="cs">Star hashes every file it downloads and, with this key, checks that hash against VirusTotal — detections, community votes and comments — before keeping the file or letting it run. Paste a free API key from virustotal.com → Profile → API key.</div>
+      <div class="cs">Pulse Harness hashes every file it downloads and, with this key, checks that hash against VirusTotal — detections, community votes and comments — before keeping the file or letting it run. Paste a free API key from virustotal.com → Profile → API key.</div>
       <div class="fld">
         <label>VirusTotal API key ${vtPill()}</label>
         <input class="inp mono" id="fVtKey" type="password" value="" placeholder="VirusTotal API key" autocomplete="off">
@@ -9071,7 +9097,7 @@ function settingsSession() {
     </div>
     <div class="card">
       <div class="ct">Working directory</div>
-      <div class="cs">The folder Star reads and edits. Changing it starts a fresh session.</div>
+      <div class="cs">The folder Pulse Harness reads and edits. Changing it starts a fresh session.</div>
       <div class="row" style="align-items:flex-start">
         <div class="rl"><div class="rd" style="font-family:'JetBrains Mono',monospace;word-break:break-all;color:var(--text2)" id="fRootLabel">${esc(state.root || "")}</div></div>
         <div class="rc">
@@ -9290,7 +9316,7 @@ function settingsMcp() {
       </div>
       <div class="card">
         <div class="ct">Project config</div>
-        <div class="cs">A project can ship its own servers; they win by name over the user file. Star reads both a Claude-style <span class="mono">.mcp.json</span> at the project root and <span class="mono">.star-code/mcp.json</span>.</div>
+        <div class="cs">A project can ship its own servers; they win by name over the user file. Pulse Harness reads both a Claude-style <span class="mono">.mcp.json</span> at the project root and <span class="mono">.star-code/mcp.json</span>.</div>
         ${(mcpPaths.projectPaths || []).map(p => `<div class="mcp-path mono">${esc(p)}</div>`).join("")}
         ${mcpConfig.project ? `<div class="mcp-meta">The project file defines ${esc(String((mcpConfig.project.match(/"command"|"url"/g) || []).length))} entry point${(mcpConfig.project.match(/"command"|"url"/g) || []).length === 1 ? "" : "s"}.</div>` : `<div class="mcp-meta">No project file for this folder.</div>`}
       </div>
@@ -9357,7 +9383,7 @@ function settingsSkills() {
   return `
   <div class="sect">
     <h2 class="h">Skills</h2>
-    <p class="sh">SKILL.md packs the agent loads with the <span class="mono">skill</span> tool when their description matches the task. Star reads <span class="mono">~/.star-code/skills/&lt;name&gt;/SKILL.md</span>, the project's <span class="mono">.star-code/skills/</span>, plugin-provided folders and the extra paths below - the same format opencode uses, so its skill folders work as-is.</p>
+    <p class="sh">SKILL.md packs the agent loads with the <span class="mono">skill</span> tool when their description matches the task. Pulse Harness reads <span class="mono">~/.star-code/skills/&lt;name&gt;/SKILL.md</span>, the project's <span class="mono">.star-code/skills/</span>, plugin-provided folders and the extra paths below - the same format opencode uses, so its skill folders work as-is.</p>
     <div class="card">
       <div class="ct">Available skills</div>
       <div class="cs">${skillList.length ? skillList.length + " skill" + (skillList.length === 1 ? "" : "s") + " the agent can load" : "No skills yet. Put a folder with a SKILL.md into one of the paths below."}</div>
@@ -9380,6 +9406,71 @@ function settingsSkills() {
       <button class="btn pri sm" id="fSkillPathAdd">Add path</button>
     </div>
   </div>`;
+}
+
+/* ---- connectors settings ---- */
+let connectorRows = [];
+let connectorLoadedAt = 0;
+async function loadConnectors() {
+  if (Date.now() - connectorLoadedAt < 2000) return false;
+  try {
+    const data = await (await fetch("/api/connectors")).json();
+    connectorRows = data.connectors || [];
+    connectorLoadedAt = Date.now();
+    return true;
+  } catch { return false; }
+}
+function settingsConnectors() {
+  return `
+    <h2 class="h">Connectors</h2>
+    <p class="sh">Connect your tools. Each card adds an MCP server to your local <span class="mono">~/.star-code/mcp.json</span>; paste the command and any token the service needs. Tokens stay in that local file, never in this page.</p>
+    <div class="conn-grid">
+      ${connectorRows.map(c => `
+        <div class="conn-card">
+          <span class="conn-ico" style="--cc:${esc(c.color || "var(--accent)")}">${esc(c.mark || c.name.slice(0, 1))}</span>
+          <span class="conn-txt"><b>${esc(c.name)}</b><span>${esc(c.desc)}</span></span>
+          <button class="btn sm ${c.connected ? "" : "pri"}" data-conn="${esc(c.id)}" data-on="${c.connected ? "1" : ""}">${c.connected ? "Connected" : "Connect"}</button>
+        </div>`).join("")}
+    </div>
+    <div class="cs" style="margin-top:12px">Connected tools become MCP tools the agent can call after the server restarts. Manage raw entries in <b>Settings > MCP</b>.</div>`;
+}
+function openConnectorModal(c) {
+  const old = document.getElementById("connModal");
+  if (old) old.remove();
+  const back = document.createElement("div");
+  back.id = "connModal";
+  back.className = "cmodal-back";
+  back.innerHTML = `
+    <div class="cmodal" role="dialog" aria-modal="true" aria-label="Connect ${esc(c.name)}">
+      <div class="cm-h"><span class="conn-ico" style="--cc:${esc(c.color || "var(--accent)")}">${esc(c.mark || c.name.slice(0, 1))}</span><div><b>${esc(c.name)}</b><span>${esc(c.desc)}</span></div></div>
+      <label class="cm-l">MCP command<input id="connCmd" value="${esc(c.command || "")}" placeholder="npx / uvx / a full path" autocomplete="off"></label>
+      <label class="cm-l">Arguments<input id="connArgs" value="${esc((c.args || []).join(" "))}" placeholder="-y package-name" autocomplete="off"></label>
+      <label class="cm-l">Environment <span class="set-sub">one KEY=value per line</span><textarea id="connEnv" rows="3" placeholder="SLACK_BOT_TOKEN=xoxb-…">${esc(Object.entries(c.env || {}).map(([k, v]) => k + "=" + v).join("\n"))}</textarea></label>
+      <div class="cm-f"><button class="btn sm" id="connCancel">Cancel</button><button class="btn sm pri" id="connSave">Connect</button></div>
+    </div>`;
+  document.body.appendChild(back);
+  const close = () => back.remove();
+  back.addEventListener("click", (e) => { if (e.target === back) close(); });
+  $("connCancel").onclick = close;
+  $("connSave").onclick = async () => {
+    const env = {};
+    for (const line of $("connEnv").value.split(/\n+/)) {
+      const i = line.indexOf("=");
+      if (i > 0) env[line.slice(0, i).trim()] = line.slice(i + 1).trim();
+    }
+    const r = await (await fetch("/api/connectors", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: c.id, command: $("connCmd").value, args: $("connArgs").value, env }),
+    })).json();
+    if (!r.ok) { toast(r.error || "Could not connect"); return; }
+    close(); connectorLoadedAt = 0; toast(c.name + " connected"); settingsAutoRender();
+  };
+}
+async function toggleConnector(c) {
+  if (!c.connected) return openConnectorModal(c);
+  if (!confirm("Disconnect " + c.name + "? Its MCP entry will be removed.")) return;
+  await fetch("/api/connectors?id=" + encodeURIComponent(c.id), { method: "DELETE" });
+  connectorLoadedAt = 0; toast(c.name + " disconnected"); settingsAutoRender();
 }
 
 /* ---- plugins settings ---- */
@@ -9450,11 +9541,11 @@ function settingsAbout() {
   return `
   <div class="sect">
     <h2 class="h">About</h2>
-    <p class="sh">Star runs entirely on this machine — the same agent also ships as the <b>Star Code CLI</b> (<span class="mono">star-code</span>). It only talks to the model provider you configure.</p>
+    <p class="sh">Pulse Harness runs entirely on this machine — the same agent also ships as the <b>Star Code CLI</b> (<span class="mono">star-code</span>). It only talks to the model provider you configure.</p>
 
     <div class="card">
       <div class="ct">Updates</div>
-      <div class="cs">Star never installs updates on its own. This checks the release list and, if a newer version exists, points you at the download page.</div>
+      <div class="cs">Pulse Harness never installs updates on its own. This checks the release list and, if a newer version exists, points you at the download page.</div>
       <div class="row">
         <div class="rl">
           <div class="rt">Version <span class="pill" style="margin-left:6px">v${esc(String(ver))}</span>${
@@ -9913,6 +10004,10 @@ function wireSettings() {
     } catch { toast("Could not update the paths"); }
     await pluginsRefresh();
   }));
+  document.querySelectorAll("[data-conn]").forEach(el => el.addEventListener("click", () => {
+    const c = connectorRows.find(x => x.id === el.dataset.conn);
+    if (c) toggleConnector(c);
+  }));
   on("fThink", "click", e => { state.showThinking = !state.showThinking; save(); e.target.classList.toggle("on", state.showThinking); });
   on("fCollapse", "click", e => { state.autoCollapseThinking = !state.autoCollapseThinking; save(); e.target.classList.toggle("on", state.autoCollapseThinking); });
 
@@ -10159,5 +10254,6 @@ $("btnSessFilter").addEventListener("click", (e) => {
 });
 $("btnTreeRefresh").addEventListener("click", () => { loadTree(); toast("File list refreshed"); });
 </script>
+<div id="connModal"></div>
 </body>
 </html>

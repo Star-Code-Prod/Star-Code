@@ -1,16 +1,16 @@
 <div align="center">
 
-<img src="desktop/assets/icon.png" width="96" alt="Star">
+<img src="desktop/assets/icon.png" width="96" alt="Pulse Harness">
 
-# Star
+# Pulse Harness
 
-**A local, provider-agnostic agentic coding tool — the Star desktop app and the Star Code CLI.**
+**A local, provider-agnostic agentic coding tool — the Pulse Harness desktop app and the Star Code CLI.**
 
-Bring your own model. Star reads, searches, edits and runs commands in your project — and asks before it touches anything.
+Bring your own model. Pulse Harness reads, searches, edits and runs commands in your project — and asks before it touches anything.
 
 [![Release](https://img.shields.io/github/v/release/Star-Code-Prod/Star-Code?label=release&color=A35F00)](https://github.com/Star-Code-Prod/Star-Code/releases) [![Build](https://github.com/Star-Code-Prod/Star-Code/actions/workflows/build.yml/badge.svg)](https://github.com/Star-Code-Prod/Star-Code/actions/workflows/build.yml) [![License: MIT](https://img.shields.io/github/license/Star-Code-Prod/Star-Code?color=A35F00)](https://github.com/Star-Code-Prod/Star-Code/blob/main/desktop/LICENSE) [![Platform](https://img.shields.io/badge/platform-Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-151A2E)](https://github.com/Star-Code-Prod/Star-Code)
 
-<img src="desktop/docs/screenshot.png" width="900" alt="Star desktop app">
+<img src="desktop/docs/screenshot.png" width="900" alt="Pulse Harness desktop app">
 
 **Website:** https://star-code-prod.github.io/Star-Code/
 
@@ -18,7 +18,7 @@ Bring your own model. Star reads, searches, edits and runs commands in your proj
 
 ---
 
-Star is the harness, not the model: the tools, the permission model, the diff review, the desktop shell. Bring your own (DeepSeek, OpenAI, Anthropic, Ollama, LM Studio, or any OpenAI-compatible endpoint) — including a model running on your own machine. The desktop app is **Star**; the terminal CLI is **Star Code**. Both share the same agent loop, web UI, tools and credential store — and the CLI needs no server at all.
+Pulse Harness is the harness, not the model: the tools, the permission model, the diff review, the desktop shell. Bring your own (DeepSeek, OpenAI, Anthropic, Ollama, LM Studio, or any OpenAI-compatible endpoint) — including a model running on your own machine. The desktop app is **Pulse Harness**; the terminal CLI is **Star Code**. Both share the same agent loop, web UI, tools and credential store — and the CLI needs no server at all.
 
 - **No telemetry, no accounts.** Your key goes to your provider, nothing else.
 - **No cloud.** The server runs on `127.0.0.1` and dies with the app.
@@ -32,10 +32,10 @@ Grab an installer from [Releases](https://github.com/Star-Code-Prod/Star-Code/re
 
 | Platform | File |
 |---|---|
-| Windows | `Star-Setup-<version>.exe` (installer) or `Star-<version>-portable.exe` |
+| Windows | `Pulse-Harness-Setup-<version>.exe` (installer) or `Pulse-Harness-<version>-x64.exe` (portable) |
 | Windows (CLI) | `Star-Code-CLI-<version>.exe` — standalone `star-code`, no Node needed |
-| macOS | `Star-<version>-arm64.dmg` |
-| Linux | `Star-<version>-x86_64.AppImage` or `Star-<version>-amd64.deb` |
+| macOS | `Pulse-Harness-<version>-arm64.dmg` |
+| Linux | `Pulse-Harness-<version>-x86_64.AppImage` or `Pulse-Harness-<version>-amd64.deb` |
 | CLI (Node 18+) | `star-code-cli-<version>.tgz` (or `.zip`) |
 
 Builds are unsigned, so your OS will warn you on first launch.
@@ -46,8 +46,9 @@ Builds are unsigned, so your OS will warn you on first launch.
 git clone https://github.com/Star-Code-Prod/Star-Code.git
 cd Star-Code/desktop
 npm install
-npm run electron      # the Star desktop app
-npm start             # or just the server + UI: http://localhost:4180
+npm run electron      # the Pulse Harness desktop app
+npm start             # server + UI: http://127.0.0.1:4180
+npm run web           # web version: prints http://127.0.0.1:<port> and opens it
 ```
 
 On Windows you can also double-click `desktop\start.bat` — it uses Electron when present and falls back to the browser when it isn't.
@@ -110,7 +111,7 @@ The **base URL is per provider and fully honored** — point it at a proxy or a 
 | **Artifacts** | `` ```artifact `` html/svg/md blocks render in a sandboxed preview pane with version history — plus live formats: **motion** (canvas films with synthesized music and effects, recordable to video), **voxel** (isometric 3D builds), slides, design, doc |
 | **Voxel builds** | `artifact voxel` scripts build 3D models (the VoxelBench idea): isometric render in the Preview, drag to rotate, wheel to zoom, revisions land as new versions of the same build |
 | **Blender viewport** | With a Blender MCP server and Blender running, the Preview's viewport button streams live screenshots and the agent scripts Blender through its MCP tools with a build-look-refine doctrine. The tools appear only while Blender is actually running — scripting Blender is for 3D scenes, never for file or shell chores |
-| **MCP servers** | Local and remote Model Context Protocol servers in Settings → MCP — add a command or URL, or paste a Claude/VS Code/opencode JSON config; Star starts them, their tools join the agent as `mcp__server__tool` with their real schemas, hand-edited `mcp.json` hot-reloads, and every call asks permission first |
+| **MCP servers** | Local and remote Model Context Protocol servers in Settings → MCP — add a command or URL, or paste a Claude/VS Code/opencode JSON config; Pulse starts them, their tools join the agent as `mcp__server__tool` with their real schemas, hand-edited `mcp.json` hot-reloads, and every call asks permission first |
 | **Custom agents** | Markdown personas in `.star-code/agents/` — the `task` tool runs them as read-only subagents, and the composer's agent chip (or `/agents`) runs one as the turn's persona: its prompt, its tools and its model |
 | **Usage pane** | Click the context ring: window used/limit, model, per-session calls, tool groups and compaction savings |
 | **Composer + menu** | The + opens: side chat, attach file (explorer, images/videos first — the path rides into the message), run shell command, export conversation, new session. Input modes: `@` file mention, `!` shell, `/` commands |

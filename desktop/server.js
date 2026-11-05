@@ -52,6 +52,18 @@ let ROOT = path.resolve(process.env.AGENT_ROOT || process.cwd());
 // download verifier reads the VirusTotal key from here.
 const AUX_CREDENTIAL_IDS = new Set(["virustotal"]);
 
+/** Ready-to-connect tools shown in Settings > Connectors. A command is only a
+ *  starting point: OAuth/tokens stay in the user's MCP environment. */
+const CONNECTOR_CATALOG = [
+  { id: "outlook", name: "Microsoft Outlook", desc: "Outlook mail and calendar", color: "#0f6cbd", mark: "O", command: "npx", args: ["-y", "@microsoft/mcp-server-office"], env: { MICROSOFT_CLIENT_ID: "", MICROSOFT_TENANT_ID: "" } },
+  { id: "slack", name: "Slack", desc: "Search and send messages", color: "#4a154b", mark: "S", command: "npx", args: ["-y", "@modelcontextprotocol/server-slack"], env: { SLACK_BOT_TOKEN: "", SLACK_TEAM_ID: "" } },
+  { id: "notion", name: "Notion", desc: "Search and edit your pages", color: "#1f1f1f", mark: "N", command: "npx", args: ["-y", "@notionhq/notion-mcp-server"], env: { NOTION_API_KEY: "" } },
+  { id: "linear", name: "Linear", desc: "Track issues and projects", color: "#5e6ad2", mark: "L", command: "npx", args: ["-y", "mcp-remote", "https://mcp.linear.app/sse"], env: {} },
+  { id: "github", name: "GitHub", desc: "Repos, issues and pull requests", color: "#24292f", mark: "G", command: "npx", args: ["-y", "@modelcontextprotocol/server-github"], env: { GITHUB_PERSONAL_ACCESS_TOKEN: "" } },
+  { id: "canvas", name: "Canvas", desc: "Courses, assignments and dates", color: "#c8102e", mark: "C", command: "", args: [], env: { CANVAS_API_TOKEN: "", CANVAS_BASE_URL: "" } },
+  { id: "ekonomi", name: "Ekonomi", desc: "Ask about your accounts and expenses", color: "#2f6b4f", mark: "E", command: "", args: [], env: { EKONOMI_API_KEY: "" } },
+];
+
 const sessions = new Map();
 
 /* ------------------------------- subagents ------------------------------- */
@@ -1032,6 +1044,38 @@ async function route(req, res) {
   /* --------------------------------- mcp --------------------------------- */
   // Settings > MCP speaks to these. The listing doubles as the status board
   // (off/starting/ready/idle/down + last error + tools per server).
+  // One-click-ish connector cards: list the catalog and write the chosen
+  // server into the project's MCP config. Tokens are still the user's job.
+  if (req.method === "GET" && url.pathname === "/api/connectors") {
+    const configured = new Set((mcpManager.list() || []).map((s) => s.name));
+    return sendJSON(res, 200, {
+      connectors: CONNECTOR_CATALOG.map((c) => ({ ...c, connected: configured.has(c.id) })),
+    });
+  }
+  if (req.method === "POST" && url.pathname === "/api/connectors") {
+    const body = await readBody(req);
+    const preset = CONNECTOR_CATALOG.find((c) => c.id === String(body.id || ""));
+    if (!preset) return sendJSON(res, 400, { error: "unknown connector" });
+    const command = String(body.command !== undefined ? body.command : preset.command || "").trim();
+    const urlValue = String(body.url || "").trim();
+    if (!command && !urlValue) return sendJSON(res, 400, { error: "add an MCP command (or a URL) for " + preset.name });
+    const args = Array.isArray(body.args) ? body.args.map(String)
+      : String(body.args || "").split(/\s+/).filter(Boolean);
+    let env = {};
+    if (body.env && typeof body.env === "object") env = body.env;
+    const ok = mcpManager.upsert(preset.id, {
+      command: command || undefined, args, env,
+      url: urlValue || undefined, enabled: true,
+    });
+    if (!ok) return sendJSON(res, 400, { error: "could not write the MCP config" });
+    return sendJSON(res, 200, { ok: true, id: preset.id, servers: mcpManager.list() });
+  }
+  if (req.method === "DELETE" && url.pathname === "/api/connectors") {
+    const id = String(url.searchParams.get("id") || "").trim();
+    if (!CONNECTOR_CATALOG.some((c) => c.id === id)) return sendJSON(res, 404, { error: "unknown connector" });
+    const result = mcpManager.remove(id);
+    return sendJSON(res, result.ok ? 200 : 400, result);
+  }
   if (req.method === "GET" && url.pathname === "/api/mcp") {
     const info = mcpManager.configInfo();
     return sendJSON(res, 200, { ok: true, servers: mcpManager.list(), paths: info });

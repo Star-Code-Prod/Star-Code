@@ -206,7 +206,7 @@ ok("the card opens above the message it explains", fnBody("function ensureProc("
 ok("visible prose ends the card", fnBody("function flushAnswer()").includes("proc = null"));
 ok("local notes end the card too", fnBody("function say(").includes("proc = null"));
 ok("the working state exists for pane and dialog",
-  /\.apwork-cursor\{/.test(html) && js.includes("function renderWorkingInto(") && js.includes("Star is working…"));
+  /\.apwork-cursor\{/.test(html) && js.includes("function renderWorkingInto(") && js.includes("Pulse is working…"));
 ok("syncArtifacts opens on the fence's first line",
   fnBody("function syncArtifacts(").includes("pendingFence(") && fnBody("function syncArtifacts(").includes("autoOpenArtifactView("));
 ok("cards are committed with the artifact, not at message end",
@@ -387,8 +387,8 @@ ok("comments can point at the picture",
   js.includes("let pick = null;") && js.includes("pinsLayer.classList.toggle(\"picking\"") &&
   js.includes("mo-pinbox") && /\.mo-pins\.picking\{/.test(html.replace(/\s+/g, "")) &&
   js.includes("if (pick) Object.assign(n, pick);"));
-ok("a note can be sent to Star as feedback",
-  js.includes("sendToAgent(motionNoteMessage(artifactName(a)") && js.includes("Send to Star"));
+ok("a note can be sent to Pulse as feedback",
+  js.includes("sendToAgent(motionNoteMessage(artifactName(a)") && js.includes("Send to Pulse"));
 ok("the runtime plays at the chosen speed",
   js.includes('m.type === "motion-speed"') && js.includes("/ 1000 * speed") &&
   js.includes('send({ type: "motion-speed", speed: st.speed })'));
@@ -644,6 +644,14 @@ ok("diffs support unified/split views, hunk jumps and safe revert",
 {
   const preloadSrc = fs.readFileSync("electron/preload.cjs", "utf8");
   const mainSrc = fs.readFileSync("electron/main.cjs", "utf8");
+  const webSrc = fs.readFileSync("web.mjs", "utf8");
+  ok("the web version prints the local URL and opens it",
+    webSrc.includes("Pulse Harness — web version") && webSrc.includes('"http://127.0.0.1:" + srv.port') &&
+    webSrc.includes("EADDRINUSE") && webSrc.includes("--no-open"));
+  ok("Settings carries the connector catalog",
+    html.includes('data-s="connectors"') && js.includes("function settingsConnectors(") &&
+    js.includes("openConnectorModal") && js.includes("/api/connectors") &&
+    js.includes("connectorRows"));
   ok("the desktop shell carries the attach picker",
     mainSrc.includes('"desktop:pick-file"') && preloadSrc.includes("pickFile: () =>") &&
     /Images and videos/.test(mainSrc) && /"mp4"/.test(mainSrc));

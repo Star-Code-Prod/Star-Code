@@ -3,8 +3,8 @@
 //
 // Usage: node tools/make-icons.mjs
 //
-// The mark: a warm paper tile with a flat, four-point star in ink and a small
-// terracotta companion spark - the same geometry as assets/icon.svg (shared
+// The mark: a warm paper tile with a geometric P in ink and a small
+// terracotta pulse dot - the same geometry as assets/icon.svg (shared
 // 512-unit space), drawn flat so it stays crisp at 16px.
 
 import fs from "node:fs";
@@ -88,11 +88,8 @@ function encodeICO(pngs) {
 
 /* -------------------------------- RENDERER -------------------------------- */
 const TILE = [0xf4, 0xef, 0xe4];
-const STAR = [0x1e, 0x1c, 0x18];
-const SPARK = [0xc9, 0x64, 0x42];
-
-const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
-const clamp01 = v => (v < 0 ? 0 : v > 1 ? 1 : v);
+const INK = [0x1e, 0x1c, 0x18];
+const CORAL = [0xc9, 0x64, 0x42];
 
 /** Rounded-rect coverage test in unit space (0..1). */
 function inTile(x, y, r) {
@@ -101,49 +98,45 @@ function inTile(x, y, r) {
   const dx = x - cx, dy = y - cy;
   return dx * dx + dy * dy <= r * r;
 }
-/** Four-point star: a superellipse with exponent < 1 pinches the diagonals. */
-function inStar(x, y, cx, cy, r, p = 0.55) {
-  const dx = Math.abs(x - cx) / r, dy = Math.abs(y - cy) / r;
-  return Math.pow(dx, p) + Math.pow(dy, p) <= 1;
+function inRoundRect(x, y, x0, y0, x1, y1, r) {
+  const cx = Math.min(Math.max(x, x0 + r), x1 - r);
+  const cy = Math.min(Math.max(y, y0 + r), y1 - r);
+  const dx = x - cx, dy = y - cy;
+  return dx * dx + dy * dy <= r * r;
+}
+/** Right-hand bowl of the P, joined to the stem. */
+function inBowl(x, y) {
+  const dx = x - 0.43, dy = y - 0.40;
+  const d = Math.sqrt(dx * dx + dy * dy);
+  return dx >= -0.015 && d >= 0.075 && d <= 0.19;
 }
 
-// Mark geometry, straight from assets/icon.svg, converted to unit space.
-const U = 1 / 512;
-const STAR_C = [256 * U, 256 * U], STAR_R = 182 * U;
-const SPARK_C = [392 * U, 344 * U], SPARK_R = 44 * U;
-
 function renderIcon(size) {
-  const SS = 3;                       // supersample factor for anti-aliasing
+  const SS = 3;
   const S = size * SS;
   const out = Buffer.alloc(size * size * 4);
-  const radius = 0.2266;              // 116 / 512
-  // Below 32px the star's thin tips turn to mush and the companion spark
-  // becomes a blob: draw a chunkier single star there instead.
-  const small = size <= 32;
-  const starR = small ? 0.34 : STAR_R;
-  const starP = small ? 0.7 : 0.55;
-
+  const radius = 0.2188;
   for (let py = 0; py < size; py++) {
     for (let px = 0; px < size; px++) {
       let r = 0, g = 0, b = 0, a = 0;
       for (let sy = 0; sy < SS; sy++) {
         for (let sx = 0; sx < SS; sx++) {
-          // unit coordinates, sampled at subpixel centres
           const x = (px * SS + sx + 0.5) / S;
           const y = (py * SS + sy + 0.5) / S;
-
           if (!inTile(x, y, radius)) continue;
-
           let col = TILE;
-          if (inStar(x, y, STAR_C[0], STAR_C[1], starR, starP)) col = STAR;
-          if (!small && inStar(x, y, SPARK_C[0], SPARK_C[1], SPARK_R, 0.5)) col = SPARK;
-
+          if (inRoundRect(x, y, 0.27, 0.23, 0.36, 0.78, 0.018) ||
+              inRoundRect(x, y, 0.31, 0.22, 0.47, 0.292, 0.03) ||
+              inRoundRect(x, y, 0.31, 0.508, 0.47, 0.58, 0.03) ||
+              inBowl(x, y)) col = INK;
+          const ddx = x - 0.685, ddy = y - 0.68;
+          if (ddx * ddx + ddy * ddy <= 0.041 * 0.041) col = CORAL;
           r += col[0]; g += col[1]; b += col[2]; a += 255;
         }
       }
       const n = SS * SS;
       const i = (py * size + px) * 4;
-      const cov = a / (255 * n);          // coverage 0..1
+      const cov = a / (255 * n);
       if (cov > 0) {
         out[i] = Math.round(r / (n * cov));
         out[i + 1] = Math.round(g / (n * cov));

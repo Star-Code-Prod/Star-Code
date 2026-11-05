@@ -473,7 +473,7 @@ ok("reuse stub names the tool and size", stub.includes("read_file") && stub.incl
 /* --------------------------- chat mode + prompt freeze --------------------------- */
 const chat = chatSystemPrompt();
 ok("chatSystemPrompt is a string", typeof chat === "string" && chat.length > 300);
-ok("chat prompt introduces Star", chat.includes("You are Star"));
+ok("chat prompt introduces Pulse", chat.includes("You are Pulse"));
 for (const t of ["websearch", "fetch_url", "self_knowledge", "task"]) ok("chat prompt mentions " + t, chat.includes(t));
 ok("chat prompt carries no coding doctrine", !/Execution doctrine/.test(chat) && !/PLAN MODE/.test(chat));
 

@@ -1,4 +1,11 @@
-# What's new in Star
+# What's new in Pulse Harness
+
+## 1.27.0 — 2026-11-05
+- **This is Pulse Harness now.** The desktop app, installer artifacts, window title, notifications and About page are renamed from Star; existing settings stay in the same user-data folder so an update does not lose them.
+- **New mark.** A geometric P with a coral pulse dot replaces the star, in the app icon, sidebar, boot screen and README.
+- **Web version.** `npm run web` starts the same app on `127.0.0.1` and prints the URL (it picks the next free port if 4180 is busy, then opens the browser). Use `--no-open` to only print it.
+- **Connectors page.** Settings > Connectors now has cards for Microsoft Outlook, Slack, Notion, Linear, GitHub, Canvas and Ekonomi. Each opens a small form for the MCP command, arguments and token environment, and writes the server to your local `mcp.json`; Connected entries can be disconnected.
+- **Update log** includes these notes.
 
 ## 1.26.7 — 2026-11-05
 - **Installer signatures are checked.** Windows uses `Get-AuthenticodeSignature`, macOS uses `codesign --verify`; an invalid signature is rejected, and unsigned builds are refused when `STAR_REQUIRE_SIGNATURE=1`. Combined with the sha512 and atomic staging checks, an update now fails loudly before handing anything to the OS.

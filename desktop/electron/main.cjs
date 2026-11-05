@@ -15,11 +15,11 @@ const APP_DIR = path.join(__dirname, "..");
 const ICON = path.join(APP_DIR, "assets", "icon.ico");
 const ICON_PNG = path.join(APP_DIR, "assets", "icon.png");
 
-// The app is called "Star" now, but every existing install keeps its settings
-// (window bounds, working directory) under the old product name: Electron
-// derives userData from productName, so the rename would silently switch the
-// folder and look like data loss. Pin the original directory path before
-// anything reads or writes it.
+// The app is called "Pulse Harness" now, but every existing install keeps its
+// settings (window bounds, working directory) under the old product name:
+// Electron derives userData from productName, so the rename would silently
+// switch the folder and look like data loss. Pin the original directory path
+// before anything reads or writes it.
 app.setPath("userData", path.join(app.getPath("appData"), "Star Code Desktop"));
 
 let win = null;
@@ -64,7 +64,7 @@ function createWindow(url) {
     minHeight: 560,
     backgroundColor: "#1b1a18",
     show: false,
-    title: "Star",
+    title: "Pulse Harness",
     icon: process.platform === "win32" ? ICON : ICON_PNG,
     titleBarStyle: isMac ? "hiddenInset" : "hidden",
     trafficLightPosition: isMac ? { x: 16, y: 11 } : undefined,
@@ -497,7 +497,7 @@ function wire() {
     if (!Notification.isSupported()) return false;
     try {
       new Notification({
-        title: String(payload.title || "Star").slice(0, 80),
+        title: String(payload.title || "Pulse Harness").slice(0, 80),
         body: String(payload.body || "").slice(0, 240),
         silent: false,
       }).show();
@@ -536,7 +536,7 @@ async function checkPendingUpdate() {
       await dialog.showMessageBox({
         type: "warning",
         title: "Update did not complete",
-        message: "Star is still running " + app.getVersion() + ".",
+        message: "Pulse Harness is still running " + app.getVersion() + ".",
         detail: "The installer " + (pending.asset || "download") + " did not install. Your current version was kept. You can retry from the update banner.",
         buttons: ["OK"],
       });
@@ -551,7 +551,7 @@ app.whenReady().then(async () => {
   const detail = String(e && e.stack ? e.stack : e);
   console.error("[main] startup failed:", detail);
   try { fs.appendFileSync(path.join(app.getPath("userData"), "startup-error.log"), detail + "\n"); } catch {}
-  dialog.showErrorBox("Star - startup failed", detail);
+  dialog.showErrorBox("Pulse Harness - startup failed", detail);
   app.quit();
 });
 

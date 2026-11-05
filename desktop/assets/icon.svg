@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Star">
-  <rect width="512" height="512" rx="116" fill="#F4EFE4"/>
-  <path d="M256 74C267 187 325 245 438 256 325 267 267 325 256 438 245 325 187 267 74 256 187 245 245 187 256 74Z" fill="#1E1C18"/>
-  <path d="M392 300C395 331 405 341 436 344 405 347 395 357 392 388 389 357 379 347 348 344 379 341 389 331 392 300Z" fill="#C96442"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Pulse Harness">
+  <rect width="512" height="512" rx="112" fill="#F4EFE4"/>
+  <path d="M170 392V120h88a86 86 0 0 1 0 172h-88" fill="none" stroke="#1E1C18" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="352" cy="352" r="28" fill="#C96442"/>
 </svg>
