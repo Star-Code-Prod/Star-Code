@@ -1250,7 +1250,7 @@ async function route(req, res) {
   // Save a text file edited in the preview pane. Scoped to the project root,
   // capped, and never creates directories outside it.
   if (req.method === "POST" && url.pathname === "/api/file/write") {
-    const { path: rel, content } = await readBody(req);
+    const { path: rel, content, expected } = await readBody(req);
     const abs = rel ? safeResolve(String(rel)) : null;
     if (!abs) return sendJSON(res, 403, { error: "path outside working directory" });
     if (typeof content !== "string") return sendJSON(res, 400, { error: "content must be text" });
@@ -1259,6 +1259,12 @@ async function route(req, res) {
       const st = await fsp.stat(abs);
       if (!st.isFile()) return sendJSON(res, 400, { error: "not a file" });
       if (st.size > 2 * 1024 * 1024) return sendJSON(res, 413, { error: "file is too large to save" });
+      if (typeof expected === "string") {
+        const current = await fsp.readFile(abs, "utf8");
+        if (current !== expected) {
+          return sendJSON(res, 409, { error: "the file changed since this diff was made; reopen it before reverting" });
+        }
+      }
       await fsp.writeFile(abs, content, "utf8");
       return sendJSON(res, 200, { ok: true });
     } catch (e) {

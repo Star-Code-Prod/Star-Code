@@ -636,6 +636,10 @@ ok("the Tree pane mirrors the live process card",
   html.includes('data-pane="tree"') && html.includes('id="treeBody"') &&
   js.includes("function renderTreePane(") && js.includes("ptstop") &&
   html.includes('"tree"') && /\.ptnode\{/.test(html.replace(/\s+/g, "")));
+ok("diffs support unified/split views, hunk jumps and safe revert",
+  js.includes('data-dview="split"') && js.includes("diffView === \"split\"") &&
+  js.includes("data-dhunk") && js.includes("expected: d.after") &&
+  /\.dbody\.split/.test(html.replace(/\s+/g, "")));
 {
   const preloadSrc = fs.readFileSync("electron/preload.cjs", "utf8");
   const mainSrc = fs.readFileSync("electron/main.cjs", "utf8");

@@ -1,5 +1,9 @@
 # What's new in Star
 
+## 1.26.1 — 2026-11-05
+- **Diff review got real controls.** The Changes pane now switches between unified and side-by-side layouts, jumps to the previous/next changed line, and can revert a file change with a safety check: if the file changed after the diff was captured, the revert is refused instead of overwriting unrelated edits.
+- **Update log** includes these notes for the next launch.
+
 ## 1.26.0 — 2026-11-05
 - **Git worktree sessions.** The sidebar menu can create a session in its own `~/.star-code/worktrees/<project>/<session>` worktree and `star/<id>` branch, so parallel sessions stop stepping on each other. Deleting the session removes the worktree and branch; non-git folders get a clear fallback message. Session rows show the branch.
 - **Process Tree pane.** A new **Tree** pane mirrors the live round: session → turn → each thought/tool call, with status, duration, expandable context and a Stop-turn action.
