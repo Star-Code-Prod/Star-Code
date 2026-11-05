@@ -1,5 +1,9 @@
 # What's new in Pulse Harness
 
+## 1.27.5 — 2026-11-05
+- **Fix the failed build.** The `release` skill folder was being swallowed by the repo's `release/` build-output ignore rule, so CI saw only 39 built-in skills and failed the 40-skill check. `skills/release` is now explicitly tracked; the check suite sees all 40.
+- **Update log** includes these notes.
+
 ## 1.27.4 — 2026-11-05
 - **`pulse web` is now a real global command.** The Windows installer writes a `pulse.cmd` shim into the per-user WindowsApps folder (already on PATH); the command starts the installed app with `--pulse-web`, prints `http://127.0.0.1:<port>` and opens it. From source, `npm install -g ./desktop` installs the same `pulse` bin.
 - `pulse --version`, `pulse help` and `pulse desktop` are included; `pulse web` accepts `--port`, `--root` and `--no-open`.

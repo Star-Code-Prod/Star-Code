@@ -16,6 +16,8 @@ node_modules/
 
 # --- build output: electron-builder (see `build.directories.output`) ---
 release/
+!skills/release/
+!skills/release/**
 dist/
 out/
 build/
