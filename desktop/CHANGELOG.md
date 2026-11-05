@@ -1,5 +1,10 @@
 # What's new in Pulse Harness
 
+## 1.29.0 — 2026-11-05
+- **Connectors now feel like a real app directory.** Search, categories, branded icons, connected state, hover lift and a compact count replace the old plain card list. Connected apps move into their own section with a green status dot and a Manage action.
+- **A proper setup sheet.** Connect/Manage opens a focused dialog with the app icon, a plain-language explanation, one labeled field per credential (Client ID, Bot token, API key, etc.), a collapsible Advanced connection section, inline errors and a loading state. Connecting reloads MCP automatically; editing a connected app preserves its existing credentials.
+- **Update log** includes these notes.
+
 ## 1.28.1 — 2026-11-05
 - **The accent matches the logo.** Terracotta is gone: links, selection, active rows, focus rings and the composer's send button now use the logo's violet (`#8b5cf6` on dark, `#7c3aed` on light), with lavender highlights. The plan bar and code highlights keep their own semantic colors.
 - **Update log** includes these notes.

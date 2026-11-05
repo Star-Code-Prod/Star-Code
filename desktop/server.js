@@ -55,13 +55,13 @@ const AUX_CREDENTIAL_IDS = new Set(["virustotal"]);
 /** Ready-to-connect tools shown in Settings > Connectors. A command is only a
  *  starting point: OAuth/tokens stay in the user's MCP environment. */
 const CONNECTOR_CATALOG = [
-  { id: "outlook", name: "Microsoft Outlook", desc: "Outlook mail and calendar", color: "#0f6cbd", mark: "O", command: "npx", args: ["-y", "@microsoft/mcp-server-office"], env: { MICROSOFT_CLIENT_ID: "", MICROSOFT_TENANT_ID: "" } },
-  { id: "slack", name: "Slack", desc: "Search and send messages", color: "#4a154b", mark: "S", command: "npx", args: ["-y", "@modelcontextprotocol/server-slack"], env: { SLACK_BOT_TOKEN: "", SLACK_TEAM_ID: "" } },
-  { id: "notion", name: "Notion", desc: "Search and edit your pages", color: "#1f1f1f", mark: "N", command: "npx", args: ["-y", "@notionhq/notion-mcp-server"], env: { NOTION_API_KEY: "" } },
-  { id: "linear", name: "Linear", desc: "Track issues and projects", color: "#5e6ad2", mark: "L", command: "npx", args: ["-y", "mcp-remote", "https://mcp.linear.app/sse"], env: {} },
-  { id: "github", name: "GitHub", desc: "Repos, issues and pull requests", color: "#24292f", mark: "G", command: "npx", args: ["-y", "@modelcontextprotocol/server-github"], env: { GITHUB_PERSONAL_ACCESS_TOKEN: "" } },
-  { id: "canvas", name: "Canvas", desc: "Courses, assignments and dates", color: "#c8102e", mark: "C", command: "", args: [], env: { CANVAS_API_TOKEN: "", CANVAS_BASE_URL: "" } },
-  { id: "ekonomi", name: "Ekonomi", desc: "Ask about your accounts and expenses", color: "#2f6b4f", mark: "E", command: "", args: [], env: { EKONOMI_API_KEY: "" } },
+  { id: "outlook", name: "Microsoft Outlook", desc: "Mail and calendar", category: "Communication", color: "#0f6cbd", mark: "O", command: "npx", args: ["-y", "@microsoft/mcp-server-office"], env: { MICROSOFT_CLIENT_ID: "", MICROSOFT_TENANT_ID: "" } },
+  { id: "slack", name: "Slack", desc: "Search and send messages", category: "Communication", color: "#4a154b", mark: "S", command: "npx", args: ["-y", "@modelcontextprotocol/server-slack"], env: { SLACK_BOT_TOKEN: "", SLACK_TEAM_ID: "" } },
+  { id: "notion", name: "Notion", desc: "Search and edit your pages", category: "Productivity", color: "#1f1f1f", mark: "N", command: "npx", args: ["-y", "@notionhq/notion-mcp-server"], env: { NOTION_API_KEY: "" } },
+  { id: "linear", name: "Linear", desc: "Track issues and projects", category: "Productivity", color: "#5e6ad2", mark: "L", command: "npx", args: ["-y", "mcp-remote", "https://mcp.linear.app/sse"], env: {} },
+  { id: "github", name: "GitHub", desc: "Repos, issues and pull requests", category: "Developer", color: "#24292f", mark: "G", command: "npx", args: ["-y", "@modelcontextprotocol/server-github"], env: { GITHUB_PERSONAL_ACCESS_TOKEN: "" } },
+  { id: "canvas", name: "Canvas", desc: "Courses, assignments and dates", category: "Learning", color: "#c8102e", mark: "C", command: "", args: [], env: { CANVAS_API_TOKEN: "", CANVAS_BASE_URL: "" } },
+  { id: "ekonomi", name: "Ekonomi", desc: "Ask about your accounts and expenses", category: "Finance", color: "#2f6b4f", mark: "E", command: "", args: [], env: { EKONOMI_API_KEY: "" } },
 ];
 
 const sessions = new Map();
@@ -1063,6 +1063,10 @@ async function route(req, res) {
       : String(body.args || "").split(/\s+/).filter(Boolean);
     let env = {};
     if (body.env && typeof body.env === "object") env = body.env;
+    if (body.preserveEnv) {
+      const current = (readMcpConfig(ROOT).servers || {})[preset.id] || {};
+      env = { ...(current.env || current.environment || {}), ...env };
+    }
     const ok = mcpManager.upsert(preset.id, {
       command: command || undefined, args, env,
       url: urlValue || undefined, enabled: true,

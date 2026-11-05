@@ -1509,21 +1509,71 @@ html[data-embed] #splitBox{display:none !important}
 .set-main .h{font-family:var(--font-sans);font-size:var(--fs-22);font-weight:600;letter-spacing:-.02em;margin:0 0 6px}
 .set-main .sh{font-size:var(--fs-12);color:var(--muted);margin:0 0 var(--sp-5);line-height:1.6}
 .set-main .sect{max-width:660px}
-.conn-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:760px}
-.conn-card{display:flex;align-items:center;gap:11px;padding:13px 14px;border:1px solid var(--border);border-radius:12px;background:var(--panel)}
-.conn-ico{width:38px;height:38px;flex:none;border-radius:9px;display:grid;place-items:center;background:var(--cc);color:#fff;font:600 16px/1 var(--font-sans);letter-spacing:-.02em}
-.conn-txt{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.conn-page{max-width:820px}
+.conn-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:4px}
+.conn-head .h{margin-bottom:5px}
+.conn-head .sh{max-width:600px;margin-bottom:0}
+.conn-count{flex:none;margin-top:5px;font-size:var(--fs-11);color:var(--dim);font-variant-numeric:tabular-nums}
+.conn-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:18px 0 16px}
+.conn-search{display:flex;align-items:center;gap:8px;width:min(320px,100%);height:34px;padding:0 11px;border:1px solid var(--border);border-radius:9px;background:var(--panel);color:var(--dim);transition:border-color var(--t-fast) var(--ease)}
+.conn-search:focus-within{border-color:var(--brand-line)}
+.conn-search svg{flex:none}
+.conn-search input{flex:1;min-width:0;border:0;outline:0;background:none;color:var(--text);font-size:var(--fs-125)}
+.conn-search input::placeholder{color:var(--dim)}
+.conn-secure{display:flex;align-items:center;gap:5px;color:var(--dim);font-size:var(--fs-11);white-space:nowrap}
+.conn-label{margin:14px 0 8px;font-size:var(--fs-11);font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--dim)}
+.conn-label:first-of-type{margin-top:4px}
+.conn-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.conn-card{
+  display:flex;flex-direction:column;gap:10px;min-width:0;padding:15px;border:1px solid var(--border);border-radius:14px;
+  background:var(--panel);transition:border-color var(--t-fast) var(--ease),background var(--t-fast) var(--ease),transform var(--t-fast) var(--ease);
+}
+.conn-card:hover{border-color:var(--brand-line);background:color-mix(in srgb,var(--brand) 3%,var(--panel));transform:translateY(-1px)}
+.conn-card.on{background:color-mix(in srgb,var(--brand) 4%,var(--panel))}
+.conn-top{display:flex;align-items:center;gap:9px}
+.conn-ico{width:40px;height:40px;flex:none;border-radius:11px;display:grid;place-items:center;background:var(--cc);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.18)}
+.conn-ico svg{width:21px;height:21px;display:block}
+.conn-cat{margin-left:auto;font-size:var(--fs-11);color:var(--dim)}
+.conn-check{width:19px;height:19px;flex:none;display:grid;place-items:center;border-radius:50%;background:var(--add-fg);color:var(--bg)}
+.conn-txt{display:flex;flex-direction:column;gap:3px;min-width:0}
 .conn-txt b{font-size:var(--fs-13);font-weight:600;color:var(--text)}
-.conn-txt span{font-size:var(--fs-115);color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cmodal-back{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 38%,transparent);backdrop-filter:blur(3px);z-index:200;display:grid;place-items:center;padding:24px}
-.cmodal{width:min(480px,calc(100vw - 48px));background:var(--panel);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow-lg);padding:18px}
-.cm-h{display:flex;align-items:center;gap:11px;margin-bottom:14px}
-.cm-h b{display:block;font-size:var(--fs-14)}
-.cm-h span{display:block;font-size:var(--fs-115);color:var(--muted);margin-top:2px}
-.cm-l{display:flex;flex-direction:column;gap:5px;font-size:var(--fs-12);color:var(--muted);margin-bottom:10px}
-.cm-l .set-sub{color:var(--dim);font-size:var(--fs-11)}
-.cm-l input,.cm-l textarea{font-family:var(--font-mono);font-size:var(--fs-12);padding:8px 9px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);resize:vertical}
-.cm-f{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.conn-txt p{margin:0;font-size:var(--fs-12);line-height:1.45;color:var(--muted)}
+.conn-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:auto;padding-top:2px}
+.conn-meta{font-size:var(--fs-11);color:var(--dim);letter-spacing:.04em}
+.conn-live{display:flex;align-items:center;gap:6px;font-size:var(--fs-11);color:var(--add-fg)}
+.conn-live i{width:6px;height:6px;border-radius:50%;background:var(--add-fg);box-shadow:0 0 0 3px color-mix(in srgb,var(--add-fg) 14%,transparent)}
+.conn-empty{padding:28px 12px;text-align:center;color:var(--dim);font-size:var(--fs-12);border:1px dashed var(--border);border-radius:12px}
+.conn-note{margin-top:18px;padding-top:14px;border-top:1px solid var(--border);color:var(--dim);font-size:var(--fs-11);line-height:1.65}
+.conn-note b{color:var(--muted);font-weight:500}
+.cmodal-back{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 42%,transparent);backdrop-filter:blur(4px);z-index:200;display:grid;place-items:center;padding:24px;animation:fadeIn var(--t-fast) var(--ease)}
+.cmodal{position:relative;width:min(520px,calc(100vw - 48px));max-height:calc(100vh - 48px);overflow-y:auto;background:var(--panel);border:1px solid var(--border);border-radius:var(--r-xl);box-shadow:var(--shadow-lg);padding:22px}
+.cm-x{position:absolute;top:12px;right:12px;width:28px;height:28px;display:grid;place-items:center;border-radius:7px;color:var(--dim);transition:background var(--t-fast),color var(--t-fast)}
+.cm-x:hover{background:var(--hover);color:var(--text)}
+.cm-h{display:flex;align-items:center;gap:13px;margin-bottom:14px;padding-right:28px}
+.cm-h .conn-ico{width:44px;height:44px;border-radius:12px}
+.cm-h .conn-ico svg{width:23px;height:23px}
+.cm-h b{display:block;font-size:var(--fs-16);font-weight:600;letter-spacing:-.01em}
+.cm-h span{display:block;font-size:var(--fs-115);color:var(--dim);margin-top:2px}
+.cm-desc{margin:0 0 14px;color:var(--muted);font-size:var(--fs-125);line-height:1.6}
+.cm-on{display:flex;align-items:center;gap:7px;margin:0 0 14px;padding:8px 10px;border-radius:8px;background:color-mix(in srgb,var(--add-fg) 8%,transparent);color:var(--add-fg);font-size:var(--fs-12)}
+.cm-on i{width:6px;height:6px;border-radius:50%;background:var(--add-fg)}
+.cm-fields{display:flex;flex-direction:column;gap:9px;margin-bottom:10px}
+.cm-field{display:flex;flex-direction:column;gap:5px;font-size:var(--fs-12);color:var(--muted)}
+.cm-field span{font-weight:500;color:var(--text2)}
+.cm-field input{width:100%;height:36px;padding:0 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-family:var(--font-mono);font-size:var(--fs-12);outline:none;transition:border-color var(--t-fast)}
+.cm-field input:focus{border-color:var(--brand-line);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 10%,transparent)}
+.cm-field small{font-size:var(--fs-10);color:var(--dim);font-family:var(--font-mono)}
+.cm-help{margin:0 0 14px;color:var(--dim);font-size:var(--fs-11);line-height:1.55}
+.cm-advanced{margin:4px 0 14px;border-top:1px solid var(--border);padding-top:10px}
+.cm-advanced summary{cursor:pointer;color:var(--muted);font-size:var(--fs-12);list-style:none;display:flex;align-items:center;gap:5px}
+.cm-advanced summary::-webkit-details-marker{display:none}
+.cm-advanced summary::before{content:"›";display:inline-block;color:var(--dim);transition:transform var(--t-fast)}
+.cm-advanced[open] summary::before{transform:rotate(90deg)}
+.cm-advanced .cm-field{margin-top:9px}
+.cm-error{margin:0 0 12px;padding:8px 10px;border-radius:8px;background:color-mix(in srgb,var(--del-fg) 9%,transparent);color:var(--del-fg);font-size:var(--fs-12);line-height:1.5}
+.cm-f{display:flex;align-items:center;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border)}
+.cm-spacer{flex:1}
+.cm-f .btn{min-height:32px}
 .card{
   background:var(--panel);border:1px solid var(--border);border-radius:12px;
   padding:16px 18px;margin-bottom:12px;box-shadow:none;
@@ -9517,59 +9567,134 @@ async function loadConnectors() {
     return true;
   } catch { return false; }
 }
+const CONN_ICONS = {
+  outlook: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>',
+  slack: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>',
+  notion: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 16V8l8 8V8"/></svg>',
+  linear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 15 15 4M7 20 20 7M3 10 10 3"/></svg>',
+  github: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v12a3 3 0 0 0 3 3h9"/><circle cx="6" cy="3" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg>',
+  canvas: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-5 9 5-9 5-9-5Z"/><path d="M7 11v5c3 2 7 2 10 0v-5"/></svg>',
+  ekonomi: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10h18M5 10v8M9 10v8M15 10v8M19 10v8M3 20h18M12 3l9 7H3l9-7Z"/></svg>',
+};
+function connIcon(c) {
+  return CONN_ICONS[c.id] || '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M8 12h8"/></svg>';
+}
+function connPrettyKey(key) {
+  const labels = {
+    MICROSOFT_CLIENT_ID: "Client ID",
+    MICROSOFT_TENANT_ID: "Tenant ID",
+    SLACK_BOT_TOKEN: "Bot token",
+    SLACK_TEAM_ID: "Workspace ID",
+    NOTION_API_KEY: "API key",
+    GITHUB_PERSONAL_ACCESS_TOKEN: "Personal access token",
+    CANVAS_API_TOKEN: "API token",
+    CANVAS_BASE_URL: "Canvas URL",
+    EKONOMI_API_KEY: "API key",
+  };
+  return labels[key] || String(key).toLowerCase().split("_").map((x) => x.charAt(0).toUpperCase() + x.slice(1)).join(" ");
+}
 function settingsConnectors() {
+  const connected = connectorRows.filter((c) => c.connected);
   return `
-    <h2 class="h">Connectors</h2>
-    <p class="sh">Connect your tools. Each card adds an MCP server to your local <span class="mono">~/.star-code/mcp.json</span>; paste the command and any token the service needs. Tokens stay in that local file, never in this page.</p>
-    <div class="conn-grid">
-      ${connectorRows.map(c => `
-        <div class="conn-card">
-          <span class="conn-ico" style="--cc:${esc(c.color || "var(--accent)")}">${esc(c.mark || c.name.slice(0, 1))}</span>
-          <span class="conn-txt"><b>${esc(c.name)}</b><span>${esc(c.desc)}</span></span>
-          <button class="btn sm ${c.connected ? "" : "pri"}" data-conn="${esc(c.id)}" data-on="${c.connected ? "1" : ""}">${c.connected ? "Connected" : "Connect"}</button>
-        </div>`).join("")}
-    </div>
-    <div class="cs" style="margin-top:12px">Connected tools become MCP tools the agent can call after the server restarts. Manage raw entries in <b>Settings > MCP</b>.</div>`;
+    <div class="conn-page">
+      <div class="conn-head">
+        <div><h2 class="h">Connectors</h2>
+        <p class="sh">Bring your work into the conversation. Connect a tool once and Pulse can search it, read it and act in it with your permission.</p></div>
+        <span class="conn-count">${connectorRows.length} apps</span>
+      </div>
+      <div class="conn-toolbar">
+        <label class="conn-search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg>
+          <input id="connSearch" type="search" placeholder="Search connectors" autocomplete="off" aria-label="Search connectors">
+        </label>
+        <span class="conn-secure"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>Stored locally</span>
+      </div>
+      ${connected.length ? '<div class="conn-label">Connected</div><div class="conn-grid">' + connected.map(connectorCard).join("") + "</div>" : ""}
+      <div class="conn-label">Available</div>
+      <div class="conn-grid" id="connGrid">${connectorRows.filter((c) => !c.connected).map(connectorCard).join("")}</div>
+      <div class="conn-empty" id="connEmpty" hidden>No connectors match that search.</div>
+      <div class="conn-note"><b>How it works.</b> Each connector runs as a local MCP server. Tokens stay in <span class="mono">~/.star-code/mcp.json</span> and are never sent to Pulse; the agent asks before every tool call.</div>
+    </div>`;
+}
+function connectorCard(c) {
+  return `
+    <article class="conn-card ${c.connected ? "on" : ""}" data-conn-card data-search="${esc((c.name + " " + c.desc + " " + (c.category || "")).toLowerCase())}">
+      <div class="conn-top">
+        <span class="conn-ico" style="--cc:${esc(c.color || "var(--accent)")}">${connIcon(c)}</span>
+        <span class="conn-cat">${esc(c.category || "App")}</span>
+        ${c.connected ? '<span class="conn-check" title="Connected"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg></span>' : ""}
+      </div>
+      <div class="conn-txt"><b>${esc(c.name)}</b><p>${esc(c.desc)}</p></div>
+      <div class="conn-foot">
+        ${c.connected ? '<span class="conn-live"><i></i>Connected</span>' : '<span class="conn-meta">MCP</span>'}
+        <button class="btn sm ${c.connected ? "" : "pri"}" data-conn="${esc(c.id)}" data-on="${c.connected ? "1" : ""}">${c.connected ? "Manage" : "Connect"}</button>
+      </div>
+    </article>`;
 }
 function openConnectorModal(c) {
   const old = document.getElementById("connModal");
   if (old) old.remove();
+  const envEntries = Object.entries(c.env || {});
+  const fields = envEntries.map(([k], i) => `
+    <label class="cm-field"><span>${esc(connPrettyKey(k))}</span>
+      <input type="password" data-envkey="${esc(k)}" id="connEnv${i}" placeholder="Paste your ${esc(connPrettyKey(k).toLowerCase())}" autocomplete="off" spellcheck="false">
+      <small>${esc(k)}</small>
+    </label>`).join("");
   const back = document.createElement("div");
   back.id = "connModal";
   back.className = "cmodal-back";
   back.innerHTML = `
-    <div class="cmodal" role="dialog" aria-modal="true" aria-label="Connect ${esc(c.name)}">
-      <div class="cm-h"><span class="conn-ico" style="--cc:${esc(c.color || "var(--accent)")}">${esc(c.mark || c.name.slice(0, 1))}</span><div><b>${esc(c.name)}</b><span>${esc(c.desc)}</span></div></div>
-      <label class="cm-l">MCP command<input id="connCmd" value="${esc(c.command || "")}" placeholder="npx / uvx / a full path" autocomplete="off"></label>
-      <label class="cm-l">Arguments<input id="connArgs" value="${esc((c.args || []).join(" "))}" placeholder="-y package-name" autocomplete="off"></label>
-      <label class="cm-l">Environment <span class="set-sub">one KEY=value per line</span><textarea id="connEnv" rows="3" placeholder="SLACK_BOT_TOKEN=xoxb-…">${esc(Object.entries(c.env || {}).map(([k, v]) => k + "=" + v).join("\n"))}</textarea></label>
-      <div class="cm-f"><button class="btn sm" id="connCancel">Cancel</button><button class="btn sm pri" id="connSave">Connect</button></div>
+    <div class="cmodal" role="dialog" aria-modal="true" aria-label="${c.connected ? "Manage" : "Connect"} ${esc(c.name)}">
+      <button class="cm-x" type="button" aria-label="Close" id="connClose"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      <div class="cm-h"><span class="conn-ico" style="--cc:${esc(c.color || "var(--accent)")}">${connIcon(c)}</span><div><b>${esc(c.name)}</b><span>${esc(c.category || "Connector")} · MCP</span></div></div>
+      <p class="cm-desc">${c.connected ? "This connector is active. Update its settings or disconnect it below." : "Connect " + esc(c.name) + " so Pulse can work with it. The connection stays on this machine."}</p>
+      ${c.connected ? '<div class="cm-on"><i></i>Connected</div>' : ""}
+      ${fields ? '<div class="cm-fields">' + fields + "</div>" : ""}
+      ${envEntries.length ? '<p class="cm-help">Create a token in the service\'s developer settings, then paste it above. It is written to your local MCP config.</p>' : ""}
+      <details class="cm-advanced"><summary>Advanced connection</summary>
+        <label class="cm-field"><span>MCP command</span><input id="connCmd" value="${esc(c.command || "")}" placeholder="npx / uvx / a full path" autocomplete="off" spellcheck="false"></label>
+        <label class="cm-field"><span>Arguments</span><input id="connArgs" value="${esc((c.args || []).join(" "))}" placeholder="-y package-name" autocomplete="off" spellcheck="false"></label>
+      </details>
+      <div class="cm-error" id="connErr" hidden></div>
+      <div class="cm-f">
+        ${c.connected ? '<button class="btn sm dgr" id="connDisconnect" type="button">Disconnect</button>' : ""}
+        <span class="cm-spacer"></span>
+        <button class="btn sm" id="connCancel" type="button">Cancel</button>
+        <button class="btn sm pri" id="connSave" type="button">${c.connected ? "Save changes" : "Connect " + esc(c.name)}</button>
+      </div>
     </div>`;
   document.body.appendChild(back);
-  const close = () => back.remove();
+  const close = () => { back.remove(); document.removeEventListener("keydown", escKey); };
   back.addEventListener("click", (e) => { if (e.target === back) close(); });
+  const escKey = (e) => { if (e.key === "Escape") close(); };
+  document.addEventListener("keydown", escKey);
+  $("connClose").onclick = close;
   $("connCancel").onclick = close;
+  const err = (msg) => { const e = $("connErr"); e.textContent = msg; e.hidden = false; };
   $("connSave").onclick = async () => {
     const env = {};
-    for (const line of $("connEnv").value.split(/\n+/)) {
-      const i = line.indexOf("=");
-      if (i > 0) env[line.slice(0, i).trim()] = line.slice(i + 1).trim();
-    }
+    back.querySelectorAll("[data-envkey]").forEach((i) => { if (i.value.trim()) env[i.dataset.envkey] = i.value.trim(); });
+    const btn = $("connSave");
+    btn.disabled = true; btn.textContent = "Connecting…";
     const r = await (await fetch("/api/connectors", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: c.id, command: $("connCmd").value, args: $("connArgs").value, env }),
-    })).json();
-    if (!r.ok) { toast(r.error || "Could not connect"); return; }
+      body: JSON.stringify({ id: c.id, command: $("connCmd").value, args: $("connArgs").value, env, preserveEnv: !!c.connected }),
+    })).json().catch(() => ({ ok: false, error: "Could not reach the local server" }));
+    if (!r.ok) { btn.disabled = false; btn.textContent = c.connected ? "Save changes" : "Connect " + c.name; err(r.error || "Could not connect"); return; }
+    await fetch("/api/mcp/reload", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).catch(() => {});
     close(); connectorLoadedAt = 0; toast(c.name + " connected"); settingsAutoRender();
   };
+  if (c.connected) $("connDisconnect").onclick = async () => {
+    if (!confirm("Disconnect " + c.name + "? Its MCP entry will be removed.")) return;
+    await fetch("/api/connectors?id=" + encodeURIComponent(c.id), { method: "DELETE" });
+    close(); connectorLoadedAt = 0; toast(c.name + " disconnected"); settingsAutoRender();
+  };
+  const first = back.querySelector(".cm-field input");
+  if (first) setTimeout(() => first.focus(), 50);
 }
 async function toggleConnector(c) {
   if (!c.connected) return openConnectorModal(c);
-  if (!confirm("Disconnect " + c.name + "? Its MCP entry will be removed.")) return;
-  await fetch("/api/connectors?id=" + encodeURIComponent(c.id), { method: "DELETE" });
-  connectorLoadedAt = 0; toast(c.name + " disconnected"); settingsAutoRender();
+  openConnectorModal(c);
 }
-
 /* ---- plugins settings ---- */
 let pluginRows = [];
 let pluginPaths = [];
@@ -10105,6 +10230,17 @@ function wireSettings() {
     const c = connectorRows.find(x => x.id === el.dataset.conn);
     if (c) toggleConnector(c);
   }));
+  on("connSearch", "input", (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    let shown = 0;
+    document.querySelectorAll("[data-conn-card]").forEach((card) => {
+      const hit = !q || String(card.dataset.search || "").includes(q);
+      card.hidden = !hit;
+      if (hit) shown++;
+    });
+    const empty = $("connEmpty");
+    if (empty) empty.hidden = shown > 0;
+  });
   on("fThink", "click", e => { state.showThinking = !state.showThinking; save(); e.target.classList.toggle("on", state.showThinking); });
   on("fCollapse", "click", e => { state.autoCollapseThinking = !state.autoCollapseThinking; save(); e.target.classList.toggle("on", state.autoCollapseThinking); });
 

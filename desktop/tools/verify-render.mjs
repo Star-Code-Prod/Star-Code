@@ -685,6 +685,13 @@ ok("diffs support unified/split views, hunk jumps and safe revert",
     html.includes('data-s="connectors"') && js.includes("function settingsConnectors(") &&
     js.includes("openConnectorModal") && js.includes("/api/connectors") &&
     js.includes("connectorRows"));
+  ok("the connector directory has search, categories and a manage flow",
+    js.includes("connSearch") && js.includes("connectorCard(") && js.includes("c.category") &&
+    js.includes("preserveEnv") && js.includes("/api/mcp/reload") && html.includes(".conn-grid{"));
+  ok("the connector dialog is a polished setup sheet",
+    html.includes(".cm-fields{") && html.includes(".cm-advanced{") &&
+    js.includes("connPrettyKey") && js.includes("Advanced connection") &&
+    js.includes("Paste your "));
   ok("the desktop shell carries the attach picker",
     mainSrc.includes('"desktop:pick-file"') && preloadSrc.includes("pickFile: () =>") &&
     /Images and videos/.test(mainSrc) && /"mp4"/.test(mainSrc));
