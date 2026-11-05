@@ -1,5 +1,9 @@
 # What's new in Pulse Harness
 
+## 1.27.7 — 2026-11-05
+- **`pulse web` now actually launches from the installed app.** Electron was rejecting `--pulse-web` as an unknown Chromium switch; the Windows shim now passes it after `--` and clears an inherited `ELECTRON_RUN_AS_NODE` value. The installed app starts its local server, prints the URL and opens the browser.
+- **Update log** includes these notes.
+
 ## 1.27.6 — 2026-11-05
 - **The repository is Pulse-Harness now.** GitHub, the release/update checker, package metadata, README badges, download links and the source clone folder all point at `Star-Code-Prod/Pulse-Harness`; the local checkout is `Pulse Harness/`. The CLI keeps its `star-code` command for compatibility.
 - **Build fix included.** The `release` skill was previously swallowed by the `release/` build-output ignore rule; 1.27.5 tracks it and the 40-skill check now passes.

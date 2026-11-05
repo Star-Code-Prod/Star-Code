@@ -7,7 +7,8 @@
   CreateDirectory "$LOCALAPPDATA\Microsoft\WindowsApps"
   FileOpen $0 "$LOCALAPPDATA\Microsoft\WindowsApps\pulse.cmd" w
   FileWrite $0 "@echo off$\r$\n"
-  FileWrite $0 "$\"$INSTDIR\Pulse Harness.exe$\" --pulse-web %*$\r$\n"
+  FileWrite $0 "set $\"ELECTRON_RUN_AS_NODE=$\"$\r$\n"
+  FileWrite $0 "$\"$INSTDIR\Pulse Harness.exe$\" -- --pulse-web %*$\r$\n"
   FileClose $0
 !macroend
 
