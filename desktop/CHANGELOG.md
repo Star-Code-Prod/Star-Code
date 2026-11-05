@@ -1,5 +1,10 @@
 # What's new in Pulse Harness
 
+## 1.27.4 — 2026-11-05
+- **`pulse web` is now a real global command.** The Windows installer writes a `pulse.cmd` shim into the per-user WindowsApps folder (already on PATH); the command starts the installed app with `--pulse-web`, prints `http://127.0.0.1:<port>` and opens it. From source, `npm install -g ./desktop` installs the same `pulse` bin.
+- `pulse --version`, `pulse help` and `pulse desktop` are included; `pulse web` accepts `--port`, `--root` and `--no-open`.
+- **Update log** includes these notes.
+
 ## 1.27.3 — 2026-11-05
 - **40 built-in skills.** Pulse now ships 40 SKILL.md packs in `desktop/skills`: asking-questions, requirements, explaining-code, pulse-harness, debugging, error-messages, tests, fixing-tests, code-review, refactoring, git, git-conflicts, release, api-design, databases, frontend, css-layout, accessibility, performance, security, dependencies, powershell, shell, python, nodejs, typescript, react, regex, json-yaml, markdown, technical-writing, research, summarizing, planning, estimation, data-analysis, spreadsheets, documents, presentations and mcp-connectors. They appear in Settings > Skills as `built-in`; project/user/plugin skills can override any of them.
 - **Questions and app knowledge.** Both system prompts now carry an explicit asking protocol: identify the target, outcome and constraint; ask 1-3 clickable questions only when the answer changes the work; never ask what the repo already answers. `ask_user` also accepts a single question object or a JSON string instead of silently dropping a malformed call. Pulse-specific questions route to `self_knowledge` and the `pulse-harness` skill, and the self manual now documents the real desktop/web surfaces, sessions, worktrees, skills, connectors, hooks and config.

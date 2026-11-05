@@ -525,6 +525,33 @@ async function boot() {
   createWindow(srv.url);
 }
 
+/** `Pulse Harness.exe --pulse-web`: the installed `pulse web` shim starts the
+ *  same local server without opening a desktop window. */
+async function bootWeb() {
+  const args = process.argv.slice(1);
+  const value = (name, fallback = "") => {
+    const i = args.indexOf(name);
+    if (i >= 0 && args[i + 1]) return args[i + 1];
+    const eq = args.find((a) => a.startsWith(name + "="));
+    return eq ? eq.slice(name.length + 1) : fallback;
+  };
+  const root = path.resolve(value("--root", defaultRoot()));
+  const wanted = Number(value("--port", process.env.PORT || 4180)) || 4180;
+  const serverUrl = pathToFileURL(path.join(APP_DIR, "server.js")).href;
+  serverModule = await import(serverUrl);
+  try {
+    srv = await serverModule.startServer({ port: wanted, root, silent: true });
+  } catch (e) {
+    if (e && e.code === "EADDRINUSE") srv = await serverModule.startServer({ port: 0, root, silent: true });
+    else throw e;
+  }
+  const url = "http://127.0.0.1:" + srv.port;
+  console.log("\n  Pulse Harness — web version");
+  console.log("  " + url);
+  console.log("  root: " + root + "\n");
+  if (!args.includes("--no-open")) shell.openExternal(url).catch(() => {});
+}
+
 /** If we recorded an update that never reached the new version, say so once. */
 async function checkPendingUpdate() {
   const file = path.join(app.getPath("userData"), "pending-update.json");
@@ -544,7 +571,10 @@ async function checkPendingUpdate() {
   } catch { /* best effort */ }
 }
 
+const CLI_WEB = process.argv.includes("--pulse-web");
+
 app.whenReady().then(async () => {
+  if (CLI_WEB) { await bootWeb(); return; }
   await checkPendingUpdate();
   await boot();
 }).catch((e) => {
@@ -556,7 +586,7 @@ app.whenReady().then(async () => {
 });
 
 app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0 && srv) createWindow(srv.url);
+  if (!CLI_WEB && BrowserWindow.getAllWindows().length === 0 && srv) createWindow(srv.url);
 });
 app.on("window-all-closed", async () => {
   try { if (srv) await srv.close(); } catch {}

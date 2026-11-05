@@ -1,7 +1,7 @@
 {
   "name": "pulse-harness",
   "productName": "Pulse Harness",
-  "version": "1.27.3",
+  "version": "1.27.4",
   "description": "Pulse Harness — a local, provider-agnostic agentic desktop app. Bring your own model — DeepSeek, OpenAI, Anthropic, Ollama, or any OpenAI-compatible endpoint — and let it read, search, edit, and run commands in your project.",
   "keywords": [
     "ai",
@@ -28,6 +28,7 @@
   "type": "module",
   "main": "electron/main.cjs",
   "bin": {
+    "pulse": "bin/pulse.mjs",
     "star-code": "bin/star-code.mjs"
   },
   "engines": {
@@ -63,6 +64,7 @@
     "files": [
       "server.js",
       "web.mjs",
+      "bin/**/*",
       "lib/**/*",
       "skills/**/*",
       "public/**/*",
@@ -102,6 +104,7 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Pulse Harness",
+      "include": "build/installer.nsh",
       "artifactName": "Pulse-Harness-Setup-${version}.${ext}"
     },
     "portable": {

@@ -657,6 +657,16 @@ ok("diffs support unified/split views, hunk jumps and safe revert",
   const preloadSrc = fs.readFileSync("electron/preload.cjs", "utf8");
   const mainSrc = fs.readFileSync("electron/main.cjs", "utf8");
   const webSrc = fs.readFileSync("web.mjs", "utf8");
+  const pulseSrc = fs.readFileSync("bin/pulse.mjs", "utf8");
+  const nsisSrc = fs.readFileSync("build/installer.nsh", "utf8");
+  const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+  ok("the global pulse command starts the web version",
+    pkg.bin && pkg.bin.pulse === "bin/pulse.mjs" &&
+    pulseSrc.includes('command === "web"') && pulseSrc.includes("web.mjs") &&
+    pulseSrc.includes("pulse web [--port N]"));
+  ok("the Windows installer writes the pulse shim",
+    nsisSrc.includes("WindowsApps\\pulse.cmd") && nsisSrc.includes("--pulse-web") &&
+    pkg.build.nsis.include === "build/installer.nsh");
   ok("the web version prints the local URL and opens it",
     webSrc.includes("Pulse Harness — web version") && webSrc.includes('"http://127.0.0.1:" + srv.port') &&
     webSrc.includes("EADDRINUSE") && webSrc.includes("--no-open"));

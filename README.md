@@ -53,6 +53,26 @@ npm run web           # web version: prints http://127.0.0.1:<port> and opens it
 
 On Windows you can also double-click `desktop\start.bat` — it uses Electron when present and falls back to the browser when it isn't.
 
+### The `pulse` command
+
+The Windows installer adds a `pulse` shim to the per-user `WindowsApps` folder, which is already on PATH:
+
+```powershell
+pulse web
+```
+
+That starts the installed app in web mode, prints `http://127.0.0.1:<port>`, and opens it.
+
+From a source checkout, install the npm bin once:
+
+```bash
+cd Star-Code/desktop
+npm install -g .
+pulse web
+```
+
+`pulse web --port 5000`, `--root "C:\path\to\project"` and `--no-open` work the same as `npm run web`.
+
 ### Star Code (CLI)
 
 The `.tgz` installs the `star-code` command; the `.zip` runs as-is. From the source tree:
