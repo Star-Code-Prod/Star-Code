@@ -59,6 +59,18 @@ ok("ampersand escaped in prose", md2.includes("&amp;"));
 const md3 = fns.md("use `npm run dist` here");
 ok("inline code wrapped", md3.includes('<code class="ic">npm run dist</code>'));
 
+// ---- 3b. tables and callouts are document cards, not raw grid markup ----
+const mdTable = fns.md("| Animal | Speed |\n| --- | ---: |\n| Fox | **50** |");
+ok("a table renders as a card",
+  mdTable.includes('class="md-card md-table"') && mdTable.includes('class="md-table-wrap"') &&
+  mdTable.includes("<table>"));
+ok("table cells keep inline styling and alignment",
+  mdTable.includes("<strong>50</strong>") && mdTable.includes('style="text-align:right"'));
+const mdNote = fns.md("> [!TIP]\n> use the small one");
+ok("a blockquote marker renders as a callout",
+  mdNote.includes('class="md-callout md-tip"') && mdNote.includes("Tip") &&
+  mdNote.includes("use the small one"));
+
 // ---- 4. control blocks must never survive into rendered output ----
 const md4 = fns.md('text\n```tool\n{"name":"read_file"}\n```\nmore');
 ok("plain md() leaves fences alone (stripping is the caller's job)",

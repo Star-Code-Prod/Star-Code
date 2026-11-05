@@ -451,6 +451,7 @@ body.mode-chat #navProjects{display:none}
 }
 .msg-a{font-size:var(--fs-16);line-height:1.5;color:var(--text-strong,var(--text));word-break:break-word;position:relative;max-width:none;padding:4px 2px}
 .msg-a p{margin:10px 0}.msg-a p:first-child{margin-top:0}.msg-a p:last-child{margin-bottom:0}
+.md-p{margin:10px 0}.md-p:first-child{margin-top:0}.md-p:last-child{margin-bottom:0}
 .msg-a h1,.msg-a h2,.msg-a h3{font-family:var(--font-sans);font-size:var(--fs-15);font-weight:600;letter-spacing:-.01em;margin:18px 0 8px;line-height:1.35}
 .msg-a h1{font-size:var(--fs-22)}
 .msg-a h2{font-size:var(--fs-18)}
@@ -463,7 +464,41 @@ body.mode-chat #navProjects{display:none}
 .msg-a th{background:var(--panel);font-weight:600}
 .msg-a hr{border:0;border-top:1px solid var(--border);margin:18px 0}
 .msg-a blockquote{margin:12px 0;padding:2px 0 2px 14px;border-left:2px solid var(--border2);color:var(--text2)}
+/* Markdown blocks use the same surface language as the reference document
+   components: a card, a quiet header row, hairline separators. */
+.md-card{
+  position:relative;
+  margin:14px 0;border:1px solid var(--border);border-radius:var(--r-md);
+  background:var(--panel);box-shadow:var(--shadow-sm);overflow:hidden;
+}
+.md-table{padding:0}
+.md-table-wrap{overflow-x:auto;padding:2px 14px 4px}
+.md-table table{
+  display:table;width:100%;border-collapse:collapse;margin:0;
+  font-size:var(--fs-13);color:var(--text);
+}
+.md-table th,.md-table td{
+  border:0;padding:9px 8px;text-align:left;vertical-align:top;
+  border-top:1px solid var(--border);
+}
+.md-table thead th{
+  border-top:0;padding-top:10px;padding-bottom:7px;
+  color:var(--muted);font-size:var(--fs-12);font-weight:500;white-space:nowrap;
+}
+.md-table tbody tr:first-child td{border-top:1px solid var(--border)}
+.md-table tbody tr:hover td{background:color-mix(in srgb,var(--text) 3%,transparent)}
+.md-callout{
+  position:relative;
+  margin:14px 0;padding:13px 15px;border:1px solid var(--border);border-inline-start:3px solid var(--brand);
+  border-radius:var(--r-md);background:color-mix(in srgb,var(--brand) 5%,var(--panel));
+}
+.md-callout-h{font-weight:600;font-size:var(--fs-13);color:var(--text);margin-bottom:4px}
+.md-callout p{margin:0;color:var(--text2);font-size:var(--fs-13);line-height:1.55}
+.md-callout.md-tip{border-inline-start-color:var(--add-fg);background:color-mix(in srgb,var(--add-fg) 6%,var(--panel))}
+.md-callout.md-warning,.md-callout.md-caution{border-inline-start-color:var(--del-fg);background:color-mix(in srgb,var(--del-fg) 6%,var(--panel))}
+.md-callout.md-important{border-inline-start-color:var(--brand);background:color-mix(in srgb,var(--brand) 8%,var(--panel))}
 /* streaming caret — :last-of-type, because the hover actions follow the text */
+#stream > .msg-a.streaming > .md-p:last-of-type::after,
 #stream > .msg-a.streaming > p:last-of-type::after{
   content:"";display:inline-block;width:7px;height:15px;margin-left:3px;vertical-align:-2px;
   border-radius:4px;background:var(--accent);animation:blink 1.05s steps(2,end) infinite;
@@ -4625,21 +4660,53 @@ function hl(code) {
   }
   return out + esc(src.slice(last));
 }
+function fmtInline(s) {
+  return String(s)
+    .replace(/`([^`]+)`/g, '<code class="ic">$1</code>')
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>")
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
+}
 function md(src, plain) {
   // Pull code fences out of the RAW source first. Escaping first and then
   // calling hl() double-escapes, which leaks <span class="tok-..."> as text.
   const blocks = [];
+  const extras = [];
   let body = String(src || "").replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
     blocks.push({ lang: lang || "text", code: code.replace(/\n$/, "") });
     return `\u0000B${blocks.length - 1}\u0000`;
   });
   let html = esc(body);
+  // Tables render as a surface card: no outer cell grid, a muted header and
+  // one hairline between rows. This mirrors the document components in the
+  // reference UI instead of dumping a spreadsheet grid into the answer.
   html = html.replace(/((?:^\|.*\|$\n?)+)/gm, tbl => {
     const rows = tbl.trim().split("\n").map(r => r.split("|").slice(1, -1).map(c => c.trim()));
     if (rows.length < 2) return tbl;
-    const head = rows[0], body = rows.slice(rows[1].every(c => /^-+$/.test(c)) ? 2 : 1);
-    return "<table><thead><tr>" + head.map(c => `<th>${c}</th>`).join("") + "</tr></thead><tbody>" +
-      body.map(r => "<tr>" + r.map(c => `<td>${c}</td>`).join("") + "</tr>").join("") + "</tbody></table>";
+    const aligns = rows[1].map((c) => /^:-+:$/.test(c) ? "center" : /^-+:$/.test(c) ? "right" : /^:-+$/.test(c) ? "left" : "");
+    const header = rows[0];
+    const rest = rows.slice(rows[1].every(c => /^:?-+:?$/.test(c)) ? 2 : 1);
+    const cell = (tag, text, i) => `<${tag}${aligns[i] ? ` style="text-align:${aligns[i]}"` : ""}>${fmtInline(text)}</${tag}>`;
+    const table = `<div class="md-card md-table"><div class="md-table-wrap"><table><thead><tr>` +
+      header.map((c, i) => cell("th", c, i)).join("") +
+      "</tr></thead><tbody>" +
+      rest.map(r => "<tr>" + r.map((c, i) => cell("td", c, i)).join("") + "</tr>").join("") +
+      "</tbody></table></div></div>";
+    extras.push(table);
+    return `\u0000X${extras.length - 1}\u0000`;
+  });
+  // Blockquotes become callouts, with a small type tag for [!NOTE]/[!TIP]/
+  // [!WARNING]/[!CAUTION]. The body stays plain text; only inline styling runs.
+  html = html.replace(/(?:^|\n)((?:&gt;[^\n]*(?:\n|$))+)/g, (m, quoted) => {
+    const lines = quoted.trim().split("\n").map((l) => l.replace(/^&gt; ?/, ""));
+    let kind = "note", title = "";
+    const tag = lines[0] && lines[0].match(/^\[!(NOTE|TIP|WARNING|CAUTION|IMPORTANT)\]\s*(.*)$/i);
+    if (tag) { kind = tag[1].toLowerCase(); title = tag[2] || tag[1].charAt(0) + tag[1].slice(1).toLowerCase(); lines.shift(); }
+    const aside = `<aside class="md-callout md-${kind}">` +
+      (title ? `<div class="md-callout-h">${esc(title)}</div>` : "") +
+      `<p>${lines.map((l) => fmtInline(l)).join("<br>")}</p></aside>`;
+    extras.push(aside);
+    return `\u0000X${extras.length - 1}\u0000`;
   });
   html = html.replace(/`([^`]+)`/g, '<code class="ic">$1</code>')
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
@@ -4650,8 +4717,10 @@ function md(src, plain) {
     "\n<ul>" + l.trim().split("\n").map(x => "<li>" + x.replace(/^[-*]\s+/, "") + "</li>").join("") + "</ul>");
   html = html.replace(/(?:^|\n)((?:\d+\. .*(?:\n|$))+)/g, (m, l) =>
     "\n<ol>" + l.trim().split("\n").map(x => "<li>" + x.replace(/^\d+\.\s+/, "") + "</li>").join("") + "</ol>");
-  html = html.replace(/\n{2,}/g, "</p><p>").replace(/\n/g, "<br>");
-  html = "<p>" + html + "</p>";
+  html = html.replace(/\n{2,}/g, '</div><div class="md-p">').replace(/\n/g, "<br>");
+  html = '<div class="md-p">' + html + "</div>";
+  html = html.replace(/<div class="md-p">\s*(\u0000X\d+\u0000)\s*<\/div>/g, "$1");
+  html = html.replace(/\u0000X(\d+)\u0000/g, (_, i) => extras[+i]);
   html = html.replace(/\u0000B(\d+)\u0000/g, (_, i) => {
     const b = blocks[+i];
     const lines = String(b.code).split("\n");

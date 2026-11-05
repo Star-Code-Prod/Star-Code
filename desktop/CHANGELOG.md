@@ -1,5 +1,9 @@
 # What's new in Pulse Harness
 
+## 1.27.1 — 2026-11-05
+- **Markdown now renders like a document.** Tables sit in a quiet surface card with a muted header and row hairlines instead of a spreadsheet grid; blockquotes become callout cards, with `[!NOTE]`, `[!TIP]`, `[!WARNING]` and `[!CAUTION]` variants; tables support alignment and inline bold/code; paragraphs keep their spacing without nesting block cards inside a paragraph.
+- **Update log** includes these notes.
+
 ## 1.27.0 — 2026-11-05
 - **This is Pulse Harness now.** The desktop app, installer artifacts, window title, notifications and About page are renamed from Star; existing settings stay in the same user-data folder so an update does not lose them.
 - **New mark.** A geometric P with a coral pulse dot replaces the star, in the app icon, sidebar, boot screen and README.
