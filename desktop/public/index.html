@@ -2294,6 +2294,7 @@ let meta = null;
 let appVersion = "";
 let sessionId = null, todos = [], diffs = [], termLines = [];
 let diffView = "unified";
+let treeSubs = new Map();
 /* Session navigation history for the title bar's back/forward buttons. */
 const navHistory = [];
 let navPos = -1, navSuppress = false;
@@ -4347,12 +4348,20 @@ function startFileEdit(host, f) {
   });
   const save = async () => {
     if (!dirty) return;
+    if ((state.defaultMode || "manual") === "plan") {
+      msg("Plan mode is read-only — switch modes before saving", true);
+      return;
+    }
+    if ((state.defaultMode || "manual") === "manual" &&
+        !confirm("Apply this edit to " + f.path + "?\n\nThis is a user edit and will be recorded in Changes.")) {
+      return;
+    }
     const btn = host.querySelector("#fpSave");
     if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
     try {
       const r = await (await fetch("/api/file/write", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: f.path, content: ta.value }),
+        body: JSON.stringify({ path: f.path, content: ta.value, sessionId }),
       })).json();
       if (!r.ok) throw new Error(r.error || "Could not save");
       const before = f.content;
@@ -7082,6 +7091,16 @@ function renderTreePane() {
         <span class="ptn">${esc(i.lbl ? i.lbl.textContent : i.kind)}</span>
         <span class="ptm">${esc(i.dsc ? i.dsc.textContent : "")}${dur(i) ? " · " + dur(i) : ""}</span>
       </div>`).join("") : '<div class="ptnode empty"><span class="ptn">No tool activity in this turn.</span></div>'}
+    ${[...treeSubs.values()].map((s) => `
+      <div class="ptnode item ${s.status}" style="--d:1">
+        <span class="pdot ${s.status}"></span>
+        <span class="ptn">Subagent · ${esc(s.agent)}</span>
+        <span class="ptm">${esc(s.instructions.slice(0, 52))}${s.status === "running" ? "" : " · " + fmtDur(s.ms)}</span>
+      </div>
+      ${s.tools.map((t) => `<div class="ptnode item ${t.status}" style="--d:2">
+        <span class="pdot ${t.status}"></span><span class="ptn">${esc(t.name)}</span>
+        <span class="ptm">${esc(String(t.args.path || t.args.command || t.args.instructions || "").slice(0, 60))}</span>
+      </div>`).join("")}`).join("")}
     ${live ? '<button class="ptstop" type="button">Stop turn</button>' : ""}
     <div class="ptnode root" style="margin-top:8px"><span class="pdot"></span><span class="ptn">OS processes</span></div>
     <div id="treeProcs"><div class="ptnode empty"><span class="ptn">No child processes.</span></div></div>`;
@@ -7345,7 +7364,7 @@ function renderDiffPane() {
     try {
       const r = await (await fetch("/api/file/write", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path: d.path, content: d.before, expected: d.after }),
+        body: JSON.stringify({ path: d.path, content: d.before, expected: d.after, sessionId }),
       })).json();
       if (!r.ok) throw new Error(r.error || "Could not revert");
       diffs = diffs.filter((x) => x !== d);
@@ -7889,7 +7908,6 @@ async function handleCommand(text) {
   if (name === "memory" && j.text) renderPlan(j.text);
 }
 function say(t) { startAssistant(); toolGroup = null; proc = null; currentMsg._t = t; setMsgHtml(currentMsg, md(t)); wireCopy(currentMsg); endAssistant(); }
-
 async function sendToAgent(message, opts = {}) {
   const resume = !!opts.resume;
   // Attachments picked in the composer ride along as absolute paths, appended
@@ -8036,6 +8054,22 @@ function handle(evt) {
     case "permission_request": setActivity("waiting for your permission"); askPermission(evt); break;
     case "tool": sessStats.tools[evt.name] = (sessStats.tools[evt.name] || 0) + 1; setActivity(activityForTool(evt.name)); addTool({ name: evt.name, args: evt.args, status: evt.allowed === false ? "denied" : "running", detail: "" }); break;
     case "tool_result": setActivity("thinking"); finishTool(evt.status, evt.preview); break;
+    case "subagent": {
+      if (evt.phase === "start") {
+        treeSubs.set(evt.id, { id: evt.id, instructions: evt.instructions || "", agent: evt.agent || "explorer", status: "running", started: Date.now(), ms: 0, tools: [] });
+      } else if (evt.phase === "end") {
+        const s = treeSubs.get(evt.id);
+        if (s) { s.status = evt.status || "ok"; s.ms = evt.ms || (Date.now() - s.started); s.text = evt.text || ""; }
+      }
+      renderTreePane();
+      break;
+    }
+    case "subagent_tool": {
+      const s = treeSubs.get(evt.id);
+      if (s) s.tools.push({ name: evt.name, status: evt.status, args: evt.args || {} });
+      renderTreePane();
+      break;
+    }
     case "context_pruned": sessStats.compact.passes += 1; sessStats.compact.charsSaved += Number(evt.chars) || 0; break;
     case "diff": renderDiff(evt); updatePrBar(evt); break;
     case "usage": {
@@ -8084,6 +8118,7 @@ async function newSession(opts = {}) {
   } catch { sessionId = null; }
 
   todos = []; diffs = []; lastDiff = []; termLines = [];
+  treeSubs.clear();
   paneBadges.tasks = 0; paneBadges.diff = 0; paneBadges.terminal = 0;
   sessStats = emptySessStats();
   artifacts = []; msgArtifacts = []; msgCards = 0; artifactView = { i: 0, mode: "render" };

@@ -1,5 +1,10 @@
 # What's new in Star
 
+## 1.26.4 — 2026-11-05
+- **Process Tree has subagent branches.** Each `task` subagent appears under the turn with its instructions, live status, duration and the tools it calls; run_command children show their PIDs and can be stopped individually.
+- **In-app edits respect the permission mode.** Plan mode refuses saves, Manual mode asks for confirmation before applying, and every saved edit is recorded in Changes. The save endpoint enforces the Plan-mode block too.
+- **Update log** includes these notes.
+
 ## 1.26.3 — 2026-11-05
 - **Process Tree shows OS processes.** Commands started by the agent appear with their PID, command, duration and a **Stop** button; killing one removes it from the live list. The tree still shows the current session → turn → thought/tool rows.
 - **Update downloads are atomic and verified.** Installers are staged as `.part` and renamed only after a matching sha512; a missing checksum is refused. If an installer never reaches the new version, the next launch shows “Update did not complete” and keeps the current build.

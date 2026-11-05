@@ -217,10 +217,22 @@ function makeRunner(r, allowed, session = null) {
       }
       const base = createToolRunner(subagentCtx.root, allowedForSub ? { allowed: allowedForSub } : {});
       const gated = allowedForSub ? restrictRunner(base, allowedForSub) : base;
+      const parentEmit = session && askTurns.get(session.id);
+      const subId = randomUUID();
+      const subStart = Date.now();
+      parentEmit?.({ type: "subagent", phase: "start", id: subId, instructions: String(instructions || "").slice(0, 400), agent: agent?.name || "explorer" });
       const explorer = {
-        run: (name, args) => {
+        run: async (name, args) => {
           if (SUBAGENT_BLOCKED.has(name)) throw new Error(name + " is not available to subagents");
-          return gated.run(name, args);
+          parentEmit?.({ type: "subagent_tool", id: subId, name, status: "running", args: args || {} });
+          try {
+            const out = await gated.run(name, args);
+            parentEmit?.({ type: "subagent_tool", id: subId, name, status: "ok", args: args || {} });
+            return out;
+          } catch (e) {
+            parentEmit?.({ type: "subagent_tool", id: subId, name, status: "failed", args: args || {}, error: e.message });
+            throw e;
+          }
         },
         isDangerous: gated.isDangerous,
         root: gated.root,
@@ -250,6 +262,7 @@ function makeRunner(r, allowed, session = null) {
         requestPermission: async () => ({ allowed: false, scope: "once" }),
         mode: "plan", autoAllow: new Set(),
       });
+      parentEmit?.({ type: "subagent", phase: "end", id: subId, status: "ok", ms: Date.now() - subStart, text: text.slice(0, 400) });
       return { text };
     },
   });
@@ -1263,7 +1276,11 @@ async function route(req, res) {
   // Save a text file edited in the preview pane. Scoped to the project root,
   // capped, and never creates directories outside it.
   if (req.method === "POST" && url.pathname === "/api/file/write") {
-    const { path: rel, content, expected } = await readBody(req);
+    const { path: rel, content, expected, sessionId: sid } = await readBody(req);
+    const sess = sid ? sessions.get(sid) : null;
+    if (sess && sess.mode === "plan") {
+      return sendJSON(res, 403, { error: "Plan mode is read-only; switch the session mode before saving edits" });
+    }
     const abs = rel ? safeResolve(String(rel)) : null;
     if (!abs) return sendJSON(res, 403, { error: "path outside working directory" });
     if (typeof content !== "string") return sendJSON(res, 400, { error: "content must be text" });

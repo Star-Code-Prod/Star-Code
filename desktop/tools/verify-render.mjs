@@ -631,7 +631,8 @@ ok("worktree sessions are available from the sidebar menu",
   js.includes("async function newWorktreeSession(") && js.includes('worktree: true') &&
   js.includes('"New worktree session"'));
 ok("edited files report unsaved changes and add a diff",
-  js.includes("Unsaved changes") && js.includes("renderDiff({ path: f.path, before, after: f.content })"));
+  js.includes("Unsaved changes") && js.includes("renderDiff({ path: f.path, before, after: f.content })") &&
+  js.includes("Plan mode is read-only") && js.includes("Apply this edit to"));
 ok("the Tree pane mirrors the live process card",
   html.includes('data-pane="tree"') && html.includes('id="treeBody"') &&
   js.includes("function renderTreePane(") && js.includes("ptstop") &&
