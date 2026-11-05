@@ -530,6 +530,12 @@ ok("fullscreen sits below the titlebar strip",
 ok("the process header counts the round",
   js.includes("function procCount(") && js.includes('" thought" + (t === 1 ? "" : "s")') &&
   js.includes('" tool call" + (n === 1 ? "" : "s")'));
+ok("the process header reads Worked/Working for the round duration",
+  js.includes('"Working for " : "Worked for "') && js.includes("fmtDur(total)"));
+ok("process rows are a timeline, not a card",
+  /\.proc\{[^}]*border:0/.test(html.replace(/\s+/g, "")) &&
+  /\.proc\.open\.proc-b\{[^}]*border-left:1pxsolid/.test(html.replace(/\s+/g, "")) &&
+  /\.prow\{[^}]*min-height:28px/.test(html.replace(/\s+/g, "")));
 ok("a pick per question sends; multiSelect still uses Submit",
   js.includes("const anyMulti = qs.some((q) => q.multiSelect)") &&
   js.includes("(qs.length === 1 && !multi) || (allSingle && ready)") &&

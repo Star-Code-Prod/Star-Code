@@ -552,40 +552,45 @@ body.mode-chat #navProjects{display:none}
    in arrival order, and each row opens in place. Replaced the old .think pill
    and .tools group so a turn reads as one block, not a stack of cards. */
 .proc{
-  display:flex;flex-direction:column;flex:none;margin:0;align-self:stretch;
-  border:1px solid var(--border2);border-radius:12px;background:var(--panel);overflow:hidden;
+  display:flex;flex-direction:column;flex:none;margin:2px 0 0;align-self:stretch;
+  border:0;background:none;
 }
 .proc-h{
-  display:flex;align-items:center;gap:8px;width:100%;padding:9px 14px;text-align:left;
-  font-size:var(--fs-13);color:var(--muted);
+  display:flex;align-items:center;gap:6px;width:fit-content;max-width:100%;height:28px;padding:0 5px;margin-left:-5px;text-align:left;
+  border-radius:6px;font-size:var(--fs-13);color:var(--dim);
   transition:color var(--t-fast) var(--ease),background var(--t-fast) var(--ease);
 }
 .proc-h:hover{color:var(--text2);background:var(--hover)}
-.proc-h .pdot{display:none;width:6px;height:6px;border-radius:50%;flex:none;background:var(--brand)}
+.proc-h .pdot{display:none;width:5px;height:5px;border-radius:50%;flex:none;background:var(--brand)}
 .proc.live .proc-h .pdot{display:block;animation:pulse 1.4s ease-in-out infinite}
 .proc-h .psum{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
-.proc-h .pchev{flex:none;display:flex;color:var(--dim);opacity:0;transition:transform var(--t-fast) var(--ease),opacity var(--t-fast) var(--ease)}
-.proc-h:hover .pchev,.proc.open .pchev{opacity:1}
-.proc.open .proc-h .pchev{transform:rotate(180deg)}
+.proc-h .pchev{flex:none;display:flex;color:var(--dim);opacity:.65;transition:transform var(--t-fast) var(--ease),opacity var(--t-fast) var(--ease)}
+.proc-h:hover .pchev{opacity:1}
+.proc.open .pchev{transform:rotate(90deg);opacity:1}
 .proc-b{display:none}
-.proc.open .proc-b{display:block}
-.pitem{border-top:1px solid var(--border)}
-.pitem:first-child{border-top:0}
-.prow{
-  display:flex;align-items:center;gap:10px;width:100%;padding:8px 14px;text-align:left;
-  font-size:var(--fs-13);color:var(--text2);transition:background var(--t-fast) var(--ease);
+.proc.open .proc-b{
+  display:block;margin:2px 0 5px 9px;padding-left:17px;
+  border-left:1px solid var(--border);
 }
-.prow:hover{background:var(--hover)}
+.pitem{border-top:0}
+.prow{
+  display:flex;align-items:center;gap:8px;width:100%;min-height:28px;padding:2px 7px;margin-left:-7px;text-align:left;
+  border-radius:6px;font-size:var(--fs-125);color:var(--muted);
+  transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
+}
+.prow:hover{background:var(--hover);color:var(--text2)}
 .pib{flex:none;display:flex;align-items:center;justify-content:center;width:14px;height:14px}
-.pring{display:block;width:11px;height:11px;border-radius:50%;border:1.5px solid color-mix(in srgb,var(--muted) 62%,transparent);transition:border-color var(--t-fast),background var(--t-fast)}
-.pitem.run .pring{border-color:var(--brand);animation:pulse 1.4s ease-in-out infinite}
-.pitem.no .pring{border-color:var(--del-fg);background:var(--del-fg)}
-.plbl{flex:none;color:var(--text);font-weight:500}
-.pdsc{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
-.pdsc:not(:empty)::before{content:"· ";color:var(--dim)}
-.pmet{display:none;flex:none;color:var(--dim);font-family:var(--font-mono);font-size:var(--fs-11);font-variant-numeric:tabular-nums}
-.pitem.run .pmet,.pitem.open .pmet{display:block}
-.pdet{display:none;padding:0 14px 12px 38px}
+.pring{display:block;width:7px;height:7px;border-radius:50%;border:0;background:var(--border2);transition:background var(--t-fast)}
+.pitem.run .pring{background:var(--brand);animation:pulse 1.4s ease-in-out infinite}
+.pitem.no .pring{background:var(--del-fg)}
+.plbl{flex:none;color:var(--text2);font-weight:400}
+.pdsc{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dim)}
+.pdsc:not(:empty)::before{content:"· ";color:var(--dim);opacity:.7}
+.pmet{
+  display:block;flex:none;color:var(--dim);opacity:.75;font-family:var(--font-mono);
+  font-size:var(--fs-11);font-variant-numeric:tabular-nums;
+}
+.pdet{display:none;padding:2px 7px 10px 22px}
 .pitem.open .pdet{display:block}
 .pout{
   margin:0;padding:8px 10px;max-height:220px;overflow:auto;white-space:pre-wrap;word-break:break-word;
@@ -5415,6 +5420,13 @@ function flushAnswer() {
   currentMsg.style.display = "";
   // Visible prose ends the tool run: tools after it start a NEW group, so one
   // turn reads as prose - its tools - prose - its tools, like a written log.
+  if (proc) {
+    procSummary();
+    if (!procLive()) {
+      proc.node.classList.remove("open");
+      proc.head.setAttribute("aria-expanded", "false");
+    }
+  }
   toolGroup = null; proc = null;
   setMsgHtml(currentMsg, md(shown));
   wireCopy(currentMsg);
@@ -7080,9 +7092,14 @@ function procLive() {
 
 function procSummary() {
   if (!proc) return;
-  const txt = procCount();
-  proc.sum.textContent = txt || "Working…";
   const live = procLive();
+  const total = live
+    ? Date.now() - proc.started
+    : proc.items.reduce((n, i) => n + (i.elapsed || 0), 0);
+  proc.sum.textContent = proc.items.length
+    ? (live ? "Working for " : "Worked for ") + fmtDur(total)
+    : "Working…";
+  proc.sum.title = procCount() || "";
   proc.node.classList.toggle("live", live);
   proc.node.classList.toggle("empty", !proc.items.length);
 }
@@ -7096,7 +7113,7 @@ function ensureProc(append) {
     <button class="proc-h" type="button" aria-expanded="true">
       <span class="pdot"></span>
       <span class="psum">Working…</span>
-      <span class="pchev"><svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5l4 4 4-4"/></svg></span>
+      <span class="pchev"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l4 4-4 4"/></svg></span>
     </button>
     <div class="proc-b"></div>`;
   if (!append && currentMsg && currentMsg.parentNode === $("stream")) $("stream").insertBefore(n, currentMsg);
@@ -7111,6 +7128,7 @@ function ensureProc(append) {
     head: n.querySelector(".proc-h"),
     sum: n.querySelector(".psum"),
     items: [],
+    started: Date.now(),
   };
   return proc;
 }

@@ -1,5 +1,9 @@
 # What's new in Pulse Harness
 
+## 1.28.0 — 2026-11-05
+- **Process rows now read like EcoGPT work blocks.** The heavy bordered card is gone: a quiet, borderless 28px header says **“Worked for 12.4s”** (“Working for …” while live) and collapses to a chevron when the turn ends. Expanded rows sit on a thin timeline rail with small status dots, plain labels, one-line targets and right-aligned durations. Clicking a row still opens its reasoning or full output in place.
+- **Update log** includes these notes.
+
 ## 1.27.7 — 2026-11-05
 - **`pulse web` now actually launches from the installed app.** Electron was rejecting `--pulse-web` as an unknown Chromium switch; the Windows shim now passes it after `--` and clears an inherited `ELECTRON_RUN_AS_NODE` value. The installed app starts its local server, prints the URL and opens the browser.
 - **Update log** includes these notes.
