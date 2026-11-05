@@ -1,5 +1,9 @@
 # What's new in Pulse Harness
 
+## 1.28.1 — 2026-11-05
+- **The accent matches the logo.** Terracotta is gone: links, selection, active rows, focus rings and the composer's send button now use the logo's violet (`#8b5cf6` on dark, `#7c3aed` on light), with lavender highlights. The plan bar and code highlights keep their own semantic colors.
+- **Update log** includes these notes.
+
 ## 1.28.0 — 2026-11-05
 - **Process rows now read like EcoGPT work blocks.** The heavy bordered card is gone: a quiet, borderless 28px header says **“Worked for 12.4s”** (“Working for …” while live) and collapses to a chevron when the turn ends. Expanded rows sit on a thin timeline rail with small status dots, plain labels, one-line targets and right-aligned durations. Clicking a row still opens its reasoning or full output in place.
 - **Update log** includes these notes.
