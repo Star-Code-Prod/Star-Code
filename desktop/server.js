@@ -1673,6 +1673,67 @@ process.on("unhandledRejection", (e) => {
  * Start the local server. Returns { port, url, close }.
  * `root` overrides the working directory the agent operates on.
  */
+/** Run one due schedule without a browser: a fresh code session in safe Plan
+ *  mode, so a scheduled prompt can never widen its own permissions. */
+async function runScheduledHeadless(task) {
+  let provider = "", model = "", key = "";
+  try {
+    const last = readConfig().lastModel || {};
+    provider = String(last.provider || "");
+    model = String(last.model || "");
+  } catch { /* fall through */ }
+  if (!provider) {
+    for (const [id, cfg] of Object.entries(PROVIDERS)) {
+      const k = resolveKey(id, "", cfg.envKeys || []);
+      if (k) { provider = id; model = model || cfg.defaultModel || ""; key = k; break; }
+    }
+  } else {
+    key = resolveKey(provider, "", (PROVIDERS[provider] && PROVIDERS[provider].envKeys) || []);
+  }
+  if (!provider || !key) return false;
+  const s = newSession("Scheduled: " + task.title, "code");
+  s.mode = "plan";
+  s.messages[0] = { role: "system", content: sessionSystemContent(s) };
+  s.messages.push({ role: "user", content: task.prompt });
+  s.activeTurn = Date.now();
+  persist();
+  try {
+    await agentLib.runAgentTurn({
+      provider, model: model || (PROVIDERS[provider] && PROVIDERS[provider].defaultModel) || "",
+      apiKey: key,
+      baseUrl: (readAuth().providers[provider] || {}).baseUrl || undefined,
+      messages: s.messages, runner: sessionRunner(s),
+      emit: () => {}, requestPermission: async () => ({ allowed: false, scope: "once" }),
+      mode: "plan", autoAllow: new Set(),
+    });
+  } catch (e) {
+    s.messages.push({ role: "assistant", content: "Scheduled run failed: " + e.message });
+  } finally {
+    s.activeTurn = 0;
+    s.updated = Date.now();
+    persist();
+  }
+  return true;
+}
+
+async function runDueSchedulesHeadless() {
+  if (headlessSchedBusy) return;
+  headlessSchedBusy = true;
+  try {
+    const due = await schedulesDue(ROOT);
+    for (const task of due) {
+      const ran = await runScheduledHeadless(task);
+      await scheduleAdvance(ROOT, task.id);
+      if (!ran) console.log("[schedule] skipped \"" + task.title + "\": no provider key");
+    }
+  } catch (e) {
+    console.error("[schedule] " + e.message);
+  } finally {
+    headlessSchedBusy = false;
+  }
+}
+let headlessSchedBusy = false;
+
 export async function startServer({ port = PORT, root, silent = false } = {}) {
   if (root) {
     ROOT = path.resolve(root);
@@ -1692,10 +1753,14 @@ export async function startServer({ port = PORT, root, silent = false } = {}) {
     console.log("  -> http://127.0.0.1:" + actual);
     console.log("  Working directory: " + ROOT + "\n");
   }
+  const schedTimer = process.env.STAR_DISABLE_SCHEDULER ? null : setInterval(() => {
+    runDueSchedulesHeadless().catch(() => {});
+  }, 60_000);
+  if (schedTimer && schedTimer.unref) schedTimer.unref();
   return {
-    port: actual,
-    url: "http://127.0.0.1:" + actual,
+    port: actual,    url: "http://127.0.0.1:" + actual,
     close: () => new Promise((resolve) => {
+      if (schedTimer) clearInterval(schedTimer);
       // Flush anything the debounce is holding, so a quick quit never
       // loses the last session's changes.
       flushStore();

@@ -1,5 +1,9 @@
 # What's new in Star
 
+## 1.26.2 — 2026-11-05
+- **Scheduled work now runs headlessly.** The server checks due schedules once a minute and runs each in a fresh, **plan-mode** session with the configured provider/key; results are saved as normal sessions, so a scheduled prompt cannot escalate its own permissions. The sidebar refreshes every 20 seconds to surface them.
+- **Diff review** from 1.26.1 is included: unified/split views, hunk navigation and safe revert.
+
 ## 1.26.1 — 2026-11-05
 - **Diff review got real controls.** The Changes pane now switches between unified and side-by-side layouts, jumps to the previous/next changed line, and can revert a file change with a safety check: if the file changed after the diff was captured, the revert is refused instead of overwriting unrelated edits.
 - **Update log** includes these notes for the next launch.

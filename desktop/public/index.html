@@ -2411,8 +2411,6 @@ const bridge = (typeof window !== "undefined" && window.desktop && window.deskto
   }
   const sessionsPromise = Promise.resolve().then(() => loadSessions());
   const keysPromise = importLocalKeys();
-  setTimeout(runDueSchedules, 6000);
-  setInterval(runDueSchedules, 60000);
   meta = await (await fetch("/api/providers")).json();
   // A fresh profile follows the model the user last picked anywhere (the CLI
   // reports it as meta.lastModel); once a profile exists its own pick wins.
@@ -2480,6 +2478,9 @@ const bridge = (typeof window !== "undefined" && window.desktop && window.deskto
     if (state.lastSession && sessionList.some((s) => s.id === state.lastSession)) switchSession(state.lastSession);
   }
   setTimeout(() => { booting = false; }, 300);
+  if (!EMBED_SID) setInterval(() => {
+    if (!document.hidden && !isStreaming(sessionId)) loadSessions().catch(() => {});
+  }, 20_000);
   // Quiet update check a few seconds after launch. Deliberately delayed so it
   // never competes with first paint, and it only surfaces a banner when there
   // is genuinely something newer than the running build.
