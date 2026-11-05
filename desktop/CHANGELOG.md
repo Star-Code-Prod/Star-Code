@@ -1,5 +1,9 @@
 # What's new in Star
 
+## 1.26.6 — 2026-11-05
+- **Project config now enforces tool policy.** `.star-code/settings.json` can restrict the tool runner with `permissions.allowedTools` / `denyTools`; unknown Claude-style pattern entries are ignored instead of accidentally disabling every tool. A project can narrow the session's tools, never widen them.
+- **Update log** includes these notes.
+
 ## 1.26.5 — 2026-11-05
 - **Two more tool-call dialects work.** `<|tool_call_start|>[read_file(path='…')]<|tool_call_end|>` and `<dots_file>{"tool_name":"…","parameters":{…}}</dots_file>` are parsed into real calls and stripped from prose and reasoning, instead of leaking as text or being ignored.
 - **Subagents can be stopped from the Tree pane** while they are running, alongside individual OS process rows.

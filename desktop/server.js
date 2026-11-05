@@ -18,7 +18,7 @@ const { PROVIDERS, discoverModels, detectLocals } = providersLib;
 import { readAuth, writeAuthEntry, removeAuthEntry, resolveKey, mask } from "./lib/auth.js";
 import { readConfig, writeLastModel } from "./lib/config.js";
 import { listKnowledge, readKnowledgeFile, saveKnowledgeFile, deleteKnowledgeFile, knowledgeDir } from "./lib/knowledge.js";
-import { createToolRunner, readProjectMemory, readProjectConfig, activeProcesses, killProcess } from "./lib/tools.js";
+import { createToolRunner, readProjectMemory, readProjectConfig, activeProcesses, killProcess, TOOL_SPECS } from "./lib/tools.js";
 import { schedulesDue, scheduleAdvance } from "./lib/extras.js";
 // Custom agents ("personas"): the same files the task tool resolves. The
 // desktop lists them for the agent picker, and a chat request may name one as
@@ -142,6 +142,19 @@ function restrictRunner(toolRunner, allowed) {
 }
 
 function makeRunner(r, allowed, session = null) {
+  // A project config can narrow the tool surface, never widen it.
+  try {
+    const cfg = readProjectConfig(r);
+    if (cfg) {
+      const known = new Set(TOOL_SPECS.map((t) => t.name));
+      let next = allowed ? allowed.slice() : [...known];
+      const allow = cfg.allowedTools.filter((t) => known.has(t));
+      const deny = cfg.denyTools.filter((t) => known.has(t));
+      if (allow.length) next = next.filter((t) => allow.includes(t));
+      if (deny.length) next = next.filter((t) => !deny.includes(t));
+      if (allow.length || deny.length) allowed = next;
+    }
+  } catch { /* malformed config never blocks a runner */ }
   const toolRunner = createToolRunner(r, {
     ...(allowed ? { allowed } : {}),
     mcp: mcpManager,
