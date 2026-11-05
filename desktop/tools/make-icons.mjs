@@ -3,6 +3,11 @@
 //
 // Usage: node tools/make-icons.mjs
 //
+// Brand icons now come from the supplied Pulse Harness artwork
+// (assets/pulse-harness-bg.png). This legacy generator is kept only for the
+// original P geometry; do not run it to regenerate icons or it will overwrite
+// the brand assets.
+//
 // The mark: a warm paper tile with a geometric P in ink and a small
 // terracotta pulse dot - the same geometry as assets/icon.svg (shared
 // 512-unit space), drawn flat so it stays crisp at 16px.

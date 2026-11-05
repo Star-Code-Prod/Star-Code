@@ -660,6 +660,11 @@ ok("diffs support unified/split views, hunk jumps and safe revert",
   ok("the web version prints the local URL and opens it",
     webSrc.includes("Pulse Harness — web version") && webSrc.includes('"http://127.0.0.1:" + srv.port') &&
     webSrc.includes("EADDRINUSE") && webSrc.includes("--no-open"));
+  ok("the desktop uses the BG mark and the web uses the light mark",
+    webSrc.includes("brand-logo") === false &&
+    html.includes('class="brand-logo"') && js.includes("pulse-harness-bg-mark") &&
+    js.includes("pulse-harness-mark") && html.includes('rel="icon"') &&
+    fs.existsSync("assets/pulse-harness-bg-mark.png") && fs.existsSync("assets/pulse-harness-mark.png"));
   ok("Settings carries the connector catalog",
     html.includes('data-s="connectors"') && js.includes("function settingsConnectors(") &&
     js.includes("openConnectorModal") && js.includes("/api/connectors") &&

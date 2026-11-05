@@ -1,5 +1,9 @@
 # What's new in Pulse Harness
 
+## 1.27.2 — 2026-11-05
+- **New Pulse Harness artwork.** The desktop app uses the supplied dark **Pulse Harness BG** mark in the sidebar, landing page, boot screen and app icon; the web build uses the light **Pulse Harness** mark on a white tile, with a matching favicon. The old generated P logo is no longer used by the UI.
+- **Update log** includes these notes.
+
 ## 1.27.1 — 2026-11-05
 - **Markdown now renders like a document.** Tables sit in a quiet surface card with a muted header and row hairlines instead of a spreadsheet grid; blockquotes become callout cards, with `[!NOTE]`, `[!TIP]`, `[!WARNING]` and `[!CAUTION]` variants; tables support alignment and inline bold/code; paragraphs keep their spacing without nesting block cards inside a paragraph.
 - **Update log** includes these notes.
