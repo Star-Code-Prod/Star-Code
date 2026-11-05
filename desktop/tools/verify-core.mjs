@@ -197,6 +197,18 @@ line "two"</|DSML|parameter>
   ok("XML parameter tags become arguments",
     xmlParams.calls.length === 1 && xmlParams.calls[0].args.path === "a.txt" && xmlParams.calls[0].args.content === "hello",
     JSON.stringify(xmlParams.calls));
+  const pipe = parseAssistantContent("<|tool_call_start|>[read_file(path='src/greeting.js')]<|tool_call_end|>");
+  ok("the pipe-delimited tool_call dialect parses",
+    pipe.calls.length === 1 && pipe.calls[0].name === "read_file" && pipe.calls[0].args.path === "src/greeting.js",
+    JSON.stringify(pipe.calls));
+  ok("pipe tool markup is stripped from prose", !pipe.text.includes("tool_call"));
+  const dotsFile = parseAssistantContent('<dots_file>\n{"tool_call_id":"1","tool_name":"read_file","parameters":{"path":"test.mjs"}}\n```');
+  ok("the dots_file JSON dialect parses",
+    dotsFile.calls.length === 1 && dotsFile.calls[0].name === "read_file" && dotsFile.calls[0].args.path === "test.mjs",
+    JSON.stringify(dotsFile.calls));
+  ok("dots_file markup is stripped from prose", !dotsFile.text.includes("dots_file"));
+  ok("reasoning scrubbing drops dots_file/pipe markup",
+    !/dots_file|tool_call_start/.test(scrubReasoning('x\n<dots_file>{"tool_name":"read_file"}\n```\n<|tool_call_start|>[read_file(path="a")]<|tool_call_end|>')));
   ok("reasoning scrubbing drops the same XML markup",
     scrubReasoning("Thinking about it\n<dots_function_call>\n<invoke name=\"list_dir\">\n<args>{\"path\": \".\"}</args>\n</invoke>\n</dots_function_call>") === "Thinking about it\n");
 

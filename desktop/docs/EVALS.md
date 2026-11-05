@@ -19,7 +19,12 @@ STAR_EVAL=1 node tools/verify-evals.mjs
 ```
 
 Live runs should be recorded with the model, date, task id, pass/fail and the
-reason. Keep the fixture repos small and deterministic:
+reason. The latest run is stored in `tools/evals/results.json`.
+
+Latest live result (2026-11-05): provider `openrouter`, model
+`openrouter/free`, edit-file **PASS**, fix-test **PASS**. The intended
+reference model is `deepseek-chat`; set `STAR_EVAL_PROVIDER=deepseek` and
+`STAR_EVAL_KEY=…` to record that run when a key is available.
 
 | Task | What it proves |
 |---|---|

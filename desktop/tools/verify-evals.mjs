@@ -19,6 +19,13 @@ ok("the eval set covers edit, test, search and refactor",
   ["edit-file", "fix-test", "search-summarize", "refactor"].every((id) => data.tasks.some((t) => t.id === id)));
 ok("every eval task has a prompt and checks",
   data.tasks.every((t) => t.prompt && Array.isArray(t.checks) && t.checks.length >= 1));
+const resultsFile = path.join(path.dirname(fileURLToPath(import.meta.url)), "evals", "results.json");
+if (fs.existsSync(resultsFile)) {
+  const r = JSON.parse(fs.readFileSync(resultsFile, "utf8"));
+  ok("live eval results are recorded with model and outcomes",
+    !!r.model && Array.isArray(r.results) && r.results.length > 0 &&
+    r.results.every((x) => x.id && typeof x.pass === "boolean"));
+}
 
 const prompt = systemPrompt(process.cwd(), "manual");
 for (const tool of ["read_file", "edit_file", "run_command", "test_run", "git_diff"]) {

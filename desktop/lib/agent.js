@@ -816,10 +816,69 @@ function callsInFences(src, re, into) {
 
 const ARG_KEYS = ["name", "tool", "tool_name", "args", "arguments", "parameters", "input", "tool_args"];
 
+/** Parse Python-style keyword arguments used by some providers:
+ *  read_file(path='src/a.js', line=2). */
+function parseKwargs(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return {};
+  if (s.startsWith("{")) {
+    try { return JSON.parse(s); } catch { /* fall through */ }
+  }
+  const out = {};
+  const re = /([A-Za-z_][\w.-]*)\s*=\s*(?:'([^']*)'|"([^"]*)"|([^,\s]+))/g;
+  let m;
+  while ((m = re.exec(s))) {
+    let v = m[2] ?? m[3] ?? m[4] ?? "";
+    if (v === "true") v = true;
+    else if (v === "false") v = false;
+    else if (v === "null" || v === "None") v = null;
+    else if (/^-?\d+(?:\.\d+)?$/.test(v)) v = Number(v);
+    out[m[1]] = v;
+  }
+  return out;
+}
+
+/** <|tool_call_start|>[read_file(path='a.js')]<|tool_call_end|> */
+function parsePipeCalls(src, calls) {
+  const re = /<\|tool_call_start\|>\s*\[?\s*([A-Za-z_][\w.-]*)\s*\(([\s\S]*?)\)\s*\]?\s*<\|tool_call_end\|>/g;
+  let m, out = src;
+  while ((m = re.exec(src)) !== null) {
+    const name = m[1];
+    const raw = m[2].trim();
+    let args = {};
+    if (raw.startsWith("{") || raw.startsWith("[")) {
+      try { args = JSON.parse(raw); } catch { args = parseKwargs(raw); }
+    } else args = parseKwargs(raw);
+    calls.push({ name, args });
+    out = out.replace(m[0], "");
+  }
+  return out;
+}
+
+/** <dots_file>{"tool_name":"read_file","parameters":{...}}</dots_file> */
+function parseDotsFileCalls(src, calls) {
+  const re = /<dots_file>\s*([\s\S]*?)(?:<\/dots_file>|```|$)/g;
+  let m, out = src;
+  while ((m = re.exec(src)) !== null) {
+    const body = m[1].replace(/```/g, "").trim();
+    const json = /\{[\s\S]*\}/.exec(body);
+    if (json) {
+      try {
+        const call = callFrom(JSON.parse(json[0]));
+        if (call) calls.push(call);
+      } catch { /* leave the block for stripping */ }
+    }
+    out = out.replace(m[0], "");
+  }
+  return out;
+}
+
 export function parseAssistantContent(content) {
   content = normalizeDsml(content);
   const calls = [];
   let rest = callsInFences(content, TOOL_FENCE_RE, calls);
+  rest = parsePipeCalls(rest, calls);
+  rest = parseDotsFileCalls(rest, calls);
   // A ```json fence is a call only when it holds nothing but a name and args.
   JSON_FENCE_RE.lastIndex = 0;
   let jm;
@@ -859,7 +918,8 @@ export function parseAssistantContent(content) {
   rest = rest.replace(todoRe, "");
 
   const text = stripXmlCallMarkup(rest
-    .replace(DSML_BLOCK_RE, "").replace(DSML_INVOKE_RE, "").replace(DSML_TAG_RE, "")).trim();
+    .replace(DSML_BLOCK_RE, "").replace(DSML_INVOKE_RE, "").replace(DSML_TAG_RE, "")
+    .replace(/<\/?dots_file>/g, "").replace(/<\|tool_call_(?:start|end)\|>/g, "")).trim();
   return { text, calls, todos };
 }
 
@@ -880,6 +940,9 @@ export function scrubReasoning(text) {
   out = out.replace(/<\|DSML\|parameter\b[^>]*>/g, "");
   out = out.replace(/<\/?\|DSML\|[^>]*>/g, "");
   out = out.replace(/<\|DSML\|[^>]*$/, "");
+  out = out.replace(/<dots_file>[\s\S]*?(?:<\/dots_file>|$)/g, "");
+  out = out.replace(/<\|tool_call_start\|>[\s\S]*?(?:<\|tool_call_end\|>|$)/g, "");
+  out = out.replace(/<\/?dots_file>/g, "").replace(/<\|tool_call_(?:start|end)\|>/g, "");
   out = stripXmlCallMarkup(out);
   return out.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n");
 }

@@ -1,5 +1,11 @@
 # What's new in Star
 
+## 1.26.5 — 2026-11-05
+- **Two more tool-call dialects work.** `<|tool_call_start|>[read_file(path='…')]<|tool_call_end|>` and `<dots_file>{"tool_name":"…","parameters":{…}}</dots_file>` are parsed into real calls and stripped from prose and reasoning, instead of leaking as text or being ignored.
+- **Subagents can be stopped from the Tree pane** while they are running, alongside individual OS process rows.
+- **Live reference evals actually ran.** `npm run eval` drives the configured model through edit-file and fix-test fixtures and records results in `tools/evals/results.json`; the latest run passed both. The deterministic eval contract stays in `npm run verify`.
+- **Update log** includes these notes.
+
 ## 1.26.4 — 2026-11-05
 - **Process Tree has subagent branches.** Each `task` subagent appears under the turn with its instructions, live status, duration and the tools it calls; run_command children show their PIDs and can be stopped individually.
 - **In-app edits respect the permission mode.** Plan mode refuses saves, Manual mode asks for confirmation before applying, and every saved edit is recorded in Changes. The save endpoint enforces the Plan-mode block too.

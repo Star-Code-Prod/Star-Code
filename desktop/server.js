@@ -61,6 +61,7 @@ const sessions = new Map();
 // Chat sessions additionally restrict the main runner to CHAT_TOOLS; the same
 // allowlist is inherited by subagents and never widened by a custom agent.
 let subagentCtx = null;
+const subagentControllers = new Map();
 // Live ask_user emitters, one per streaming session. A turn registers its
 // emit here while it runs and removes it when it ends; a call with no live
 // turn for its session falls back to prose.
@@ -220,6 +221,8 @@ function makeRunner(r, allowed, session = null) {
       const parentEmit = session && askTurns.get(session.id);
       const subId = randomUUID();
       const subStart = Date.now();
+      const subController = { abort: false };
+      subagentControllers.set(subId, subController);
       parentEmit?.({ type: "subagent", phase: "start", id: subId, instructions: String(instructions || "").slice(0, 400), agent: agent?.name || "explorer" });
       const explorer = {
         run: async (name, args) => {
@@ -261,8 +264,10 @@ function makeRunner(r, allowed, session = null) {
         emit: (e) => { if (e.type === "done") text = e.text || text; },
         requestPermission: async () => ({ allowed: false, scope: "once" }),
         mode: "plan", autoAllow: new Set(),
+        controller: subController,
       });
-      parentEmit?.({ type: "subagent", phase: "end", id: subId, status: "ok", ms: Date.now() - subStart, text: text.slice(0, 400) });
+      parentEmit?.({ type: "subagent", phase: "end", id: subId, status: subController.abort ? "stopped" : "ok", ms: Date.now() - subStart, text: text.slice(0, 400) });
+      subagentControllers.delete(subId);
       return { text };
     },
   });
@@ -1165,6 +1170,12 @@ async function route(req, res) {
     return sendJSON(res, 200, { ok: true, plugins });
   }
 
+  if (req.method === "POST" && url.pathname === "/api/subagent/stop") {
+    const { id } = await readBody(req);
+    const ctl = subagentControllers.get(String(id || ""));
+    if (ctl) ctl.abort = true;
+    return sendJSON(res, 200, { ok: !!ctl });
+  }
   if (req.method === "GET" && url.pathname === "/api/processes") {
     return sendJSON(res, 200, {
       processes: [...activeProcesses.values()].map((p) => ({

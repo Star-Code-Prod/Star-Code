@@ -7096,6 +7096,7 @@ function renderTreePane() {
         <span class="pdot ${s.status}"></span>
         <span class="ptn">Subagent · ${esc(s.agent)}</span>
         <span class="ptm">${esc(s.instructions.slice(0, 52))}${s.status === "running" ? "" : " · " + fmtDur(s.ms)}</span>
+        ${s.status === "running" ? `<button class="dbtn danger" data-substop="${esc(s.id)}">Stop</button>` : ""}
       </div>
       ${s.tools.map((t) => `<div class="ptnode item ${t.status}" style="--d:2">
         <span class="pdot ${t.status}"></span><span class="ptn">${esc(t.name)}</span>
@@ -7106,6 +7107,16 @@ function renderTreePane() {
     <div id="treeProcs"><div class="ptnode empty"><span class="ptn">No child processes.</span></div></div>`;
   const stop = box.querySelector(".ptstop");
   if (stop) stop.addEventListener("click", () => { try { $("kbdHint").click(); } catch { /* idle */ } });
+  box.querySelectorAll("[data-substop]").forEach((b) => b.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    await fetch("/api/subagent/stop", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: b.dataset.substop }),
+    }).catch(() => {});
+    const sub = treeSubs.get(b.dataset.substop);
+    if (sub) sub.status = "stopped";
+    renderTreePane();
+  }));
   loadTreeProcesses();
 }
 async function loadTreeProcesses() {
