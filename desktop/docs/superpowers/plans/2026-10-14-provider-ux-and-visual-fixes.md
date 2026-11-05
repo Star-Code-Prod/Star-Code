@@ -527,7 +527,7 @@ git commit -m "Document the connect-first provider flow and auth storage"
 
 ## Final verification (before merging to main)
 
-- [ ] `npm run verify` on Windows → all suites green; push the branch, confirm CI green on all three platforms on `Star-Code-Prod/Star-Code`.
+- [ ] `npm run verify` on Windows → all suites green; push the branch, confirm CI green on all three platforms on `Star-Code-Prod/Pulse-Harness`.
 - [ ] Acceptance gallery: dark + light screenshots of Landing, Providers list/detail (valid + invalid key), model picker with search, file tree + file preview, sidebar More menu — reviewed side by side.
 - [ ] Review Focus items 1–5 re-checked against the implementation.
 - [ ] Squash-free linear history: one commit per task, narrative messages matching repo style.

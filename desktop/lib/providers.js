@@ -151,8 +151,8 @@ export const PROVIDERS = {
 // rule cannot be forgotten at a call site.
 
 const OPENROUTER_ATTRIBUTION = {
-  "X-Title": "Star",
-  "HTTP-Referer": "https://github.com/Star-Code-Prod/Star-Code",
+  "X-Title": "Pulse Harness",
+  "HTTP-Referer": "https://github.com/Star-Code-Prod/Pulse-Harness",
 };
 const OPENROUTER_HOST = /(^|\.)openrouter\.ai$/i;
 

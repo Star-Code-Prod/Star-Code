@@ -157,7 +157,7 @@ function createWindow(url) {
 
 /* --------------------------------- IPC ----------------------------------- */
 const REPO_OWNER = "Star-Code-Prod";
-const REPO_NAME = "Star-Code";
+const REPO_NAME = "Pulse-Harness";
 const RELEASES_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases`;
 
 /** true when a is a strictly higher x.y.z than b */
@@ -215,7 +215,7 @@ async function checkForUpdates() {
       {
         headers: {
           Accept: "application/vnd.github+json",
-          "User-Agent": "Star-Code/" + current,
+          "User-Agent": "Pulse-Harness/" + current,
         },
         signal: AbortSignal.timeout(9000),
       }
@@ -284,7 +284,7 @@ function wire() {
   ipcMain.handle("desktop:update-run", async (_e, { asset, latestYmlUrl } = {}) => {
     try {
       if (!asset || !asset.url) return { ok: false, error: "no installer for this platform in the release" };
-      const gh = { "User-Agent": "Star-Code/" + app.getVersion() };
+      const gh = { "User-Agent": "Pulse-Harness/" + app.getVersion() };
       const res = await fetch(asset.url, {
         headers: { ...gh, Accept: "application/octet-stream" },
         redirect: "follow",

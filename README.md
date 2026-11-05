@@ -8,11 +8,11 @@
 
 Bring your own model. Pulse Harness reads, searches, edits and runs commands in your project — and asks before it touches anything.
 
-[![Release](https://img.shields.io/github/v/release/Star-Code-Prod/Star-Code?label=release&color=A35F00)](https://github.com/Star-Code-Prod/Star-Code/releases) [![Build](https://github.com/Star-Code-Prod/Star-Code/actions/workflows/build.yml/badge.svg)](https://github.com/Star-Code-Prod/Star-Code/actions/workflows/build.yml) [![License: MIT](https://img.shields.io/github/license/Star-Code-Prod/Star-Code?color=A35F00)](https://github.com/Star-Code-Prod/Star-Code/blob/main/desktop/LICENSE) [![Platform](https://img.shields.io/badge/platform-Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-151A2E)](https://github.com/Star-Code-Prod/Star-Code)
+[![Release](https://img.shields.io/github/v/release/Star-Code-Prod/Pulse-Harness?label=release&color=A35F00)](https://github.com/Star-Code-Prod/Pulse-Harness/releases) [![Build](https://github.com/Star-Code-Prod/Pulse-Harness/actions/workflows/build.yml/badge.svg)](https://github.com/Star-Code-Prod/Pulse-Harness/actions/workflows/build.yml) [![License: MIT](https://img.shields.io/github/license/Star-Code-Prod/Pulse-Harness?color=A35F00)](https://github.com/Star-Code-Prod/Pulse-Harness/blob/main/desktop/LICENSE) [![Platform](https://img.shields.io/badge/platform-Windows%20%C2%B7%20macOS%20%C2%B7%20Linux-151A2E)](https://github.com/Star-Code-Prod/Pulse-Harness)
 
 <img src="desktop/docs/screenshot.png" width="900" alt="Pulse Harness desktop app">
 
-**Website:** https://star-code-prod.github.io/Star-Code/
+**Website:** https://star-code-prod.github.io/Pulse-Harness/
 
 </div>
 
@@ -28,7 +28,7 @@ Pulse Harness is the harness, not the model: the tools, the permission model, th
 
 ### Prebuilt
 
-Grab an installer from [Releases](https://github.com/Star-Code-Prod/Star-Code/releases):
+Grab an installer from [Releases](https://github.com/Star-Code-Prod/Pulse-Harness/releases):
 
 | Platform | File |
 |---|---|
@@ -43,8 +43,8 @@ Builds are unsigned, so your OS will warn you on first launch.
 ### From source
 
 ```bash
-git clone https://github.com/Star-Code-Prod/Star-Code.git
-cd Star-Code/desktop
+git clone https://github.com/Star-Code-Prod/Pulse-Harness.git
+cd Pulse-Harness/desktop
 npm install
 npm run electron      # the Pulse Harness desktop app
 npm start             # server + UI: http://127.0.0.1:4180
@@ -66,7 +66,7 @@ That starts the installed app in web mode, prints `http://127.0.0.1:<port>`, and
 From a source checkout, install the npm bin once:
 
 ```bash
-cd Star-Code/desktop
+cd Pulse-Harness/desktop
 npm install -g .
 pulse web
 ```
@@ -292,7 +292,7 @@ The renderer never touches your filesystem. Everything goes through a local serv
 ```
 
 ```
-Star-Code/
+Pulse-Harness/
 ├── desktop/                the Star app (Electron shell + local server + UI)
 │   ├── server.js           HTTP + SSE, static host, exports startServer()
 │   ├── lib/
@@ -440,7 +440,7 @@ npm run electron     # dev loop: close and re-run to pick up server changes;
 
 ## Star history
 
-[![Star history](website/assets/star-chart.svg)](https://github.com/Star-Code-Prod/Star-Code)
+[![Star history](website/assets/star-chart.svg)](https://github.com/Star-Code-Prod/Pulse-Harness)
 
 Our own chart, drawn from the GitHub stargazers API by [`desktop/tools/make-star-chart.mjs`](desktop/tools/make-star-chart.mjs) and refreshed daily by CI — no third-party chart service involved.
 

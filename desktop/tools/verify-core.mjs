@@ -324,14 +324,14 @@ ok("acceptEdits keeps asking for mcp tools", decisionFor("acceptEdits", "mcp__st
 
 /* --------------------- OpenRouter attribution headers --------------------- */
 const at = attributionHeaders("https://openrouter.ai/api/v1");
-ok("attribution sets the app title", at["X-Title"] === "Star");
-ok("attribution links the repo", at["HTTP-Referer"] === "https://github.com/Star-Code-Prod/Star-Code");
+ok("attribution sets the app title", at["X-Title"] === "Pulse Harness");
+ok("attribution links the repo", at["HTTP-Referer"] === "https://github.com/Star-Code-Prod/Pulse-Harness");
 ok("no attribution to other hosts", Object.keys(attributionHeaders("https://api.deepseek.com")).length === 0);
 ok("no attribution to lookalike hosts", Object.keys(attributionHeaders("https://openrouter.ai.evil.example/v1")).length === 0);
 ok("a bare openrouter host still qualifies", isOpenRouterHost("openrouter.ai/api/v1") === true);
 
 const orReq = buildRequest({ provider: "openrouter", apiKey: "sk-or-attr1", model: "deepseek/deepseek-chat-v3", messages: [{ role: "user", content: "hi" }], stream: true });
-ok("openrouter chat request carries the headers", orReq.headers["X-Title"] === "Star" && orReq.headers["HTTP-Referer"] === "https://github.com/Star-Code-Prod/Star-Code");
+ok("openrouter chat request carries the headers", orReq.headers["X-Title"] === "Pulse Harness" && orReq.headers["HTTP-Referer"] === "https://github.com/Star-Code-Prod/Pulse-Harness");
 const oaReq = buildRequest({ provider: "openai", apiKey: "sk-openai-attr1", messages: [{ role: "user", content: "hi" }], stream: true });
 ok("openai chat request does not", oaReq.headers["X-Title"] === undefined && oaReq.headers["HTTP-Referer"] === undefined);
 const anReq = buildRequest({ provider: "anthropic", apiKey: "sk-ant-attr1", messages: [{ role: "user", content: "hi" }], stream: true });
@@ -361,13 +361,13 @@ const spyStream = async (url, init) => {
   return { ok: true, status: 200, json: async () => ({}), body: { getReader: () => ({ read: async () => ({ done: true, value: undefined }) }) } };
 };
 for await (const _chunk of streamCompletion(orReq, spyStream)) { /* no SSE chunks on the stub */ }
-ok("streaming request to openrouter carries X-Title", sentTo && sentTo.headers["X-Title"] === "Star" && sentTo.url.includes("openrouter.ai"));
+ok("streaming request to openrouter carries X-Title", sentTo && sentTo.headers["X-Title"] === "Pulse Harness" && sentTo.url.includes("openrouter.ai"));
 
 // the model-discovery fetch obeys the same rule
 let orDiscHeaders = null;
 const orDisc = async (_u, init) => { orDiscHeaders = init.headers; return { ok: true, status: 200, json: async () => ({ data: [{ id: "deepseek/deepseek-chat-v3" }] }) }; };
 const orDiscRes = await discoverModels("openrouter", { baseUrl: "https://openrouter.ai/api/v1", apiKey: "sk-or-disc1" }, orDisc);
-ok("openrouter discovery carries the headers", orDiscRes.live && orDiscHeaders["X-Title"] === "Star");
+ok("openrouter discovery carries the headers", orDiscRes.live && orDiscHeaders["X-Title"] === "Pulse Harness");
 let oaDiscHeaders = null;
 const oaDisc = async (_u, init) => { oaDiscHeaders = init.headers; return { ok: true, status: 200, json: async () => ({ data: [{ id: "gpt-4o" }] }) }; };
 await discoverModels("openai", { baseUrl: "https://api.test/v1", apiKey: "sk-attr-disc2" }, oaDisc);

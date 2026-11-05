@@ -379,7 +379,7 @@ const rdapBase = "http://127.0.0.1:" + rdapStub.address().port;
 
 const ghStub = http.createServer((req, res) => {
   res.setHeader("Connection", "close");
-  if (req.url === "/repos/Star-Code-Prod/Star-Code") {
+  if (req.url === "/repos/Star-Code-Prod/Pulse-Harness") {
     return jsonReply(res, 200, {
       stargazers_count: 1234,
       created_at: "2024-01-02T03:04:05Z",
@@ -617,8 +617,8 @@ ok("baseDomain keeps two labels and ccTLD second-levels",
   baseDomain("dl.nodejs.org") === "nodejs.org" && baseDomain("www.bbc.co.uk") === "bbc.co.uk" &&
   baseDomain("127.0.0.1") === null && baseDomain("localhost") === null);
 ok("githubOwnerRepo parses an owner/repo pair", (() => {
-  const or = githubOwnerRepo("https://github.com/Star-Code-Prod/Star-Code/releases/download/v1/x.zip", "github.com");
-  return or && or.owner === "Star-Code-Prod" && or.repo === "Star-Code";
+  const or = githubOwnerRepo("https://github.com/Star-Code-Prod/Pulse-Harness/releases/download/v1/x.zip", "github.com");
+  return or && or.owner === "Star-Code-Prod" && or.repo === "Pulse-Harness";
 })());
 ok("githubOwnerRepo ignores non-github hosts", githubOwnerRepo("https://example.com/a/b", "example.com") === null);
 
@@ -633,7 +633,7 @@ ok("reputation: RDAP values surface (registrar, dates, org, status)",
 ok("reputation: no VT key means no lookup, just the manual link",
   repRdap.vt.configured === false && repRdap.vt.manualUrl === "https://www.virustotal.com/gui/file/" + "a".repeat(64));
 
-const repGh = await reputationReport({ url: "https://raw.githubusercontent.com/Star-Code-Prod/Star-Code/main/README.md", host: "raw.githubusercontent.com", sha256: "a".repeat(64), tier: "local" });
+const repGh = await reputationReport({ url: "https://raw.githubusercontent.com/Star-Code-Prod/Pulse-Harness/main/README.md", host: "raw.githubusercontent.com", sha256: "a".repeat(64), tier: "local" });
 ok("reputation: GitHub repo values surface (stars, dates, description)",
   repGh.repo && repGh.repo.stars === 1234 && repGh.repo.archived === false &&
   repGh.repo.createdAt === "2024-01-02T03:04:05Z" && repGh.repo.description === "Local agentic coding UI",

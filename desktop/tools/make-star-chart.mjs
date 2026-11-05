@@ -32,7 +32,7 @@ const API = "https://api.github.com";
 
 const USAGE = `usage: node desktop/tools/make-star-chart.mjs [options]
 
-  --repo owner/name   repository to chart (default Star-Code-Prod/Star-Code)
+  --repo owner/name   repository to chart (default Star-Code-Prod/Pulse-Harness)
   --out path          SVG to write (default website/assets/star-chart.svg)
   --data file.json    offline fixture: ISO timestamps or raw API pages
   --pages N           stargazer page cap, 100 stars per page (default 40)`;
@@ -43,7 +43,7 @@ function fail(msg) {
 }
 
 function parseArgs(argv) {
-  const opts = { repo: "Star-Code-Prod/Star-Code", out: null, data: null, pages: 40 };
+  const opts = { repo: "Star-Code-Prod/Pulse-Harness", out: null, data: null, pages: 40 };
   for (let i = 0; i < argv.length; i++) {
     let key = argv[i];
     let inline = null;
