@@ -92,6 +92,11 @@ ok("markdown canvas is wired",
 ok("canvas is offered from assistant messages", script.includes("Open markdown canvas") && script.includes("if (el.classList.contains(\"msg-a\"))"));
 ok("assistant actions bind their own message",
   script.includes("const el = node(\"msg-a streaming\")") && script.includes("msgActs(el, () => el._t || \"\")"));
+ok("permission cards use human tool labels, not raw JSON",
+  script.includes("function permissionMeta") && script.includes("function permissionHtml") &&
+  script.includes("Create a new skill") && script.includes("Permission needed") &&
+  !script.includes("JSON.stringify(args, null, 2)"));
+ok("question cards carry the Harness identity", script.includes("Harness has a question"));
 
 console.log(results.join("\n"));
 const failed = results.filter((r) => r.startsWith("FAIL")).length;

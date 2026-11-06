@@ -1,5 +1,12 @@
 # What's new in Pulse Harness
 
+## 1.38.0 — 2026-11-06
+- **Permission cards are rebuilt.** No more “Harness wants to edit a file” with a raw JSON dump. Each card names the real action — **Create a new skill**, **Edit a file**, **Run a command**, **Download a file**, **Read a web page**, **Search the web**, **Commit changes**, an MCP tool, and so on.
+- **Structured context instead of JSON.** Name, scope, description, file path, command, URL and other fields appear as labelled rows; instructions and file contents fold into an expandable preview; edits show a red/green diff.
+- **Question cards are rebuilt too.** Monochrome cards, clearer headers, radio-style options, inline free-text answer, and a calmer footer with Skip/Submit.
+- **Branding is Harness throughout these cards** — no “Star”, no “Pulse wanted to”.
+- **Update log** includes these notes.
+
 ## 1.37.0 — 2026-11-06
 - **The Chat/Code switch survives sidebar collapse.** It no longer carries the sidebar-only class that the 64px rail hid; it stays pinned in the top-bar centre in both the full sidebar and the icon rail.
 - **Every loading circle is the logo now.** The boot, session-list, file-list, working-line and running-session indicators all use the rotating ribbon mark instead of a spinner ring.

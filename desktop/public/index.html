@@ -2081,6 +2081,75 @@ body:not(.rail) .sess.on{background:var(--panel2)}
 .titlebar .right{margin-left:auto}
 .titlebar .center .seg{margin:0}
 @media(max-width:700px){.titlebar .center .seg{display:flex!important}}
+
+/* ================= CARD SYSTEM: PERMISSIONS + QUESTIONS ================= */
+.perm{
+  margin:14px auto;border:1px solid var(--border);border-radius:16px;background:var(--panel);
+  padding:0;box-shadow:0 8px 24px -22px rgba(0,0,0,.55);overflow:hidden;
+}
+.perm::before{display:none}
+.perm .ph{display:flex;align-items:center;gap:10px;padding:13px 15px;margin:0;border-bottom:1px solid var(--border);background:transparent}
+.perm .ph-ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--hover);color:var(--text2);flex:none}
+.perm .ph-t{display:flex;flex-direction:column;gap:1px;min-width:0;margin-right:auto}
+.perm .ph-kicker{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim)}
+.perm .ph-t b{font-size:13px;font-weight:600;color:var(--text);line-height:1.3}
+.perm .ph-tool{font-family:var(--font-mono);font-size:9.5px;color:var(--dim);border:1px solid var(--border);border-radius:999px;padding:3px 7px;white-space:nowrap;max-width:180px;overflow:hidden;text-overflow:ellipsis}
+.perm-grid{display:flex;flex-direction:column;padding:4px 15px}
+.perm-row{display:grid;grid-template-columns:120px minmax(0,1fr);gap:10px;padding:7px 0;border-bottom:1px solid color-mix(in srgb,var(--border) 55%,transparent)}
+.perm-row:last-child{border-bottom:0}
+.perm-row span{font-size:11px;color:var(--dim)}
+.perm-row b{font-size:11.5px;font-weight:500;color:var(--text2);overflow-wrap:anywhere}
+.perm-details{margin:0 15px 10px;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--bg)}
+.perm-details summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;padding:8px 11px;font-size:11px;color:var(--text2);background:var(--hover)}
+.perm-details summary::-webkit-details-marker{display:none}
+.perm-details summary::before{content:"›";color:var(--dim);font-size:14px;line-height:1}
+.perm-details[open] summary::before{transform:rotate(90deg)}
+.perm-details summary span{margin-left:auto;font-family:var(--font-mono);font-size:9.5px;color:var(--dim)}
+.perm-code{margin:0;padding:11px 12px;max-height:220px;overflow:auto;font-family:var(--font-mono);font-size:11px;line-height:1.6;color:var(--text2);white-space:pre-wrap;border-top:1px solid var(--border)}
+.perm-diff{margin:0 15px 10px;border:1px solid var(--border);border-radius:10px;overflow:hidden;font-family:var(--font-mono);font-size:11px}
+.perm-del,.perm-add{display:grid;grid-template-columns:18px minmax(0,1fr);gap:6px;padding:7px 9px;border-bottom:1px solid color-mix(in srgb,var(--border) 55%,transparent)}
+.perm-del:last-child,.perm-add:last-child{border-bottom:0}
+.perm-del{background:var(--del-bg);color:var(--del-fg)}
+.perm-add{background:var(--add-bg);color:var(--add-fg)}
+.perm-del pre,.perm-add pre{margin:0;white-space:pre-wrap;overflow:auto;font:inherit;color:inherit;max-height:150px}
+.perm-del span,.perm-add span{opacity:.75}
+.perm .pa{display:flex;align-items:center;gap:8px;padding:11px 15px;margin:0;border-top:1px solid var(--border);background:transparent;flex-wrap:wrap}
+.perm .pa .spacer{flex:1}
+.perm .pa .btn{border-radius:999px;padding:6px 13px}
+.perm.answered{box-shadow:none}
+.perm-after{font-size:11px;color:var(--dim);margin-left:2px}
+.askcard{
+  margin:14px auto;border:1px solid var(--border);border-radius:16px;background:var(--panel);
+  padding:0;box-shadow:0 8px 24px -22px rgba(0,0,0,.55);overflow:hidden;
+}
+.ask-h{display:flex;align-items:center;gap:9px;padding:12px 15px;background:transparent;border-bottom:1px solid var(--border);font-size:12px;color:var(--text2)}
+.ask-h svg{color:var(--text2);width:14px;height:14px}
+.ask-q{padding:14px 15px;gap:9px}
+.ask-q + .ask-q{border-top:1px solid var(--border)}
+.ask-tag{align-self:flex-start;font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--dim);background:transparent;border:1px solid var(--border);padding:2px 7px;border-radius:999px}
+.ask-t{font-size:14px;font-weight:600;color:var(--text);line-height:1.45}
+.ask-d{font-size:12px;color:var(--muted);line-height:1.55}
+.ask-opts{display:flex;flex-direction:column;gap:6px;margin-top:1px}
+.ask-opt{
+  position:relative;display:flex;flex-direction:column;gap:2px;text-align:left;width:100%;
+  padding:9px 11px 9px 35px;border:1px solid var(--border);border-radius:9px;
+  background:transparent;color:var(--text);
+  transition:background var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease);
+}
+.ask-opt::before{content:"";position:absolute;left:12px;top:50%;width:13px;height:13px;transform:translateY(-50%);border:1.5px solid var(--border2);border-radius:50%;background:var(--bg)}
+.ask-opt:hover{background:var(--hover);border-color:var(--border2)}
+.ask-opt .lb{font-size:12.5px;font-weight:500}
+.ask-opt .ds{font-size:11px;color:var(--muted);line-height:1.45}
+.ask-opt.on{border-color:var(--text2);background:var(--hover)}
+.ask-opt.on::before{background:var(--text);border-color:var(--text);box-shadow:inset 0 0 0 3px var(--panel)}
+.ask-other{width:100%;margin-top:2px;padding:9px 11px;border:1px solid var(--border);border-radius:9px;background:var(--bg);color:var(--text);font-size:12px;outline:none}
+.ask-other:focus{border-color:var(--text2);box-shadow:0 0 0 3px var(--hover)}
+.ask-other::placeholder{color:var(--dim)}
+.ask-f{display:flex;align-items:center;gap:8px;padding:11px 15px;border-top:1px solid var(--border);background:transparent}
+.ask-note{font-size:10.5px;color:var(--dim)}
+.askcard.done .ask-opt:not(.on){opacity:.5}
+.askcard.done .ask-f{opacity:.65}
+.ask-f .btn{border-radius:999px}
 </style>
 </head>
 <body>
@@ -4546,17 +4615,12 @@ function renderUiEntry(e) {
   if (e.type === "suggestion") return renderSuggest({ id: e.id, title: e.title, description: e.description }, { historical: true });
   if (e.type === "permission") {
     const v = e.verdict || null;
-    const label = v ? (v.allowed ? (v.scope === "session" ? "Allowed for session" : "Allowed once") : "Denied") : "No answer recorded";
-    const kind = e.name === "run_command" ? "run a command" : String(e.name || "").includes("download") ? "download a file" : "edit a file";
-    const n = node("perm");
-    n.classList.add("answered");
-    n.innerHTML = `
-      <div class="ph">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.8l5 2.2v4.2c0 3-2.1 5.4-5 6-2.9-.6-5-3-5-6V4z"/></svg>
-        Pulse wanted to ${kind}
-      </div>
-      <div class="pb">${esc(String((e.args && (e.args.command || e.args.path || e.args.url)) || e.ask || ""))}</div>
-      <div class="pa"><span class="pill ${v && v.allowed ? "ok" : v ? "no" : "dim"}">${esc(label)}</span></div>`;
+    const meta = permissionMeta(e.name, e.args);
+    const n = node("perm answered");
+    n.innerHTML = permissionHtml(meta, v ? { verdict: v } : {});
+    if (!v) {
+      n.querySelector(".pa").innerHTML = `<span class="pill dim">No answer recorded</span><span class="perm-after">${esc(meta.title)}</span>`;
+    }
   }
 }
 
@@ -8016,7 +8080,7 @@ function renderAsk(evt, opts = {}) {
   const picks = qs.map(() => new Set());
   const others = qs.map(() => "");
   n.innerHTML = `
-    <div class="ask-h">${SPARK_SVG}<span>Pulse has a question</span></div>
+    <div class="ask-h">${SPARK_SVG}<span>Harness has a question</span></div>
     ${qs.map((q, qi) => `
       <div class="ask-q" data-q="${qi}">
         ${q.header ? `<span class="ask-tag">${esc(q.header)}</span>` : ""}
@@ -8088,7 +8152,7 @@ function renderAsk(evt, opts = {}) {
     const note = n.querySelector("[data-note]");
     if (note) note.textContent = final
       ? "Answered"
-      : "Skipped - Star will continue without an answer.";
+      : "Skipped - Harness will continue without an answer.";
     const answers = qs.map((q, i) => [
       ...[...picks[i]].map((oi) => ((q.options || [])[oi] || {}).label).filter(Boolean),
       ...(others[i].trim() ? [others[i].trim()] : []),
@@ -8146,7 +8210,7 @@ function renderSuggest(evt, opts = {}) {
   const n = node("askcard suggest");
   n.dataset.sg = evt.id;
   n.innerHTML = `
-    <div class="ask-h">${SPARK_SVG}<span>Pulse suggests a new session</span></div>
+    <div class="ask-h">${SPARK_SVG}<span>Harness suggests a new session</span></div>
     <div class="ask-q">
       <div class="ask-t"><b>${esc(evt.title)}</b></div>
       <div class="ask-d">${esc(evt.description)}</div>
@@ -8168,7 +8232,7 @@ function renderSuggest(evt, opts = {}) {
     scrollDownSoon();
     return;
   }
-  n.querySelector("[data-here]").addEventListener("click", () => settle("Staying here - Star continues in this session."));
+  n.querySelector("[data-here]").addEventListener("click", () => settle("Staying here - Harness continues in this session."));
   n.querySelector("[data-start]").addEventListener("click", async () => {
     settle("Starting…");
     await newSession({ title: String(evt.title || "").slice(0, 80) });
@@ -8205,47 +8269,147 @@ function renderPlan(text) {
   showPane("plan");
 }
 
+/* ---- permission cards: human labels, structured context, no raw JSON ---- */
+function permPretty(k) {
+  return String(k).replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+function permCode(summary, code, open = false) {
+  const body = String(code || "");
+  const lines = body.split("\n").length;
+  return `<details class="perm-details"${open ? " open" : ""}><summary>${esc(summary)} <span>${lines} line${lines === 1 ? "" : "s"}</span></summary><pre class="perm-code">${esc(body.slice(0, 5000))}${body.length > 5000 ? "\n…" : ""}</pre></details>`;
+}
+function permissionMeta(name, args) {
+  const a = args && typeof args === "object" ? args : {};
+  const tool = String(name || "tool");
+  const parts = tool.split("__");
+  const base = parts.length >= 3 ? parts.slice(2).join("__") : tool;
+  const mcp = parts.length >= 3 ? parts[1] : "";
+  let title = "Use " + permPretty(base);
+  let rows = [];
+  let extras = "";
+  const push = (label, value) => {
+    if (value === undefined || value === null || String(value).trim() === "") return;
+    rows.push([label, String(value)]);
+  };
+  const content = (label, value) => {
+    if (value === undefined || value === null || String(value) === "") return "";
+    return permCode(label, value);
+  };
+  if (base === "create_skill") {
+    title = "Create a new skill";
+    push("Name", a.name);
+    push("Scope", a.scope === "project" ? "This project" : "My skills");
+    push("Description", a.description);
+    extras = content("Instructions", a.body);
+  } else if (base === "write_file") {
+    title = "Write a file";
+    push("File", a.path);
+    push("Characters", a.content != null ? String(a.content).length : "");
+    extras = content("File contents", a.content);
+  } else if (base === "edit_file") {
+    title = "Edit a file";
+    push("File", a.path);
+    if (a.old_string != null || a.new_string != null) {
+      extras = `<div class="perm-diff">
+        <div class="perm-del"><span>−</span><pre>${esc(String(a.old_string || "").slice(0, 2000))}</pre></div>
+        <div class="perm-add"><span>+</span><pre>${esc(String(a.new_string || "").slice(0, 2000))}</pre></div>
+      </div>`;
+    }
+  } else if (base === "multi_edit") {
+    const edits = Array.isArray(a.edits) ? a.edits : [];
+    title = edits.length ? "Edit " + edits.length + " files" : "Edit several files";
+    rows = edits.slice(0, 8).map((e, i) => ["File " + (i + 1), e && e.path ? e.path : "—"]);
+    if (edits.length > 8) rows.push(["More", (edits.length - 8) + " more files"]);
+  } else if (base === "run_command") {
+    title = "Run a command";
+    push("Folder", a.cwd);
+    extras = permCode("Command", a.command || "", true);
+  } else if (base === "download") {
+    title = "Download a file";
+    push("URL", a.url);
+    push("Destination", a.dest);
+    push("Source", a.source);
+    push("SHA-256", a.sha256);
+  } else if (base === "fetch_url") {
+    title = "Read a web page";
+    push("URL", a.url);
+  } else if (base === "websearch") {
+    title = "Search the web";
+    push("Query", a.query);
+  } else if (base === "office_write") {
+    title = "Write an Office document";
+    push("File", a.path);
+    push("Format", a.kind || a.format);
+  } else if (base === "git_commit") {
+    title = "Commit changes";
+    push("Message", a.message);
+    push("Files", Array.isArray(a.files) ? a.files.join(", ") : a.files);
+  } else if (base === "schedule") {
+    title = "Schedule work";
+    push("Task", a.task || a.prompt);
+    push("Every", a.every || a.cron);
+  } else if (base === "use_folder") {
+    title = "Change the working folder";
+    push("Folder", a.path);
+  } else if (base === "memory") {
+    title = "Save a memory";
+    push("Text", a.text || a.content || a.value);
+  } else if (base === "connector") {
+    title = "Update a connector";
+  } else if (mcp) {
+    title = "Use " + permPretty(mcp) + " · " + permPretty(base);
+  }
+  if (!rows.length && !extras) {
+    for (const [k, v] of Object.entries(a)) {
+      if (v == null || v === "") continue;
+      if (["content", "body", "old_string", "new_string", "instructions"].includes(k)) continue;
+      if (typeof v === "object") {
+        rows.push([permPretty(k), Array.isArray(v) ? v.length + " items" : "object"]);
+      } else {
+        rows.push([permPretty(k), String(v).slice(0, 300)]);
+      }
+    }
+  }
+  return { title, tool, rows, extras };
+}
+function permissionHtml(meta, opts = {}) {
+  const verdict = opts.verdict || null;
+  const label = verdict
+    ? (verdict.allowed ? (verdict.scope === "session" ? "Allowed for session" : "Allowed once") : "Denied")
+    : "";
+  const rows = meta.rows.length
+    ? `<div class="perm-grid">${meta.rows.map(([k, v]) => `<div class="perm-row"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("")}</div>`
+    : "";
+  const footer = verdict
+    ? `<div class="pa"><span class="pill ${verdict.allowed ? "ok" : "no"}">${esc(label)}</span><span class="perm-after">${esc(meta.title)}</span></div>`
+    : `<div class="pa"><button class="btn dgr" data-scope="deny" type="button">Deny</button><span class="spacer"></span><button class="btn" data-scope="session" type="button">Allow for session</button><button class="btn pri" data-scope="once" type="button">Allow once</button></div>`;
+  return `
+    <div class="ph">
+      <span class="ph-ic" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.8l5 2.2v4.2c0 3-2.1 5.4-5 6-2.9-.6-5-3-5-6V4z"/><path d="M5.7 8l1.5 1.5 3-3"/></svg></span>
+      <div class="ph-t"><span class="ph-kicker">${verdict ? "Permission" : "Permission needed"}</span><b>${esc(meta.title)}</b></div>
+      <span class="ph-tool">${esc(meta.tool)}</span>
+    </div>
+    ${rows}${meta.extras}${footer}`;
+}
+
 /* ---- permission ---- */
 function askPermission({ id, name, args, dangerous }) {
-  const isCmd = name === "run_command";
-  const isDl = name === "download";
-  const url = isDl ? String((args && args.url) || "") : "";
-  const src = isDl ? String((args && args.source) || "") : "";
-  const srcWarn = src.startsWith("SOURCE WARNING");
-  const extras = (isDl && args)
-    ? [["dest", args.dest], ["sha256", args.sha256], ["maxBytes", args.maxBytes]]
-        .filter(([, v]) => v !== undefined && v !== null && String(v) !== "")
-        .map(([k, v]) => k + ": " + String(v)).join("  ·  ")
-    : "";
-  const body = isCmd ? (args.command || "") : JSON.stringify(args, null, 2);
+  const meta = permissionMeta(name, args);
   const n = node("perm");
-  n.innerHTML = `
-    <div class="ph">
-      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1.8l5 2.2v4.2c0 3-2.1 5.4-5 6-2.9-.6-5-3-5-6V4z"/></svg>
-      Star wants to ${isCmd ? "run a command" : isDl ? "download a file" : "edit a file"}${dangerous ? "" : ""}
-    </div>
-    ${isDl ? `
-    <div class="pb" style="word-break:break-all">${esc(url || body)}</div>
-    ${src ? (srcWarn
-      ? `<div class="banner err" style="margin:12px 0 0">${esc(src)}</div>`
-      : `<div class="pm">${esc(src)}</div>`) : ""}
-    ${extras ? `<div class="pm">${esc(extras)}</div>` : ""}` : `
-    <div class="pb">${esc(body)}</div>`}
-    <div class="pa">
-      <button class="btn dgr" data-scope="deny">Deny</button>
-      <button class="btn pri" data-scope="once">Allow once</button>
-      <button class="btn" data-scope="session">Allow for session</button>
-    </div>`;
+  n.innerHTML = permissionHtml(meta);
+  n.dataset.tool = meta.tool;
   toolGroup = null; proc = null; currentMsg = null;
-  n.querySelectorAll("[data-scope]").forEach(b => b.addEventListener("click", async () => {
+  n.querySelectorAll("[data-scope]").forEach((b) => b.addEventListener("click", async () => {
     const scope = b.dataset.scope;
+    const verdict = { allowed: scope !== "deny", scope };
     n.classList.add("answered");
-    n.querySelector(".pa").innerHTML = `<span class="pill ${scope === "deny" ? "no" : "ok"}">${scope === "deny" ? "Denied" : "Allowed"}</span>`;
+    n.innerHTML = permissionHtml(meta, { verdict });
     liveInput.delete(sessionId);      // the sidebar's Needs input group drops it
     renderSessions();
     await fetch("/api/permission", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId, id, allowed: scope !== "deny", scope }),
+      body: JSON.stringify({ sessionId, id, allowed: verdict.allowed, scope }),
     });
   }));
 }
