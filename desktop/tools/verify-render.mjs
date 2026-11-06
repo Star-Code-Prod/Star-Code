@@ -218,7 +218,8 @@ ok("the card opens above the message it explains", fnBody("function ensureProc("
 ok("visible prose ends the card", fnBody("function flushAnswer()").includes("proc = null"));
 ok("local notes end the card too", fnBody("function say(").includes("proc = null"));
 ok("the working state exists for pane and dialog",
-  /\.apwork-cursor\{/.test(html) && js.includes("function renderWorkingInto(") && js.includes("Pulse is working…"));
+  /\.apwork-cursor\{/.test(html) && js.includes("function renderWorkingInto(") &&
+  js.includes("Harness is working…") && js.includes('class="worklogo"'));
 ok("syncArtifacts opens on the fence's first line",
   fnBody("function syncArtifacts(").includes("pendingFence(") && fnBody("function syncArtifacts(").includes("autoOpenArtifactView("));
 ok("cards are committed with the artifact, not at message end",
@@ -531,7 +532,8 @@ ok("text files can be edited and saved from the preview",
   js.includes("/api/file/write") && js.includes("Ctrl") &&
   /\.fedit\{/.test(html.replace(/\s+/g, "")));
 ok("fullscreen sits below the titlebar strip",
-  /body\.preview-full \.pane-row\[data-pane="preview"\]\{[^}]*inset:40px 0 0 0/.test(html.replace(/\s+/g, " ")));
+  /body\.preview-full \.panes\{[^}]*inset:52px 0 0 0/.test(html.replace(/\s+/g, " ")) &&
+  /body\.preview-full \.pane-row\[data-pane="preview"\]\{[^}]*inset:0 0 0 0/.test(html.replace(/\s+/g, " ")));
 ok("the process header counts the round",
   js.includes("function procCount(") && js.includes('" thought" + (t === 1 ? "" : "s")') &&
   js.includes('" tool call" + (n === 1 ? "" : "s")'));
@@ -711,7 +713,7 @@ ok("the rail can take 60% of the window",
 ok("the preview has a fullscreen mode",
   html.includes('data-panefull="preview"') && html.includes("preview-full") &&
   js.includes("function previewFull(") && js.includes("previewFull(false)") &&
-  js.includes('classList.contains("preview-full")'));
+  js.includes('classList.contains("preview-full")') && html.includes('id="artFull"'));
 ok("the folder chip types the path right in the chat header",
   js.includes('id="sProjInp"') && js.includes('"/api/sessions/cwd"') && js.includes('case "cwd":') &&
   html.replace(/\s+/g, "").includes(".shead.proj.proj-inp{"));

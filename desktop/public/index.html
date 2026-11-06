@@ -2150,6 +2150,56 @@ body:not(.rail) .sess.on{background:var(--panel2)}
 .askcard.done .ask-opt:not(.on){opacity:.5}
 .askcard.done .ask-f{opacity:.65}
 .ask-f .btn{border-radius:999px}
+
+/* ================= WORKING / ARTIFACT POLISH ================= */
+.worklogo{
+  width:20px;height:20px;display:block;flex:none;object-fit:contain;
+  filter:brightness(0) invert(1);
+  animation:spin 1.2s linear infinite;
+}
+:root[data-theme="light"] .worklogo{filter:brightness(0)}
+.worklogo-sm{width:16px;height:16px}
+@media(prefers-reduced-motion:reduce){.worklogo{animation:none}}
+.apwork{padding:18px}
+.apwork-in{width:min(540px,100%);padding:18px 20px;border:1px solid var(--border);border-radius:14px;background:var(--panel);box-shadow:0 10px 28px -24px rgba(0,0,0,.6);gap:12px}
+.apwork-head{font-size:13px;font-weight:600;gap:9px}
+.apwork-head .worklogo{width:24px;height:24px}
+.apwork-el{font-size:10.5px}
+.apwork-sub{font-size:12px;line-height:1.6;color:var(--muted)}
+.apwork-sk{gap:10px;margin-top:10px}
+.apwork-sk .sk{height:14px;border-radius:7px;background:linear-gradient(90deg,var(--border) 25%,var(--panel2) 37%,var(--border) 63%);background-size:400% 100%;animation:shimmer 1.4s linear infinite}
+.artifactcard{
+  display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:12px;
+  background:var(--panel);border:1px solid var(--border);margin:12px auto;overflow:hidden;
+}
+.artifactcard .ac-ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--hover);color:var(--text2);flex:none}
+.artifactcard .ac-main{flex:1;min-width:0}
+.artifactcard .ac-t{font-size:12.5px;font-weight:600;color:var(--text)}
+.artifactcard .ac-d{font-size:11px;color:var(--muted);margin-top:2px}
+.artifactcard .ac-actions{display:flex;align-items:center;gap:6px;flex:none;margin-left:auto}
+.artifactcard .ac-v{height:30px;padding:0 8px;border-radius:7px;border-color:var(--border);background:var(--bg);color:var(--text2);font-size:11px;max-width:110px}
+.artifactcard button{margin-left:0;flex:none}
+.artifactcard .btn.sm{min-height:30px;padding:0 11px;border-radius:999px;background:transparent;border-color:var(--border)}
+.artifactcard .btn.sm:hover{background:var(--hover)}
+.artifactcard.has-live{padding:11px 12px 12px;flex-wrap:wrap}
+.artifactcard .ac-live{flex-basis:100%;margin-top:8px}
+.artifactcard .ac-live-in{border-radius:10px}
+.btn.sm{min-height:30px;padding:0 11px;border-radius:999px}
+.pane-x{width:28px;height:28px;border-radius:7px}
+.pane-sub .btn{padding:5px 11px}
+.art-top{height:56px;padding:0 10px 0 18px}
+.art-card{width:min(1060px,calc(100vw - 72px));height:min(760px,calc(100vh - 72px));border-radius:16px}
+/* Fullscreen preview: cover the whole app below the 52px top bar, not a strip. */
+body.preview-full .panes{position:fixed;inset:52px 0 0 0;width:auto;height:auto;margin:0;border:0;border-radius:0;background:var(--bg);overflow:visible;z-index:60}
+body.preview-full .pane-tabs{display:none}
+body.preview-full .pane-body{padding:0;overflow:hidden}
+body.preview-full .pane-row:not([data-pane="preview"]){display:none!important}
+body.preview-full .pane-row[data-pane="preview"]{position:absolute;inset:0 0 0 0;display:flex;margin:0;border:0;border-radius:0;background:var(--bg)}
+body.preview-full .pane-row[data-pane="preview"] .pane-b{flex:1;height:auto;overflow:auto}
+body.preview-full .pane-row[data-pane="preview"] .pane-sub{height:52px;padding:0 18px;border-bottom:1px solid var(--border);background:var(--bg)}
+@media(max-width:640px){.artifactcard{align-items:flex-start;flex-wrap:wrap}.artifactcard .ac-actions{width:100%;margin-left:39px}.artifactcard .ac-main{width:calc(100% - 41px)}}
+#artDlg .art-card.full{width:100vw;height:100vh;max-width:none;max-height:none;border-radius:0;border:0}
+#artDlg:has(.art-card.full){padding:0;background:var(--bg);backdrop-filter:none}
 </style>
 </head>
 <body>
@@ -2594,6 +2644,9 @@ body:not(.rail) .sess.on{background:var(--panel2)}
   <div class="art-card" role="dialog" aria-modal="true" aria-label="Artifact">
     <div class="art-top">
       <span class="t" id="artTitle">Artifact</span>
+      <button class="hbtn" id="artFull" title="Fullscreen" aria-label="Fullscreen artifact" aria-pressed="false">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.2 2.5H2.5v3.7M9.8 2.5h3.7v3.7M6.2 13.5H2.5V9.8M9.8 13.5h3.7V9.8"/></svg>
+      </button>
       <button class="hbtn" id="artClose" title="Close" aria-label="Close artifact">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>
       </button>
@@ -5793,13 +5846,16 @@ function addArtifactCard(i) {
   }
   const n = node("artifactcard");
   n.innerHTML = `
+    <span class="ac-ic" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.8h5l3 3V14H4z"/><path d="M9 1.8V5h3M6 8h4M6 10.5h3"/></svg></span>
     <div class="ac-main">
       <div class="ac-t" data-name></div>
       <div class="ac-d" data-desc hidden></div>
     </div>
-    <select class="inp ac-v" data-vsel aria-label="Artifact version"></select>
-    <button class="btn sm" data-open>Open</button>
-    ${a.lang === "motion" ? "" : '<button class="btn sm" data-save>Save</button>'}`;
+    <div class="ac-actions">
+      <select class="inp ac-v" data-vsel aria-label="Artifact version"></select>
+      <button class="btn sm" data-open>Open</button>
+      ${a.lang === "motion" ? "" : '<button class="btn sm" data-save>Save</button>'}
+    </div>`;
   const card = { node: n, indices: [i], select: n.querySelector("[data-vsel]") };
   artifactCards.set(key, card);
   // A 3D build is the point of the message: let it render in the chat itself,
@@ -7439,7 +7495,7 @@ function renderWorkingInto(host, lang) {
   host.innerHTML = `
     <div class="apwork">
       <div class="apwork-in">
-        <div class="apwork-head">${SPARK_SVG}<span>Pulse is working</span><span class="apwork-el" data-el></span></div>
+        <div class="apwork-head"><img class="worklogo" src="/assets/pulse-harness-glyph.png" alt="" width="20" height="20"><span>Harness is working</span><span class="apwork-el" data-el></span></div>
         <div class="apwork-sub">Writing your ${esc(label)} — it appears here finished, nothing to click.</div>
         <div class="apwork-sk">
           <div class="sk" style="width:42%"></div>
@@ -7472,13 +7528,13 @@ function autoOpenArtifactView() {
     const wasOpen = el.classList.contains("on");
     if (!wasOpen) artDlgReturnFocus = document.activeElement;
     el.classList.add("on");
-    $("artTitle").textContent = "Pulse is working…";
+    $("artTitle").textContent = "Harness is working…";
     renderWorkingInto($("artBody"), lang);
     if (!wasOpen) { const b = $("artClose"); if (b) b.focus(); }
     return;
   }
   showPane("preview");
-  $("previewTitle").textContent = "Pulse is working…";
+  $("previewTitle").textContent = "Harness is working…";
   setPreviewEmpty(false);
   const host = $("filePreview");
   host.style.display = "flex";
@@ -7503,7 +7559,7 @@ function openArtifactDialog() {
     const wasOpen = el.classList.contains("on");
     if (!wasOpen) artDlgReturnFocus = document.activeElement;
     el.classList.add("on");
-    $("artTitle").textContent = "Pulse is working…";
+    $("artTitle").textContent = "Harness is working…";
     renderWorkingInto($("artBody"), pendingArt.lang);
     if (!wasOpen) { const b = $("artClose"); if (b) b.focus(); }
     return;
@@ -7528,6 +7584,14 @@ function closeArtifactDialog() {
   if (back && back !== document.body && document.contains(back) && back.focus) back.focus();
 }
 $("artClose").addEventListener("click", closeArtifactDialog);
+$("artFull").addEventListener("click", () => {
+  const card = document.querySelector("#artDlg .art-card");
+  if (!card) return;
+  const on = !card.classList.contains("full");
+  card.classList.toggle("full", on);
+  $("artFull").setAttribute("aria-pressed", String(on));
+  $("artFull").title = on ? "Exit fullscreen" : "Fullscreen";
+});
 /* Clicking the dimmed backdrop (never the card) closes the dialog. */
 let artDownOnBackdrop = false;
 $("artDlg").addEventListener("pointerdown", e => { artDownOnBackdrop = e.target === $("artDlg"); });
@@ -9153,7 +9217,7 @@ function showWorkLine(on) {
     line = document.createElement("div");
     line.className = "workline";
     line.setAttribute("role", "status");
-    line.innerHTML = '<span class="wspin" aria-hidden="true"></span><span class="wlbl2">Pulse is working</span><span class="wact"></span>';
+    line.innerHTML = '<img class="worklogo" src="/assets/pulse-harness-glyph.png" alt="" width="20" height="20"><span class="wlbl2">Harness is working</span><span class="wact"></span>';
   }
   const wa = line.querySelector(".wact");
   if (wa) wa.textContent = activity;

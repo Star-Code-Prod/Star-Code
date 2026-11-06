@@ -1,7 +1,7 @@
 {
   "name": "pulse-harness",
   "productName": "Pulse Harness",
-  "version": "1.38.0",
+  "version": "1.39.0",
   "description": "Pulse Harness — a local, provider-agnostic agentic desktop app. Bring your own model — DeepSeek, OpenAI, Anthropic, Ollama, or any OpenAI-compatible endpoint — and let it read, search, edit, and run commands in your project.",
   "keywords": [
     "ai",

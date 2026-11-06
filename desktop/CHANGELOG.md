@@ -1,5 +1,12 @@
 # What's new in Pulse Harness
 
+## 1.39.0 — 2026-11-06
+- **The working card uses the real logo in white, spinning** — not a placeholder spark or letter. The transcript's working line uses the same mark.
+- **Artifact and preview cards are rebuilt.** The in-chat artifact card gets a real icon, a proper title/description block, a version selector and one grouped action row. Buttons are larger and no longer fight each other with auto margins.
+- **Fullscreen actually fills the screen.** It now starts below the 52px top bar instead of 40px, keeps the app controls, covers the whole area, and the artifact dialog has its own fullscreen control.
+- **Cards breathe.** The working card has real padding, a visible skeleton and clearer type; permission/question cards, pane buttons and small controls got consistent heights and gaps.
+- **Update log** includes these notes.
+
 ## 1.38.0 — 2026-11-06
 - **Permission cards are rebuilt.** No more “Harness wants to edit a file” with a raw JSON dump. Each card names the real action — **Create a new skill**, **Edit a file**, **Run a command**, **Download a file**, **Read a web page**, **Search the web**, **Commit changes**, an MCP tool, and so on.
 - **Structured context instead of JSON.** Name, scope, description, file path, command, URL and other fields appear as labelled rows; instructions and file contents fold into an expandable preview; edits show a red/green diff.
