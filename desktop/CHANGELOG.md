@@ -1,5 +1,14 @@
 # What's new in Pulse Harness
 
+## 1.35.0 — 2026-11-06
+- **A full shell remake, not a repaint.** Chat/Code moved to a compact switch in the centre of the top bar; the sidebar opens with a full-width **New chat** button; suggestions are now a two-column card grid instead of pills.
+- **Monochrome by default.** The logo is the only colour in the app. Primary buttons, focus rings, selection, user bubbles, canvas and badges are all neutral.
+- **A quieter full sidebar** — clean 34px history rows, no icons in the list, a single search field and the project-files section folded at the bottom.
+- **The logo is the loading animation** — the boot screen is the ribbon mark spinning on its own.
+- **A calmer landing** — logo, “What can I help with?”, one rounded composer and four suggestion cards.
+- **The inline markdown canvas stays in the transcript** with Copy, Download and in-place Edit, now in neutral chrome.
+- **Update log** includes these notes.
+
 ## 1.34.0 — 2026-11-06
 - **A fully monochrome professional shell.** Every purple UI accent is gone: buttons, focus rings, links, user bubbles, canvas chrome and status controls are neutral black, white and gray. The logo is the only colour in the app.
 - **The full sidebar is back by default** — a 268px ChatGPT-style history rail with clean title-only rows, and the titlebar toggle still collapses it to the 64px icon rail.

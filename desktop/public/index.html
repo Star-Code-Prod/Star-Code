@@ -2026,6 +2026,52 @@ body:not(.rail) .sb-nav-row.on svg,body:not(.rail) .sb-nav-row:hover svg{color:v
 .msg-u .b{background:var(--panel2)}
 body:not(.rail) .sess.on{background:var(--panel)}
 body:not(.rail) .sess.on::before{background:var(--text2)}
+
+/* ================= NEW APP SHELL ================= */
+.titlebar{height:52px;padding:0 12px;background:var(--bg);border-bottom:1px solid color-mix(in srgb,var(--border) 60%,transparent)}
+.titlebar .left{gap:3px}
+.titlebar .center{display:flex;align-items:center;justify-content:center;gap:10px;flex:1;min-width:0}
+.top-modes{display:flex;justify-content:center}
+.titlebar .center .top-modes{flex:none}
+.titlebar .center #sTitle{display:none}
+.titlebar .center .seg{margin:0;padding:3px;height:32px;flex:none;width:auto;border:0;background:var(--panel);border-radius:9px;gap:2px}
+.titlebar .center .seg button{width:30px;height:26px;padding:0;min-height:0;border-radius:7px;color:var(--muted)}
+.titlebar .center .seg button.on{background:var(--panel2);color:var(--text);box-shadow:none}
+.titlebar .center .seg button svg{width:14px;height:14px}
+.titlebar .right{gap:2px}
+.tb-btn,.icon-btn{width:28px;height:28px;border-radius:7px}
+.sidebar{padding:10px 8px 0}
+.sb-brand{padding:8px 8px 12px;gap:9px}
+.sb-word{font-size:14px;font-weight:600;letter-spacing:-.02em}
+body:not(.rail) .sb-links{padding:2px 0 4px}
+body:not(.rail) .sb-nav{gap:1px}
+body:not(.rail) #navNew{height:38px;background:var(--panel);border:1px solid var(--border);border-radius:9px;color:var(--text);font-weight:600;margin-bottom:3px;padding:0 11px}
+body:not(.rail) #navNew:hover{background:var(--panel2);border-color:var(--border2)}
+body:not(.rail) #navNew svg{color:var(--text)}
+body:not(.rail) #navSearch,body:not(.rail) #navProjects{height:32px;color:var(--muted);font-size:12.5px}
+body:not(.rail) .sb-sec{padding-top:9px}
+body:not(.rail) .sb-search{height:34px;background:var(--panel);border-color:transparent}
+body:not(.rail) .sb-search:focus-within{border-color:var(--border2);background:var(--panel)}
+body:not(.rail) .sess{height:34px}
+body:not(.rail) .sess.on{background:var(--panel2)}
+.starters{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;max-width:560px;width:100%}
+.starters .chip{height:auto;min-height:48px;padding:11px 13px;border-radius:12px;background:var(--panel);border:1px solid var(--border);justify-content:flex-start;text-align:left;font-size:12.5px;color:var(--text2);gap:9px}
+.starters .chip:hover{background:var(--panel2);border-color:var(--border2);color:var(--text)}
+.starters .chip svg{width:16px;height:16px;color:var(--muted)!important}
+.landing{gap:18px;padding:34px 24px}
+.landing .lmark{width:42px;height:42px}
+.landing .lmark img{width:42px;height:42px}
+.landing h1{font-size:26px;font-weight:600;letter-spacing:-.035em}
+.landing .lsub{font-size:13px}
+.bigbox,.cwrap{border-radius:20px;border-color:var(--border);background:var(--panel);box-shadow:0 14px 36px -30px rgba(0,0,0,.6)}
+.bigbox{width:min(760px,100%);padding:12px 14px 8px}
+.bigbox textarea{min-height:40px;font-size:15px}
+.cwrap{padding:12px 12px 8px}
+.crow{margin-top:5px}
+.panes{border-radius:16px;border-color:color-mix(in srgb,var(--border) 65%,transparent);margin:14px 14px 14px 0;background:var(--sidebar)}
+.shead{height:46px;padding:0 20px;border-bottom-color:color-mix(in srgb,var(--border) 50%,transparent)}
+#stream{padding:30px 24px}
+@media(max-width:700px){.starters{grid-template-columns:1fr;max-width:100%}.titlebar{height:48px}.titlebar .center .seg{display:none}}
 </style>
 </head>
 <body>
@@ -2053,7 +2099,7 @@ body:not(.rail) .sess.on::before{background:var(--text2)}
       <svg viewBox="0 0 16 16"><path d="M6 3l5 5-5 5"/></svg>
     </button>
   </div>
-  <div class="center"><span id="sTitle" title="Double-click to rename">New session</span></div>
+  <div class="center"><span id="sTitle" title="Double-click to rename">New session</span><div class="top-modes" id="topModes"></div></div>
   <div class="right">
     <button class="icon-btn" id="btnArtifacts" title="Artifacts" aria-label="Artifacts">
       <svg viewBox="0 0 16 16"><rect x="1.8" y="2.8" width="8.6" height="10.4" rx="1.6"/><path d="M5.4 5.4h8.8v7.8H6.6"/></svg>
@@ -2107,7 +2153,7 @@ body:not(.rail) .sess.on::before{background:var(--text2)}
       <nav class="sb-nav" aria-label="Workspace navigation">
         <button class="sb-nav-row" id="navNew" title="New session" aria-label="New session">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>
-          <span>New</span>
+          <span>New chat</span>
         </button>
         <button class="sb-nav-row" id="navSearch" title="Search sessions" aria-label="Search sessions">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
@@ -3923,6 +3969,10 @@ $("btnPanes").addEventListener("click", () => {
   el.classList.add("hide");
   syncMotionVisibility();
 });
+try {
+  const mode = $("modeSeg");
+  if (mode) $("topModes").appendChild(mode);
+} catch { /* the titlebar is optional in embedded views */ }
 $("btnSidebar").addEventListener("click", () => toggleSidebar());
 $("btnTheme").addEventListener("click", cycleTheme);
 function syncNavBtns() {

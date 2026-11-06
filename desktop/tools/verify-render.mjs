@@ -481,13 +481,13 @@ ok("the titlebar carries the reference navigation, window controls and no brand 
   /\.wcbutton\{[^}]*background:transparent/.test(html.replace(/\s+/g, "")) &&
   js.includes('$("btnTitleSettings").addEventListener("click", () => openSettings("appearance"))') &&
   js.includes('$("btnSidebar").addEventListener("click", () => toggleSidebar())'));
-ok("the sidebar uses three English workspace rows with modes beside the brand",
+ok("the sidebar uses three English workspace rows with modes in the top bar",
   !html.includes('id="btnMore"') && !js.includes('$("btnMore")') &&
   !html.includes('id="btnNew"') && !html.includes('id="navArtifacts"') &&
-  ["New", "Search", "Projects"].every(t => html.includes(">" + t + "</span>")) &&
+  ["New chat", "Search", "Projects"].every(t => html.includes(">" + t + "</span>")) &&
   html.includes('id="navNew"') && html.includes('id="navSearch"') &&
   html.includes('id="navProjects"') &&
-  html.indexOf('id="modeSeg"') < html.indexOf('class="sb-links"') &&
+  html.includes('id="topModes"') && js.includes('$("topModes").appendChild(mode)') &&
   html.includes('id="btnArtifacts"') &&
   js.includes("function openProjects(") && js.includes("function switchProject(") &&
   html.includes("margin:0 0 0 16px") &&
