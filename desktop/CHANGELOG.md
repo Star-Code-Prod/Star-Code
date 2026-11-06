@@ -1,5 +1,13 @@
 # What's new in Pulse Harness
 
+## 1.31.0 — 2026-11-06
+- **The desktop app has a calmer, ChatGPT/EcoGPT-style shell.** Neutral charcoal surfaces replace the warm paper palette, the sidebar is narrower with title-only history rows, the conversation sits in a 760px column, and messages, inputs and buttons use soft pills instead of hard dashboard cards.
+- **A floating, rounded composer.** The prompt box now matches the landing card, with the model/agent controls inside it and a violet send button.
+- **Project files fold away.** The file tree is collapsed behind the “Project files” chevron so the sidebar stays quiet; it reopens to the same place and remembers the choice.
+- **Transparent brand glyph.** The app and web build now use the ribbon mark without its black tile, including the landing screen, boot screen and window title.
+- **Light and dark themes were rebuilt together** on the same neutral scale, so Appearance switches without the old cream cast.
+- **Update log** includes these notes.
+
 ## 1.30.0 — 2026-11-06
 - **Questions work in every shape.** `ask_user` now accepts `{questions:[…]}`, a single `{question, options}` object, a JSON string or a bare array; a malformed call explains what it received instead of silently failing. This fixes the repeated “question needs 1-4 questions” loop.
 - **History summaries stop leaking.** Old turns are summarised as natural “Earlier: …” prose with no `[older turn]`, `[files: …]` or `[called: ask_user]` tags; existing bracketed summaries are rewritten before the model sees them and hidden from the transcript.
