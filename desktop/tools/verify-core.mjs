@@ -482,6 +482,10 @@ ok("the coding prompt carries the operating loop and tool guide",
   systemPrompt(process.cwd(), "manual").includes("## Tools by job") &&
   systemPrompt(process.cwd(), "manual").includes("## Calling tools") &&
   systemPrompt(process.cwd(), "manual").includes("## Permissions"));
+ok("both prompts carry the full harness map",
+  ["## How Pulse Harness works", "docked in the exact centre", "inline markdown canvas",
+    "sessions.json", "desktop/server.js", "pulse web"].every((s) =>
+    chat.includes(s) && systemPrompt(process.cwd(), "manual").includes(s)));
 ok("both prompts teach the question protocol",
   chat.includes("Asking and answering") && chat.includes("ask 1-3 short questions") &&
   systemPrompt(process.cwd(), "manual").includes("Asking and answering") &&

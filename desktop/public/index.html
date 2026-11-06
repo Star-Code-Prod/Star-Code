@@ -2031,8 +2031,6 @@ body:not(.rail) .sess.on::before{background:var(--text2)}
 .titlebar{height:52px;padding:0 12px;background:var(--bg);border-bottom:1px solid color-mix(in srgb,var(--border) 60%,transparent)}
 .titlebar .left{gap:3px}
 .titlebar .center{display:flex;align-items:center;justify-content:center;gap:10px;flex:1;min-width:0}
-.top-modes{display:flex;justify-content:center}
-.titlebar .center .top-modes{flex:none}
 .titlebar .center #sTitle{display:none}
 .titlebar .center .seg{margin:0;padding:3px;height:32px;flex:none;width:auto;border:0;background:var(--panel);border-radius:9px;gap:2px}
 .titlebar .center .seg button{width:30px;height:26px;padding:0;min-height:0;border-radius:7px;color:var(--muted)}
@@ -2072,6 +2070,15 @@ body:not(.rail) .sess.on{background:var(--panel2)}
 .shead{height:46px;padding:0 20px;border-bottom-color:color-mix(in srgb,var(--border) 50%,transparent)}
 #stream{padding:30px 24px}
 @media(max-width:700px){.starters{grid-template-columns:1fr;max-width:100%}.titlebar{height:48px}.titlebar .center .seg{display:none}}
+
+/* The Chat/Code switch is pinned to the exact centre of the top bar. */
+.titlebar .center{
+  position:absolute;left:50%;top:0;height:100%;width:auto;padding:0;
+  transform:translateX(-50%);display:flex;align-items:center;justify-content:center;
+}
+.titlebar .right{margin-left:auto}
+.titlebar .center .seg{margin:0}
+@media(max-width:700px){.titlebar .center .seg{display:flex!important}}
 </style>
 </head>
 <body>
@@ -2099,7 +2106,16 @@ body:not(.rail) .sess.on{background:var(--panel2)}
       <svg viewBox="0 0 16 16"><path d="M6 3l5 5-5 5"/></svg>
     </button>
   </div>
-  <div class="center"><span id="sTitle" title="Double-click to rename">New session</span><div class="top-modes" id="topModes"></div></div>
+  <div class="center"><span id="sTitle" title="Double-click to rename">New session</span>
+        <div class="seg seg-icons sb-modes" id="modeSeg" role="group" aria-label="Mode">
+          <button type="button" data-mode="chat" aria-pressed="false" aria-label="Chat mode" title="Chat mode">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3.3c3.2 0 5.7 2 5.7 4.5S11.2 12.3 8 12.3c-.5 0-1.1-.1-1.6-.2l-2.9.9.8-2.2c-1.3-.8-2.1-1.9-2.1-3C2.2 5.3 4.8 3.3 8 3.3z"/></svg>
+          </button>
+          <button type="button" data-mode="code" class="on" aria-pressed="true" aria-label="Code mode" title="Code mode">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M5.5 4L2 8l3.5 4M10.5 4L14 8l-3.5 4"/></svg>
+          </button>
+        </div>
+  </div>
   <div class="right">
     <button class="icon-btn" id="btnArtifacts" title="Artifacts" aria-label="Artifacts">
       <svg viewBox="0 0 16 16"><rect x="1.8" y="2.8" width="8.6" height="10.4" rx="1.6"/><path d="M5.4 5.4h8.8v7.8H6.6"/></svg>
@@ -2140,14 +2156,6 @@ body:not(.rail) .sess.on{background:var(--panel2)}
       </span>
       <span class="sb-word">Harness</span>
       <span class="sb-mini">Harness</span>
-      <div class="seg seg-icons sb-modes" id="modeSeg" role="group" aria-label="Mode">
-        <button type="button" data-mode="chat" aria-pressed="false" aria-label="Chat mode" title="Chat mode">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3.3c3.2 0 5.7 2 5.7 4.5S11.2 12.3 8 12.3c-.5 0-1.1-.1-1.6-.2l-2.9.9.8-2.2c-1.3-.8-2.1-1.9-2.1-3C2.2 5.3 4.8 3.3 8 3.3z"/></svg>
-        </button>
-        <button type="button" data-mode="code" class="on" aria-pressed="true" aria-label="Code mode" title="Code mode">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M5.5 4L2 8l3.5 4M10.5 4L14 8l-3.5 4"/></svg>
-        </button>
-      </div>
     </div>
     <div class="sb-links">
       <nav class="sb-nav" aria-label="Workspace navigation">
@@ -3969,10 +3977,6 @@ $("btnPanes").addEventListener("click", () => {
   el.classList.add("hide");
   syncMotionVisibility();
 });
-try {
-  const mode = $("modeSeg");
-  if (mode) $("topModes").appendChild(mode);
-} catch { /* the titlebar is optional in embedded views */ }
 $("btnSidebar").addEventListener("click", () => toggleSidebar());
 $("btnTheme").addEventListener("click", cycleTheme);
 function syncNavBtns() {

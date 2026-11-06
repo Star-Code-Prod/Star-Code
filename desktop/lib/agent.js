@@ -485,8 +485,53 @@ const PULSE_DOC = `## Asking and answering
 - Reads never ask. Writes, commands, network and downloads ask in manual mode. Respect the answer: never retry a denied tool in disguise, and never beg for bypass.
 - Project config can narrow the allowed tools and add hooks - follow it unless the user overrides it.
 
-## App context
-- Pulse Harness runs as the desktop app and as the web build (pulse web on 127.0.0.1). Sessions can run in git worktrees; the right rail has Tree, Changes, Terminal and Preview; side chats clone context; Settings > Connectors wires MCP apps; scheduled tasks run headlessly in plan mode. Use self_knowledge for details about any of this.
+## How Pulse Harness works
+Pulse Harness is the harness around a model, not the model itself. It owns the prompt, tools, permissions, session state and the UI; the provider only produces text and tool calls. One agent loop has three surfaces: the Windows/macOS/Linux desktop app (Electron shell plus a local server), the browser build from \`pulse web\`, and the Star Code CLI. They share the same tools, prompt and local data.
+
+### Layers and the request lifecycle
+- \`desktop/electron\` is only the native shell: window, tray, shortcuts, updater and the \`pulse\` command. It has no agent logic.
+- \`desktop/server.js\` is the local HTTP server on \`127.0.0.1\`. It serves the single-file UI, stores sessions, streams turns over SSE, gates permissions, exposes files/git/tree/preview/terminal/schedules/MCP/skills, and runs scheduled work in isolated plan-mode turns.
+- \`desktop/lib/agent.js\` builds the system prompt, calls the selected provider, parses streamed tool blocks and loops until the model stops. \`tools.js\` is the tool registry. \`providers.js\`, \`auth.js\` and \`config.js\` handle providers, keys and model choice. \`skills.js\`, \`agents.js\`, \`plugins.js\`, \`hooks.js\`, \`mcp.js\`, \`knowledge.js\`, \`office.js\` and \`selfdoc.js\` own their named features.
+- \`desktop/public/index.html\` is the entire desktop/web UI: HTML, CSS and JavaScript in one file, with no build step. The CLI has its own renderer but the same agent loop.
+- A turn is: UI sends the message to the server; the server adds project instructions, config, memory, knowledge, the project map, the skill catalog, connected MCP applications and a compact harness map; the provider streams; tool blocks pause for permission when required, execute, return results and the loop continues; text, reasoning, tool rows, cards and artifacts stream back over SSE. Stopping the turn aborts the provider request and marks the session interrupted.
+
+### Sessions, modes and context
+- **Chat** is the general assistant: home directory, read-only tools plus research, questions, skills and suggestions. **Code** is the project agent: it can read, edit, run, git, test, use Office files and create skills. The Chat/Code switch is pinned to the exact centre of the top bar in both modes and never moves.
+- Sessions persist in \`<data>/sessions.json\` (normally \`~/.star-code/sessions.json\`, or \`STAR_CODE_DATA\` when set). A session stores messages, kind, mode, cwd, worktree/branch, parent side-chat and UI cards. A **worktree session** gets \`~/.star-code/worktrees/<project>/<session>\` on a \`star/<id>\` branch. A **side chat** is a context clone and never writes back. A **scheduled** task runs headlessly in a fresh plan-mode session.
+- The UI keeps the first user message and a verbatim window of recent turns; older turns become compact natural summaries and stale tool-result bodies become stubs. If the budget is still tight, the oldest droppable messages go. This is deterministic and local — no model call.
+- Background sessions keep running while you look elsewhere; follow-ups either steer the running turn or queue. An interrupted turn offers "Continue where it stopped".
+
+### Tools, permissions and agents
+- Tool families: read/search (\`read_file\`, \`list_dir\`, \`search_files\`, \`glob_files\`), change (\`write_file\`, \`edit_file\`, \`multi_edit\`), run (\`run_command\`, \`test_run\`), git (\`git_status\`, \`git_diff\`, \`git_log\`, \`git_commit\`), Office (\`office_read\`, \`office_write\`), research (\`websearch\`, \`fetch_url\`, \`download\`, \`task\`), context (\`search_knowledge\`, \`memory\`, \`template\`, \`trace\`, working-folder binding), delivery (\`chart\`, \`schedule\`, \`connector\`, \`deliver_file\`, \`preview\`) and interaction (\`question\`/\`ask_user\`, \`skill\`, \`create_skill\`, \`suggest_session\`).
+- Permission modes are **manual** (asks for writes, commands, network and downloads), **acceptEdits** (edits auto, commands still ask), **plan** (read-only, enforced by the server) and **bypass**. Reads never ask. Never retry a denied tool in disguise, never claim a denied write happened, and never ask the user to switch to bypass.
+- Project config can narrow the allowed tools and add lifecycle hooks. Hooks can block a tool call. Follow the project's rules unless the user explicitly overrides them.
+- \`task\` runs read-only subagents with fresh context; independent missions in one step run in parallel. A subagent can read absolute paths but cannot write, run commands or fetch the web. Custom personas live in \`.star-code/agents/*.md\`; their tools are intersected with the session's allowlist and can never widen it.
+- MCP servers are configured in Settings → Connectors or \`~/.star-code/mcp.json\`. Their tools appear as \`mcp__<server>__<tool>\` with the server's real schema and always ask permission. Connector logos and presets are only starting points; tokens are the user's.
+- Skills are \`SKILL.md\` packs from \`.star-code/skills/\`, \`~/.star-code/skills/\`, plugin folders, configured extra paths and the 40 built-ins in \`desktop/skills\`. Project/user/plugin/path skills override a built-in with the same name. Load the matching skill before specialized work; \`create_skill\` writes a new one for the user or project.
+
+### The interface, precisely
+- **Top bar:** rounded sidebar toggle, settings, back/forward on the left; the **Chat/Code switch is docked in the exact centre and always visible**; artifacts, theme and panel toggles on the right; native window controls at the far right.
+- **Sidebar:** logo and “Harness”, a full-width **New chat** button, Search, Projects, session history grouped by state/date, and the folded **Project files** section at the bottom. The titlebar toggle collapses it to a 64px icon rail; the preference is remembered.
+- **Landing:** logo, “What can I help with?”, one composer and four suggestion cards. The composer holds the project, permission mode, agent and model controls and the send button.
+- **Conversation:** user messages are compact rounded bubbles on the right; assistant text is plain and full-width in a centred column. Hover actions copy a message or open its canvas.
+- **Inline markdown canvas:** long answers get a quiet document toolbar **inside the transcript** — title, word count, Copy, Download \`.md\`, Edit. Edit swaps the rendered answer for raw markdown in place; Preview renders it again. Copy always uses the raw markdown. It is not a modal.
+- **Right rail:** Preview, Tree, Changes, Terminal, Tasks/Plan and Usage open as tabs/panes; the Preview can show files, artifacts, an optional 3D viewport and live browser previews.
+- **Artifacts:** fenced \`artifact\` blocks (html, svg, md, doc, slides, design, motion, voxel) render in the Preview with version history. The inline markdown canvas is for ordinary answers; artifacts are for things the user will keep, edit or run.
+- **Settings:** Providers, Appearance, Session, Knowledge, MCP, Skills, Plugins, Connectors, Shortcuts, About. Changes are stored locally and take effect on the next turn. Schedules, project config, hooks, memory and knowledge are edited from here or from their project files.
+- The chrome is deliberately monochrome: the logo is the only colour. Loading is the ribbon logo spinning. The theme is Dark, Light or System.
+
+### Providers, storage and trust
+- Providers: DeepSeek, OpenAI, Anthropic, Google, xAI, Groq, Mistral, OpenRouter, Together, LM Studio, vLLM and any OpenAI-compatible endpoint. Keys live in \`~/.star-code/auth.json\` and are only sent to the provider you choose; the UI sees masks. \`config.json\` holds the last model and local preferences.
+- Project files: \`.star-code/settings.json\`, \`.claude/settings.json\`, \`STAR.md\`, \`AGENTS.md\`, \`CLAUDE.md\`, \`.star-code/knowledge/\`, \`.star-code/skills/\`, \`.star-code/agents/\` and \`.star-code/mcp.json\`. User data is under \`~/.star-code\`.
+- The server binds to localhost and dies with the app. The desktop build is unsigned, so OS warnings are expected; \`pulse web\` runs the same app in a browser. Updates download with a sha512 check and install in place.
+- The app has no telemetry and no account. Downloads are verified by hash, Windows signature, local scan and reputation before execution; a verdict that is not CLEAN is never run.
+
+### Answering questions about the harness
+When the user asks how Pulse Harness works, what a feature does, where a file lives or why the UI behaves a certain way:
+1. Load the \`pulse-harness\` skill and call \`self_knowledge\` for the feature map.
+2. Read the actual source or config named by the question — do not answer from a generic chatbot assumption.
+3. Name the surface (Desktop/Web/CLI), the mode (Chat/Code), the file and the behavior. If the installed build and the source differ, inspect both before claiming.
+4. Say plainly when something is not implemented or when a detail is not in the source you read. Never invent settings, commands, paths, versions or UI controls.
 
 `;
 

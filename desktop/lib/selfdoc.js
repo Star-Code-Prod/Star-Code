@@ -13,6 +13,15 @@ configured, plus fetch_url/websearch when the user allows them, and download
 (source, hash, signature and virus checks) when the user allows it.
 
 ## Desktop surfaces
+- The top bar pins the Chat/Code switch in its exact centre; the left side has
+  the sidebar toggle, settings and back/forward, the right side has artifacts,
+  theme, panels and the native window controls.
+- The sidebar opens with the logo and "Harness", a full-width New chat button,
+  Search, Projects, session history and a folded Project files section. The
+  titlebar toggle collapses it to a 64px icon rail and remembers that choice.
+- Landing: logo, "What can I help with?", one rounded composer and four
+  suggestion cards. The composer owns the project, permission, agent and model
+  controls.
 - Sessions are the left rail. A worktree session gets its own
   ~/.star-code/worktrees/<project>/<session> checkout and star/<id> branch.
 - Right rail: Tasks/Plan/Changes, Tree (turn, tools, subagents and OS PIDs),
@@ -23,12 +32,27 @@ configured, plus fetch_url/websearch when the user allows them, and download
   Ctrl/Cmd+S, asks before applying in Manual mode and records the diff.
 - Changes supports unified/side-by-side diffs, hunk jumps and a stale-safe
   revert.
-- Tool activity shows as an EcoGPT-style "Worked for 12.4s" timeline that
-  collapses after the turn; rows expand to their reasoning or full output.
+- Tool activity shows a "Worked for 12.4s" timeline that collapses after the
+  turn; rows expand to their reasoning or full output.
 - Markdown in answers renders card tables, callouts and labeled code blocks.
+- Long answers render in an inline markdown canvas with Copy, Download .md and
+  in-place Edit. Copy keeps the raw markdown; it is a document toolbar in the
+  transcript, not a modal.
 - A side chat clones the current context into a separate session and never
   writes back; \`/btw\` opens one.
 - Scheduled work runs headlessly on the server in fresh Plan-mode sessions.
+- The UI is monochrome: the logo is the only colour. Loading is the logo
+  spinning; themes are Dark, Light and System.
+
+## Request lifecycle
+- The desktop shell is Electron only; the local server is desktop/server.js.
+- UI message -> server builds the prompt from project instructions, config,
+  memory, knowledge, the project map, the skill catalog and connected MCP
+  servers -> provider streams -> tool blocks pause for permission, execute and
+  return results -> loop until the model stops -> SSE renders text, reasoning,
+  tool rows, cards and artifacts.
+- The entire UI is desktop/public/index.html (one file, no build step). The
+  Star Code CLI uses the same agent loop in-process.
 
 ## Skills and connectors
 - Skills are SKILL.md packs. Pulse ships 40 built-ins in \`desktop/skills\`

@@ -1,5 +1,12 @@
 # What's new in Pulse Harness
 
+## 1.36.0 — 2026-11-06
+- **The Chat/Code switch is now physically docked in the exact centre of the top bar** — not in the sidebar, not moved there at runtime, and never hidden on narrow windows. The right-side controls stay pinned to the right edge.
+- **The agent now carries a full harness manual.** Both Code and Chat prompts have a precise map of the architecture, request lifecycle, sessions, worktrees, side chats, tools, permissions, MCP, skills, project config, data paths, the top bar/sidebar/canvas layout, and how to answer questions about the app from source.
+- **The self manual and pulse-harness skill are current** with the full sidebar, docked mode switch, inline canvas, monochrome chrome and logo loader.
+- **Tests lock both in:** the mode switch must sit inside the titlebar at the exact centre, and both prompts must carry the harness map.
+- **Update log** includes these notes.
+
 ## 1.35.0 — 2026-11-06
 - **A full shell remake, not a repaint.** Chat/Code moved to a compact switch in the centre of the top bar; the sidebar opens with a full-width **New chat** button; suggestions are now a two-column card grid instead of pills.
 - **Monochrome by default.** The logo is the only colour in the app. Primary buttons, focus rings, selection, user bubbles, canvas and badges are all neutral.

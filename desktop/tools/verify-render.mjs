@@ -487,7 +487,10 @@ ok("the sidebar uses three English workspace rows with modes in the top bar",
   ["New chat", "Search", "Projects"].every(t => html.includes(">" + t + "</span>")) &&
   html.includes('id="navNew"') && html.includes('id="navSearch"') &&
   html.includes('id="navProjects"') &&
-  html.includes('id="topModes"') && js.includes('$("topModes").appendChild(mode)') &&
+  html.includes('id="modeSeg"') && html.includes('class="titlebar"') &&
+  html.indexOf('id="modeSeg"') > html.indexOf('class="titlebar"') &&
+  html.indexOf('id="modeSeg"') < html.indexOf('class="shell"') &&
+  /\.titlebar \.center\{[^}]*position:absolute/.test(html) &&
   html.includes('id="btnArtifacts"') &&
   js.includes("function openProjects(") && js.includes("function switchProject(") &&
   html.includes("margin:0 0 0 16px") &&
