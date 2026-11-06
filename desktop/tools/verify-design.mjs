@@ -50,6 +50,10 @@ for (const token of [
   "#0d0d0d", "#f5f5f5", "#bdbdbd", "#cfcfcf", "#9a9a9a",        // brand mark
   "#23262c", "#15161a", "#0c0d10",                              // voxel doc stage
   "#0d0e11", "#aab0b8", "#ffb4a2",                              // blender view + voxel ink
+  "#185abd", "#107c41", "#c43e1c", "#7719aa", "#a4373a",        // Microsoft app marks
+  "#077568", "#0f6cbd", "#3955a3", "#31752f",                    // Publisher / Outlook / Visio / Project
+  "#4285f4", "#0f9d58", "#f4b400",                              // Google Docs / Sheets / Slides
+  "#1a5cff", "#ff9500", "#00a650", "#1e8eff",                    // LibreOffice + Apple marks
 ]) allowed.add(canon(token));
 
 const literals = [];

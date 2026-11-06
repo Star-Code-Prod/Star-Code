@@ -63,6 +63,26 @@ export function writeLastModel(provider, model) {
   } catch { return false; }
 }
 
+/** The last app version whose update log the user has seen. This lives in the
+ *  shared config, not localStorage: the desktop server uses a fresh localhost
+ *  port on every launch, so localStorage is a different origin each time and
+ *  would make the update log disappear forever. */
+export function readSeenVersion() {
+  const v = readConfig().seenVersion;
+  return typeof v === "string" ? v.trim().slice(0, 40) : "";
+}
+
+export function writeSeenVersion(version) {
+  const v = typeof version === "string" ? version.trim().slice(0, 40) : "";
+  if (!v) return false;
+  try {
+    const config = readConfig();
+    config.seenVersion = v;
+    writeConfig(config);
+    return true;
+  } catch { return false; }
+}
+
 /* ------------------------------ CLI sessions ----------------------------- */
 // The full-screen TUI keeps its tabs in the same file, additively. Shape:
 // [{ title, active, messages: [{role, content}], items: [...] }]. Caps exist

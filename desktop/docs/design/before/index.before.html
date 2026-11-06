@@ -2305,7 +2305,7 @@ async function handleCommand(text) {
   if (name === "theme") { $("btnTheme").click(); return; }
   if (name === "btw") { return sendToAgent("(side question, do not modify files) " + arg); }
   if (name === "compact") return sendToAgent("Summarize our conversation into a compact brief preserving decisions, file paths, and open tasks.");
-  if (name === "init") return sendToAgent("Create a CLAUDE.md file documenting this project: purpose, structure, how to build/test, and conventions. Write the file.");
+  if (name === "init") return sendToAgent("Create a PULSE.md file documenting this project: purpose, structure, how to build/test, and conventions. Write the file.");
   if (name === "review") return sendToAgent("Review the uncommitted changes: run `git diff`, then report correctness issues, risks, and suggested fixes grouped by file.");
   const r = await fetch("/api/command", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId, name, args: arg }) });
   const j = await r.json();
@@ -2427,7 +2427,7 @@ function exportConv() {
 const COMMANDS = [
   { n: "/clear", d: "Start a new conversation" },
   { n: "/compact", d: "Summarize the conversation to free context" },
-  { n: "/init", d: "Create a CLAUDE.md project guide" },
+  { n: "/init", d: "Create a PULSE.md project guide" },
   { n: "/diff", d: "Show uncommitted git changes" },
   { n: "/context", d: "Show context and project stats" },
   { n: "/status", d: "Session and repo status" },

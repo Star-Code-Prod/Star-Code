@@ -10,6 +10,11 @@ const results = [];
 const ok = (label, pass, extra = "") =>
   results.push((pass ? "PASS  " : "FAIL  ") + label + (extra ? "  " + extra : ""));
 
+const serverSource = fs.readFileSync("server.js", "utf8");
+ok("the Chat gate accepts both question and ask_user",
+  /CHAT_TOOLS = \[[^\]]*"ask_user"[^\]]*"question"/.test(serverSource) &&
+  /aliases = \{ question: "ask_user" \}/.test(serverSource));
+
 // Throwaway data dir so credential checks never touch real state.
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-server-"));
 process.env.STAR_CODE_DATA = dataDir;
@@ -180,6 +185,24 @@ try {
   ok("/api/providers exposes the stored lastModel",
     provAfter.lastModel?.provider === "deepseek" && provAfter.lastModel?.model === "deepseek-reasoner");
 
+  // seen version is server-side so the desktop keeps it across random ports.
+  ok("/api/providers starts with an empty seenVersion", provAfter.seenVersion === "");
+  const vsBad = await fetch(s.url + "/api/version-seen", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ version: "" }),
+  });
+  ok("POST /api/version-seen rejects an empty version", vsBad.status === 400);
+  const vsOk = await fetch(s.url + "/api/version-seen", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ version: "9.9.9" }),
+  });
+  const vsBody = await vsOk.json();
+  const vsFile = JSON.parse(fs.readFileSync(lmCfg, "utf8"));
+  const provSeen = await (await fetch(s.url + "/api/providers")).json();
+  ok("POST /api/version-seen persists the version",
+    vsOk.ok && vsBody.seenVersion === "9.9.9" && vsFile.seenVersion === "9.9.9" &&
+    provSeen.seenVersion === "9.9.9", JSON.stringify(vsFile));
+
   // a corrupt config.json reads as empty and never breaks the endpoints
   fs.writeFileSync(lmCfg, "{ not json");
   const provCorrupt = await (await fetch(s.url + "/api/providers")).json();
@@ -222,24 +245,30 @@ try {
     /STAR\.md/.test(help.text || "") && !/CLAUDE\.md/.test(help.text || ""));
 
   // The project guide convention end to end: STAR.md is served as project
-  // memory, a CLAUDE.md is not. Fixtures live in the repo root; whatever was
-  // there first is restored afterwards.
+  // memory; PULSE.md is the new guide; CLAUDE.md is ignored. Fixtures live in
+  // the repo root; whatever was there first is restored afterwards.
   const starPath = path.join(process.cwd(), "STAR.md");
+  const pulsePath = path.join(process.cwd(), "PULSE.md");
   const claudePath = path.join(process.cwd(), "CLAUDE.md");
   const starOriginal = fs.existsSync(starPath) ? fs.readFileSync(starPath) : null;
+  const pulseOriginal = fs.existsSync(pulsePath) ? fs.readFileSync(pulsePath) : null;
   const claudeOriginal = fs.existsSync(claudePath) ? fs.readFileSync(claudePath) : null;
   const commandText = async (name) => ((await (await fetch(s.url + "/api/command", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ sessionId: "verify", name }),
   })).json()).text) || "";
-  fs.writeFileSync(claudePath, "# Claude convention\nclaude-memory-text\n");
+  fs.writeFileSync(pulsePath, "# Pulse convention\npulse-memory-text\n");
+  const memPulse = await commandText("memory");
+  ok("PULSE.md is served as project memory", memPulse.includes("pulse-memory-text"));
+  fs.writeFileSync(claudePath, "# Retired convention\nclaude-memory-text\n");
   const memClaude = await commandText("memory");
-  ok("a CLAUDE.md is served for compatibility", memClaude.includes("claude-memory-text"));
+  ok("a CLAUDE.md is ignored completely", !memClaude.includes("claude-memory-text"));
   fs.writeFileSync(starPath, "# Star project guide\nstar-memory-text\n");
   const memStar = await commandText("memory");
   ok("/memory serves STAR.md as the project memory",
     memStar.includes("star-memory-text") && memStar.includes("STAR.md"));
   if (starOriginal) fs.writeFileSync(starPath, starOriginal); else fs.rmSync(starPath, { force: true });
+  if (pulseOriginal) fs.writeFileSync(pulsePath, pulseOriginal); else fs.rmSync(pulsePath, { force: true });
   if (claudeOriginal) fs.writeFileSync(claudePath, claudeOriginal); else fs.rmSync(claudePath, { force: true });
 
   ok("thirteen+ providers listed", (prov.providers || []).length >= 13, ids.join(","));

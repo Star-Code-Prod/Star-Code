@@ -1395,11 +1395,17 @@ export function createToolRunner(root, opts = {}) {
     return "Edited " + (path.relative(root, abs) || abs) + " (" + list.length + " edit" + (list.length === 1 ? "" : "s") + ").";
   }
 
-  async function task({ instructions, agent }) {
-    const text = String(instructions || "").trim();
-    if (!text) throw new Error("task needs instructions");
+  async function task(input = {}) {
+    const args = input && typeof input === "object" ? input : { instructions: input };
+    const raw = args.instructions ?? args.prompt ?? args.task ?? args.description ?? args.query ?? args.question ?? args.input;
+    let text = typeof raw === "string" ? raw.trim() : raw && typeof raw === "object" ? JSON.stringify(raw) : "";
+    if (!text) {
+      const loose = Object.entries(args).filter(([k, v]) => k !== "agent" && k !== "persona" && typeof v === "string" && v.trim());
+      if (loose.length === 1) text = loose[0][1].trim();
+    }
+    if (!text) throw new Error("task needs instructions (got: " + Object.keys(args).join(", ") + ")");
     if (!runSubagent) return "task: no subagent runner is configured in this environment - continue without it.";
-    const wanted = String(agent || "").trim();
+    const wanted = String(args.agent || args.persona || "").trim();
     let picked = null;
     if (wanted) {
       picked = getAgent(root, wanted);
@@ -1613,10 +1619,10 @@ export function createToolRunner(root, opts = {}) {
   };
 }
 
-/** Read project instruction files: STAR.md, AGENTS.md and CLAUDE.md (all
+/** Read project instruction files: STAR.md, AGENTS.md and PULSE.md (all
  *  existing files are concatenated, in that order). */
 export function readProjectMemory(root) {
-  const candidates = ["STAR.md", "AGENTS.md", "CLAUDE.md"];
+  const candidates = ["STAR.md", "AGENTS.md", "PULSE.md"];
   const parts = [];
   const names = [];
   for (const c of candidates) {

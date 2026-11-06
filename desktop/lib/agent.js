@@ -190,11 +190,26 @@ export function hasIdenticalToolResult(messages, body, minChars = DEDUPE_MIN_CHA
   return messages.some((m) => m.content === body);
 }
 
-/** Sent once when a step produced neither prose nor a tool call. Models that
+/** Sent when a step produced neither prose nor a tool call. Models that
  *  spend the whole reply in a reasoning channel recover from this line; the
  *  turn otherwise ends with an empty bubble and looks frozen. */
-const EMPTY_REPLY_NUDGE = "You sent no visible answer. Reply now with a short " +
-  "sentence, or call a tool - do not send another empty or reasoning-only message.";
+const MAX_BLANK_RETRIES = 5;
+const EMPTY_REPLY_NUDGE = "You produced only internal reasoning and no visible answer " +
+  "or tool call. Stop thinking and respond now: emit the tool block, or write the actual " +
+  "answer. Do not send another empty or reasoning-only message.";
+const PROMISE_NUDGE = "You said you would check, look, load or read something, but you " +
+  "made no tool call. Do not narrate the next action. In this response either emit the " +
+  "tool call and wait for its result, or give the complete final answer now. If the app " +
+  "manual is needed, call self_knowledge; if a skill is needed, call skill.";
+
+/** A short reply that only announces a tool action ("I'll check...", "Let me load...")
+ *  leaves the turn looking frozen. Detect it so the loop can nudge the model once. */
+export function looksLikeUnfulfilledAction(text) {
+  const t = String(text || "").replace(/[*_`#>]/g, "").trim();
+  if (!t || t.length > 700) return false;
+  if (!/^(i['’]ll|i will|let me|i['’]m going to|i am going to|i need to|first[, ]+i['’]ll|i can)\b/i.test(t)) return false;
+  return /\b(check|look|read|load|search|inspect|open|run|examine|verify|review|find|browse|gather|pull|fetch|query|see|investigate|test)\b/i.test(t);
+}
 
 export const PERMISSION_MODES = ["manual", "acceptEdits", "plan", "bypass"];
 
@@ -399,10 +414,13 @@ ${PULSE_DOC}Tools you can call:
 - self_knowledge: answer questions about Pulse Harness itself - the app, the web build, its features and file locations
 - search_knowledge: search the user's project knowledge notes for context
 - task: spawn read-only research subagents with fresh context - one call per mission; several missions (or reads) in one step run in parallel. A subagent can read any absolute path on this machine (local folders, projects, reference corpora), which is how Chat reaches files at all
-- question (alias ask_user): ask the user up to four questions with 2-4 clickable options each (recommended option first) or allowOther:true for a typed answer - the friendliest way to ask for a decision, and the user answers by clicking or typing
-- skill: load a skill pack when its description matches the task. Pulse ships 40 built-in packs (asking-questions, pulse-harness, research, summarizing, planning, technical-writing and more) - a skill carries exact procedures; load it first, then follow it
+- ask_user (alias question): ask the user up to four questions with 2-4 clickable options each (recommended option first) or allowOther:true for a typed answer - the friendliest way to ask for a decision, and the user answers by clicking or typing
+- skill: load a skill pack when its description matches the task. Pulse ships 65 built-in packs (asking-questions, pulse-harness, research, summarizing, planning, technical-writing and more) - a skill carries exact procedures; load it first, then follow it
 - create_skill: save a new reusable procedure as a SKILL.md pack when the user asks you to remember a workflow
 - suggest_session: when a request clearly doesn't belong to this conversation's topic, offer a fresh session as a clickable card (a real title + one-sentence description) instead of stretching this thread to cover it
+
+## Chat mode tool boundary
+This is Chat mode. The ONLY tools available are: websearch, fetch_url, self_knowledge, search_knowledge, task, ask_user (question), skill, create_skill, suggest_session, preview. Do not call any tool not on that list - no read_file, write_file, edit_file, run_command, or Office tools. The Code-mode tool map elsewhere in this prompt is reference only. A document, essay, email, letter or assignment is written directly as prose (the app turns it into an editable writing block); it never needs an Office or file tool. If a request truly needs local files, Office files or code changes, say in one line that it needs Code mode and offer to switch to Code mode.
 
 To call a tool, emit one or more blocks, then stop and wait for the results:
 \`\`\`tool
@@ -461,15 +479,15 @@ const PULSE_DOC = `## Asking and answering
 5. Report: files changed, commands run, observed results, what is still open. Honesty over optimism.
 
 ## Skills
-- The catalog below lists 40 built-in skill packs. When a task matches a skill's description, load that skill with the skill tool BEFORE starting the specialized work (debugging, git, code-review, refactoring, release, security, performance, tests, powershell, python, react, office documents, presentations, spreadsheets, research, planning, mcp-connectors, asking-questions and more).
+- The catalog below lists 65 built-in skill packs. When a task matches a skill's description, load that skill with the skill tool BEFORE starting the specialized work (debugging, git, code-review, refactoring, release, security, performance, tests, powershell, python, react, office documents, presentations, spreadsheets, research, planning, mcp-connectors, asking-questions and more).
 - A skill is an exact procedure, not a suggestion: follow its steps in order, use the resources it points to with read_file, and reload it if the task changes.
 - If several skills could apply, load the closest one first; you may load more later. For anything about Pulse Harness itself, load pulse-harness and use self_knowledge.
+- For multi-phase work, load the matching workflow pack first and follow its checkpoints, then the domain skill it calls for. Workflow packs cover feature delivery, bugfix, codebase onboarding, migration, incident response, deployment, API integration, auth, data pipelines, SQL analysis, spreadsheet models, presentations, product specs, user research, competitive analysis, copywriting, SEO content, customer support, meeting notes, hiring, legal review, procurement, observability, retrospectives and data stories.
 
 ## Tools by job
 - Orient: read_file, list_dir, search_files, glob_files, git_status, git_diff, git_log.
 - Change: write_file (new files), edit_file (one targeted change), multi_edit (several edits in one call), git_commit (one logical commit, specific message).
 - Run and prove: run_command (exact command), test_run (the project's own verify/test script - run it after edits instead of claiming a test passed).
-- Documents: office_read and office_write for real .docx/.xlsx/.pptx - write, then read back, then verify.
 - Research: websearch and fetch_url (they ask for permission; plan mode blocks them), task for parallel read-only explorer subagents with exact paths and questions, download for files (strict doctrine below), self_knowledge for Pulse Harness itself.
 - Memory and context: search_knowledge (project knowledge), memory (remember preferences across sessions), template (house style), bind the folder the user names, schedule (recurring work), trace (recent tool calls), connector (MCP wiring).
 - Deliver: chart (bar/line/pie SVG), deliver_file (hand over a finished file), preview (look at and drive the live Preview pane).
@@ -479,6 +497,8 @@ const PULSE_DOC = `## Asking and answering
 - Emit one or more \`\`\`tool blocks, then STOP and wait for the results. Never fabricate a tool result or quote output you did not see.
 - Independent calls (several reads, searches, task missions) go in one step and run in parallel; dependent calls wait for the previous result.
 - Read a file before editing it. Search before guessing where something lives. Match the project's own style and conventions.
+- Never announce an action and stop. If you say you will check, load, read, search or inspect something, emit the tool block in that same response. A promise with no tool call is a failed turn. If no tool is needed, answer directly.
+- For questions about Pulse Harness itself, call self_knowledge or load the pulse-harness skill before answering. Do not narrate that you will do it.
 
 ## Permissions
 - Modes: manual (asks), acceptEdits (edits auto, commands still ask), plan (read-only, server-enforced - explore and propose a plan), bypass (everything allowed).
@@ -495,6 +515,9 @@ Pulse Harness is the harness around a model, not the model itself. It owns the p
 - \`desktop/public/index.html\` is the entire desktop/web UI: HTML, CSS and JavaScript in one file, with no build step. The CLI has its own renderer but the same agent loop.
 - A turn is: UI sends the message to the server; the server adds project instructions, config, memory, knowledge, the project map, the skill catalog, connected MCP applications and a compact harness map; the provider streams; tool blocks pause for permission when required, execute, return results and the loop continues; text, reasoning, tool rows, cards and artifacts stream back over SSE. Stopping the turn aborts the provider request and marks the session interrupted.
 
+### Repository, releases and updates
+The source, README, releases, changelog, issues, pull requests and roadmap live at https://github.com/Star-Code-Prod/Pulse-Harness. For any question about the latest version, what changed, open issues, roadmap or release notes, read the repository before answering: fetch https://github.com/Star-Code-Prod/Pulse-Harness/releases (or /releases/latest), https://github.com/Star-Code-Prod/Pulse-Harness/commits/main and https://raw.githubusercontent.com/Star-Code-Prod/Pulse-Harness/main/desktop/CHANGELOG.md with fetch_url or websearch. self_knowledge is the local snapshot and may lag behind the repository; never guess a version, date or release note. Fetch it in the same turn - do not say you will look and stop.
+
 ### Sessions, modes and context
 - **Chat** is the general assistant: home directory, read-only tools plus research, questions, skills and suggestions. **Code** is the project agent: it can read, edit, run, git, test, use Office files and create skills. The Chat/Code switch is pinned to the exact centre of the top bar in both modes and never moves.
 - Sessions persist in \`<data>/sessions.json\` (normally \`~/.star-code/sessions.json\`, or \`STAR_CODE_DATA\` when set). A session stores messages, kind, mode, cwd, worktree/branch, parent side-chat and UI cards. A **worktree session** gets \`~/.star-code/worktrees/<project>/<session>\` on a \`star/<id>\` branch. A **side chat** is a context clone and never writes back. A **scheduled** task runs headlessly in a fresh plan-mode session.
@@ -502,27 +525,27 @@ Pulse Harness is the harness around a model, not the model itself. It owns the p
 - Background sessions keep running while you look elsewhere; follow-ups either steer the running turn or queue. An interrupted turn offers "Continue where it stopped".
 
 ### Tools, permissions and agents
-- Tool families: read/search (\`read_file\`, \`list_dir\`, \`search_files\`, \`glob_files\`), change (\`write_file\`, \`edit_file\`, \`multi_edit\`), run (\`run_command\`, \`test_run\`), git (\`git_status\`, \`git_diff\`, \`git_log\`, \`git_commit\`), Office (\`office_read\`, \`office_write\`), research (\`websearch\`, \`fetch_url\`, \`download\`, \`task\`), context (\`search_knowledge\`, \`memory\`, \`template\`, \`trace\`, working-folder binding), delivery (\`chart\`, \`schedule\`, \`connector\`, \`deliver_file\`, \`preview\`) and interaction (\`question\`/\`ask_user\`, \`skill\`, \`create_skill\`, \`suggest_session\`).
+- Tool families: read/search (\`read_file\`, \`list_dir\`, \`search_files\`, \`glob_files\`), change (\`write_file\`, \`edit_file\`, \`multi_edit\`), run (\`run_command\`, \`test_run\`), git (\`git_status\`, \`git_diff\`, \`git_log\`, \`git_commit\`), research (\`websearch\`, \`fetch_url\`, \`download\`, \`task\`), context (\`search_knowledge\`, \`memory\`, \`template\`, \`trace\`, working-folder binding), delivery (\`chart\`, \`schedule\`, \`connector\`, \`deliver_file\`, \`preview\`) and interaction (\`question\`/\`ask_user\`, \`skill\`, \`create_skill\`, \`suggest_session\`).
 - Permission modes are **manual** (asks for writes, commands, network and downloads), **acceptEdits** (edits auto, commands still ask), **plan** (read-only, enforced by the server) and **bypass**. Reads never ask. Never retry a denied tool in disguise, never claim a denied write happened, and never ask the user to switch to bypass.
 - Project config can narrow the allowed tools and add lifecycle hooks. Hooks can block a tool call. Follow the project's rules unless the user explicitly overrides them.
 - \`task\` runs read-only subagents with fresh context; independent missions in one step run in parallel. A subagent can read absolute paths but cannot write, run commands or fetch the web. Custom personas live in \`.star-code/agents/*.md\`; their tools are intersected with the session's allowlist and can never widen it.
 - MCP servers are configured in Settings → Connectors or \`~/.star-code/mcp.json\`. Their tools appear as \`mcp__<server>__<tool>\` with the server's real schema and always ask permission. Connector logos and presets are only starting points; tokens are the user's.
-- Skills are \`SKILL.md\` packs from \`.star-code/skills/\`, \`~/.star-code/skills/\`, plugin folders, configured extra paths and the 40 built-ins in \`desktop/skills\`. Project/user/plugin/path skills override a built-in with the same name. Load the matching skill before specialized work; \`create_skill\` writes a new one for the user or project.
+- Skills are \`SKILL.md\` packs from \`.star-code/skills/\`, \`~/.star-code/skills/\`, plugin folders, configured extra paths and the 65 built-ins in \`desktop/skills\`. Project/user/plugin/path skills override a built-in with the same name. Load the matching skill before specialized work; \`create_skill\` writes a new one for the user or project.
 
 ### The interface, precisely
 - **Top bar:** rounded sidebar toggle, settings, back/forward on the left; the **Chat/Code switch is docked in the exact centre and always visible**; artifacts, theme and panel toggles on the right; native window controls at the far right.
 - **Sidebar:** logo and “Harness”, a full-width **New chat** button, Search, Projects, session history grouped by state/date, and the folded **Project files** section at the bottom. The titlebar toggle collapses it to a 64px icon rail; the preference is remembered.
 - **Landing:** logo, “What can I help with?”, one composer and four suggestion cards. The composer holds the project, permission mode, agent and model controls and the send button.
-- **Conversation:** user messages are compact rounded bubbles on the right; assistant text is plain and full-width in a centred column. Hover actions copy a message or open its canvas.
-- **Inline markdown canvas:** long answers get a quiet document toolbar **inside the transcript** — title, word count, Copy, Download \`.md\`, Edit. Edit swaps the rendered answer for raw markdown in place; Preview renders it again. Copy always uses the raw markdown. It is not a modal.
+- **Conversation:** user messages are compact rounded bubbles on the right; assistant text is plain and full-width in a centred column. Hover actions copy a message.
+- **Editable writing blocks:** only when the user asks for a document, text, essay, email, letter, assignment (uppgift) or other written content; then the answer appears inside the conversation as a distraction-free editable document. Ordinary long answers, code, tables and chat replies stay normal chat. It supports headings, paragraphs, lists and bold, plus Copy with rich HTML and inline styles so Google Docs, Sheets, Slides, Word and PowerPoint keep the formatting. It is not a code editor, a plain textarea or a modal.
 - **Right rail:** Preview, Tree, Changes, Terminal, Tasks/Plan and Usage open as tabs/panes; the Preview can show files, artifacts, an optional 3D viewport and live browser previews.
-- **Artifacts:** fenced \`artifact\` blocks (html, svg, md, doc, slides, design, motion, voxel) render in the Preview with version history. The inline markdown canvas is for ordinary answers; artifacts are for things the user will keep, edit or run.
+- **Artifacts:** fenced \`artifact\` blocks (html, svg, md, doc, slides, design, motion, voxel) render in the Preview with version history. Writing blocks are for prose; artifacts are for things the user will keep, edit or run.
 - **Settings:** Providers, Appearance, Session, Knowledge, MCP, Skills, Plugins, Connectors, Shortcuts, About. Changes are stored locally and take effect on the next turn. Schedules, project config, hooks, memory and knowledge are edited from here or from their project files.
 - The chrome is deliberately monochrome: the logo is the only colour. Loading is the ribbon logo spinning. The theme is Dark, Light or System.
 
 ### Providers, storage and trust
 - Providers: DeepSeek, OpenAI, Anthropic, Google, xAI, Groq, Mistral, OpenRouter, Together, LM Studio, vLLM and any OpenAI-compatible endpoint. Keys live in \`~/.star-code/auth.json\` and are only sent to the provider you choose; the UI sees masks. \`config.json\` holds the last model and local preferences.
-- Project files: \`.star-code/settings.json\`, \`.claude/settings.json\`, \`STAR.md\`, \`AGENTS.md\`, \`CLAUDE.md\`, \`.star-code/knowledge/\`, \`.star-code/skills/\`, \`.star-code/agents/\` and \`.star-code/mcp.json\`. User data is under \`~/.star-code\`.
+- Project files: \`.star-code/settings.json\`, \`.claude/settings.json\`, \`STAR.md\`, \`AGENTS.md\`, \`PULSE.md\`, \`.star-code/knowledge/\`, \`.star-code/skills/\`, \`.star-code/agents/\` and \`.star-code/mcp.json\`. User data is under \`~/.star-code\`.
 - The server binds to localhost and dies with the app. The desktop build is unsigned, so OS warnings are expected; \`pulse web\` runs the same app in a browser. Updates download with a sha512 check and install in place.
 - The app has no telemetry and no account. Downloads are verified by hash, Windows signature, local scan and reputation before execution; a verdict that is not CLEAN is never run.
 
@@ -894,14 +917,38 @@ const JSON_FENCE_RE = /```(?:json|jsonc)\b\s*([\s\S]*?)```/gi;
  *  the arg key (args / arguments / parameters / input), so accept them all. */
 function callFrom(obj) {
   if (!obj || typeof obj !== "object" || Array.isArray(obj)) return null;
-  const raw = obj.name || obj.tool || obj.tool_name || (typeof obj.function === "string" ? obj.function : "");
+  const fn = obj.function && typeof obj.function === "object" ? obj.function : null;
+  const raw = fn?.name || obj.name || obj.tool || obj.tool_name || (typeof obj.function === "string" ? obj.function : "");
   if (typeof raw !== "string" || !/^[\w.:-]+$/.test(raw.trim())) return null;
-  let args = obj.args ?? obj.arguments ?? obj.parameters ?? obj.input ?? obj.tool_args;
+  let args = fn?.arguments ?? obj.args ?? obj.arguments ?? obj.parameters ?? obj.input ?? obj.tool_args;
   if (typeof args === "string") {
     try { args = JSON.parse(args); } catch { args = {}; }
   }
   if (!args || typeof args !== "object" || Array.isArray(args)) args = {};
+  if (!Object.keys(args).length) {
+    const reserved = new Set(["name", "tool", "tool_name", "function", "type", "id"]);
+    const extra = Object.fromEntries(Object.entries(obj).filter(([k]) => !reserved.has(k)));
+    if (Object.keys(extra).length) args = extra;
+  }
   return { name: raw.trim(), args };
+}
+
+function pushCallValue(value, into) {
+  if (Array.isArray(value)) {
+    for (const item of value) pushCallValue(item, into);
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+  if (Array.isArray(value.tool_calls)) {
+    for (const item of value.tool_calls) pushCallValue(item, into);
+    return;
+  }
+  if (Array.isArray(value.calls)) {
+    for (const item of value.calls) pushCallValue(item, into);
+    return;
+  }
+  const call = callFrom(value);
+  if (call) into.push(call);
 }
 
 function callsInFences(src, re, into) {
@@ -911,17 +958,29 @@ function callsInFences(src, re, into) {
   while ((m = re.exec(src)) !== null) {
     const body = String(m[1] || "").trim();
     if (!body) continue;
-    let obj = null;
-    try { obj = JSON.parse(body); } catch { continue; }
-    const call = callFrom(obj && obj.tool_calls ? obj.tool_calls[0] : obj);
-    if (!call) continue;
-    into.push(call);
-    out = out.replace(m[0], "");
+    let parsed = null;
+    try {
+      parsed = JSON.parse(body);
+    } catch {
+      // Some providers put several JSON calls inside one fence, one per line.
+      const lines = body.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+      if (lines.length < 2) continue;
+      const parts = [];
+      let all = true;
+      for (const line of lines) {
+        try { parts.push(JSON.parse(line)); } catch { all = false; break; }
+      }
+      if (!all) continue;
+      parsed = parts;
+    }
+    const before = into.length;
+    pushCallValue(parsed, into);
+    if (into.length > before) out = out.replace(m[0], "");
   }
   return out;
 }
 
-const ARG_KEYS = ["name", "tool", "tool_name", "args", "arguments", "parameters", "input", "tool_args"];
+const ARG_KEYS = ["name", "tool", "tool_name", "args", "arguments", "parameters", "input", "tool_args", "type", "function", "id"];
 
 /** Parse Python-style keyword arguments used by some providers:
  *  read_file(path='src/a.js', line=2). */
@@ -992,10 +1051,15 @@ export function parseAssistantContent(content) {
   while ((jm = JSON_FENCE_RE.exec(rest)) !== null) {
     let obj = null;
     try { obj = JSON.parse(String(jm[1] || "").trim()); } catch { continue; }
-    const call = callFrom(obj);
-    const keys = obj && typeof obj === "object" ? Object.keys(obj) : [];
-    if (!call || !keys.every((k) => ARG_KEYS.includes(k))) continue;
-    calls.push(call);
+    const values = Array.isArray(obj) ? obj : Array.isArray(obj?.tool_calls) ? obj.tool_calls : [obj];
+    const found = [];
+    for (const value of values) {
+      const call = callFrom(value);
+      const keys = value && typeof value === "object" ? Object.keys(value) : [];
+      if (call && keys.every((k) => ARG_KEYS.includes(k))) found.push(call);
+    }
+    if (!found.length) continue;
+    calls.push(...found);
     rest = rest.replace(jm[0], "");
   }
   // Last resort: the model wrote the call as bare JSON with no fence at all.
@@ -1126,6 +1190,7 @@ export async function runAgentTurn({
   let interrupted = false;
   let softRetries = 0;    // stream dropped before the first byte
   let silentRetries = 0;  // model answered with neither prose nor a tool call
+  let promiseRetries = 0; // model announced a tool action but emitted no call
 
   /** Shared tail of tool handling: clip, dedupe, emit and record one result.
    *  The sequential path and parallel fleets both settle through here. */
@@ -1264,21 +1329,38 @@ export async function runAgentTurn({
     if (todos) emit({ type: "todos", todos });
     emitUsage();
 
+    if (!calls.length && text && promiseRetries < MAX_BLANK_RETRIES && looksLikeUnfulfilledAction(text)) {
+      promiseRetries += 1;
+      emit({ type: "retry", attempt: promiseRetries, max: MAX_BLANK_RETRIES });
+      messages.push({ role: "user", content: PROMISE_NUDGE });
+      continue;
+    }
+
     if (!calls.length && !text) {
-      // A reasoning-only reply leaves nothing on screen: ask once, then say so.
-      if (silentRetries < 1) {
+      // A reasoning-only reply leaves nothing on screen. Nudge it back up to
+      // five times; providers occasionally finish a reasoning block without
+      // ever starting the visible answer.
+      if (silentRetries < MAX_BLANK_RETRIES) {
         silentRetries += 1;
+        emit({ type: "retry", attempt: silentRetries, max: MAX_BLANK_RETRIES });
         messages.push({ role: "user", content: EMPTY_REPLY_NUDGE });
+        await new Promise((r) => setTimeout(r, 300));
         continue;
       }
       const note = "Nothing came back from " + (model || "the model") +
-        " - the reply was empty. Send that again, or switch models in the composer.";
+        " after " + MAX_BLANK_RETRIES + " retries - the reply stayed empty. Send that again, or switch models in the composer.";
       emit({ type: "delta", text: note });
       emit({ type: "done", text: note });
       return;
     }
 
     if (!calls.length) {
+      if (looksLikeUnfulfilledAction(text)) {
+        const note = "The model stopped after saying it would check, without calling a tool. " +
+          "That reply is incomplete - send the question again, or switch models in the composer.";
+        emit({ type: "delta", text: "\n\n" + note });
+        text = text + "\n\n" + note;
+      }
       emit({ type: "done", text });
       return;
     }

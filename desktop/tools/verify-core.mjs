@@ -20,7 +20,7 @@ const { PROVIDERS, normalizeModels, filterChatModels, isReasoning, discoverModel
 const { decisionFor, systemPrompt, resetSystemPromptCache, chatSystemPrompt, pruneOldToolResults, manageHistory,
   estimateTokens, hasIdenticalToolResult, identicalReuseStub, TOOL_RESULT_PREFIX,
   parseAssistantContent, parseDsmlCalls, runAgentTurn, contextLimit,
-  scrubReasoning, holdBackPartialOpener } =
+  scrubReasoning, holdBackPartialOpener, looksLikeUnfulfilledAction } =
   await import(pathToFileURL(path.resolve("lib/agent.js")).href);
 
 const results = [];
@@ -162,6 +162,13 @@ line "two"</|DSML|parameter>
 
   const fenced = parseAssistantContent('```tool\n{"name":"read_file","args":{"path":"x"}}\n```');
   ok("the fenced dialect still works", fenced.calls.length === 1 && fenced.calls[0].name === "read_file");
+
+  const fleet = parseAssistantContent('```tool\n{"tool_calls":[{"name":"task","args":{"instructions":"a"}},{"name":"task","args":{"instructions":"b"}},{"name":"task","args":{"instructions":"c"}}]}\n```');
+  ok("a tool_calls array keeps every parallel mission",
+    fleet.calls.length === 3 && fleet.calls.every((c) => c.name === "task"));
+  const nativeFleet = parseAssistantContent('```tool\n{"tool_calls":[{"type":"function","function":{"name":"task","arguments":"{\\"instructions\\":\\"a\\"}"}},{"type":"function","function":{"name":"task","arguments":"{\\"instructions\\":\\"b\\"}"}}]}\n```');
+  ok("native OpenAI tool_calls also keep every mission",
+    nativeFleet.calls.length === 2 && nativeFleet.calls[1].args.instructions === "b");
 
   // The XML dialect some providers emit: <dots_function_call><invoke …>. It
   // used to leak into the transcript as plain text and never run. A malformed
@@ -475,17 +482,25 @@ const chat = chatSystemPrompt();
 ok("chatSystemPrompt is a string", typeof chat === "string" && chat.length > 300);
 ok("chat prompt introduces Pulse", chat.includes("You are Pulse"));
 ok("the chat prompt teaches its tools and the built-in skills",
-  chat.includes("search_knowledge") && chat.includes("40 built-in packs") &&
+  chat.includes("search_knowledge") && chat.includes("65 built-in packs") &&
   chat.includes("Load the matching skill first"));
+ok("Chat mode names its exact tool boundary and never advertises Office tools",
+  chat.includes("Chat mode tool boundary") && chat.includes("ONLY tools available") &&
+  chat.includes("switch to Code mode") && !chat.includes("office_read") &&
+  systemPrompt(process.cwd(), "manual").includes("office_read"));
 ok("the coding prompt carries the operating loop and tool guide",
   systemPrompt(process.cwd(), "manual").includes("## Operating loop") &&
   systemPrompt(process.cwd(), "manual").includes("## Tools by job") &&
   systemPrompt(process.cwd(), "manual").includes("## Calling tools") &&
   systemPrompt(process.cwd(), "manual").includes("## Permissions"));
 ok("both prompts carry the full harness map",
-  ["## How Pulse Harness works", "docked in the exact centre", "inline markdown canvas",
-    "sessions.json", "desktop/server.js", "pulse web"].every((s) =>
+  ["## How Pulse Harness works", "docked in the exact centre", "editable document",
+    "sessions.json", "desktop/server.js", "pulse web",
+    "github.com/Star-Code-Prod/Pulse-Harness/releases", "raw.githubusercontent.com"].every((s) =>
     chat.includes(s) && systemPrompt(process.cwd(), "manual").includes(s)));
+ok("both prompts point at the live repository for updates",
+  chat.includes("read the repository before answering") &&
+  systemPrompt(process.cwd(), "manual").includes("read the repository before answering"));
 ok("both prompts teach the question protocol",
   chat.includes("Asking and answering") && chat.includes("ask 1-3 short questions") &&
   systemPrompt(process.cwd(), "manual").includes("Asking and answering") &&
@@ -527,6 +542,11 @@ ok("chat prompt carries the delivery rules", chat.includes("reply with one short
 ok("both prompts share the same artifact doctrine", /## Artifacts/.test(p1) && p1.indexOf("## Artifacts") >= 0 && chat.indexOf("## Artifacts") >= 0);
 ok("doctrine says when to make one and when not to", p1.includes("Answer inline, with no artifact") && /Make one when they will keep, edit, share or operate/.test(p1));
 ok("artifacts only when explicitly requested", p1.includes("Only make an artifact when the user explicitly asks") && p1.includes("Never emit an artifact fence") && p1.includes("do not create it unasked"));
+ok("a promise-only reply is detected so the loop can nudge it",
+  looksLikeUnfulfilledAction("I'll look into this. Let me check the current project context and load the relevant skill.") &&
+  looksLikeUnfulfilledAction("Let me read the file first.") &&
+  !looksLikeUnfulfilledAction("Hello! What can I help you with today?") &&
+  !looksLikeUnfulfilledAction("The answer is 42."));
 /* --------- the doctrine got smarter: playbooks, craft bar, revision --------- */
 ok("per-format playbooks are documented",
   p1.includes("Playbooks - the parts worth copying") &&
@@ -751,6 +771,43 @@ ok("multi_edit is dangerous", mr.isDangerous("multi_edit") === true);
   ok("the fleet turn finishes with the model's closing text",
     fleetEvents.some((e) => e.type === "done" && String(e.text || "").includes("both-missions-done")));
   fleetSrv.close();
+  const taskAlias = createToolRunner(med, {
+    runSubagent: async ({ instructions }) => ({ text: "got " + instructions }),
+  });
+  const taskAliasResult = await taskAlias.run("task", { prompt: "alias mission" });
+  ok("task accepts the prompt alias", taskAliasResult.includes("got alias mission"), taskAliasResult);
+  const taskTop = parseAssistantContent('```tool\n{"name":"task","instructions":"top-level mission"}\n```');
+  ok("top-level tool arguments are recovered", taskTop.calls[0]?.args?.instructions === "top-level mission",
+    JSON.stringify(taskTop.calls));
+
+  let blankAttempts = 0;
+  const blankSrv = http.createServer((req, res) => {
+    blankAttempts += 1;
+    req.resume();
+    req.on("end", () => {
+      res.writeHead(200, { "Content-Type": "text/event-stream" });
+      if (blankAttempts < 3) {
+        res.write("data: " + JSON.stringify({ choices: [{ delta: {} }] }) + "\n\n");
+      } else {
+        res.write("data: " + JSON.stringify({ choices: [{ delta: { content: "recovered on attempt three" } }] }) + "\n\n");
+      }
+      res.write("data: [DONE]\n\n");
+      res.end();
+    });
+  });
+  await new Promise((r) => blankSrv.listen(0, "127.0.0.1", r));
+  const blankEvents = [];
+  await runAgentTurn({
+    provider: "custom", model: "blank-model", apiKey: "k",
+    baseUrl: "http://127.0.0.1:" + blankSrv.address().port + "/v1",
+    messages: [{ role: "system", content: "sys" }, { role: "user", content: "go" }],
+    runner: createToolRunner(med), emit: (e) => blankEvents.push(e),
+    requestPermission: async () => ({ allowed: false }), mode: "manual",
+  });
+  blankSrv.close();
+  ok("an empty visible reply is retried and can recover",
+    blankAttempts === 3 && blankEvents.some((e) => e.type === "done" && /recovered/.test(e.text || "")),
+    blankAttempts + " attempts");
 }
 
 /* ----------------------------- skills: SKILL.md ---------------------------- */
@@ -786,8 +843,8 @@ ok("multi_edit is dangerous", mr.isDangerous("multi_edit") === true);
   ok("skills scan finds every SKILL.md folder",
     found.length >= 2 && found.some((s) => s.name === "deploy") && found.some((s) => s.name === "plain"),
     JSON.stringify(found.map((s) => s.name)));
-  ok("the 40 built-in skills are included as the fallback",
-    found.filter((s) => s.origin === "builtin").length === 40 &&
+  ok("the 65 built-in skills are included as the fallback",
+    found.filter((s) => s.origin === "builtin").length === 65 &&
     found.some((s) => s.name === "asking-questions" && s.origin === "builtin") &&
     found.some((s) => s.name === "pulse-harness" && s.origin === "builtin"));
   const created = writeSkill(sroot, { name: "My New Skill!", description: "Use when testing", body: "Step one.", scope: "project" });
@@ -990,21 +1047,23 @@ ok("task returns the subagent text", t1 === "found: look aroun", t1);
 fs.rmSync(med, { recursive: true, force: true });
 
 /* --------------------------- project memory --------------------------- */
-// STAR.md and AGENTS.md are the native guides; CLAUDE.md is supported for
-// compatibility. All present files are concatenated into the prompt.
+// STAR.md and AGENTS.md are the native guides; PULSE.md is the project
+// convention. CLAUDE.md is deliberately ignored.
 const memRoot = fs.mkdtempSync(path.join(os.tmpdir(), "star-code-mem-"));
-fs.writeFileSync(path.join(memRoot, "CLAUDE.md"), "# Claude convention\nclaude-memory-text\n");
-ok("a lone CLAUDE.md is supported for compatibility",
-  (readProjectMemory(memRoot) || {}).file === "CLAUDE.md");
+fs.writeFileSync(path.join(memRoot, "PULSE.md"), "# Pulse convention\npulse-memory-text\n");
+ok("a lone PULSE.md is project memory",
+  (readProjectMemory(memRoot) || {}).file === "PULSE.md");
 fs.writeFileSync(path.join(memRoot, "AGENTS.md"), "# Agents convention\nagents-memory-text\n");
-ok("AGENTS.md joins CLAUDE.md", (readProjectMemory(memRoot) || {}).file === "AGENTS.md, CLAUDE.md");
+ok("AGENTS.md joins PULSE.md", (readProjectMemory(memRoot) || {}).file === "AGENTS.md, PULSE.md");
 fs.writeFileSync(path.join(memRoot, "STAR.md"), "# Star project guide\nstar-memory-text\n");
-ok("STAR.md leads the project memory files", (readProjectMemory(memRoot) || {}).file === "STAR.md, AGENTS.md, CLAUDE.md");
+ok("STAR.md leads the project memory files", (readProjectMemory(memRoot) || {}).file === "STAR.md, AGENTS.md, PULSE.md");
+fs.writeFileSync(path.join(memRoot, "CLAUDE.md"), "# Retired convention\nclaude-memory-text\n");
+ok("CLAUDE.md is ignored completely", !(readProjectMemory(memRoot) || {}).file.includes("CLAUDE"));
 const memPrompt = systemPrompt(memRoot, "manual");
 ok("the system prompt carries every project guide",
-  memPrompt.includes("Project instructions (STAR.md, AGENTS.md, CLAUDE.md)") &&
+  memPrompt.includes("Project instructions (STAR.md, AGENTS.md, PULSE.md)") &&
   memPrompt.includes("star-memory-text") && memPrompt.includes("agents-memory-text") &&
-  memPrompt.includes("claude-memory-text"));
+  memPrompt.includes("pulse-memory-text") && !memPrompt.includes("claude-memory-text"));
 fs.mkdirSync(path.join(memRoot, ".star-code"), { recursive: true });
 fs.writeFileSync(path.join(memRoot, ".star-code", "settings.json"), JSON.stringify({
   permissions: { defaultMode: "plan", allowedTools: ["read_file", "grep"] },

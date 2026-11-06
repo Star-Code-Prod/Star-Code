@@ -1,6 +1,6 @@
 ---
 name: pulse-harness
-description: Pulse Harness itself: desktop/web architecture, the top-bar Chat/Code switch, sessions, worktrees, tools, permissions, project files, skills, agents, MCP connectors, inline markdown canvas, artifacts, schedules and where its data lives.
+description: Pulse Harness itself: desktop/web architecture, the top-bar Chat/Code switch, sessions, worktrees, tools, permissions, project files, skills, agents, MCP connectors, editable writing blocks, artifacts, schedules and where its data lives.
 ---
 
 # Pulse Harness map
@@ -20,8 +20,8 @@ The UI sends the message to the server. The server adds project instructions, pr
 - Sidebar: logo and “Harness”, full-width **New chat**, Search, Projects, session history, folded **Project files**. The titlebar toggle collapses it to a 64px icon rail and remembers the choice.
 - Landing: logo, “What can I help with?”, one composer, four suggestion cards.
 - Composer: project, permission mode, agent and model controls, plus send/stop.
-- Conversation: rounded user bubbles on the right, plain assistant text in a centred column; hover actions copy the message or open its canvas.
-- **Inline markdown canvas:** long answers get a quiet toolbar in the transcript — Copy, Download `.md`, Edit. Edit switches to raw markdown in place; Copy always keeps the raw markdown. It is not a modal.
+- Conversation: rounded user bubbles on the right, plain assistant text in a centred column; hover actions copy the message.
+- **Editable writing blocks:** when the user asks for a document, essay, email, letter or assignment, the answer becomes a distraction-free editable document in the transcript. Only an explicit request for a text, document, essay, email, letter or assignment (uppgift) does this; ordinary answers stay chat. Headings, paragraphs, lists and bold are supported; Copy writes rich HTML with inline styles so Google Docs, Sheets, Slides, Word and PowerPoint keep the formatting. It is not a code editor or a modal.
 - **Artifacts are opt-in:** only emit an artifact fence when the user explicitly asks for an artifact or a rendered/previewable deliverable. Ordinary answers, code and edits stay in the chat; never open Preview just to show an answer.
 - Right rail: Preview, Tree, Changes, Terminal, Tasks/Plan and Usage. The Preview holds files, artifacts, live browser previews and an optional Blender viewport.
 - Settings: Providers, Appearance, Session, Knowledge, MCP, Skills, Plugins, Connectors, Shortcuts, About.
@@ -41,8 +41,8 @@ The UI sends the message to the server. The server adds project instructions, pr
 - Permission modes: manual, acceptEdits, plan (server-enforced read-only) and bypass. Reads never ask. Never retry a denied call or argue for bypass.
 - `task` subagents are read-only and parallel. Personas in `.star-code/agents/*.md` can narrow tools, never widen them.
 - MCP tools are `mcp__server__tool`; configured in Settings → Connectors or `~/.star-code/mcp.json`; every call asks.
-- Skills come from `.star-code/skills/`, `~/.star-code/skills/`, plugins, extra paths and the 40 built-ins in `desktop/skills`; project/user/plugin/path override built-ins. Use `skill` to load, `create_skill` to create.
-- Project config: `.star-code/settings.json` or `.claude/settings.json`; instructions from `STAR.md`, `AGENTS.md`, `CLAUDE.md`; knowledge in `.star-code/knowledge/`.
+- Skills come from `.star-code/skills/`, `~/.star-code/skills/`, plugins, extra paths and the 65 built-ins in `desktop/skills`; project/user/plugin/path override built-ins. Use `skill` to load, `create_skill` to create.
+- Project config: `.star-code/settings.json` or `.claude/settings.json`; instructions from `STAR.md`, `AGENTS.md`, `PULSE.md`; knowledge in `.star-code/knowledge/`.
 
 ## Data and trust
 - Keys: `~/.star-code/auth.json` (never shown raw); config: `config.json`; sessions: `sessions.json`; worktrees: `worktrees/`; plugins and MCP config alongside.
@@ -55,3 +55,4 @@ The UI sends the message to the server. The server adds project instructions, pr
 2. Read the actual source or config named by the question (`desktop/lib/agent.js`, `server.js`, `tools.js`, `public/index.html`, etc.).
 3. Name the surface, mode, file and behavior. Do not answer from generic chatbot assumptions.
 4. If the installed build and source differ, inspect both before claiming. Say plainly when a detail is not implemented or not found.
+5. For the latest version, releases, commits, issues or roadmap, fetch https://github.com/Star-Code-Prod/Pulse-Harness (releases, commits/main and raw desktop/CHANGELOG.md) with fetch_url/websearch. `self_knowledge` is the local snapshot and can lag; fetch in the same turn.

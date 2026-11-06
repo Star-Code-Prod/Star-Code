@@ -1,5 +1,16 @@
 # What's new in Pulse Harness
 
+## 1.42.0 — 2026-11-06
+- **The update log now survives desktop updates.** The last-seen version is stored in the shared server config instead of the old per-port localStorage origin; existing installs also see the full log once.
+- **Editable writing blocks.** Document, text, email, essay and assignment (uppgift) answers open in a distraction-free document with headings, paragraphs, lists, bold and rich Copy for Google Docs, Sheets, Slides, Word and PowerPoint. Ordinary long answers stay in chat.
+- **Question cards are docked above the composer**, have a max height with internal scrolling, a freeform answer box when no options exist, the real Harness logo, and disappear once answered instead of shrinking.
+- **Smarter auto-scroll.** Follows only while you are near the bottom, pauses when you scroll up or select text, and resumes at the bottom or with jump-to-latest.
+- **New chats collapse the sidebar automatically.**
+- **65 built-in skills**, including 25 workflow packs for feature delivery, bugfix, onboarding, migration, incidents, deployment, APIs, auth, data, SQL, presentations, specs, research, copy, support, hiring, legal, procurement, observability and more.
+- **Office app marks** in the file tree and Office preview, plus icon-only Copy and `---` horizontal rules.
+- **Tool reliability:** Chat accepts the `question` alias, `task` accepts the common mission keys, parallel `tool_calls` arrays keep every mission, and reasoning-only turns retry five times.
+- **PULSE.md replaces CLAUDE.md** as the project guide (STAR.md and AGENTS.md still load).
+
 ## 1.41.0 — 2026-11-06
 - **Artifacts are now opt-in.** The agent only creates an artifact when the user explicitly asks for an artifact or a rendered/previewable deliverable. Ordinary answers, explanations, code and edits stay **in the chat** as markdown/code — no artifact fence, no Preview pane popping open. If an artifact would help but was not requested, the agent offers it in one sentence instead of creating it.
 - **A real Analysing phase.** While reasoning has started but no tool has run yet, the process header reads **Analyzing for 12.4s** and the thought row says **analyzing** instead of “thinking”.
@@ -181,7 +192,7 @@
 ## 1.26.0 — 2026-11-05
 - **Git worktree sessions.** The sidebar menu can create a session in its own `~/.star-code/worktrees/<project>/<session>` worktree and `star/<id>` branch, so parallel sessions stop stepping on each other. Deleting the session removes the worktree and branch; non-git folders get a clear fallback message. Session rows show the branch.
 - **Process Tree pane.** A new **Tree** pane mirrors the live round: session → turn → each thought/tool call, with status, duration, expandable context and a Stop-turn action.
-- **Project files and config.** `STAR.md`, `AGENTS.md` and `CLAUDE.md` are all loaded into the system prompt; `.star-code/settings.json` (or `.claude/settings.json`) can set the default permission mode, model, allowed/denied tools and hooks. Usage shows the loaded files.
+- **Project files and config.** `STAR.md`, `AGENTS.md` and `PULSE.md` are all loaded into the system prompt; `.star-code/settings.json` (or `.claude/settings.json`) can set the default permission mode, model, allowed/denied tools and hooks. Usage shows the loaded files.
 - **Lifecycle hooks.** Shell commands configured under `hooks` run for `sessionStart`, `beforeTool`, `afterTool`, `turnEnd` and `stop`, with a timeout. A failing `beforeTool` blocks the call and its reason becomes the tool error. The JS plugin hook system is unchanged.
 - **Interactive terminal (zero-dependency).** The Terminal pane accepts commands, keeps per-project cwd, shows stdout/stderr and command history. It is a command runner rather than a full PTY so the desktop app keeps its no-dependency install.
 - **Side chats with context.** A side chat clones the current conversation context into a separate session and never writes back; `/btw <question>` opens one and seeds the question in its composer.

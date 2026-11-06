@@ -66,6 +66,9 @@ ok("a table renders as a card",
   mdTable.includes("<table>"));
 ok("table cells keep inline styling and alignment",
   mdTable.includes("<strong>50</strong>") && mdTable.includes('style="text-align:right"'));
+const mdRule = fns.md("above\n\n---\n\nbelow");
+ok("a standalone --- renders a horizontal rule",
+  mdRule.includes('<hr class="md-rule">') && !mdRule.includes("&gt;---"));
 const mdNote = fns.md("> [!TIP]\n> use the small one");
 ok("a blockquote marker renders as a callout",
   mdNote.includes('class="md-callout md-tip"') && mdNote.includes("Tip") &&
@@ -265,9 +268,11 @@ ok("sessions stream in the background while you switch",
 ok("a live turn replays into the transcript on switch",
   fnBody("async function switchSession(").includes("for (const e of live.events) handle(e)"));
 ok("superseded readers stop cleanly", fnBody("async function sendToAgent(").includes("liveTurns.get(sid) !== live"));
-ok("the update log shows every version since the last launch",
+ok("the update log uses the persisted last-seen version",
   js.includes("function openWhatsNew(") && js.includes("function versionNewer(") &&
-  js.includes("openWhatsNew(false, seen)") && js.includes("ccd.seenVersion") &&
+  js.includes("openWhatsNew(false, seen)") && js.includes("meta.seenVersion") &&
+  js.includes("legacyInstall") &&
+  js.includes("/api/version-seen") && js.includes("ccd.seenVersion") &&
   js.includes("e.version, sinceVersion") &&
   js.includes("function changelogHtml(") && html.includes('id="newDlg"'));
 ok("the About panel links the full log", html.includes('id="aboutNew"'));
@@ -540,8 +545,24 @@ ok("the process header counts the round",
 ok("the process header reads Analyzing/Worked for the round duration",
   js.includes('"Analyzing for "') && js.includes('"Working for "') &&
   js.includes('"Worked for "') && js.includes("fmtDur(total)"));
-ok("the thought row carries an attached dark shadow",
-  /\.pitem\.thought \.prow\{[^}]*box-shadow/.test(html.replace(/\s+/g, " ")));
+ok("process rows carry no shadow",
+  !/\.pitem\.thought \.prow\{[^}]*box-shadow/.test(html.replace(/\s+/g, " ")) &&
+  !/\.proc::after\{/.test(html.replace(/\s+/g, "")));
+ok("the conversation stream keeps its flex gap",
+  js.includes('$("stream").style.display = "flex"') &&
+  html.includes("display:flex;flex-direction:column;gap:20px"));
+ok("auto-scroll is intent-aware", js.includes("ResizeObserver") &&
+  js.includes("MutationObserver") && js.includes("selectionchange") &&
+  js.includes("followStream = false"));
+ok("questions dock above the composer",
+  html.includes('id="askDock"') && js.includes('n.classList.add("dock")') &&
+  js.includes("dock.appendChild(n)"));
+ok("a new chat collapses the sidebar", js.includes("showLanding();\n  toggleSidebar(false);") &&
+  js.includes("await loadSessions();"));
+ok("writing blocks are explicit-only", !js.includes("longProse") && js.includes("uppgift"));
+ok("the thinking output auto-scrolls and Ctrl+B toggles the sidebar",
+  js.includes("cur.it.out.scrollTop = cur.it.out.scrollHeight") &&
+  js.includes('e.key === "b" || e.key === "B"') && js.includes("toggleSidebar()"));
 ok("process rows are a timeline, not a card",
   /\.proc\{[^}]*border:0/.test(html.replace(/\s+/g, "")) &&
   /\.proc\.open\.proc-b\{[^}]*border-left:1pxsolid/.test(html.replace(/\s+/g, "")) &&
@@ -575,7 +596,7 @@ ok("cards survive session reloads via the persisted UI log",
   js.includes("function renderTranscript(msgs, ui)") && js.includes("function renderUiEntry(") &&
   js.includes("function replayToolResult(") && js.includes("function parseStoredControls(") &&
   js.includes("const flushUi = (upto)") &&
-  js.includes("{ historical: true, answers: e.answers }") &&
+  js.includes("if (e.answers != null) return") &&
   js.includes("function renderAsk(evt, opts = {})") && js.includes("function renderSuggest(evt, opts = {})") &&
   js.includes("renderTranscript(j.messages || [], j.ui || [])"));
 ok("restored reasoning is scrubbed of stored markup",

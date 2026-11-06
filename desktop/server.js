@@ -16,7 +16,7 @@ import { exec, execFileSync } from "node:child_process";
 import * as providersLib from "./lib/providers.js";
 const { PROVIDERS, discoverModels, detectLocals } = providersLib;
 import { readAuth, writeAuthEntry, removeAuthEntry, resolveKey, mask } from "./lib/auth.js";
-import { readConfig, writeLastModel } from "./lib/config.js";
+import { readConfig, writeLastModel, readSeenVersion, writeSeenVersion } from "./lib/config.js";
 import { listKnowledge, readKnowledgeFile, saveKnowledgeFile, deleteKnowledgeFile, knowledgeDir } from "./lib/knowledge.js";
 import { createToolRunner, readProjectMemory, readProjectConfig, activeProcesses, killProcess, TOOL_SPECS } from "./lib/tools.js";
 import { schedulesDue, scheduleAdvance } from "./lib/extras.js";
@@ -79,7 +79,7 @@ const subagentControllers = new Map();
 // turn for its session falls back to prose.
 const askTurns = new Map();
 const SUBAGENT_BLOCKED = new Set(["write_file", "edit_file", "multi_edit", "run_command", "download", "fetch_url", "websearch", "task"]);
-const CHAT_TOOLS = ["websearch", "fetch_url", "self_knowledge", "search_knowledge", "task", "ask_user", "skill", "create_skill", "suggest_session", "preview"];
+const CHAT_TOOLS = ["websearch", "fetch_url", "self_knowledge", "search_knowledge", "task", "ask_user", "question", "skill", "create_skill", "suggest_session", "preview"];
 
 /* --------------------------------- mcp ----------------------------------- */
 // The shared MCP manager: connects enabled servers at boot, exposes their
@@ -131,16 +131,20 @@ function subagentTarget(agent) {
  */
 function restrictRunner(toolRunner, allowed) {
   const names = new Set(allowed);
+  const aliases = { question: "ask_user" };
+  const canonical = (name) => aliases[name] || name;
   const wrapped = {
     async run(name, args) {
-      if (!names.has(name)) {
+      const real = canonical(name);
+      if (!names.has(name) && !names.has(real)) {
         const list = allowed.length ? allowed.join(", ") : "(none)";
-        throw new Error("Tool \"" + name + "\" is not available to this agent. Allowed tools: " + list + ".");
+        throw new Error("Tool \"" + name + "\" is not available to this agent. Allowed tools: " + list +
+          ". Do not retry this name. Use only the allowed tools; if the task needs local files, Office files or code changes, tell the user to switch to Code mode.");
       }
-      return toolRunner.run(name, args);
+      return toolRunner.run(real, args);
     },
     isDangerous(name) {
-      return toolRunner.isDangerous(name);
+      return toolRunner.isDangerous(canonical(name));
     },
     root: toolRunner.root,
     allowed,
@@ -909,6 +913,7 @@ async function route(req, res) {
     return sendJSON(res, 200, {
       root: ROOT,
       version: VERSION,
+      seenVersion: readSeenVersion(),
       modes: PERMISSION_MODES,
       lastModel: readConfig().lastModel,
       reputation: {
@@ -944,6 +949,19 @@ async function route(req, res) {
     if (!model || model.length > 200) return sendJSON(res, 400, { ok: false, error: "invalid model" });
     writeLastModel(provider, model);
     return sendJSON(res, 200, { ok: true });
+  }
+
+  // Persist the last app version whose update log was seen. This must live on
+  // the server: the desktop opens a fresh localhost port every launch, so a
+  // localStorage key cannot survive an update.
+  if (req.method === "POST" && url.pathname === "/api/version-seen") {
+    const body = await readBody(req);
+    const version = typeof body.version === "string" ? body.version.trim() : "";
+    if (!version || version.length > 40 || !/^[\w.+-]+$/.test(version)) {
+      return sendJSON(res, 400, { ok: false, error: "invalid version" });
+    }
+    writeSeenVersion(version);
+    return sendJSON(res, 200, { ok: true, seenVersion: readSeenVersion() });
   }
 
   // One-shot settings import from a local opencode install. The optional

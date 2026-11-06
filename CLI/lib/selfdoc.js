@@ -12,6 +12,14 @@ machine; the only outbound traffic is to the model provider the user
 configured, plus fetch_url/websearch when the user allows them, and download
 (source, hash, signature and virus checks) when the user allows it.
 
+## Repository and updates
+Live updates, releases, changelog, commits, issues and roadmap:
+https://github.com/Star-Code-Prod/Pulse-Harness
+For the latest version or what changed, fetch /releases, /commits/main and
+https://raw.githubusercontent.com/Star-Code-Prod/Pulse-Harness/main/desktop/CHANGELOG.md
+with fetch_url/websearch. This self-document is a local snapshot and can lag;
+never guess a release note.
+
 ## Desktop surfaces
 - The top bar pins the Chat/Code switch in its exact centre; the left side has
   the sidebar toggle, settings and back/forward, the right side has artifacts,
@@ -35,9 +43,10 @@ configured, plus fetch_url/websearch when the user allows them, and download
 - Tool activity shows a "Worked for 12.4s" timeline that collapses after the
   turn; rows expand to their reasoning or full output.
 - Markdown in answers renders card tables, callouts and labeled code blocks.
-- Long answers render in an inline markdown canvas with Copy, Download .md and
-  in-place Edit. Copy keeps the raw markdown; it is a document toolbar in the
-  transcript, not a modal.
+- When the user asks for a document, essay, email, letter or assignment, the
+  answer becomes an editable writing block in the transcript. Only an explicit request for a text, document, essay, email, letter or assignment does this; ordinary answers stay chat: headings,
+  paragraphs, lists and bold, with rich HTML Copy and inline styles that keep formatting in
+  Google Docs, Sheets, Slides, Word and PowerPoint. It is not a code editor and not a modal.
 - A side chat clones the current context into a separate session and never
   writes back; \`/btw\` opens one.
 - Scheduled work runs headlessly on the server in fresh Plan-mode sessions.
@@ -55,7 +64,7 @@ configured, plus fetch_url/websearch when the user allows them, and download
   Star Code CLI uses the same agent loop in-process.
 
 ## Skills and connectors
-- Skills are SKILL.md packs. Pulse ships 40 built-ins in \`desktop/skills\`
+- Skills are SKILL.md packs. Pulse ships 65 built-ins in \`desktop/skills\`
   (asking-questions, pulse-harness, debugging, git, tests, release, frontend,
   office, MCP connectors and more). Project, user, plugin and extra-path skills
   override a built-in with the same name.
@@ -65,7 +74,7 @@ configured, plus fetch_url/websearch when the user allows them, and download
   local or remote.
 
 ## Project configuration
-- STAR.md, AGENTS.md and CLAUDE.md are loaded into the system prompt.
+- STAR.md, AGENTS.md and PULSE.md are loaded into the system prompt.
 - .star-code/settings.json or .claude/settings.json can set the default
   permission mode, preferred model, allowed/denied tools and lifecycle hooks.
 - Hooks run sessionStart, beforeTool, afterTool, turnEnd and stop shell

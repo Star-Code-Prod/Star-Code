@@ -48,7 +48,7 @@
 - [ ] Merge conflict markers and “apply suggested fix” from review findings.
 
 ### 5. Project configuration — mostly done
-- [x] `STAR.md`, `AGENTS.md`, `CLAUDE.md` loaded together.
+- [x] `STAR.md`, `AGENTS.md`, `PULSE.md` loaded together.
 - [x] `.star-code/settings.json` / `.claude/settings.json` for default mode, model, tool allow/deny and hooks.
 - [x] Allowed/denied tools enforced by the runner; Usage shows loaded files.
 - [ ] Apply the configured preferred model to new sessions/picker.

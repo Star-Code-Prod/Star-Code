@@ -85,18 +85,34 @@ ok("no console.log in the inline script", logCalls === 0,
 
 // 7. markdown canvas: a real surface with copy/download and source editing,
 // offered from every assistant message.
-ok("markdown canvas is wired",
-  script.includes("function enableInlineCanvas") && script.includes("canvas-inline-bar") &&
-  script.includes('data-ci="copy"') && script.includes("canvas-inline-source") &&
-  script.includes("function toggleInlineCanvas"));
-ok("canvas is offered from assistant messages", script.includes("Open markdown canvas") && script.includes("if (el.classList.contains(\"msg-a\"))"));
+ok("editable writing blocks are wired",
+  script.includes("function enableWritingBlock") && script.includes("writing-block") &&
+  script.includes("writingHtml") && script.includes("copyWritingBlock") &&
+  script.includes('contentEditable = "true"') && script.includes("text/html") &&
+  script.includes("insertUnorderedList") && script.includes("formatBlock") &&
+  script.includes("writingRequested") && script.includes("uppgift") &&
+  !script.includes("longProse(raw)") &&
+  script.includes("stripWritingPreamble") && script.includes("spellcheck = false") &&
+  script.includes("writingClipboardHtml") && script.includes('data-wb="copy" title="Copy document"'));
+ok("Office files carry their app marks", script.includes("const OFFICE_BRANDS") &&
+  script.includes("officeBrandHead") && script.includes("officeBrandIcon") &&
+  script.includes("Microsoft Word") && script.includes("Google Docs"));
+ok("code copy uses the icon", script.includes('title="Copy code"') &&
+  script.includes("b.innerHTML = COPIED_SVG"));
+ok("the markdown canvas button is gone",
+  !script.includes("Open markdown canvas") && !script.includes("toggleInlineCanvas"));
 ok("assistant actions bind their own message",
   script.includes("const el = node(\"msg-a streaming\")") && script.includes("msgActs(el, () => el._t || \"\")"));
 ok("permission cards use human tool labels, not raw JSON",
   script.includes("function permissionMeta") && script.includes("function permissionHtml") &&
   script.includes("Create a new skill") && script.includes("Permission needed") &&
   !script.includes("JSON.stringify(args, null, 2)"));
-ok("question cards carry the Harness identity", script.includes("Harness has a question"));
+ok("question cards carry the Harness identity and a freeform path",
+  script.includes("Harness has a question") && script.includes("ask-logo") &&
+  script.includes("ask-body") && script.includes("ask-other-long") &&
+  script.includes("Type your answer…") && html.includes("max-height:min(72vh,620px)") &&
+  script.includes('n.classList.add("leaving")') && script.includes("n.isConnected") &&
+  script.includes("if (e.answers != null) return"));
 
 console.log(results.join("\n"));
 const failed = results.filter((r) => r.startsWith("FAIL")).length;

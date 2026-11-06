@@ -457,6 +457,7 @@ body.mode-chat #navProjects{display:none}
 .msg-a{font-size:var(--fs-16);line-height:1.5;color:var(--text-strong,var(--text));word-break:break-word;position:relative;max-width:none;padding:4px 2px}
 .msg-a p{margin:10px 0}.msg-a p:first-child{margin-top:0}.msg-a p:last-child{margin-bottom:0}
 .md-p{margin:10px 0}.md-p:first-child{margin-top:0}.md-p:last-child{margin-bottom:0}
+.md-rule{border:0;height:1px;width:100%;margin:20px 0;background:color-mix(in srgb,var(--text) 45%,transparent)}
 .msg-a h1,.msg-a h2,.msg-a h3{font-family:var(--font-sans);font-size:var(--fs-15);font-weight:600;letter-spacing:-.01em;margin:18px 0 8px;line-height:1.35}
 .msg-a h1{font-size:var(--fs-22)}
 .msg-a h2{font-size:var(--fs-18)}
@@ -1942,68 +1943,6 @@ body.rail .sidebar::-webkit-scrollbar{width:0}
 .starters .chip:nth-child(4) svg{color:var(--tok-n)}
 
 
-/* ================= INLINE MARKDOWN CANVAS ================= */
-.msg-a.canvas-mode{
-  position:relative;padding:0 18px 18px;margin:8px 0 4px;
-  background:var(--panel);border:1px solid var(--border);border-radius:16px;
-  box-shadow:0 6px 24px -20px rgba(0,0,0,.55);
-}
-.msg-a.canvas-mode .msg-acts{bottom:7px;left:auto;right:10px}
-.canvas-inline-bar{
-  display:flex;align-items:center;gap:8px;margin:0 -18px 16px;padding:9px 10px 9px 14px;
-  border-bottom:1px solid var(--border);border-radius:16px 16px 0 0;
-  background:color-mix(in srgb,var(--brand) 4%,var(--panel));
-}
-.cib-label{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--brand);white-space:nowrap}
-.cib-meta{font-family:var(--font-mono);font-size:10.5px;color:var(--dim);white-space:nowrap}
-.cib-btn{padding:4px 9px;border-radius:999px;font-size:11px;color:var(--text2);background:transparent;border:1px solid transparent;white-space:nowrap}
-.cib-btn:hover{background:var(--hover);color:var(--text);border-color:var(--border)}
-.cib-x{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;color:var(--dim);margin-left:2px;flex:none}
-.cib-x:hover{background:var(--hover);color:var(--text)}
-.canvas-inline-source{
-  display:block;width:100%;min-height:280px;max-height:55vh;resize:vertical;
-  margin:0 0 4px;padding:14px 16px;border:1px solid var(--border);border-radius:10px;
-  background:var(--bg);color:var(--text2);font-family:var(--font-mono);font-size:12.5px;line-height:1.65;outline:none;
-}
-.canvas-inline-source:focus{border-color:var(--brand-line);box-shadow:0 0 0 3px var(--brand-soft)}
-.msg-a.canvas-mode .codeblock{margin:0 0 12px}
-.msg-a.canvas-mode .msg-acts .ma-btn{background:var(--panel)}
-
-
-/* Inline canvas, quiet edition: a document card, not a control panel. */
-.msg-a.canvas-mode{
-  background:color-mix(in srgb,var(--panel) 52%,var(--bg));
-  border:1px solid color-mix(in srgb,var(--border) 70%,transparent);
-  border-radius:14px;padding:0;overflow:hidden;
-  box-shadow:0 10px 30px -28px rgba(0,0,0,.55);
-}
-.canvas-inline-bar{
-  display:flex;align-items:center;gap:7px;margin:0;padding:8px 8px 8px 14px;
-  border-bottom:1px solid color-mix(in srgb,var(--border) 70%,transparent);
-  border-radius:0;background:transparent;
-}
-.ci-doc{display:flex;align-items:center;justify-content:center;color:var(--brand);flex:none}
-.ci-title{font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46%}
-.ci-meta{font-family:var(--font-mono);font-size:10px;color:var(--dim);white-space:nowrap}
-.ci-copy{display:flex;align-items:center;gap:5px;height:26px;padding:0 9px;border-radius:999px;font-size:11px;color:var(--text2);background:var(--hover);border:1px solid transparent;white-space:nowrap}
-.ci-copy:hover{background:var(--panel);border-color:var(--border);color:var(--text)}
-.ci-icon{width:26px;height:26px;border-radius:6px;display:grid;place-items:center;color:var(--dim);flex:none}
-.ci-icon:hover{background:var(--hover);color:var(--text)}
-.ci-icon.on{background:var(--brand-soft);color:var(--brand)}
-.canvas-inline-body{padding:22px 28px 26px;max-width:100%}
-.canvas-inline-body > :first-child{margin-top:0}
-.msg-a.canvas-mode .msg-acts{bottom:7px;right:8px}
-.msg-a.canvas-mode .canvas-inline-source{margin:0;border:0;border-radius:0;border-bottom:1px solid var(--border);max-height:60vh;min-height:300px;padding:20px 28px}
-.msg-a.canvas-mode .canvas-inline-source:focus{box-shadow:none;border-color:var(--border)}
-
-
-/* The canvas is a document line inside the conversation, not another card. */
-.msg-a.canvas-mode{background:transparent;border:0;border-radius:0;padding:0;box-shadow:none;overflow:visible}
-.canvas-inline-bar{margin:0 0 8px;padding:0 0 8px;border-bottom:1px solid color-mix(in srgb,var(--border) 65%,transparent);border-radius:0;background:transparent}
-.canvas-inline-body{padding:0}
-.msg-a.canvas-mode .canvas-inline-source{border:1px solid var(--border);border-radius:10px;margin:0 0 4px;padding:16px 18px;min-height:260px}
-.msg-a.canvas-mode .msg-acts{bottom:-18px;right:0}
-
 /* New professional shell: neutral chrome, the logo is the only colour. */
 .boot-logo{display:flex;align-items:center;justify-content:center;width:64px;height:64px;animation:spin 1.35s linear infinite}
 .boot-logo img{width:54px;height:54px;display:block}
@@ -2201,17 +2140,89 @@ body.preview-full .pane-row[data-pane="preview"] .pane-sub{height:52px;padding:0
 #artDlg .art-card.full{width:100vw;height:100vh;max-width:none;max-height:none;border-radius:0;border:0}
 #artDlg:has(.art-card.full){padding:0;background:var(--bg);backdrop-filter:none}
 
-.proc{position:relative;padding-bottom:6px}
-.proc::after{content:"";position:absolute;left:0;right:0;bottom:-2px;height:12px;pointer-events:none;background:linear-gradient(180deg,color-mix(in srgb,var(--text) 9%,transparent),transparent);opacity:.55}
-.proc.open::after,.proc.live::after{opacity:1}
-.proc-h{box-shadow:0 1px 0 color-mix(in srgb,var(--border) 75%,transparent)}
-
-.pitem.thought .prow{box-shadow:0 2px 0 rgba(0,0,0,.45),0 9px 16px -13px rgba(0,0,0,.85)}
-.proc::after{opacity:.25}
 #stream > .msg-a:has(+ .artifactcard) .msg-acts{display:none}
 #stream > .msg-a:has(+ .artifactcard){margin-bottom:0}
 .artifactcard .ac-d{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;white-space:normal;overflow:hidden}
 @media(max-width:760px){.artifactcard{flex-wrap:wrap}.artifactcard .ac-actions{margin-left:41px;width:calc(100% - 41px)}.artifactcard .ac-main{width:calc(100% - 41px)}}
+
+/* ================= EDITABLE WRITING BLOCK ================= */
+.msg-a.writing-block{
+  background:transparent;border:0;border-radius:0;padding:0;margin:22px 0 10px;
+  max-width:100%;overflow:visible;
+}
+.wb-bar{
+  display:flex;align-items:center;gap:8px;min-height:44px;padding:6px 9px 6px 14px;
+  border:1px solid var(--border);border-bottom:0;border-radius:14px 14px 0 0;
+  background:color-mix(in srgb,var(--panel) 80%,var(--bg));
+}
+.wb-label{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--text2);white-space:nowrap}
+.wb-label svg{color:var(--dim)}
+.wb-meta{font-family:var(--font-mono);font-size:10px;color:var(--dim);white-space:nowrap}
+.wb-tools{display:flex;align-items:center;gap:2px;flex:none}
+.wb-tools button,.wb-copy{
+  height:30px;min-width:30px;padding:0 9px;border-radius:6px;border:1px solid transparent;
+  color:var(--muted);background:transparent;font-size:12px;line-height:1;
+}
+.wb-tools button:hover,.wb-copy:hover{background:var(--hover);color:var(--text);border-color:var(--border)}
+.wb-copy{margin-left:2px;width:30px;padding:0;border-color:var(--border);color:var(--text2);display:inline-grid;place-items:center}.wb-copy svg{width:13px;height:13px}
+.wb-doc{
+  min-height:220px;padding:40px clamp(24px,5vw,58px) 44px;
+  border:1px solid var(--border);border-radius:0 0 14px 14px;
+  background:color-mix(in srgb,var(--panel) 55%,var(--bg));
+  color:var(--text);font-family:var(--font-sans);font-size:15.5px;line-height:1.72;
+  outline:none;white-space:normal;overflow-wrap:anywhere;
+}
+.wb-doc:focus{border-color:var(--border2)}
+.wb-doc h1,.wb-doc h2,.wb-doc h3{font-family:var(--font-sans);letter-spacing:-.02em;line-height:1.25;color:var(--text);margin:1.15em 0 .45em}
+.wb-doc h1{font-size:24px;font-weight:600}
+.wb-doc h2{font-size:19px;font-weight:600}
+.wb-doc h3{font-size:16px;font-weight:600}
+.wb-doc p{margin:.65em 0}
+.wb-doc ul,.wb-doc ol{margin:.65em 0;padding-left:22px}
+.wb-doc li{margin:.25em 0}
+.wb-doc strong,.wb-doc b{font-weight:600;color:var(--text)}
+.wb-doc em{font-style:italic}
+.wb-doc blockquote{margin:1em 0;padding:.1em 0 .1em 14px;border-left:2px solid var(--border2);color:var(--text2)}
+.wb-doc hr{border:0;height:1px;width:100%;margin:20px 0;background:var(--border2)}
+.wb-doc pre{background:var(--code-bg);color:var(--code-fg);padding:12px 14px;border:1px solid var(--border);border-radius:8px;overflow:auto;font-family:var(--font-mono);font-size:12px;line-height:1.6}
+.wb-doc code{font-family:var(--font-mono);font-size:.9em}
+.wb-doc table{border-collapse:collapse;width:100%;margin:1em 0;font-size:13px}
+.wb-doc th,.wb-doc td{border:1px solid var(--border);padding:7px 10px;text-align:left}
+.wb-doc th{background:var(--panel);font-weight:600}
+.wb-doc:empty::before{content:"Start writing…";color:var(--dim)}
+.askcard + .msg-a.writing-block{margin-top:18px}
+.askcard.done .ask-f .btn{display:none}
+@media(max-width:640px){.wb-bar{flex-wrap:wrap;border-radius:12px 12px 0 0}.wb-doc{padding:26px 20px 30px;border-radius:0 0 12px 12px}.wb-tools{margin-left:auto}.wb-copy{flex:none}}
+
+/* App marks: only the logo carries colour, never the surrounding chrome. */
+.brand-ic{display:block;flex:none;border-radius:5px}
+.office-brand{display:flex;align-items:center;gap:10px;margin:0 0 16px;padding:0 0 12px;border-bottom:1px solid var(--border)}
+.office-brand .ob-ic{display:flex;flex:none}
+.office-brand .ob-txt{display:flex;flex-direction:column;gap:1px;min-width:0}
+.office-brand b{font-size:var(--fs-13);font-weight:600;color:var(--text)}
+.office-brand small{font-family:var(--font-mono);font-size:10px;color:var(--dim)}
+.ft-ic{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;margin-right:1px;flex:none}
+
+.ask-logo{width:18px;height:18px;object-fit:contain;flex:none;display:block}
+.ask-other-long{min-height:78px;resize:vertical;font-family:var(--font-sans);font-size:13.5px;line-height:1.55;padding:11px 12px}
+.askcard:has(.ask-other-long) .ask-t{font-size:15px}
+.askcard:has(.ask-other-long) .ask-q{padding:16px 16px 14px}
+.askcard:has(.ask-other-long) .ask-f{background:color-mix(in srgb,var(--panel2) 55%,transparent)}
+
+.ask-dock{display:none;flex:none;width:100%;padding:0 24px 10px;background:var(--bg);position:relative;z-index:30}
+.ask-dock:not(:empty){display:block}
+.ask-dock .askcard{max-width:760px;margin:0 auto;box-shadow:0 14px 34px -28px rgba(0,0,0,.8)}
+@media(max-width:820px){.ask-dock{padding:0 12px 8px}}
+
+.askcard{display:flex;flex-direction:column;max-height:min(72vh,620px)}
+.ask-h,.ask-f{flex:none}
+.ask-body{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+.ask-dock .askcard{max-height:min(68vh,560px)}
+@media(max-width:640px){.askcard{max-height:min(64vh,520px)}}
+
+.askcard.leaving{animation:askOut .14s ease forwards;pointer-events:none}
+@keyframes askOut{to{opacity:0;transform:translateY(-4px)}}
+@media(prefers-reduced-motion:reduce){.askcard.leaving{animation:none;opacity:0}}
 </style>
 </head>
 <body>
@@ -2407,6 +2418,8 @@ body.preview-full .pane-row[data-pane="preview"] .pane-sub{height:52px;padding:0
         </button>
       </div>
     </div>
+
+    <div class="ask-dock" id="askDock"></div>
 
     <div class="composer" id="composer" style="display:none">
       <div class="cwrap">
@@ -3024,17 +3037,27 @@ if (typeof document !== "undefined") {
   // never competes with first paint, and it only surfaces a banner when there
   // is genuinely something newer than the running build.
   if (!EMBED_SID && bridge && bridge.checkUpdates) setTimeout(() => checkUpdates({ quiet: true }), 3500);
-  // What's new: once per version, a little after first paint. A fresh install
-  // records the version silently; an update shows the notes.
+  // What's new: once per version, a little after first paint. The last-seen
+  // version lives in the shared server config because the desktop opens a
+  // different localhost port on every launch, which makes localStorage a new
+  // origin each time. A fresh install records silently; an update shows notes.
   setTimeout(async () => {
     if (EMBED_SID) return;   // the split's second chat never pops the log
     await loadChangelog();
     const running = String((meta && meta.version) || "");
     if (!running || !changelog || !(changelog.entries || []).length) return;
-    let seen = "";
-    try { seen = localStorage.getItem("ccd.seenVersion") || ""; } catch { /* private mode */ }
+    let seen = String((meta && meta.seenVersion) || "");
+    const legacyInstall = !seen && !!(meta && meta.lastModel);
+    if (!seen) {
+      try { seen = localStorage.getItem("ccd.seenVersion") || ""; } catch { /* private mode */ }
+    }
     try { localStorage.setItem("ccd.seenVersion", running); } catch { /* fine */ }
+    fetch("/api/version-seen", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ version: running }),
+    }).catch(() => {});
     if (seen && seen !== running) openWhatsNew(false, seen);
+    else if (legacyInstall) openWhatsNew(true);
   }, 1500);
 })();
 
@@ -4602,6 +4625,7 @@ function parseStoredControls(content) {
  *  permission verdicts. */
 function renderTranscript(msgs, ui) {
   $("stream").innerHTML = "";
+  if ($("askDock")) $("askDock").innerHTML = "";
   currentMsg = null; currentThink = null; toolGroup = null; proc = null; lastDiff = []; diffs = [];
   if (thinkFlush) { cancelAnimationFrame(thinkFlush); thinkFlush = 0; }
   if (answerFlush) { cancelAnimationFrame(answerFlush); answerFlush = 0; }
@@ -4676,7 +4700,12 @@ function renderUiEntry(e) {
     procSummary();
     return;
   }
-  if (e.type === "question") return renderAsk({ id: e.id, questions: e.questions }, { historical: true, answers: e.answers });
+  if (e.type === "question") {
+    // An answered or skipped question has done its job: keep the transcript
+    // clean instead of leaving a small disabled card behind.
+    if (e.answers != null) return;
+    return renderAsk({ id: e.id, questions: e.questions }, { historical: true });
+  }
   if (e.type === "suggestion") return renderSuggest({ id: e.id, title: e.title, description: e.description }, { historical: true });
   if (e.type === "permission") {
     const v = e.verdict || null;
@@ -4749,6 +4778,57 @@ let fileView = { mode: "render" };   // "render" | "code" for md/html/svg
 
 const PREVIEW_KIND = { ".md": "md", ".html": "frame", ".htm": "frame", ".svg": "frame", ".png": "img", ".jpg": "img", ".jpeg": "img", ".gif": "img", ".webp": "img", ".pdf": "pdf", ".docx": "office", ".xlsx": "office", ".pptx": "office" };
 
+/* App marks for the file tree and the Office preview. The colour belongs to
+   the app, not to the UI; the rest of the shell stays monochrome. */
+const OFFICE_BRANDS = {
+  docx:  { label: "Word",       app: "Microsoft Word",       kind: "Document",     color: "#185ABD", letter: "W" },
+  doc:   { label: "Word",       app: "Microsoft Word",       kind: "Document",     color: "#185ABD", letter: "W" },
+  docm:  { label: "Word",       app: "Microsoft Word",       kind: "Document",     color: "#185ABD", letter: "W" },
+  rtf:   { label: "Word",       app: "Microsoft Word",       kind: "Document",     color: "#185ABD", letter: "W" },
+  xlsx:  { label: "Excel",      app: "Microsoft Excel",      kind: "Workbook",     color: "#107C41", letter: "X" },
+  xls:   { label: "Excel",      app: "Microsoft Excel",      kind: "Workbook",     color: "#107C41", letter: "X" },
+  xlsm:  { label: "Excel",      app: "Microsoft Excel",      kind: "Workbook",     color: "#107C41", letter: "X" },
+  csv:   { label: "Excel",      app: "Microsoft Excel",      kind: "Workbook",     color: "#107C41", letter: "X" },
+  pptx:  { label: "PowerPoint", app: "Microsoft PowerPoint", kind: "Presentation", color: "#C43E1C", letter: "P" },
+  ppt:   { label: "PowerPoint", app: "Microsoft PowerPoint", kind: "Presentation", color: "#C43E1C", letter: "P" },
+  pptm:  { label: "PowerPoint", app: "Microsoft PowerPoint", kind: "Presentation", color: "#C43E1C", letter: "P" },
+  one:   { label: "OneNote",    app: "Microsoft OneNote",    kind: "Notebook",     color: "#7719AA", letter: "N" },
+  accdb: { label: "Access",     app: "Microsoft Access",     kind: "Database",     color: "#A4373A", letter: "A" },
+  pub:   { label: "Publisher",  app: "Microsoft Publisher",  kind: "Publication",  color: "#077568", letter: "P" },
+  msg:   { label: "Outlook",    app: "Microsoft Outlook",    kind: "Message",      color: "#0F6CBD", letter: "O" },
+  vsdx:  { label: "Visio",      app: "Microsoft Visio",      kind: "Diagram",      color: "#3955A3", letter: "V" },
+  mpp:   { label: "Project",    app: "Microsoft Project",    kind: "Plan",         color: "#31752F", letter: "P" },
+  gdoc:  { label: "Docs",       app: "Google Docs",          kind: "Document",     color: "#4285F4", glyph: '<path d="M14.727 6.727H14V0H4.91c-.905 0-1.637.732-1.637 1.636v20.728c0 .904.732 1.636 1.636 1.636h14.182c.904 0 1.636-.732 1.636-1.636V6.727h-6zm-.545 10.455H7.09v-1.364h7.09v1.364zm2.727-3.273H7.091v-1.364h9.818v1.364zm0-3.273H7.091V9.273h9.818v1.363zM14.727 6h6l-6-6v6z"/>' },
+  gsheet: { label: "Sheets",    app: "Google Sheets",        kind: "Spreadsheet",  color: "#0F9D58", glyph: '<path d="M11.318 12.545H7.91v-1.909h3.41v1.91zM14.728 0v6h6l-6-6zm1.363 10.636h-3.41v1.91h3.41v-1.91zm0 3.273h-3.41v1.91h3.41v-1.91zM20.727 6.5v15.864c0 .904-.732 1.636-1.636 1.636H4.909a1.636 1.636 0 0 1-1.636-1.636V1.636C3.273.732 4.005 0 4.909 0h9.318v6.5h6.5zm-3.273 2.773H6.545v7.909h10.91v-7.91zm-6.136 4.636H7.91v1.91h3.41v-1.91z"/>' },
+  gslides: { label: "Slides",  app: "Google Slides",        kind: "Presentation", color: "#F4B400", glyph: '<path d="M16.09 15.273H7.91v-4.637h8.18v4.637zm1.728-8.523h2.91v15.614c0 .904-.733 1.636-1.637 1.636H4.909a1.636 1.636 0 0 1-1.636-1.636V1.636C3.273.732 4.005 0 4.909 0h9.068v6.75h3.841zm-.363 2.523H6.545v7.363h10.91V9.273zm-2.728-5.979V6h6.001l-6-6v3.294z"/>' },
+  odt:   { label: "Writer",     app: "LibreOffice Writer",   kind: "Document",     color: "#1A5CFF", letter: "W" },
+  ods:   { label: "Calc",       app: "LibreOffice Calc",     kind: "Spreadsheet",  color: "#1A5CFF", letter: "C" },
+  odp:   { label: "Impress",    app: "LibreOffice Impress",  kind: "Presentation", color: "#1A5CFF", letter: "I" },
+  pages: { label: "Pages",      app: "Apple Pages",          kind: "Document",     color: "#FF9500", letter: "P" },
+  numbers: { label: "Numbers",  app: "Apple Numbers",        kind: "Spreadsheet",  color: "#00A650", letter: "N" },
+  key:   { label: "Keynote",    app: "Apple Keynote",        kind: "Presentation", color: "#1E8EFF", letter: "K" },
+};
+
+function officeBrandForName(name) {
+  const ext = String(name || "").split(".").pop().toLowerCase();
+  return OFFICE_BRANDS[ext] || null;
+}
+function officeBrandIcon(key, size = 16) {
+  const b = OFFICE_BRANDS[key];
+  if (!b) return "";
+  const glyph = b.glyph
+    ? '<g transform="translate(4 4) scale(.6667)" fill="#fff">' + b.glyph + "</g>"
+    : '<text x="12" y="16.6" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="700" fill="#fff">' + b.letter + "</text>";
+  return '<svg class="brand-ic" width="' + size + '" height="' + size + '" viewBox="0 0 24 24" aria-hidden="true">' +
+    '<rect x="1" y="1" width="22" height="22" rx="5" fill="' + b.color + '"/>' + glyph + "</svg>";
+}
+function officeBrandHead(type) {
+  const b = OFFICE_BRANDS[type];
+  if (!b) return "";
+  return '<div class="office-brand"><span class="ob-ic">' + officeBrandIcon(type, 30) + '</span><div class="ob-txt"><b>' +
+    esc(b.app) + "</b><small>" + esc(b.kind) + " · ." + esc(type) + "</small></div></div>";
+}
+
 async function loadTree(attempt = 0) {
   treeLoading = true;
   if (!treeEntries.length) renderTree();
@@ -4792,7 +4872,8 @@ function renderTree() {
       const open = e.dir && !treeCollapsed.has(e.path);
       el.className = "ft-item" + (open ? " open" : "");
       el.style.paddingLeft = (6 + Math.min(e.depth, 6) * 14) + "px";
-      el.innerHTML = `<span class="ft-caret">${e.dir ? CHEV_SVG : ""}</span><span class="nm">${esc(e.name)}</span>`;
+      const brandKey = e.dir ? "" : (OFFICE_BRANDS[String(e.name).split(".").pop().toLowerCase()] ? String(e.name).split(".").pop().toLowerCase() : "");
+      el.innerHTML = `<span class="ft-caret">${e.dir ? CHEV_SVG : ""}</span>${brandKey ? `<span class="ft-ic">${officeBrandIcon(brandKey, 14)}</span>` : ""}<span class="nm">${esc(e.name)}</span>`;
       el.title = e.path;
       if (e.dir) {
         el.addEventListener("click", () => {
@@ -4846,7 +4927,7 @@ function officeHtml(o) {
       const tag = h ? "h" + h[1] : "p";
       return "<" + tag + ">" + esc(b.text) + "</" + tag + ">";
     }).join("");
-    return '<div class="office office-docx">' + body + "</div>";
+    return '<div class="office office-docx">' + officeBrandHead("docx") + body + "</div>";
   }
   if (o.type === "xlsx") {
     const sheets = o.sheets || [];
@@ -4858,14 +4939,14 @@ function officeHtml(o) {
       const rows = (s.rows || []).map((r) => "<tr>" + r.map((c) => "<td>" + esc(c.value) + "</td>").join("") + "</tr>").join("");
       return '<div class="office-sheet" data-sheet="' + i + '"' + (i ? " hidden" : "") + '><table class="office-table office-grid">' + rows + "</table></div>";
     }).join("");
-    return '<div class="office office-xlsx">' + tabs + tables + "</div>";
+    return '<div class="office office-xlsx">' + officeBrandHead("xlsx") + tabs + tables + "</div>";
   }
   if (o.type === "pptx") {
     const slides = (o.slides || []).map((s) =>
       '<div class="office-slide"><div class="office-slide-n">Slide ' + s.index + '</div>' +
       (s.paragraphs || []).map((p, i) => i === 0 ? "<h3>" + esc(p) + "</h3>" : "<p>" + esc(p) + "</p>").join("") +
       "</div>").join("");
-    return '<div class="office office-pptx">' + slides + "</div>";
+    return '<div class="office office-pptx">' + officeBrandHead("pptx") + slides + "</div>";
   }
   return '<div class="pempty">Unsupported document.</div>';
 }
@@ -5203,6 +5284,8 @@ function md(src, plain) {
     extras.push(aside);
     return `\u0000X${extras.length - 1}\u0000`;
   });
+  // A standalone --- (or *** / ___) is a horizontal rule, not literal text.
+  html = html.replace(/^[ \t]*(-{3,}|\*{3,}|_{3,})[ \t]*$/gm, '<hr class="md-rule">');
   html = html.replace(/`([^`]+)`/g, '<code class="ic">$1</code>')
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/^### (.*)$/gm, "<h3>$1</h3>")
@@ -5223,7 +5306,7 @@ function md(src, plain) {
     return `<div class="codeblock" data-lang="${esc(b.lang)}">` +
       `<div class="cb-h"><span class="cb-lang">${esc(prettyLang(b.lang))}</span>` +
       `<span class="cb-meta">${lines.length} line${lines.length === 1 ? "" : "s"}</span>` +
-      `<button class="cp">Copy</button></div>` +
+      `<button class="cp" type="button" title="Copy code" aria-label="Copy code"></button></div>` +
       `<div class="cb-body"><pre class="cb-gutter" aria-hidden="true">${gutter}</pre>` +
       `<pre><code>${plain ? esc(b.code) : hl(b.code)}</code></pre></div></div>`;
   });
@@ -5250,9 +5333,10 @@ function prettyLang(tag) {
 function wireCopy(scope) {
   scope.querySelectorAll(".cp").forEach(b => {
     if (b.dataset.w) return; b.dataset.w = "1";
+    b.innerHTML = COPY_SVG;
     b.addEventListener("click", () => {
       navigator.clipboard.writeText(b.closest(".codeblock").querySelector("code").textContent);
-      b.textContent = "Copied"; setTimeout(() => b.textContent = "Copy", 1200);
+      b.innerHTML = COPIED_SVG; setTimeout(() => { b.innerHTML = COPY_SVG; }, 1200);
     });
   });
 }
@@ -5260,7 +5344,7 @@ function wireCopy(scope) {
 /* ============================ STREAM RENDER ============================ */
 function showChat() {
   $("landing").style.display = "none";
-  $("stream").style.display = "block";
+  $("stream").style.display = "flex";
   $("composer").style.display = "block";
   updateJump();
   focusComposer();
@@ -5269,16 +5353,27 @@ function showLanding() {
   $("landing").style.display = "flex";
   $("stream").style.display = "none";
   $("composer").style.display = "none";
+  if ($("askDock")) $("askDock").innerHTML = "";
   $("jumpBtn").classList.remove("on");
   focusComposer();
 }
 let followStream = true;
-function atBottom() { const s = $("stream"); return s.scrollHeight - s.scrollTop - s.clientHeight < 120; }
+let scrollWriteAt = 0;
+function atBottom(threshold = 72) {
+  const s = $("stream");
+  return s.scrollHeight - s.scrollTop - s.clientHeight < threshold;
+}
 function scrollDown(force) {
   const s = $("stream");
-  if (force || followStream || atBottom()) { s.scrollTop = s.scrollHeight; followStream = true; }
+  if (!force && !followStream) return;
+  const target = s.scrollHeight;
+  if (Math.abs(target - s.scrollTop - s.clientHeight) > 1) {
+    scrollWriteAt = performance.now();
+    s.scrollTop = target;
+  }
+  followStream = true;
+  updateJump();
 }
-$("stream").addEventListener("scroll", () => { followStream = atBottom(); }, { passive: true });
 /** Coalesced scroll: many stream deltas become one layout read + write per
  *  frame instead of one forced layout per delta. */
 let scrollSoon = 0;
@@ -5286,6 +5381,42 @@ function scrollDownSoon() {
   if (scrollSoon) return;
   scrollSoon = requestAnimationFrame(() => { scrollSoon = 0; scrollDown(); });
 }
+const streamEl = $("stream");
+streamEl.addEventListener("scroll", () => {
+  // Ignore the scroll events our own pin-to-bottom writes produce.
+  if (performance.now() - scrollWriteAt < 120) { updateJump(); return; }
+  followStream = atBottom();
+  updateJump();
+}, { passive: true });
+streamEl.addEventListener("wheel", (e) => {
+  // Respect an intentional scroll up; re-arm as soon as the user comes back.
+  if (e.deltaY < 0) followStream = false;
+  else if (atBottom()) followStream = true;
+}, { passive: true });
+document.addEventListener("selectionchange", () => {
+  const sel = getSelection();
+  if (!sel || sel.isCollapsed || !sel.anchorNode) return;
+  if (streamEl.contains(sel.anchorNode)) followStream = false;
+});
+// Catch height changes that do not come with a text delta: reasoning opening,
+// an image loading, a markdown block becoming a document, tables reflowing.
+try {
+  const seen = new WeakSet();
+  const ro = new ResizeObserver(() => { if (followStream) scrollDownSoon(); });
+  const watch = () => {
+    for (const el of streamEl.children) {
+      if (seen.has(el)) continue;
+      seen.add(el);
+      ro.observe(el);
+    }
+  };
+  new MutationObserver(() => {
+    watch();
+    if (followStream) scrollDownSoon();
+    updateJump();
+  }).observe(streamEl, { childList: true, subtree: true, characterData: true });
+  watch();
+} catch { /* older webview: delta-driven scrolling still works */ }
 /** The "jump to latest" pill only shows when there is something to scroll back to. */
 function updateJump() {
   const j = $("jumpBtn");
@@ -5305,18 +5436,6 @@ function node(cls, html) {
    exactly the message, so “export conversation” never picks up button words. */
 const COPY_SVG = '<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6"/><path d="M10.5 5.5V3.9A1.4 1.4 0 009.1 2.5H3.9A1.4 1.4 0 002.5 3.9v5.2A1.4 1.4 0 003.9 10.5h1.6"/></svg>';
 const COPIED_SVG = '<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 8.5l3.2 3.2L13 5"/></svg>';
-const CANVAS_SVG = '<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2.2" y="2.2" width="11.6" height="11.6" rx="2"/><path d="M5 5.7h6M5 8h4.5M5 10.3h3"/></svg>';
-
-/* Shared clipboard helper for message actions and the inline canvas. */
-async function copyToClipboard(text) {
-  try { await navigator.clipboard.writeText(text); return true; } catch {}
-  try {
-    const ta = document.createElement("textarea");
-    ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
-    document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove();
-    return true;
-  } catch { return false; }
-}
 
 function msgActs(el, getText) {
   const bar = document.createElement("div");
@@ -5337,19 +5456,6 @@ function msgActs(el, getText) {
     setTimeout(() => { b.innerHTML = COPY_SVG; b.classList.remove("done"); }, 1100);
   });
   bar.appendChild(b);
-  if (el.classList.contains("msg-a")) {
-    const c = document.createElement("button");
-    c.type = "button";
-    c.className = "ma-btn";
-    c.title = "Open markdown canvas";
-    c.setAttribute("aria-label", "Open markdown canvas");
-    c.innerHTML = CANVAS_SVG;
-    c.addEventListener("click", (e) => {
-      e.stopPropagation();
-      toggleInlineCanvas(el);
-    });
-    bar.appendChild(c);
-  }
   el._acts = bar;
   el.appendChild(bar);
   return bar;
@@ -5358,130 +5464,201 @@ function msgActs(el, getText) {
 function setMsgHtml(el, html) {
   el.innerHTML = html;
   if (el._acts) el.appendChild(el._acts);
-  if (el._canvasBar) el.prepend(el._canvasBar);
 }
 
-/* ---- inline markdown canvas: rendered in the transcript, not a modal ---- */
-const INLINE_CANVAS_MIN = 480;
-function shouldInlineCanvas(text) {
-  const t = stripBlocks(text || "");
-  if (t.trim().length >= INLINE_CANVAS_MIN) return true;
-  return /^#{1,3}\s+\S/m.test(t) && t.trim().length > 220;
+/* ---- editable writing blocks: document prose, not a chat bubble or a code box ---- */
+let lastUserRequest = "";
+function writingRequested(text) {
+  const t = String(text || "").toLowerCase();
+  const writingNoun = /\b(document|doc|essay|assignment|uppgift(?:en|er|erna)?|inlämning(?:en|ar|arna)?|inlämningsuppgift(?:en|er)?|homework|email|e-mail|letter|memo|report|article|blog post|blog|cover letter|proposal|speech|draft|writing|story|newsletter|announcement|summary|notes|resume|cv|thesis|paragraph|bio|statement|description|copy|text(?:en|er|erna)?|brev|mejl|rapport|sammanfattning|tal|manus|uppsats|hemtenta)\b/.test(t);
+  if (!writingNoun) return false;
+  const writingVerb = /\b(write|draft|compose|prepare|rewrite|proofread|edit|make|create|solve|help|want|need|skriv|skriva|skapa|gör|göra|lös|lösa|författa|formulera|hjälp)\b/.test(t);
+  if (!writingVerb) return false;
+  // "write a function" or "fix email validation" is code, not prose. A real
+  // prose noun plus a writing verb still wins.
+  const codeWord = /\b(code|function|script|component|class|api|sql|query|program|regex|bug|debug|fix|error|validate|validation|test|file|files|json|yaml|html|css|typescript|javascript|python|codebase)\b/.test(t);
+  const proseVerb = /\b(write|draft|compose|prepare|rewrite|proofread|edit|skriv|skriva|författa|formulera)\b/.test(t);
+  const proseNoun = /\b(document|essay|assignment|uppgift(?:en|er|erna)?|inlämning(?:en|ar|arna)?|inlämningsuppgift(?:en|er)?|email|e-mail|letter|memo|report|article|proposal|speech|story|newsletter|announcement|resume|cv|thesis|bio|description|text(?:en|er|erna)?|brev|mejl|rapport|sammanfattning|tal|manus|uppsats|hemtenta)\b/.test(t);
+  if (codeWord && !(proseVerb && proseNoun)) return false;
+  return true;
 }
-function inlineCanvasDownload(el) {
-  const ta = el.querySelector(".canvas-inline-source");
-  const raw = ta ? ta.value : (el._canvasRaw || stripBlocks(el._t || ""));
-  const title = (raw.match(/^#{1,3}\s+(.+)$/m) || [])[1] || "pulse-markdown";
-  const blob = new Blob([raw], { type: "text/markdown;charset=utf-8" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + ".md";
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+/** Remove the chatty line a model puts before a document ("Here's the
+ *  email:", "Sure, here's a draft:") so the document starts with its title or
+ *  first real paragraph instead. */
+function stripWritingPreamble(text) {
+  let t = String(text || "").trim();
+  const pre = /^(?:sure|certainly|of course|absolutely|here(?:'s| is)|below is|i(?:'ve| have) (?:written|drafted|prepared|put together)|this is)[^\n]{0,160}:\s*\n+/i;
+  for (let i = 0; i < 2; i++) {
+    const m = t.match(pre);
+    if (!m) break;
+    t = t.slice(m[0].length).trim();
+  }
+  return t || String(text || "").trim();
 }
-function inlineCanvasTitle(raw) {
-  const h = String(raw).match(/^#{1,3}\s+(.+)$/m);
-  return h ? (h[1].replace(/[*_\`#>]/g, "").trim().slice(0, 72) || "Markdown") : "Markdown canvas";
+function shouldWritingBlock(el, raw) {
+  if (!el || !raw || raw.trim().length < 80) return false;
+  if (/\`\`\`/.test(raw)) return false;       // code answers stay in chat
+  return writingRequested(lastUserRequest);
 }
-function canvasBody(el, bar) {
-  const body = document.createElement("div");
-  body.className = "canvas-inline-body";
-  [...el.childNodes].forEach((n) => { if (n !== bar && n !== el._acts) body.appendChild(n); });
-  el.insertBefore(body, el._acts || null);
-  return body;
-}
-function enableInlineCanvas(el) {
-  if (!el || el.classList.contains("canvas-mode") || el.classList.contains("streaming")) return;
-  const raw = stripBlocks(el._t || "");
-  if (!raw.trim()) return;
-  el._canvasRaw = raw;
-  el.classList.add("canvas-mode");
-  const words = raw.trim().split(/\s+/).filter(Boolean).length;
-  const bar = document.createElement("div");
-  bar.className = "canvas-inline-bar";
-  bar.innerHTML = `<span class="ci-doc" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.8h5l3 3V14H4z"/><path d="M9 1.8V5h3M6 8h4M6 10.5h3"/></svg></span>
-    <span class="ci-title">${esc(inlineCanvasTitle(raw))}</span>
-    <span class="ci-meta">${words.toLocaleString()} words</span>
-    <span class="spacer"></span>
-    <button class="ci-copy" data-ci="copy" type="button"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6"/><path d="M10.5 5.5V3.9A1.4 1.4 0 009.1 2.5H3.9A1.4 1.4 0 002.5 3.9v5.2A1.4 1.4 0 003.9 10.5h1.6"/></svg>Copy</button>
-    <button class="ci-icon" data-ci="download" type="button" title="Download .md" aria-label="Download markdown"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M8 10 5 7M8 10l3-3M3 13h10"/></svg></button>
-    <button class="ci-icon" data-ci="edit" type="button" title="Edit markdown" aria-label="Edit markdown"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10.8 2.5l2.7 2.7L6 12.7l-3.5.8.8-3.5z"/></svg></button>
-    <button class="ci-icon" data-ci="close" type="button" title="Close canvas" aria-label="Close canvas"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>`;
-  el.prepend(bar);
-  el._canvasBar = bar;
-  canvasBody(el, bar);
-  let editing = false;
-  const editBtn = bar.querySelector('[data-ci="edit"]');
-  bar.querySelector('[data-ci="copy"]').onclick = async (e) => {
-    e.stopPropagation();
-    const ta = el.querySelector(".canvas-inline-source");
-    const text = ta ? ta.value : (el._canvasRaw || "");
-    const ok = await copyToClipboard(text);
-    const b = e.currentTarget;
-    b.lastChild.textContent = ok ? "Copied" : "Copy failed";
-    setTimeout(() => { b.lastChild.textContent = "Copy"; }, 1100);
-  };
-  bar.querySelector('[data-ci="download"]').onclick = (e) => { e.stopPropagation(); inlineCanvasDownload(el); };
-  bar.querySelector('[data-ci="close"]').onclick = (e) => { e.stopPropagation(); disableInlineCanvas(el); };
-  editBtn.onclick = (e) => {
-    e.stopPropagation();
-    if (!editing) {
-      editing = true;
-      el._canvasEditing = true;
-      el.querySelector(".canvas-inline-body")?.remove();
-      el.querySelector(".canvas-inline-source")?.remove();
-      const ta = document.createElement("textarea");
-      ta.className = "canvas-inline-source";
-      ta.value = el._canvasRaw;
-      ta.setAttribute("aria-label", "Markdown source");
-      el.insertBefore(ta, el._acts || null);
-      ta.focus();
-      ta.scrollTop = 0;
-      editBtn.classList.add("on");
-      editBtn.title = "Preview markdown";
+/** Turn the markdown renderer's div-soup into semantic document HTML so a
+ *  paste into Google Docs / Word keeps headings, lists, bold and paragraphs. */
+function writingHtml(markdown) {
+  const box = document.createElement("div");
+  box.innerHTML = md(stripBlocks(markdown || ""));
+  box.querySelectorAll(".codeblock").forEach((cb) => {
+    const code = cb.querySelector("code");
+    const pre = document.createElement("pre");
+    pre.textContent = code ? code.textContent : cb.textContent;
+    cb.replaceWith(pre);
+  });
+  box.querySelectorAll(".md-p").forEach((d) => {
+    const kids = [...d.children];
+    if (kids.length === 1 && /^(H1|H2|H3|UL|OL|BLOCKQUOTE|PRE|TABLE)$/.test(kids[0].tagName)) {
+      d.replaceWith(kids[0]);
     } else {
-      const ta = el.querySelector(".canvas-inline-source");
-      if (ta) { el._canvasRaw = ta.value; ta.remove(); }
-      editing = false;
-      el._canvasEditing = false;
-      el.innerHTML = md(stripBlocks(el._canvasRaw || ""));
-      el.prepend(bar);
-      canvasBody(el, bar);
-      if (el._acts) el.appendChild(el._acts);
-      wireCopy(el);
-      editBtn.classList.remove("on");
-      editBtn.title = "Edit markdown";
+      const p = document.createElement("p");
+      while (d.firstChild) p.appendChild(d.firstChild);
+      d.replaceWith(p);
     }
-  };
+  });
+  box.querySelectorAll("[class]").forEach((n) => n.removeAttribute("class"));
+  box.querySelectorAll("button").forEach((b) => b.remove());
+  return box.innerHTML;
 }
-function disableInlineCanvas(el) {
-  if (!el) return;
-  const ta = el.querySelector(".canvas-inline-source");
-  if (ta) {
-    el._canvasRaw = ta.value;
-    ta.remove();
-    el.innerHTML = md(stripBlocks(el._canvasRaw || el._t || ""));
-    if (el._acts) el.appendChild(el._acts);
-    wireCopy(el);
-  }
-  const body = el.querySelector(".canvas-inline-body");
-  if (body) {
-    const parent = body.parentNode;
-    while (body.firstChild) parent.insertBefore(body.firstChild, body);
-    body.remove();
-  }
-  if (el._canvasBar) el._canvasBar.remove();
-  el._canvasBar = null;
-  el._canvasEditing = false;
-  el.classList.remove("canvas-mode");
+function writingWordCount(doc) {
+  return (doc.innerText || "").trim().split(/\s+/).filter(Boolean).length;
 }
-function toggleInlineCanvas(el) {
-  if (!el) return;
-  if (el.classList.contains("canvas-mode")) disableInlineCanvas(el);
-  else enableInlineCanvas(el);
+/** Clipboard HTML with inline styles so apps that ignore <style> and
+ *  classes - Google Docs, Sheets and Slides, Word, PowerPoint - keep the
+ *  document's headings, paragraphs, lists, bold text and tables. */
+function writingClipboardHtml(doc) {
+  const clone = doc.cloneNode(true);
+  clone.removeAttribute("contenteditable");
+  clone.removeAttribute("spellcheck");
+  clone.removeAttribute("autocorrect");
+  clone.removeAttribute("autocapitalize");
+  clone.removeAttribute("class");
+  const set = (sel, css) => clone.querySelectorAll(sel).forEach((n) => n.setAttribute("style", css));
+  set("h1", "font-family:Arial,Helvetica,sans-serif;font-size:24pt;font-weight:700;line-height:1.2;margin:0 0 8pt");
+  set("h2", "font-family:Arial,Helvetica,sans-serif;font-size:18pt;font-weight:700;line-height:1.25;margin:12pt 0 6pt");
+  set("h3", "font-family:Arial,Helvetica,sans-serif;font-size:14pt;font-weight:700;line-height:1.3;margin:10pt 0 4pt");
+  set("p", "font-family:Arial,Helvetica,sans-serif;font-size:11pt;line-height:1.5;margin:0 0 8pt");
+  set("ul,ol", "font-family:Arial,Helvetica,sans-serif;font-size:11pt;line-height:1.45;margin:0 0 8pt 18pt;padding:0");
+  set("li", "margin:0 0 4pt");
+  set("strong,b", "font-weight:700");
+  set("em,i", "font-style:italic");
+  set("blockquote", "font-family:Arial,Helvetica,sans-serif;font-size:11pt;line-height:1.5;margin:8pt 0;padding-left:10pt;border-left:2px solid gray;color:dimgray");
+  set("table", "border-collapse:collapse;width:100%;font-family:Arial,Helvetica,sans-serif;font-size:10pt;margin:8pt 0");
+  set("th,td", "border:1px solid gray;padding:4pt 6pt;text-align:left;vertical-align:top");
+  set("th", "border:1px solid gray;padding:4pt 6pt;text-align:left;vertical-align:top;background:gainsboro;font-weight:700");
+  set("pre", "font-family:Consolas,monospace;font-size:9pt;line-height:1.4;margin:0 0 8pt;white-space:pre-wrap");
+  set("code", "font-family:Consolas,monospace;font-size:9pt");
+  return clone.innerHTML;
+}
+async function copyWritingBlock(doc) {
+  const html = writingClipboardHtml(doc);
+  const text = doc.innerText || "";
+  try {
+    if (navigator.clipboard && window.ClipboardItem) {
+      await navigator.clipboard.write([new ClipboardItem({
+        "text/html": new Blob([html], { type: "text/html" }),
+        "text/plain": new Blob([text], { type: "text/plain" }),
+      })]);
+      return true;
+    }
+  } catch { /* fall through to the selection copy */ }
+  try {
+    const range = document.createRange();
+    range.selectNodeContents(doc);
+    const sel = getSelection();
+    sel.removeAllRanges(); sel.addRange(range);
+    const ok = document.execCommand("copy");
+    sel.removeAllRanges();
+    return ok;
+  } catch { return false; }
+}
+function enableWritingBlock(el) {
+  if (!el || el.classList.contains("writing-block") || el.classList.contains("streaming")) return;
+  const raw = stripWritingPreamble(stripBlocks(el._t || ""));
+  if (!shouldWritingBlock(el, raw)) return;
+  el._writingRaw = raw;
+  el.classList.add("writing-block");
+  const bar = document.createElement("div");
+  bar.className = "wb-bar";
+  bar.innerHTML = `<span class="wb-label"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 1.8h5l3 3V14H4z"/><path d="M9 1.8V5h3M6 8h4M6 10.5h3"/></svg>Document</span>
+    <span class="wb-meta">0 words</span>
+    <span class="spacer"></span>
+    <div class="wb-tools" role="toolbar" aria-label="Text formatting">
+      <button type="button" data-wb="bold" title="Bold" aria-label="Bold"><b>B</b></button>
+      <button type="button" data-wb="h2" title="Heading" aria-label="Heading">H2</button>
+      <button type="button" data-wb="ul" title="Bulleted list" aria-label="Bulleted list">•</button>
+      <button type="button" data-wb="ol" title="Numbered list" aria-label="Numbered list">1.</button>
+    </div>
+    <button class="wb-copy" type="button" data-wb="copy" title="Copy document" aria-label="Copy document">${COPY_SVG}</button>`;
+  const doc = document.createElement("article");
+  doc.className = "wb-doc";
+  doc.contentEditable = "true";
+  doc.spellcheck = false;
+  doc.setAttribute("spellcheck", "false");
+  doc.setAttribute("autocorrect", "off");
+  doc.setAttribute("autocapitalize", "off");
+  doc.setAttribute("role", "textbox");
+  doc.setAttribute("aria-multiline", "true");
+  doc.setAttribute("aria-label", "Editable document");
+  doc.innerHTML = writingHtml(raw);
+  el.innerHTML = "";
+  el.appendChild(bar);
+  el.appendChild(doc);
+  if (el._acts) el._acts.style.display = "none";
+  const count = () => { const n = writingWordCount(doc); bar.querySelector(".wb-meta").textContent = n.toLocaleString() + " words"; };
+  count();
+  doc.addEventListener("input", count);
+  bar.querySelectorAll("[data-wb]").forEach((b) => {
+    b.addEventListener("mousedown", (e) => e.preventDefault());
+    b.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const cmd = b.dataset.wb;
+      if (cmd === "copy") {
+        const ok = await copyWritingBlock(doc);
+        b.innerHTML = ok ? COPIED_SVG : COPY_SVG;
+        b.title = ok ? "Copied" : "Copy failed";
+        b.setAttribute("aria-label", b.title);
+        b.classList.toggle("done", ok);
+        setTimeout(() => {
+          b.innerHTML = COPY_SVG;
+          b.title = "Copy document";
+          b.setAttribute("aria-label", "Copy document");
+          b.classList.remove("done");
+        }, 1200);
+        return;
+      }
+      doc.focus();
+      if (cmd === "bold") document.execCommand("bold");
+      else if (cmd === "ul") document.execCommand("insertUnorderedList");
+      else if (cmd === "ol") document.execCommand("insertOrderedList");
+      else if (cmd === "h2") {
+        const current = String(document.queryCommandValue("formatBlock") || "").toLowerCase();
+        document.execCommand("formatBlock", false, current === "h2" ? "p" : "h2");
+      }
+      count();
+    });
+  });
+  doc.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
+      // Let the block's own bold shortcut work instead of the sidebar toggle.
+      e.stopPropagation();
+    }
+  }, true);
+}
+function maybeWritingBlock(el) {
+  if (!el || !el._t) return;
+  const before = el.classList.contains("writing-block");
+  enableWritingBlock(el);
+  if (!before && el.classList.contains("writing-block")) scrollDownSoon();
 }
 
 function addUser(text) {
+  lastUserRequest = String(text || "");
   const n = node("msg-u");
   const bubble = document.createElement("div");
   bubble.className = "b";
@@ -6102,7 +6279,7 @@ function endAssistant() {
     msgCards = msgArtifacts.length;
     renderArtifact();
   }
-  if (currentMsg && shouldInlineCanvas(currentMsg._t)) enableInlineCanvas(currentMsg);
+  if (currentMsg) maybeWritingBlock(currentMsg);
   currentMsg = null;
 }
 
@@ -7811,6 +7988,7 @@ function procRow(kind, label) {
     const open = !el.classList.contains("open");
     el.classList.toggle("open", open);
     row.setAttribute("aria-expanded", open ? "true" : "false");
+    if (open) it.out.scrollTop = it.out.scrollHeight;
   });
   p.body.appendChild(el);
   p.items.push(it);
@@ -7946,6 +8124,7 @@ function writeThinkNow() {
   if (cur.pending) { cur.it.out.appendChild(document.createTextNode(cur.pending)); cur.pending = ""; }
   cur.it.dsc.textContent = thinkingGist(cur.text);
   cur.it.det.scrollTop = cur.it.det.scrollHeight;
+  cur.it.out.scrollTop = cur.it.out.scrollHeight;
   scrollDownSoon();
 }
 
@@ -8162,7 +8341,8 @@ function renderAsk(evt, opts = {}) {
   const picks = qs.map(() => new Set());
   const others = qs.map(() => "");
   n.innerHTML = `
-    <div class="ask-h">${SPARK_SVG}<span>Harness has a question</span></div>
+    <div class="ask-h"><img class="ask-logo" src="/assets/pulse-harness-glyph.png" alt="" width="18" height="18"><span>Harness has a question</span></div>
+    <div class="ask-body">
     ${qs.map((q, qi) => `
       <div class="ask-q" data-q="${qi}">
         ${q.header ? `<span class="ask-tag">${esc(q.header)}</span>` : ""}
@@ -8171,9 +8351,14 @@ function renderAsk(evt, opts = {}) {
           ${(q.options || []).map((o, oi) => `<button type="button" class="ask-opt" data-o="${oi}">
             <span class="lb">${esc(o.label)}</span>${o.description ? `<span class="ds">${esc(o.description)}</span>` : ""}
           </button>`).join("")}
-          ${q.allowOther ? `<input class="ask-other" data-other="${qi}" type="text" placeholder="Or type your own answer…" autocomplete="off" aria-label="Your answer">` : ""}
+          ${(q.allowOther || !(q.options || []).length)
+            ? ((q.options || []).length
+              ? `<input class="ask-other" data-other="${qi}" type="text" placeholder="Or type your own answer…" autocomplete="off" aria-label="Your answer">`
+              : `<textarea class="ask-other ask-other-long" data-other="${qi}" rows="2" placeholder="Type your answer…" autocomplete="off" aria-label="Your answer"></textarea>`)
+            : ""}
         </div>
       </div>`).join("")}
+    </div>
     <div class="ask-f">
       <span class="ask-note" data-note></span>
       <span class="spacer"></span>
@@ -8235,6 +8420,13 @@ function renderAsk(evt, opts = {}) {
     if (note) note.textContent = final
       ? "Answered"
       : "Skipped - Harness will continue without an answer.";
+    n.classList.add("leaving");
+    const removeAnswered = () => {
+      if (n.isConnected) n.remove();
+      scrollDownSoon();
+    };
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) removeAnswered();
+    else setTimeout(removeAnswered, 140);
     const answers = qs.map((q, i) => [
       ...[...picks[i]].map((oi) => ((q.options || [])[oi] || {}).label).filter(Boolean),
       ...(others[i].trim() ? [others[i].trim()] : []),
@@ -8282,6 +8474,19 @@ function renderAsk(evt, opts = {}) {
     });
   });
   syncSend();
+  const firstInput = n.querySelector(".ask-other");
+  if (firstInput) setTimeout(() => { try { firstInput.focus(); } catch {} }, 80);
+  if (!opts.historical) {
+    const dock = $("askDock");
+    if (dock) {
+      for (const old of [...dock.querySelectorAll(".askcard")]) {
+        old.classList.remove("dock");
+        $("stream").appendChild(old);
+      }
+      n.classList.add("dock");
+      dock.appendChild(n);
+    }
+  }
   scrollDownSoon();
 }
 /** suggest_session: Star proposes moving an unrelated request into its own
@@ -8292,7 +8497,7 @@ function renderSuggest(evt, opts = {}) {
   const n = node("askcard suggest");
   n.dataset.sg = evt.id;
   n.innerHTML = `
-    <div class="ask-h">${SPARK_SVG}<span>Harness suggests a new session</span></div>
+    <div class="ask-h"><img class="ask-logo" src="/assets/pulse-harness-glyph.png" alt="" width="18" height="18"><span>Harness suggests a new session</span></div>
     <div class="ask-q">
       <div class="ask-t"><b>${esc(evt.title)}</b></div>
       <div class="ask-d">${esc(evt.description)}</div>
@@ -8594,7 +8799,7 @@ async function loadProjectUsage() {
       if (j.config.allowedTools?.length) bits.push("allowed: " + j.config.allowedTools.join(", "));
       if (j.config.hooks?.length) bits.push("hooks: " + j.config.hooks.join(", "));
     }
-    el.textContent = bits.length ? bits.join(" · ") : "No STAR.md / AGENTS.md / CLAUDE.md or .star-code/settings.json in this project.";
+    el.textContent = bits.length ? bits.join(" · ") : "No STAR.md / AGENTS.md / PULSE.md or .star-code/settings.json in this project.";
   } catch {
     el.textContent = "Could not read the project configuration.";
   }
@@ -8929,6 +9134,7 @@ function handle(evt) {
     case "permission_request": setActivity("waiting for your permission"); askPermission(evt); break;
     case "tool": sessStats.tools[evt.name] = (sessStats.tools[evt.name] || 0) + 1; setActivity(activityForTool(evt.name)); addTool({ name: evt.name, args: evt.args, status: evt.allowed === false ? "denied" : "running", detail: "" }); break;
     case "tool_result": setActivity("analyzing"); finishTool(evt.status, evt.preview); break;
+    case "retry": setActivity("retrying " + evt.attempt + "/" + evt.max); break;
     case "subagent": {
       if (evt.phase === "start") {
         treeSubs.set(evt.id, { id: evt.id, instructions: evt.instructions || "", agent: evt.agent || "explorer", status: "running", started: Date.now(), ms: 0, tools: [] });
@@ -9003,12 +9209,14 @@ async function newSession(opts = {}) {
   if (answerFlush) { cancelAnimationFrame(answerFlush); answerFlush = 0; }
   answerDirty = false;
   $("stream").innerHTML = "";
+  if ($("askDock")) $("askDock").innerHTML = "";
   $("term").innerHTML = '<span class="rt">[shell] ready — commands Pulse runs appear here</span>';
   $("sTitle").textContent = opts.title || "New session";
   $("prbar").style.display = "none";
   renderTodos([]); renderDiffPane();
   $("diffEmpty").style.display = "block";
   showLanding();
+  toggleSidebar(false);
   await loadSessions();
 }
 function exportConv() {
@@ -9275,8 +9483,12 @@ function setWorking(on) {
 $("workStop").addEventListener("click", abort);
 $("jumpBtn").addEventListener("click", () => {
   const s = $("stream");
-  if (matchMedia("(prefers-reduced-motion: reduce)").matches) s.scrollTop = s.scrollHeight;
-  else s.scrollTo({ top: s.scrollHeight, behavior: "smooth" });
+  followStream = true;
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { scrollDown(true); }
+  else {
+    scrollWriteAt = performance.now() + 450;
+    s.scrollTo({ top: s.scrollHeight, behavior: "smooth" });
+  }
   $("jumpBtn").classList.remove("on");
 });
 $("stream").addEventListener("scroll", () => updateJump(), { passive: true });
@@ -9380,6 +9592,7 @@ document.addEventListener("keydown", e => {
   const mod = e.metaKey || e.ctrlKey;
   if (e.key === "Tab" && e.shiftKey) { e.preventDefault(); const i = MODES.findIndex(m => m.id === state.defaultMode); applyMode(MODES[(i + 1) % MODES.length].id); save(); return; }
   if (mod && e.key === ",") { e.preventDefault(); openSettings(); return; }
+  if (mod && !e.shiftKey && (e.key === "b" || e.key === "B")) { e.preventDefault(); toggleSidebar(); return; }
   if (mod && (e.key === "n" || e.key === "N")) { e.preventDefault(); newSession(); return; }
   if (mod && (e.key === "k" || e.key === "K")) {
     e.preventDefault();
