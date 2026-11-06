@@ -1,5 +1,11 @@
 # What's new in Pulse Harness
 
+## 1.37.0 — 2026-11-06
+- **The Chat/Code switch survives sidebar collapse.** It no longer carries the sidebar-only class that the 64px rail hid; it stays pinned in the top-bar centre in both the full sidebar and the icon rail.
+- **Every loading circle is the logo now.** The boot, session-list, file-list, working-line and running-session indicators all use the rotating ribbon mark instead of a spinner ring.
+- **Tests cover both.** The renderer must keep the switch in a `top-switch` class inside the titlebar, and the spinner must use the logo asset.
+- **Update log** includes these notes.
+
 ## 1.36.0 — 2026-11-06
 - **The Chat/Code switch is now physically docked in the exact centre of the top bar** — not in the sidebar, not moved there at runtime, and never hidden on narrow windows. The right-side controls stay pinned to the right edge.
 - **The agent now carries a full harness manual.** Both Code and Chat prompts have a precise map of the architecture, request lifecycle, sessions, worktrees, side chats, tools, permissions, MCP, skills, project config, data paths, the top bar/sidebar/canvas layout, and how to answer questions about the app from source.

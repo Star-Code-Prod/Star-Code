@@ -488,6 +488,7 @@ ok("the sidebar uses three English workspace rows with modes in the top bar",
   html.includes('id="navNew"') && html.includes('id="navSearch"') &&
   html.includes('id="navProjects"') &&
   html.includes('id="modeSeg"') && html.includes('class="titlebar"') &&
+  html.includes('class="seg seg-icons top-switch"') &&
   html.indexOf('id="modeSeg"') > html.indexOf('class="titlebar"') &&
   html.indexOf('id="modeSeg"') < html.indexOf('class="shell"') &&
   /\.titlebar \.center\{[^}]*position:absolute/.test(html) &&
@@ -502,9 +503,10 @@ ok("the Projects row opens a project picker with known folders",
   js.includes("function projectPaths(") && js.includes("state.projects") &&
   js.includes("sessionList) add(s.cwd") &&
   /\.projpop-row\{/.test(html.replace(/\s+/g, "")));
-ok("boot spins the logo and list loading keeps a reduced-motion fallback",
+ok("boot and list loading spin the logo with a reduced-motion fallback",
   html.includes('id="boot"') && html.includes('class="boot-logo"') &&
   /\.boot-logo\{[^}]*animation:spin/.test(html.replace(/\s+/g, "")) &&
+  /\.spinner\{[^}]*background:url/.test(html.replace(/\s+/g, "")) &&
   js.includes("Loading sessions…") && js.includes("Loading files…") &&
   html.replace(/\s+/g, "").includes(".boot-logo{animation:none}"));
 ok("toasts sit above the composer, not on it",

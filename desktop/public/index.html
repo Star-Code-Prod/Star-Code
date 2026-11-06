@@ -141,15 +141,15 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
 .boot-in{display:flex;align-items:center;gap:10px;font-size:var(--fs-13)}
 .boot-star{color:var(--brand);font-size:20px;line-height:1;animation:pulse 1.8s ease-in-out infinite}
 .spinner{
-  width:16px;height:16px;border-radius:50%;flex:none;
-  border:2px solid var(--border2);border-top-color:var(--brand);
-  animation:spin .9s linear infinite;
+  width:16px;height:16px;flex:none;
+  background:url("/assets/pulse-harness-glyph.png") center / contain no-repeat;
+  animation:spin 1.1s linear infinite;
 }
 .loading-row{display:flex;align-items:center;gap:9px;padding:12px 9px;font-size:var(--fs-12);color:var(--muted)}
 .loading-row .spinner{width:13px;height:13px;border-width:1.5px}
 @media(prefers-reduced-motion:reduce){
   .spinner,.boot-star{animation:none!important}
-  .spinner{border-top-color:var(--border2);border-right-color:var(--brand)}
+  .spinner,.wspin{border:0;background-image:url("/assets/pulse-harness-glyph.png")}
 }
 
 /* ============================ TITLE BAR ============================ */
@@ -331,6 +331,8 @@ body.mode-chat #navProjects{display:none}
 .sess .ico svg{width:12px;height:12px}
 .sess.run .ico{color:var(--brand)}
 .sess.run .ico .runarc{animation:spin 1.1s linear infinite;transform-origin:50% 50%}
+.sess.run .ico{background:url("/assets/pulse-harness-glyph.png") center / contain no-repeat;animation:spin 1.1s linear infinite}
+.sess.run .ico svg{display:none}
 /* Waiting on the user: the row climbs into "Needs input" with a warning mark. */
 .sess.needs .ico{color:var(--brand)}
 .sess.needs .meta{color:var(--brand)}
@@ -1045,9 +1047,9 @@ body.mode-chat #navProjects{display:none}
 }
 .workline .wlbl2{color:var(--text2)}
 .wspin{
-  width:11px;height:11px;border-radius:50%;flex:none;
-  border:1.6px solid var(--chip-on);border-top-color:var(--brand);
-  animation:spin .9s linear infinite;
+  width:13px;height:13px;flex:none;
+  background:url("/assets/pulse-harness-glyph.png") center / contain no-repeat;
+  animation:spin 1.1s linear infinite;
 }
 .jump{
   position:absolute;left:50%;transform:translateX(-50%) translateY(4px);bottom:calc(100% + 10px);
@@ -1913,7 +1915,7 @@ body.files-open .sb-tree{display:block}
 /* ================= ECOGPT-STYLE LANDING / ICON RAIL ================= */
 body.rail .sidebar{width:64px;min-width:64px;padding:10px 6px;border-right:1px solid color-mix(in srgb,var(--border) 55%,transparent)}
 body.rail .sb-brand{justify-content:center;padding:2px 0 14px}
-body.rail .sb-word,body.rail .sb-mini,body.rail .sb-modes,
+body.rail .sb-word,body.rail .sb-mini,
 body.rail .sb-sec,body.rail .sessions,body.rail .sb-search,
 body.rail .pf-sec,body.rail .sb-tree,body.rail .sb-grip{display:none}
 body.rail .sb-mark img{width:28px;height:28px}
@@ -2107,7 +2109,7 @@ body:not(.rail) .sess.on{background:var(--panel2)}
     </button>
   </div>
   <div class="center"><span id="sTitle" title="Double-click to rename">New session</span>
-        <div class="seg seg-icons sb-modes" id="modeSeg" role="group" aria-label="Mode">
+        <div class="seg seg-icons top-switch" id="modeSeg" role="group" aria-label="Mode">
           <button type="button" data-mode="chat" aria-pressed="false" aria-label="Chat mode" title="Chat mode">
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3.3c3.2 0 5.7 2 5.7 4.5S11.2 12.3 8 12.3c-.5 0-1.1-.1-1.6-.2l-2.9.9.8-2.2c-1.3-.8-2.1-1.9-2.1-3C2.2 5.3 4.8 3.3 8 3.3z"/></svg>
           </button>
