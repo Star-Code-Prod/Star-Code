@@ -1,848 +1,282 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Star — your machine, your model, your keys</title>
-<meta name="description" content="Star is a local-first coding agent, chat assistant and full-screen terminal for Windows. MIT licensed, bring your own model — DeepSeek, OpenAI, Anthropic, Ollama, OpenRouter." />
-<link rel="canonical" href="https://star-code-prod.github.io/Pulse-Harness/" />
-<meta property="og:type" content="website" />
-<meta property="og:title" content="Star — a coding agent &amp; chat assistant" />
-<meta property="og:description" content="Your machine, your model, your keys — a coding agent and a chat assistant in one app, plus a full-screen terminal for the agent." />
-<meta property="og:url" content="https://star-code-prod.github.io/Pulse-Harness/" />
-<meta property="og:image" content="https://star-code-prod.github.io/Pulse-Harness/assets/chat-mode-dark.png" />
-<meta property="og:image:width" content="3000" />
-<meta property="og:image:height" content="1900" />
-<meta property="og:image:alt" content="Star in Chat mode — a sidebar with the Chat/Code switch and a prompt box reading “Ask Star anything”." />
-<meta name="twitter:card" content="summary_large_image" />
-<meta name="theme-color" media="(prefers-color-scheme: light)" content="#FAF9F5" />
-<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1a1a1a" />
-<link rel="icon" type="image/svg+xml" href="assets/icon.svg" />
-<script>
-  (function () {
-    try {
-      var t = new URLSearchParams(window.location.search).get("theme");
-      if (t === "dark" || t === "light") document.documentElement.dataset.theme = t;
-    } catch (e) {}
-  })();
-</script>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pulse Harness — your machine, your model, your agent</title>
+<meta name="description" content="Pulse Harness is a local-first coding agent and chat assistant. Bring your own model, connect your tools, and keep every key and file on your machine.">
+<link rel="canonical" href="https://star-code-prod.github.io/Pulse-Harness/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Pulse Harness — your machine, your model, your agent">
+<meta property="og:description" content="A local-first coding agent, chat assistant and terminal. Bring your own model and keep your data local.">
+<meta property="og:url" content="https://star-code-prod.github.io/Pulse-Harness/">
+<meta property="og:image" content="https://star-code-prod.github.io/Pulse-Harness/assets/pulse-harness.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0f0d14">
+<link rel="icon" type="image/png" href="assets/favicon.png">
 <style>
-  /* ==========================================================================
-     Tokens — mirrored from the app's own stylesheet
-     (desktop/public/index.html, :root + the two theme blocks) so the site
-     reads as the same product. Dark is the base; light is one media query
-     plus one [data-theme="light"] block, and ?theme= can force either.
-     ========================================================================== */
-  :root {
-    /* non-color tokens, straight from the app */
-    --fs-11: 11px; --fs-12: 12px; --fs-125: 12.5px; --fs-13: 13px; --fs-14: 14px;
-    --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px;
-    --sp-8: 32px; --sp-10: 40px;
-    --r-xs: 6px; --r-sm: 8px; --r-md: 10px; --r-lg: 14px; --r-xl: 18px; --r-full: 999px;
-    --t-fast: 150ms; --t-mid: 200ms; --t-slow: 280ms;
-    --ease: cubic-bezier(.2, .8, .3, 1);
-    --col: 920px;
-    --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
-    --title-font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-    /* site-only */
-    --gutter: clamp(16px, 4vw, 28px);
-    /* the Star coral — survives both themes and matches the app icon */
-    --gold: #D97757;
-
-    /* palette — dark (the app's default) */
-    --bg: #1a1a1a; --sidebar: #191919; --panel: #212121; --panel2: #262626;
-    --elev: #2a2a2a; --bubble: #2d2d2d; --hover: #242424;
-    --border: #2e2e2e; --border2: #3a3a3a;
-    --text: #e9e9e7; --text2: #b9b9b5; --muted: #8c8c88; --dim: #6b6b67;
-    --accent: #e6e6e4; --accent-h: #f7f7f5; --accent-fg: #141414;
-    --add-fg: #93d093; --del-fg: #ec9494;
-    --code-bg: #161616; --code-fg: #dcdcd8;
-    --chip: #2a2a2a; --chip-on: #383838;
-    --shadow: 0 12px 40px rgba(0, 0, 0, .5);
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .32);
-    --shadow-md: 0 8px 24px -10px rgba(0, 0, 0, .62);
-    color-scheme: dark;
-  }
-  /* light, when the OS asks and nothing forced a theme */
-  @media (prefers-color-scheme: light) {
-    :root:not([data-theme]) {
-      --bg: #FAF9F5; --sidebar: #F0EEE6; --panel: #FFFFFF; --panel2: #F7F5EE;
-      --elev: #FFFFFF; --bubble: #EDEAE0; --hover: #EAE7DC;
-      --border: #E3E0D3; --border2: #D9D6C8;
-      --text: #141413; --text2: #2F2E2A; --muted: #55534C; --dim: #8A877D;
-      --accent: #21201e; --accent-h: #0a0a09; --accent-fg: #ffffff;
-      --add-fg: #1F4D1A; --del-fg: #7A2A17;
-      --code-bg: #141413; --code-fg: #E9E6DC;
-      --chip: #F0EEE6; --chip-on: #E6E3D8;
-      --shadow: 0 12px 40px rgba(20, 20, 19, .16);
-      --shadow-sm: 0 1px 2px rgba(20, 20, 19, .10);
-      --shadow-md: 0 8px 24px -12px rgba(20, 20, 19, .22);
-      color-scheme: light;
-    }
-  }
-  /* light, forced by ?theme=light */
-  :root[data-theme="light"] {
-    --bg: #FAF9F5; --sidebar: #F0EEE6; --panel: #FFFFFF; --panel2: #F7F5EE;
-    --elev: #FFFFFF; --bubble: #EDEAE0; --hover: #EAE7DC;
-    --border: #E3E0D3; --border2: #D9D6C8;
-    --text: #141413; --text2: #2F2E2A; --muted: #55534C; --dim: #8A877D;
-    --accent: #21201e; --accent-h: #0a0a09; --accent-fg: #ffffff;
-    --add-fg: #1F4D1A; --del-fg: #7A2A17;
-    --code-bg: #141413; --code-fg: #E9E6DC;
-    --chip: #F0EEE6; --chip-on: #E6E3D8;
-    --shadow: 0 12px 40px rgba(20, 20, 19, .16);
-    --shadow-sm: 0 1px 2px rgba(20, 20, 19, .10);
-    --shadow-md: 0 8px 24px -12px rgba(20, 20, 19, .22);
-    color-scheme: light;
-  }
-
-  /* ============================ base ============================ */
-  * { box-sizing: border-box; }
-  html { -webkit-text-size-adjust: 100%; }
-  @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
-  body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--font-sans);
-    font-size: 15px;
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
-  }
-  img { max-width: 100%; }
-  a { color: inherit; }
-  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
-  ::selection { background: color-mix(in srgb, var(--accent) 25%, transparent); }
-  .mono { font-family: var(--font-mono); }
-  .spacer { flex: 1; }
-
-  .wrap {
-    width: 100%;
-    max-width: 1120px;
-    margin: 0 auto;
-    padding-left: var(--gutter);
-    padding-right: var(--gutter);
-  }
-
-  /* ============================ header ============================ */
-  .site-head {
-    position: sticky; top: 0; z-index: 30;
-    background: color-mix(in srgb, var(--bg) 88%, transparent);
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
-    border-bottom: 1px solid var(--border);
-  }
-  .head-inner { display: flex; align-items: center; gap: 10px; height: 56px; }
-  .brand { display: inline-flex; align-items: center; gap: 9px; text-decoration: none; color: var(--text); }
-  .brand img { display: block; width: 22px; height: 22px; border-radius: var(--r-xs); }
-  .brand-name {
-    font-family: var(--title-font); font-weight: 600; font-size: 16.5px;
-    letter-spacing: -.015em; white-space: nowrap;
-  }
-  .ver {
-    font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .04em;
-    color: var(--muted); border: 1px solid var(--border); border-radius: var(--r-full);
-    padding: 2px 8px 3px; white-space: nowrap;
-  }
-  .site-nav { margin-left: auto; display: flex; align-items: center; gap: 2px; }
-  .site-nav a {
-    display: inline-flex; align-items: center; gap: 6px;
-    font-size: 12.5px; color: var(--muted); text-decoration: none;
-    padding: 6px 11px; border-radius: var(--r-sm); white-space: nowrap;
-    transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
-  }
-  .site-nav a:hover { background: var(--panel); color: var(--text); }
-  .site-nav svg { display: block; flex: none; }
-  @media (max-width: 700px) { .site-nav a:not(.nav-gh) { display: none; } }
-
-  /* ============================ hero ============================ */
-  .hero { padding: clamp(44px, 6vw, 80px) 0 clamp(40px, 5vw, 64px); }
-  .hero-grid { display: grid; grid-template-columns: 1fr; gap: 44px; }
-  @media (min-width: 1000px) {
-    .hero-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr); gap: 56px; align-items: center; }
-  }
-  .hero-copy { min-width: 0; }
-  .kicker {
-    margin: 0; font-family: var(--font-mono); font-size: 11px;
-    letter-spacing: .08em; text-transform: uppercase; color: var(--dim);
-  }
-  h1.wordmark {
-    margin: 12px 0 0; font-family: var(--title-font); font-weight: 600;
-    font-size: clamp(42px, 6.5vw, 64px); line-height: 1; letter-spacing: -.035em;
-  }
-  .spark { display: inline-block; width: .34em; height: .34em; margin-left: .04em; transform: translateY(-.64em); color: var(--gold); }
-  .spark svg { display: block; width: 100%; height: 100%; }
-  .pitch {
-    margin: 22px 0 0; max-width: 600px;
-    font-size: clamp(16.5px, 1.35vw, 18.5px); line-height: 1.55;
-    color: var(--text2); text-wrap: pretty;
-  }
-  .pitch b { color: var(--text); font-weight: 600; }
-  .cta-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
-  .btn {
-    display: inline-flex; align-items: center; gap: 9px;
-    padding: 10px 16px; border-radius: var(--r-sm);
-    border: 1px solid var(--border2); background: var(--panel); color: var(--text);
-    font-size: 14px; font-weight: 500; line-height: 1.2; text-decoration: none;
-    transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
-  }
-  .btn:hover { background: var(--elev); }
-  .btn.pri { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
-  .btn.pri:hover { background: var(--accent-h); border-color: var(--accent-h); }
-  .btn svg { display: block; flex: none; }
-  .spec {
-    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 16px 40px; margin: 40px 0 0; padding: 20px 0 0;
-    border-top: 1px solid var(--border);
-  }
-  @media (max-width: 780px) { .spec { grid-template-columns: 1fr; gap: 14px; } }
-  .spec dt {
-    margin: 0 0 5px; font-family: var(--font-mono); font-size: 10.5px; font-weight: 500;
-    letter-spacing: .16em; text-transform: uppercase; color: var(--dim);
-  }
-  .spec dd { margin: 0; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.6; color: var(--text2); }
-
-  /* ======================= the app window (live HTML recreation) =======================
-     Markup and metric follow the real app: 46px title bar, slim sidebar,
-     conversation column, the reference thinking pill, the composer.        */
-  .appwin {
-    position: relative; min-width: 0;
-    background: var(--bg); color: var(--text);
-    border: 1px solid var(--border); border-radius: var(--r-xl);
-    box-shadow: var(--shadow); overflow: hidden;
-    font-size: var(--fs-14); line-height: 1.5;
-  }
-  .aw-bar {
-    display: flex; align-items: center; gap: var(--sp-2);
-    height: 46px; padding: 0 var(--sp-4); background: var(--bg);
-    border-bottom: 1px solid var(--border);
-  }
-  .aw-brand { display: flex; align-items: center; gap: var(--sp-2); flex: none; }
-  .aw-brand img { display: block; width: 20px; height: 20px; border-radius: var(--r-xs); }
-  .aw-brand .nm { font-size: var(--fs-125); color: var(--muted); letter-spacing: -.01em; white-space: nowrap; }
-  .tb-btn {
-    width: 26px; height: 26px; border-radius: var(--r-sm); flex: none;
-    display: flex; align-items: center; justify-content: center; color: var(--muted);
-  }
-  .tb-text {
-    display: flex; align-items: center; padding: 6px 11px; border-radius: var(--r-sm);
-    font-size: var(--fs-125); color: var(--muted);
-  }
-  .aw-body { display: flex; height: clamp(430px, 40vw, 506px); min-height: 0; }
-  .aw-side {
-    width: 190px; flex: none; display: flex; flex-direction: column; gap: 1px;
-    padding: 10px var(--sp-2) var(--sp-2);
-    background: var(--sidebar); border-right: 1px solid var(--border); overflow: hidden;
-  }
-  .sb-link {
-    display: flex; align-items: center; gap: 9px; padding: 7px 9px;
-    border-radius: var(--r-sm); font-size: var(--fs-13); color: var(--text2);
-  }
-  .sb-link svg { flex: none; opacity: .72; }
-  .sb-sec {
-    display: flex; align-items: center; gap: 6px; padding: var(--sp-3) 6px 6px;
-    font-size: 10.5px; letter-spacing: .05em; color: var(--dim); text-transform: uppercase;
-  }
-  .sb-search {
-    display: flex; align-items: center; gap: 7px; margin: 0 2px; padding: 0 8px;
-    background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-sm); color: var(--dim);
-  }
-  .sb-search span { font-size: var(--fs-125); padding: 6px 0; }
-  @media (max-width: 640px) { .aw-side { display: none; } }
-  .aw-main { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--bg); }
-  .aw-conv {
-    flex: 1; min-height: 0; overflow: hidden;
-    padding: var(--sp-5) var(--sp-6) var(--sp-2);
-    display: flex; flex-direction: column;
-  }
-  @media (max-width: 640px) { .aw-conv { padding: var(--sp-4) 14px var(--sp-1); } }
-  .msg-u { display: flex; justify-content: flex-end; }
-  .msg-u .b {
-    max-width: min(430px, 86%); padding: 9px 13px; border-radius: var(--r-lg);
-    background: var(--bubble); border: 1px solid color-mix(in srgb, var(--text) 7%, transparent);
-    font-size: var(--fs-14); line-height: 1.5; white-space: pre-wrap; word-break: break-word;
-  }
-  /* the reference "Star Thinking Block" — same rules as the app */
-  .think { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; max-width: 100%; margin: 13px 0 0; }
-  .think-h {
-    display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px 0 10px;
-    border-radius: var(--r-full); background: var(--chip); color: var(--muted);
-    font-size: var(--fs-13); font-weight: 500;
-  }
-  .think-star { width: 14px; height: 14px; color: var(--accent); flex: none; }
-  .think-label { font-variant-numeric: tabular-nums; }
-  .think-chev { width: 12px; height: 12px; flex: none; transition: transform 200ms var(--ease); }
-  .think[data-mode="peek"] .think-chev { transform: rotate(180deg); }
-  .think-b { width: 100%; max-height: 0; overflow: hidden; transition: max-height 300ms ease; }
-  .think[data-mode="peek"] .think-b {
-    max-height: 68px;
-    -webkit-mask-image: linear-gradient(transparent, var(--text) 45%);
-    mask-image: linear-gradient(transparent, var(--text) 45%);
-  }
-  .think-t {
-    margin-left: 12px; padding: 2px 0 2px 14px; border-left: 2px solid var(--border);
-    color: var(--muted); font-size: var(--fs-13); line-height: 1.6;
-    white-space: pre-wrap; word-break: break-word;
-  }
-  .think[data-live] .think-star { animation: spin 2.4s linear infinite; }
-  .think[data-live] .think-label {
-    background: linear-gradient(90deg, var(--muted) 30%, var(--text) 50%, var(--muted) 70%);
-    background-size: 200% 100%;
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-    animation: shimmer 1.8s linear infinite;
-  }
-  @keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  @keyframes cursor-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
-  .tools { margin: 13px 0 0; }
-  .tools-h {
-    display: flex; align-items: center; gap: 9px; padding: 7px 11px;
-    border-radius: var(--r-sm); background: var(--panel);
-    font-size: var(--fs-125); color: var(--muted);
-  }
-  .tools-h .dot { width: 6px; height: 6px; border-radius: 50%; flex: none; background: var(--add-fg); }
-  .tools-h.err .dot { background: var(--del-fg); }
-  .tools-h .txt { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tools-h .cnt {
-    font-family: var(--font-mono); font-size: 10.5px; color: var(--dim);
-    background: var(--chip); border-radius: var(--r-full); padding: 1px 6px; min-width: 18px; text-align: center;
-  }
-  .aw-comp { flex: none; padding: 0 var(--sp-6) var(--sp-4); background: var(--bg); }
-  @media (max-width: 640px) { .aw-comp { padding: 0 14px var(--sp-3); } }
-  .cbox {
-    display: flex; align-items: center; gap: 10px; padding: 9px 11px 9px 13px;
-    border-radius: var(--r-xl); background: var(--elev);
-    border: 1px solid var(--border2); box-shadow: var(--shadow-md);
-  }
-  .cbox .ph { flex: 1; min-width: 0; color: var(--dim); font-size: var(--fs-14); line-height: 1.5; }
-  .kbdh {
-    flex: none; width: 30px; height: 30px; border-radius: var(--r-full);
-    display: flex; align-items: center; justify-content: center;
-    background: var(--accent); color: var(--accent-fg);
-  }
-  .crow { display: flex; align-items: center; gap: var(--sp-1); margin-top: var(--sp-2); padding: 0 2px; flex-wrap: wrap; }
-  .cbtn { display: flex; align-items: center; gap: 7px; padding: 5px 9px; border-radius: var(--r-sm); font-size: var(--fs-125); color: var(--muted); white-space: nowrap; }
-  .cbtn.ico { padding: 5px 7px; }
-  .cbtn.model { margin-left: auto; }
-  .cbtn .sep { color: var(--dim); }
-  @media (max-width: 520px) { .cbtn.ico { display: none; } }
-
-  /* ============================ sections ============================ */
-  .section { padding: clamp(48px, 6vw, 80px) 0; }
-  main > section + section { border-top: 1px solid var(--border); }
-  section[id] { scroll-margin-top: 76px; }
-  .eyebrow {
-    margin: 0 0 12px; font-family: var(--font-mono); font-size: 11px;
-    letter-spacing: .08em; text-transform: uppercase; color: var(--dim);
-  }
-  h2 {
-    margin: 0; font-family: var(--title-font); font-weight: 600;
-    font-size: clamp(26px, 3.4vw, 34px); letter-spacing: -.02em; line-height: 1.12; text-wrap: balance;
-  }
-  .lede { margin: 14px 0 0; max-width: 640px; font-size: 16px; line-height: 1.6; color: var(--text2); text-wrap: pretty; }
-
-  /* ---- features ---- */
-  .features { display: grid; grid-template-columns: 1fr; gap: 14px; margin-top: 32px; }
-  @media (min-width: 700px) { .features { grid-template-columns: 1fr 1fr; } }
-  @media (min-width: 1020px) { .features { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-  .card {
-    min-width: 0; padding: var(--sp-5);
-    background: var(--panel); border: 1px solid var(--border);
-    border-radius: var(--r-lg); box-shadow: var(--shadow-sm);
-  }
-  .card svg { display: block; color: var(--muted); }
-  .card h3 { margin: 14px 0 7px; font-family: var(--title-font); font-weight: 600; font-size: 15.5px; letter-spacing: -.01em; }
-  .card p { margin: 0; font-size: 14px; line-height: 1.65; color: var(--muted); }
-  .card code {
-    font-family: var(--font-mono); font-size: .88em; white-space: nowrap;
-    background: var(--chip); color: var(--text);
-    border: 1px solid color-mix(in srgb, var(--text) 6%, transparent);
-    border-radius: var(--r-xs); padding: 1px 5px;
-  }
-
-  /* ---- CLI ---- */
-  .cli-grid { display: grid; grid-template-columns: 1fr; gap: 40px; align-items: center; }
-  @media (min-width: 940px) { .cli-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr); gap: 56px; } }
-  .cli-copy, .cli-grid > figure { min-width: 0; }
-  .ways { margin: 24px 0 0; }
-  .way { padding: 14px 0; border-top: 1px solid var(--border); }
-  .way:last-child { border-bottom: 1px solid var(--border); }
-  .way code {
-    display: inline-block; font-family: var(--font-mono); font-size: var(--fs-125);
-    color: var(--text); white-space: nowrap; max-width: 100%; overflow-x: auto;
-    background: var(--chip); border: 1px solid color-mix(in srgb, var(--text) 6%, transparent);
-    border-radius: var(--r-xs); padding: 3px 8px;
-  }
-  .way p { margin: 9px 0 0; font-size: 14.5px; line-height: 1.55; color: var(--muted); }
-  .way b { color: var(--text2); font-weight: 600; }
-  .cli-cta { margin-top: 26px; }
-  /* the terminal block wears the app's code-block chrome */
-  .term {
-    margin: 0; background: var(--code-bg);
-    border: 1px solid var(--border); border-radius: var(--r-md);
-    overflow: hidden; box-shadow: var(--shadow-md);
-  }
-  .term-bar {
-    display: flex; justify-content: space-between; align-items: center; gap: 10px;
-    padding: 7px 12px; border-bottom: 1px solid #2a2a2a;
-    font-family: var(--font-mono); font-size: var(--fs-11); color: #8c8c88; letter-spacing: .02em;
-  }
-  .term-bar .d { color: #6b6b67; flex: none; }
-  .term pre {
-    margin: 0; padding: 16px 18px 18px;
-    font-family: var(--font-mono); font-size: 13.5px; line-height: 1.85;
-    color: var(--code-fg); overflow-x: auto;
-  }
-  .t-dim { color: #8c8c88; }
-  .t-accent { color: var(--gold); font-weight: 500; }
-  .cursor {
-    display: inline-block; width: 8px; height: 15px; margin-left: 3px; vertical-align: -3px;
-    background: var(--gold); animation: cursor-pulse 1.1s ease-in-out infinite;
-  }
-  @media (max-width: 560px) { .term pre { font-size: 12.4px; padding: 14px 14px 16px; } }
-  @media (max-width: 440px) { .term pre { white-space: pre-wrap; } }
-
-  /* ---- screenshots ---- */
-  .gallery { display: grid; grid-template-columns: 1fr; gap: 28px 22px; margin-top: 32px; }
-  @media (min-width: 880px) { .gallery { grid-template-columns: 1fr 1fr; } }
-  .gallery figure { margin: 0; min-width: 0; }
-  .shot {
-    background: var(--bg); border: 1px solid var(--border);
-    border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-sm);
-  }
-  .shot-bar {
-    display: flex; align-items: center; gap: 8px; padding: 8px 12px;
-    background: var(--panel); border-bottom: 1px solid var(--border);
-  }
-  .shot-bar img { display: block; width: 16px; height: 16px; border-radius: 4px; flex: none; }
-  .shot-bar .t {
-    font-family: var(--font-mono); font-size: var(--fs-11); color: var(--muted);
-    letter-spacing: .02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .shot-bar .d { margin-left: auto; font-family: var(--font-mono); font-size: 10.5px; color: var(--dim); flex: none; }
-  .shot > img { display: block; width: 100%; height: auto; }
-  .gallery figcaption {
-    margin-top: 11px; font-family: var(--font-mono); font-size: var(--fs-12);
-    line-height: 1.65; color: var(--muted); text-wrap: pretty;
-  }
-
-  /* ---- star history ---- */
-  .history-head { max-width: 760px; }
-  .history-cta { margin-top: 22px; }
-  .chart { margin: 34px 0 0; max-width: 900px; }
-  .chart img {
-    display: block; width: 100%; height: auto;
-    background: var(--panel); border: 1px solid var(--border); border-radius: var(--r-lg);
-  }
-  .chart figcaption { margin: 10px 2px 0; font-family: var(--font-mono); font-size: var(--fs-12); color: var(--muted); }
-
-  /* ---- footer ---- */
-  .site-foot { border-top: 1px solid var(--border); padding: 30px 0 42px; }
-  .foot-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
-  .foot-brand { display: inline-flex; align-items: center; gap: 8px; font-family: var(--title-font); font-weight: 600; font-size: 14.5px; }
-  .foot-brand img { display: block; width: 18px; height: 18px; border-radius: 5px; }
-  .foot-links { margin-left: auto; display: flex; flex-wrap: wrap; gap: 4px 16px; }
-  .foot-links a { font-size: 12.5px; color: var(--muted); text-decoration: none; transition: color var(--t-fast) var(--ease); }
-  .foot-links a:hover { color: var(--text); }
-  @media (max-width: 560px) { .foot-links { margin-left: 0; } }
-  .foot-legal {
-    margin: 18px 0 0; max-width: 940px;
-    font-family: var(--font-mono); font-size: 11.5px; line-height: 2;
-    color: var(--muted); text-wrap: pretty;
-  }
-  .foot-legal a {
-    color: var(--text2); text-decoration: underline;
-    text-decoration-color: var(--border2); text-underline-offset: 3px;
-  }
-  .foot-legal a:hover { color: var(--text); }
-
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { animation: none !important; transition: none !important; }
-  }
+:root{
+  --bg:#0f0d14; --surface:#17131f; --surface2:#1e1829; --surface3:#251d33;
+  --border:#2d253b; --border2:#3b3050;
+  --ink:#f2edfb; --ink2:#d8d0e8; --muted:#a79bb9; --dim:#7c718e;
+  --brand:#a78bfa; --brand2:#7c3aed; --brand-soft:rgba(167,139,250,.12);
+  --green:#8fd19e;
+  --radius:20px; --radius-sm:12px; --max:1120px;
+  --font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  --ease:cubic-bezier(.2,.7,.25,1);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);
+  font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;
+  background-image:
+    radial-gradient(900px 560px at 50% -180px, rgba(124,58,237,.22), transparent 70%),
+    radial-gradient(700px 420px at 8% 22%, rgba(167,139,250,.06), transparent 70%);
+}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+img{max-width:100%;display:block}
+::selection{background:rgba(167,139,250,.35);color:#fff}
+:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
+.wrap{width:min(var(--max),calc(100% - 40px));margin:0 auto}
+.eyebrow{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:var(--brand)}
+.eyebrow::before{content:"";width:18px;height:1px;background:currentColor;opacity:.7}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 20px;
+  border-radius:999px;font-size:14px;font-weight:600;letter-spacing:-.01em;transition:transform .18s var(--ease),background .18s var(--ease),border-color .18s var(--ease);
+}
+.btn:hover{transform:translateY(-1px)}
+.btn-primary{background:var(--brand);color:#160f26;box-shadow:0 10px 30px -12px rgba(167,139,250,.65)}
+.btn-primary:hover{background:#b7a0ff}
+.btn-ghost{border:1px solid var(--border2);background:rgba(255,255,255,.02);color:var(--ink2)}
+.btn-ghost:hover{background:var(--surface2);border-color:var(--brand)}
+.btn svg{flex:none}
+.top{
+  position:sticky;top:0;z-index:50;backdrop-filter:blur(18px);
+  background:color-mix(in srgb,var(--bg) 78%,transparent);border-bottom:1px solid rgba(45,37,59,.55);
+}
+.top .wrap{display:flex;align-items:center;gap:28px;height:68px}
+.brand{display:flex;align-items:center;gap:10px;flex:none;font-weight:650;letter-spacing:-.02em;font-size:16px}
+.brand img{width:30px;height:30px;border-radius:8px}
+.brand small{font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-left:1px}
+.nav{display:flex;align-items:center;gap:24px;margin-left:auto;font-size:13.5px;color:var(--muted)}
+.nav a{transition:color .16s}
+.nav a:hover{color:var(--ink)}
+.top-cta{display:flex;align-items:center;gap:10px;margin-left:8px}
+.top-cta .btn{min-height:36px;padding:0 15px;font-size:13px}
+.top-cta .btn-primary{box-shadow:none}
+.hero{padding:92px 0 36px;text-align:center;position:relative}
+.hero h1{font-size:clamp(42px,7vw,76px);line-height:1.02;letter-spacing:-.055em;font-weight:650;margin:20px auto 18px;max-width:900px}
+.hero h1 em{font-style:normal;background:linear-gradient(100deg,#f2edfb 10%,#c4b5fd 52%,#8b5cf6 92%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{max-width:610px;margin:0 auto;color:var(--muted);font-size:clamp(15px,2vw,17.5px);line-height:1.65}
+.hero-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:30px 0 18px}
+.hero-meta{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;font:11.5px var(--mono);color:var(--dim)}
+.hero-meta span{display:flex;align-items:center;gap:6px}
+.hero-meta i{width:5px;height:5px;border-radius:50%;background:var(--green);display:inline-block}
+.preview{padding:26px 0 60px}
+.frame{position:relative;border:1px solid var(--border);border-radius:26px;overflow:hidden;background:var(--surface);box-shadow:0 40px 120px -40px rgba(0,0,0,.9),0 0 0 1px rgba(255,255,255,.03) inset}
+.frame::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(167,139,250,.08),transparent 30%);pointer-events:none;z-index:1}
+.frame-bar{display:flex;align-items:center;gap:7px;height:38px;padding:0 15px;border-bottom:1px solid var(--border);background:var(--surface2)}
+.frame-bar i{width:8px;height:8px;border-radius:50%;background:var(--border2)}
+.frame-bar span{margin-left:10px;font:11px var(--mono);color:var(--dim)}
+.frame img{width:100%;height:auto}
+.preview-note{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:14px;color:var(--dim);font-size:12px}
+.preview-note b{color:var(--muted);font-weight:500}
+section{padding:76px 0}
+.section-head{max-width:640px;margin-bottom:34px}
+.section-head h2{font-size:clamp(28px,4vw,42px);line-height:1.1;letter-spacing:-.045em;margin:12px 0;font-weight:650}
+.section-head p{margin:0;color:var(--muted);font-size:15.5px;line-height:1.65}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.card{padding:22px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);transition:border-color .2s var(--ease),background .2s var(--ease),transform .2s var(--ease)}
+.card:hover{border-color:var(--border2);background:var(--surface2);transform:translateY(-2px)}
+.card .ic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;margin-bottom:16px;background:var(--brand-soft);color:var(--brand);border:1px solid rgba(167,139,250,.22)}
+.card h3{margin:0 0 6px;font-size:15.5px;font-weight:600;letter-spacing:-.02em}
+.card p{margin:0;color:var(--muted);font-size:13.5px;line-height:1.6}
+.split{display:grid;grid-template-columns:1.05fr .95fr;gap:54px;align-items:center}
+.split h2{font-size:clamp(30px,4.5vw,46px);line-height:1.08;letter-spacing:-.05em;margin:12px 0 16px;font-weight:650}
+.split p{color:var(--muted);margin:0 0 22px;font-size:15px;line-height:1.7}
+.checks{display:flex;flex-direction:column;gap:12px;margin:0;padding:0;list-style:none}
+.checks li{display:flex;gap:10px;align-items:flex-start;color:var(--ink2);font-size:14px}
+.checks svg{flex:none;margin-top:3px;color:var(--brand)}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:24px;position:relative;overflow:hidden}
+.panel::after{content:"";position:absolute;right:-80px;top:-80px;width:220px;height:220px;background:radial-gradient(circle,rgba(167,139,250,.2),transparent 70%);pointer-events:none}
+.panel-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border)}
+.panel-row:last-child{border-bottom:0;padding-bottom:0}
+.panel-row:first-child{padding-top:0}
+.panel-row .dot{width:8px;height:8px;border-radius:50%;background:var(--brand);flex:none;box-shadow:0 0 0 4px var(--brand-soft)}
+.panel-row b{display:block;font-size:13.5px;font-weight:550}
+.panel-row span{display:block;font-size:12px;color:var(--dim)}
+.panel-row .tag{margin-left:auto;font:10px var(--mono);color:var(--brand);border:1px solid rgba(167,139,250,.25);border-radius:999px;padding:3px 8px;flex:none}
+.skills{background:linear-gradient(180deg,var(--surface),#14111b 80%);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.skill-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.chip{font:12px var(--mono);color:var(--ink2);background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:7px 12px}
+.chip.hot{color:var(--brand);border-color:rgba(167,139,250,.3);background:var(--brand-soft)}
+.skill-foot{display:flex;align-items:center;gap:14px;margin-top:26px;color:var(--dim);font-size:12px;flex-wrap:wrap}
+.skill-foot b{color:var(--ink2);font-weight:550}
+.connectors-row{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px;margin-top:26px}
+.conn{display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 8px;border:1px solid var(--border);border-radius:16px;background:var(--surface)}
+.conn img{width:34px;height:34px;object-fit:contain;background:#fff;padding:4px;border-radius:8px}
+.conn span{font-size:11px;color:var(--muted);text-align:center}
+.steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.step{padding:24px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)}
+.step .n{font:11px var(--mono);color:var(--brand);margin-bottom:18px}
+.step h3{margin:0 0 7px;font-size:15.5px;font-weight:600}
+.step p{margin:0;color:var(--muted);font-size:13.5px;line-height:1.6}
+.final{text-align:center;padding:108px 0}
+.final h2{font-size:clamp(34px,5vw,58px);letter-spacing:-.05em;line-height:1.04;margin:14px auto 18px;max-width:780px;font-weight:650}
+.final p{max-width:520px;margin:0 auto 28px;color:var(--muted)}
+footer{border-top:1px solid var(--border);padding:34px 0 44px;color:var(--dim);font-size:12px}
+.foot{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.foot-links{display:flex;gap:18px;flex-wrap:wrap}
+.foot-links a:hover{color:var(--ink2)}
+@media(max-width:980px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.split{grid-template-columns:1fr;gap:32px}.steps{grid-template-columns:1fr}}
+@media(max-width:860px){.nav{display:none}.top .wrap{height:60px}.top-cta .btn-ghost{display:none}.connectors-row{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:640px){.grid{grid-template-columns:1fr}.hero{padding-top:64px}.hero-actions .btn{width:100%}section{padding:56px 0}.preview-note{flex-direction:column;align-items:flex-start}.connectors-row{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
-
-<header class="site-head">
-  <div class="wrap head-inner">
-    <a class="brand" href="#top" aria-label="Star — back to top">
-      <img src="assets/icon.svg" alt="" width="22" height="22" />
-      <span class="brand-name">Star</span>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="Pulse Harness home">
+      <img src="assets/pulse-harness-bg-mark.png" alt="">
+      <span>Pulse Harness</span><small>local-first</small>
     </a>
-    <span class="ver">v1.4.0</span>
-    <nav class="site-nav" aria-label="Site">
+    <nav class="nav" aria-label="Main">
       <a href="#features">Features</a>
-      <a href="#cli">CLI</a>
-      <a href="#screenshots">Screenshots</a>
-      <a class="nav-gh" href="https://github.com/Star-Code-Prod/Pulse-Harness" rel="noopener">
-        GitHub
-        <svg width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-          <path d="M5.8 14.2 14.2 5.8"/><path d="M7.2 5.8h7v7"/>
-        </svg>
-      </a>
+      <a href="#skills">Skills</a>
+      <a href="#connectors">Connectors</a>
+      <a href="#how">How it works</a>
+      <a href="https://github.com/Star-Code-Prod/Pulse-Harness" rel="noreferrer">GitHub</a>
     </nav>
+    <div class="top-cta">
+      <a class="btn btn-ghost" href="#download">Download</a>
+      <a class="btn btn-primary" href="https://github.com/Star-Code-Prod/Pulse-Harness/releases" rel="noreferrer">Get started</a>
+    </div>
   </div>
 </header>
 
 <main id="top">
-
-  <!-- ============================ hero ============================ -->
   <section class="hero">
     <div class="wrap">
-      <div class="hero-grid">
-      <div class="hero-copy">
-        <p class="kicker">A coding agent &amp; chat assistant for Windows</p>
-        <h1 class="wordmark">Star<span class="spark" aria-hidden="true"><svg viewBox="0 0 512 512" fill="currentColor" focusable="false"><path d="M366 154c5 33 20 48 53 53-33 5-48 20-53 53-5-33-20-48-53-53 33-5 48-20 53-53z"/></svg></span></h1>
-        <p class="pitch"><b>Your machine, your model, your keys</b> — a coding agent and a chat assistant in one app, plus a full-screen terminal for the agent.</p>
-        <div class="cta-row">
-          <a class="btn pri" href="https://github.com/Star-Code-Prod/Pulse-Harness/releases/latest" rel="noopener">
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-              <path d="M10 3.5v8.3"/><path d="m6.4 8.4 3.6 3.6 3.6-3.6"/><path d="M4 15.5h12"/>
-            </svg>
-            Download for Windows
-          </a>
-          <a class="btn" href="https://github.com/Star-Code-Prod/Pulse-Harness" rel="noopener">
-            View on GitHub
-            <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-              <path d="M5.8 14.2 14.2 5.8"/><path d="M7.2 5.8h7v7"/>
-            </svg>
-          </a>
-        </div>
+      <span class="eyebrow">Your machine · your model · your keys</span>
+      <h1>An agent that works<br><em>where you do.</em></h1>
+      <p>Pulse Harness is a local-first coding agent and chat assistant. Bring your own model, connect the tools you already use, and keep every key, file and session on your machine.</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="#download">Download Pulse Harness
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0 4-4m-4 4-4-4"/><path d="M4 19h16"/></svg>
+        </a>
+        <a class="btn btn-ghost" href="#features">See what it does</a>
       </div>
-
-      <!-- live HTML recreation of the app window (not a screenshot) -->
-      <div class="appwin" role="img" aria-label="A recreation of the Star app window. A user asked “Fix the failing watcher test”. The thinking pill shows “Thinking… 4s” with a live peek of the reasoning — two change events reach the debounce, track the last mtime per path, re-run that test file. A tool line reports “Run npm test — watcher · 3 failed”. Below sits the composer with the placeholder “Type / for commands”, an Ask permissions control, and the model readout — deepseek-chat · Medium.">
-        <div class="aw-bar">
-          <span class="aw-brand">
-            <img src="assets/icon.svg" alt="" width="20" height="20" />
-            <span class="nm">Star</span>
-          </span>
-          <span class="tb-btn">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M5.6 2.5v11"/></svg>
-          </span>
-          <span class="tb-btn">
-            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
-          </span>
-          <span class="spacer"></span>
-          <span class="tb-text">
-            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.5" y="2.5" width="5.6" height="11" rx="1.8"/><rect x="8.9" y="2.5" width="5.6" height="11" rx="1.8"/></svg>
-          </span>
-        </div>
-        <div class="aw-body">
-          <aside class="aw-side" aria-hidden="true">
-            <span class="sb-link">
-              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>
-              New session
-            </span>
-            <span class="sb-link">
-              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M1.8 9.8V4.5A1.5 1.5 0 013.3 3h2.4l1.3 1.6h5.5a1.5 1.5 0 011.5 1.5v1.3"/><path d="M4.9 7.5h8.9l-2.6 5.4H2.3z"/></svg>
-              Open folder
-            </span>
-            <span class="sb-link">
-              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12.79 6.98L14.55 7.2A6.6 6.6 0 0 1 14.55 8.8L12.79 9.02A4.9 4.9 0 0 1 12.11 10.67L13.2 12.06A6.6 6.6 0 0 1 12.06 13.2L10.67 12.11A4.9 4.9 0 0 1 9.02 12.79L8.8 14.55A6.6 6.6 0 0 1 7.2 14.55L6.98 12.79A4.9 4.9 0 0 1 5.33 12.11L3.94 13.2A6.6 6.6 0 0 1 2.8 12.06L3.89 10.67A4.9 4.9 0 0 1 3.21 9.02L1.45 8.8A6.6 6.6 0 0 1 1.45 7.2L3.21 6.98A4.9 4.9 0 0 1 3.89 5.33L2.8 3.94A6.6 6.6 0 0 1 3.94 2.8L5.33 3.89A4.9 4.9 0 0 1 6.98 3.21L7.2 1.45A6.6 6.6 0 0 1 8.8 1.45L9.02 3.21A4.9 4.9 0 0 1 10.67 3.89L12.06 2.8A6.6 6.6 0 0 1 13.2 3.94L12.11 5.33A4.9 4.9 0 0 1 12.79 6.98Z"/><circle cx="8" cy="8" r="2"/></svg>
-              Settings
-            </span>
-            <span class="sb-link">
-              <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="3.5" r="1.2"/><circle cx="8" cy="8" r="1.2"/><circle cx="8" cy="12.5" r="1.2"/></svg>
-              More
-            </span>
-            <span class="sb-sec">Sessions</span>
-            <span class="sb-search">
-              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
-              <span>Search sessions</span>
-            </span>
-          </aside>
-          <div class="aw-main">
-            <div class="aw-conv">
-              <div class="msg-u">
-                <div class="b">Fix the failing watcher test</div>
-              </div>
-              <div class="think" data-mode="peek" data-live>
-                <span class="think-h">
-                  <svg class="think-star" viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"><path d="M366 154c5 33 20 48 53 53-33 5-48 20-53 53-5-33-20-48-53-53 33-5 48-20 53-53z"/></svg>
-                  <span class="think-label">Thinking… 4s</span>
-                  <svg class="think-chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4.5l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                </span>
-                <div class="think-b">
-                  <div class="think-t">Two change events reach the debounce.
-Track the last mtime per path to fold them.
-Then re-run just that test file.</div>
-                </div>
-              </div>
-              <div class="tools">
-                <div class="tools-h err">
-                  <span class="dot"></span>
-                  <span class="txt">Run npm test — watcher</span>
-                  <span class="cnt">3 failed</span>
-                </div>
-              </div>
-            </div>
-            <div class="aw-comp">
-              <div class="cbox">
-                <span class="ph">Type / for commands</span>
-                <span class="kbdh">
-                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13.5V3M3.5 7.5L8 3l4.5 4.5"/></svg>
-                </span>
-              </div>
-              <div class="crow">
-                <span class="cbtn">Ask permissions</span>
-                <span class="cbtn ico">
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M8 6.2v5.1M5.45 8.75h5.1"/></svg>
-                </span>
-                <span class="cbtn ico">
-                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.2 7.4l-4.9 4.9a3.3 3.3 0 01-4.67-4.67l5.2-5.2a2.2 2.2 0 013.11 3.11l-5.1 5.1a1.1 1.1 0 01-1.56-1.56l4.7-4.7"/></svg>
-                </span>
-                <span class="cbtn ico">
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M3 5.5l3 3-3 3M8.5 12h4.5"/></svg>
-                </span>
-                <span class="cbtn ico">
-                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 6.5l4 4 4-4"/></svg>
-                </span>
-                <span class="cbtn model"><span class="mono">deepseek-chat</span><span class="sep">·</span><span>Medium</span></span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      </div>
-      <dl class="spec">
-        <div>
-          <dt>License</dt>
-          <dd>MIT</dd>
-        </div>
-        <div>
-          <dt>Runs</dt>
-          <dd>Locally, on your machine</dd>
-        </div>
-        <div>
-          <dt>Models</dt>
-          <dd>Bring your own — DeepSeek, OpenAI, Anthropic, Ollama, OpenRouter, …</dd>
-        </div>
-      </dl>
+      <div class="hero-meta"><span><i></i>Runs locally</span><span>MIT licensed</span><span>Windows · macOS · Linux</span></div>
     </div>
   </section>
 
-  <!-- ============================ features ============================ -->
-  <section id="features" class="section">
+  <section class="preview">
     <div class="wrap">
-      <p class="eyebrow">01 — Features</p>
-      <h2>Six things it does well</h2>
-      <p class="lede">One desktop app, two modes, and a lot of care spent on the parts you stare at all day.</p>
-
-      <div class="features">
-        <article class="card">
-          <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-            <path d="M6 4.5h10A2.5 2.5 0 0 1 18.5 7v6a2.5 2.5 0 0 1-2.5 2.5H9.8L5.5 18.5a.5.5 0 0 1-.8-.4V7A2.5 2.5 0 0 1 6 4.5Z"/>
-            <path d="M9.4 8.4 7.6 10.2l1.8 1.8"/><path d="M13 8.4l1.8 1.8-1.8 1.8"/>
-          </svg>
-          <h3>Chat &amp; Code modes</h3>
-          <p>One app, two shapes. Chat is a folderless assistant for questions, drafts and ideas; Code is a full agent that reads, edits and runs commands in your project.</p>
-        </article>
-
-        <article class="card">
-          <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-            <rect x="2.2" y="7.6" width="17.6" height="7" rx="3.5"/>
-            <circle cx="7.7" cy="11.1" r="0.9" fill="currentColor" stroke="none"/>
-            <circle cx="11.1" cy="11.1" r="0.9" fill="currentColor" stroke="none"/>
-            <circle cx="14.5" cy="11.1" r="0.9" fill="currentColor" stroke="none"/>
-            <path d="M17.5 3.1c.3 1.2.9 1.8 2.1 2.1-1.2.3-1.8.9-2.1 2.1-.3-1.2-.9-1.8-2.1-2.1 1.2-.3 1.8-.9 2.1-2.1Z" fill="currentColor" stroke="none"/>
-          </svg>
-          <h3>Thinking, folded small</h3>
-          <p>Reasoning shows as a slim pill with a live peek, folds down to one line, and opens into a capped panel when you want it — never louder than the answer.</p>
-        </article>
-
-        <article class="card">
-          <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-            <rect x="2.8" y="3.8" width="16.4" height="14.4" rx="2.4"/>
-            <path d="M9.4 8.3v5.4l4.7-2.7-4.7-2.7Z"/>
-          </svg>
-          <h3>Artifacts that render</h3>
-          <p>The agent publishes pages, diagrams and documents right in the app — plus Motion scenes it records to MP4, saved into your project's <code>artifacts/</code> folder.</p>
-        </article>
-
-        <article class="card">
-          <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-            <path d="M11 2.6 4.8 5.1v4.7c0 3.9 2.6 7.3 6.2 8.6 3.6-1.3 6.2-4.7 6.2-8.6V5.1L11 2.6Z"/>
-            <path d="m8.3 10.8 1.9 1.9 3.5-3.9"/>
-          </svg>
-          <h3>Verified downloads</h3>
-          <p>Every file the agent fetches is checked end to end: official-source tier, TLS and RDAP owner checks, sha256, the Windows signature, a Defender scan and optional VirusTotal lookups. Nothing runs unless the verdict is CLEAN.</p>
-        </article>
-
-        <article class="card">
-          <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-            <path d="M7.3 2.9h5.3l4.9 4.9v9.3a1.3 1.3 0 0 1-1.3 1.3h-8.9a1.3 1.3 0 0 1-1.3-1.3V4.2a1.3 1.3 0 0 1 1.3-1.3Z"/>
-            <path d="M12.6 2.9v4.9h4.9"/>
-            <path d="M8.5 12.4h5M8.5 15.2h3.4"/>
-          </svg>
-          <h3>Custom agents</h3>
-          <p>Drop markdown files into <code>.star-code/agents/</code> and pick one with the task tool. They're read-only by default, so a specialist can't wander off script.</p>
-        </article>
-
-        <article class="card">
-          <svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-            <path d="M4.2 4.2v12.2a1.2 1.2 0 0 0 1.2 1.2h12.4"/>
-            <path d="m6.9 8.6 3.1 3 2.7-2.1 4 4.1"/>
-            <path d="M16.7 10.9v2.7h-2.7"/>
-          </svg>
-          <h3>Cheaper by design</h3>
-          <p>History windowing cut tokens by about 66% on long sessions and repeated file reads by about 89%. Subagents route to each provider's cheapest sensible model. The numbers come from the repo's own measure-savings tool.</p>
-        </article>
+      <div class="frame">
+        <div class="frame-bar"><i></i><i></i><i></i><span>Pulse Harness — Code session</span></div>
+        <img src="assets/app.png" alt="Pulse Harness desktop app showing a session, project files and the composer">
       </div>
+      <div class="preview-note"><span><b>One quiet workspace.</b> Chat, code, read, edit, run and ship without leaving the app.</span><span>Desktop · Web · Terminal</span></div>
     </div>
   </section>
 
-  <!-- ============================ CLI ============================ -->
-  <section id="cli" class="section">
-    <div class="wrap cli-grid">
-      <div class="cli-copy">
-        <p class="eyebrow">02 — Terminal</p>
-        <h2>Star Code CLI</h2>
-        <p class="lede">The same agent loop, tools and credential store as the app — in a full-screen TUI. Session tabs, the same slim thinking pill, and sessions that persist between runs.</p>
-
-        <div class="ways">
-          <div class="way">
-            <code>Star-Code-CLI-1.4.0.exe</code>
-            <p>Download and run — standalone, no Node install and no dependencies.</p>
-          </div>
-          <div class="way">
-            <code>npm i -g star-code-cli-1.4.0.tgz</code>
-            <p>On Node 18 or newer — installs the <b>star-code</b> command.</p>
-          </div>
-        </div>
-
-        <div class="cli-cta">
-          <a class="btn pri" href="https://github.com/Star-Code-Prod/Pulse-Harness/releases/latest" rel="noopener">
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-              <path d="M10 3.5v8.3"/><path d="m6.4 8.4 3.6 3.6 3.6-3.6"/><path d="M4 15.5h12"/>
-            </svg>
-            Download the CLI for Windows
-          </a>
-        </div>
-      </div>
-
-      <figure class="term">
-        <div class="term-bar" aria-hidden="true">
-          <span>star-code — PowerShell</span>
-          <span class="d">v1.4.0</span>
-        </div>
-        <pre><code><span class="t-dim">PS C:\dev&gt;</span> npm i -g star-code-cli-1.4.0.tgz
-<span class="t-dim">PS C:\dev&gt;</span> star-code
-<span class="t-accent">star-code 1.4.0</span> <span class="t-dim">· full-screen session</span>
-<span class="t-dim">/help for commands · ctrl+c stops</span>
-&gt; fix the failing test<span class="cursor" aria-hidden="true"></span></code></pre>
-      </figure>
-    </div>
-  </section>
-
-  <!-- ============================ screenshots ============================ -->
-  <section id="screenshots" class="section">
+  <section id="features">
     <div class="wrap">
-      <p class="eyebrow">03 — Screenshots</p>
-      <h2>Seen in the app</h2>
-      <p class="lede">Four unedited frames from Windows — the chat landing, reasoning mid-run, a Motion artifact, and the CLI.</p>
-
-      <div class="gallery">
-        <figure>
-          <div class="shot">
-            <div class="shot-bar" aria-hidden="true">
-              <img src="assets/icon.svg" alt="" width="16" height="16" />
-              <span class="t">Star · chat mode</span>
-              <span class="d">3000×1900</span>
-            </div>
-            <img src="assets/chat-mode-dark.png" width="3000" height="1900" loading="lazy" decoding="async" alt="Star in Chat mode: a sidebar with the Chat/Code switch, a prompt box reading “Ask Star anything”, and the choice between running locally or planning first." />
-          </div>
-          <figcaption>Questions, drafts and ideas with no folder open — the Chat/Code switch sits in the sidebar.</figcaption>
-        </figure>
-        <figure>
-          <div class="shot">
-            <div class="shot-bar" aria-hidden="true">
-              <img src="assets/icon.svg" alt="" width="16" height="16" />
-              <span class="t">Star · thinking live</span>
-              <span class="d">2400×1400</span>
-            </div>
-            <img src="assets/thinking-pill-live.png" width="2400" height="1400" loading="lazy" decoding="async" alt="A Star session mid-run: the thinking pill expanded to show a live peek of the model's reasoning, above the composer." />
-          </div>
-          <figcaption>Mid-run — the pill holds a live peek of the reasoning, then collapses back to a single line.</figcaption>
-        </figure>
-        <figure>
-          <div class="shot">
-            <div class="shot-bar" aria-hidden="true">
-              <img src="assets/icon.svg" alt="" width="16" height="16" />
-              <span class="t">Star · Motion player</span>
-              <span class="d">3000×1900</span>
-            </div>
-            <img src="assets/motion-player.png" width="3000" height="1900" loading="lazy" decoding="async" alt="The artifact player in Star showing a Motion scene called Bouncing Dot, with Play, a timeline, and a 720p 30 fps Record control." />
-          </div>
-          <figcaption>The artifact player rendering a Motion scene at 1280×720, 30 fps — one click from MP4.</figcaption>
-        </figure>
-        <figure>
-          <div class="shot">
-            <div class="shot-bar" aria-hidden="true">
-              <img src="assets/icon.svg" alt="" width="16" height="16" />
-              <span class="t">star-code · CLI</span>
-              <span class="d">1250×760</span>
-            </div>
-            <img src="assets/cli-tui.png" width="1250" height="760" loading="lazy" decoding="async" alt="The Star Code CLI in a full-screen terminal session, with session tabs, the thinking pill, and the slash-command menu open." />
-          </div>
-          <figcaption>A full-screen TUI session — session tabs up top, the thinking pill below, the / command menu on demand.</figcaption>
-        </figure>
+      <div class="section-head"><span class="eyebrow">What it is</span><h2>An agent, not a chat window.</h2><p>Pulse can read your project, make a plan, edit real files, run the tests and prove the result. Chat is for thinking; Code is for doing.</p></div>
+      <div class="grid">
+        <article class="card"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h10M4 18h7"/></svg></div><h3>Reads the whole context</h3><p>STAR.md, AGENTS.md, CLAUDE.md, project settings, git history, skills and knowledge all reach the model before it acts.</p></article>
+        <article class="card"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M14 4l-4 16"/></svg></div><h3>Edits real files</h3><p>Targeted edits, multi-file changes, a real diff review and a safe revert. Every change is yours to inspect.</p></article>
+        <article class="card"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l5-5 4 4 7-8"/><path d="M4 21h16"/></svg></div><h3>Proves the work</h3><p>Runs your own test command, starts the server, checks the output and reports exactly what it verified.</p></article>
+        <article class="card"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 7l7-4 7 4M5 7v10l7 4 7-4V7"/></svg></div><h3>Brings your tools</h3><p>Outlook, Slack, Notion, Linear, GitHub, Canvas and more connect through local MCP servers with your own tokens.</p></article>
+        <article class="card"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/></svg></div><h3>Works in parallel</h3><p>Git worktrees keep separate sessions on separate branches; research subagents explore in parallel without touching the work.</p></article>
+        <article class="card"><div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 7v6c0 4.5 3.4 7.4 8 8 4.6-.6 8-3.5 8-8V7l-8-4Z"/><path d="m9 12 2 2 4-4"/></svg></div><h3>Permission first</h3><p>Ask, accept edits, plan or bypass. Plan mode is read-only on the server, and every write or command is visible.</p></article>
       </div>
     </div>
   </section>
 
-  <!-- ============================ star history ============================ -->
-  <section id="history" class="section">
+  <section>
+    <div class="wrap split">
+      <div>
+        <span class="eyebrow">The harness</span>
+        <h2>Your model. Your data. No lock-in.</h2>
+        <p>Pulse is the harness around the model, not another hosted chatbot. DeepSeek, OpenAI, Anthropic, Google, OpenRouter, Ollama, LM Studio or any OpenAI-compatible endpoint — switch whenever you want.</p>
+        <ul class="checks">
+          <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg>Keys live in <code>~/.star-code/auth.json</code>, never in a Pulse server.</li>
+          <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg>Sessions, skills, connectors and diffs stay on disk.</li>
+          <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg>Only the provider you choose sees your prompts.</li>
+          <li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg>The same agent runs as desktop app, <code>pulse web</code>, and the Star Code CLI.</li>
+        </ul>
+      </div>
+      <div class="panel" aria-label="Example local setup">
+        <div class="panel-row"><span class="dot"></span><div><b>Model</b><span>deepseek-chat · your key</span></div><span class="tag">local</span></div>
+        <div class="panel-row"><span class="dot"></span><div><b>Project</b><span>~/code/my-project</span></div><span class="tag">git</span></div>
+        <div class="panel-row"><span class="dot"></span><div><b>Skills</b><span>40 built-in packs</span></div><span class="tag">ready</span></div>
+        <div class="panel-row"><span class="dot"></span><div><b>Connectors</b><span>7 apps available</span></div><span class="tag">optional</span></div>
+        <div class="panel-row"><span class="dot"></span><div><b>Permissions</b><span>ask before edits</span></div><span class="tag">manual</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="skills" id="skills">
     <div class="wrap">
-      <div class="history-head">
-        <p class="eyebrow">04 — Grown in the open</p>
-        <h2>Written in public</h2>
-        <p class="lede">Star is developed in the open: every commit, issue and release lives on GitHub.</p>
-        <div class="history-cta">
-          <a class="btn" href="https://github.com/Star-Code-Prod/Pulse-Harness" rel="noopener">
-            Open the repository
-            <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-              <path d="M5.8 14.2 14.2 5.8"/><path d="M7.2 5.8h7v7"/>
-            </svg>
-          </a>
-        </div>
+      <div class="section-head"><span class="eyebrow">Skills</span><h2>Procedures, not guesses.</h2><p>Skills are small SKILL.md packs with the exact steps for a job. Pulse ships 40 built in and loads the right one before it starts.</p></div>
+      <div class="skill-chips">
+        <span class="chip hot">asking-questions</span><span class="chip hot">pulse-harness</span><span class="chip">debugging</span><span class="chip">code-review</span><span class="chip">refactoring</span><span class="chip">tests</span><span class="chip">git</span><span class="chip">release</span><span class="chip">security</span><span class="chip">performance</span><span class="chip">research</span><span class="chip">planning</span><span class="chip">office</span><span class="chip">python</span><span class="chip">react</span><span class="chip">powershell</span>
       </div>
-      <figure class="chart">
-        <img src="assets/star-chart.svg" alt="Star history" width="900" height="260" loading="lazy" decoding="async" />
-        <figcaption>Star count over time for Star-Code-Prod/Pulse-Harness.</figcaption>
-      </figure>
+      <div class="skill-foot"><span><b>40 built-in procedures</b> · project, user and plugin skills can override any of them.</span><a href="https://github.com/Star-Code-Prod/Pulse-Harness/tree/main/desktop/skills" rel="noreferrer">Browse the skill library →</a></div>
     </div>
   </section>
 
+  <section id="connectors">
+    <div class="wrap">
+      <div class="section-head"><span class="eyebrow">Connectors</span><h2>Your tools, in the conversation.</h2><p>Search mail, read a page, move an issue or check a course — through local MCP servers with your own tokens.</p></div>
+      <div class="connectors-row">
+        <div class="conn"><img src="assets/connectors/outlook.svg" alt=""><span>Outlook</span></div>
+        <div class="conn"><img src="assets/connectors/slack.svg" alt=""><span>Slack</span></div>
+        <div class="conn"><img src="assets/connectors/notion.svg" alt=""><span>Notion</span></div>
+        <div class="conn"><img src="assets/connectors/linear.svg" alt=""><span>Linear</span></div>
+        <div class="conn"><img src="assets/connectors/github.svg" alt=""><span>GitHub</span></div>
+        <div class="conn"><img src="assets/connectors/canvas.svg" alt=""><span>Canvas</span></div>
+        <div class="conn"><img src="assets/pulse-harness-mark.png" alt=""><span>Ekonomi</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="wrap">
+      <div class="section-head"><span class="eyebrow">How it works</span><h2>From a sentence to a verified change.</h2><p>No hidden pipeline. The agent shows the plan, the tool calls and the result.</p></div>
+      <div class="steps">
+        <div class="step"><div class="n">01</div><h3>Point it at a folder</h3><p>Open a project or name one in chat. Pulse reads the instructions and the parts of the repo the task touches.</p></div>
+        <div class="step"><div class="n">02</div><h3>Say what you want</h3><p>It asks when a decision is genuinely yours, then plans and works. Use Chat for questions, Code for changes.</p></div>
+        <div class="step"><div class="n">03</div><h3>Review what changed</h3><p>Inspect the diff, run the tests, revert a change. The turn ends with files, commands and what was verified.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="final" id="download">
+    <div class="wrap">
+      <span class="eyebrow">Start locally</span>
+      <h2>Your next agent runs on your machine.</h2>
+      <p>Download Pulse Harness, bring a model key, and keep the rest private.</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="https://github.com/Star-Code-Prod/Pulse-Harness/releases" rel="noreferrer">Download for Windows</a>
+        <a class="btn btn-ghost" href="https://github.com/Star-Code-Prod/Pulse-Harness" rel="noreferrer">View on GitHub</a>
+      </div>
+      <div class="hero-meta"><span>MIT licensed</span><span>No account required</span><span>Bring your own model</span></div>
+    </div>
+  </section>
 </main>
 
-<footer class="site-foot">
-  <div class="wrap">
-    <div class="foot-row">
-      <span class="foot-brand">
-        <img src="assets/icon.svg" alt="" width="18" height="18" />
-        Star
-      </span>
-      <span class="ver">v1.4.0</span>
-      <nav class="foot-links" aria-label="Footer">
-        <a href="https://github.com/Star-Code-Prod/Pulse-Harness" rel="noopener">GitHub</a>
-        <a href="https://github.com/Star-Code-Prod/Pulse-Harness/releases" rel="noopener">Releases</a>
-        <a href="https://star-code-prod.github.io/Pulse-Harness/">Website</a>
-      </nav>
-    </div>
-    <p class="foot-legal">
-      MIT licensed ·
-      <a href="https://github.com/Star-Code-Prod/Pulse-Harness" rel="noopener">github.com/Star-Code-Prod/Pulse-Harness</a> ·
-      Star is an independent tool; not affiliated with any model vendor. ·
-      <a href="https://star-code-prod.github.io/Pulse-Harness/">star-code-prod.github.io/Pulse-Harness</a>
-    </p>
+<footer>
+  <div class="wrap foot">
+    <div>© 2026 Pulse Harness · built for local machines.</div>
+    <div class="foot-links"><a href="#features">Features</a><a href="#skills">Skills</a><a href="#connectors">Connectors</a><a href="https://github.com/Star-Code-Prod/Pulse-Harness" rel="noreferrer">GitHub</a><a href="https://github.com/Star-Code-Prod/Pulse-Harness/releases" rel="noreferrer">Releases</a></div>
   </div>
 </footer>
-
 </body>
 </html>
+

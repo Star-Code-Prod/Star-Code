@@ -32,7 +32,7 @@ import { scanOpencode, applyImport } from "./lib/opencode-import.js";
 // JSON-RPC to server commands the user configures. Tools surface as
 // mcp__<server>__<tool> and always ask for permission.
 import { createMcpManager, readMcpConfig, readMcpConfigText, writeMcpConfigText, parseMcpJson, mcpToolName } from "./lib/mcp.js";
-import { scanSkills, readSkillsConfig, writeSkillsConfig } from "./lib/skills.js";
+import { scanSkills, readSkillsConfig, writeSkillsConfig, writeSkill, deleteSkill } from "./lib/skills.js";
 import { pluginManager, readPluginsConfig, writePluginsConfig, userPluginsDir } from "./lib/plugins.js";
 import { extractOffice, officeKind } from "./lib/office.js";
 import { runHook } from "./lib/hooks.js";
@@ -79,7 +79,7 @@ const subagentControllers = new Map();
 // turn for its session falls back to prose.
 const askTurns = new Map();
 const SUBAGENT_BLOCKED = new Set(["write_file", "edit_file", "multi_edit", "run_command", "download", "fetch_url", "websearch", "task"]);
-const CHAT_TOOLS = ["websearch", "fetch_url", "self_knowledge", "search_knowledge", "task", "ask_user", "skill", "suggest_session", "preview"];
+const CHAT_TOOLS = ["websearch", "fetch_url", "self_knowledge", "search_knowledge", "task", "ask_user", "skill", "create_skill", "suggest_session", "preview"];
 
 /* --------------------------------- mcp ----------------------------------- */
 // The shared MCP manager: connects enabled servers at boot, exposes their
@@ -1203,6 +1203,24 @@ async function route(req, res) {
     }));
     return sendJSON(res, 200, { ok: true, skills, paths: readSkillsConfig().paths });
   }
+  if (req.method === "POST" && url.pathname === "/api/skills") {
+    try {
+      const body = await readBody(req);
+      const saved = writeSkill(ROOT, {
+        name: body.name, description: body.description, body: body.body,
+        scope: body.scope === "project" ? "project" : "user",
+      });
+      return sendJSON(res, 200, { ok: true, skill: saved, skills: scanSkills(ROOT).map((s) => ({ name: s.name, description: s.description, dir: s.dir, origin: s.origin })) });
+    } catch (e) {
+      return sendJSON(res, 400, { error: e.message });
+    }
+  }
+  if (req.method === "DELETE" && url.pathname === "/api/skills") {
+    const name = String(url.searchParams.get("name") || "");
+    const scope = url.searchParams.get("scope") === "project" ? "project" : "user";
+    const result = deleteSkill(ROOT, name, scope);
+    return sendJSON(res, result.ok ? 200 : 400, result);
+  }
   if (req.method === "POST" && url.pathname === "/api/skills/paths") {
     const body = await readBody(req);
     const paths = Array.isArray(body.paths) ? body.paths : [];
@@ -1473,6 +1491,7 @@ async function route(req, res) {
     // questions, suggestions, permission verdicts), anchored by count.
     const visible = s.messages
       .filter((m) => m.role !== "system")
+      .filter((m) => !(m.role === "assistant" && /^\[older turn\]/.test(String(m.content))))
       .map((m) => String(m.content).startsWith("Tool result for ")
         ? { role: "user", content: m.content, tool: true }
         : { role: m.role, content: m.content });

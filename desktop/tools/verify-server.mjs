@@ -658,6 +658,16 @@ try {
       list1.skills.some((x) => x.name === "verify-fixture" && x.origin === "project" && /Fixture skill/.test(x.description)),
       JSON.stringify(list1.skills.map((x) => x.name)));
 
+    const madeSkill = await (await fetch(s.url + "/api/skills", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Created Fixture", description: "Made through the API", body: "Step one.", scope: "project" }),
+    })).json();
+    const listCreated = await (await fetch(s.url + "/api/skills")).json();
+    ok("the skills API creates a new project skill",
+      madeSkill.ok && listCreated.skills.some((x) => x.name === "created-fixture" && x.origin === "project"));
+    const removedSkill = await (await fetch(s.url + "/api/skills?name=created-fixture&scope=project", { method: "DELETE" })).json();
+    ok("the skills API deletes a user-created skill", removedSkill.ok);
+
     await fetch(s.url + "/api/skills/paths", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ paths: [extraDir] }),

@@ -74,7 +74,11 @@ export function pruneOldToolResults(messages) {
 /** One-line deterministic summary of a message older than the verbatim window. */
 function summariseOldMessage(m) {
   if (m.role === "assistant") {
-    const { text, calls } = parseAssistantContent(String(m.content || ""));
+    const raw = String(m.content || "");
+    // Already a summary: leave it byte-identical so manageHistory stays
+    // idempotent and never stacks "Earlier: Earlier: ...".
+    if (raw.startsWith("Earlier:")) return raw;
+    const { text, calls } = parseAssistantContent(raw);
     // A content line beats a heading: the first non-heading line is almost
     // always the turn's point ("Added the auth flow ...").
     const lines = text.split("\n")
@@ -82,21 +86,18 @@ function summariseOldMessage(m) {
       .filter((l) => l && !/^#{1,6}\s/.test(l) && !/^[-*]\s*$/.test(l));
     const head = (lines[0] || "").replace(/\*\*|__/g, "");
     // What the turn touched is the part worth keeping: created/edited files
-    // by name, then the tool names it ran.
+    // by name. Tool names are deliberately omitted - they made the model
+    // echo summaries like "[called: ask_user]" back as prose.
     const files = [...new Set(calls
       .filter((c) => (c.name === "write_file" || c.name === "edit_file" || c.name === "multi_edit") && c.args && c.args.path)
       .map((c) => String(c.args.path).split(/[\\/]/).filter(Boolean).pop()))].slice(0, 4);
-    const names = [...new Set(calls.map((c) => c.name))];
-    const fileNote = files.length ? " [files: " + files.join(", ") + "]" : "";
-    const suffix = names.length ? " [called: " + names.slice(0, 8).join(", ") + "]" : "";
-    const tail = fileNote + suffix;
-    // room = 13 ("[older turn] ") + body + tail under SUMMARY_CHARS, so a
-    // second summarise pass is a no-op (idempotent).
-    const room = Math.max(40, SUMMARY_CHARS - 13 - tail.length);
-    return "[older turn] " + ((head || "(assistant replied)").slice(0, room)) + tail;
+    if (!head && !files.length) return "Earlier: I asked the user a clarifying question.";
+    const fileNote = files.length ? " Edited " + files.join(", ") + "." : "";
+    const room = Math.max(40, SUMMARY_CHARS - "Earlier: ".length - fileNote.length);
+    return "Earlier: " + (head || "I completed a step").slice(0, room) + fileNote;
   }
   const head = String(m.content || "").split("\n").find((l) => l.trim())?.trim() || "";
-  return "[older message] " + head.slice(0, SUMMARY_CHARS - 15); // 15 = "[older message] "
+  return "Earlier user message: " + head.slice(0, SUMMARY_CHARS - 22);
 }
 
 /**
@@ -112,7 +113,22 @@ function summariseOldMessage(m) {
  * Idempotent: a second call with the same budget frees 0 chars.
  * Returns freed chars, same shape as pruneOldToolResults.
  */
+/** Old persisted summaries used bracketed tool tags that the model copied
+ *  back into visible prose. Rewrite them in place before a turn sees them. */
+function normaliseLegacySummaries(messages) {
+  for (const m of messages) {
+    if (!m || typeof m.content !== "string") continue;
+    if (m.role === "assistant" && m.content.startsWith("[older turn]")) {
+      m.content = "Earlier: " + m.content.slice("[older turn] ".length)
+        .replace(/\s*\[(?:files|called):[^\]]*\]/g, "").trim();
+    } else if (m.role === "user" && m.content.startsWith("[older message]")) {
+      m.content = "Earlier user message: " + m.content.slice("[older message] ".length);
+    }
+  }
+}
+
 export function manageHistory(messages, budgetEstimate = Infinity) {
+  normaliseLegacySummaries(messages);
   let freed = pruneOldToolResults(messages);
 
   // pass 2: verbatim window = the last KEEP_RECENT_TURNS assistant turns and
@@ -385,6 +401,7 @@ ${PULSE_DOC}Tools you can call:
 - task: spawn read-only research subagents with fresh context - one call per mission; several missions (or reads) in one step run in parallel. A subagent can read any absolute path on this machine (local folders, projects, reference corpora), which is how Chat reaches files at all
 - question (alias ask_user): ask the user up to four questions with 2-4 clickable options each (recommended option first) or allowOther:true for a typed answer - the friendliest way to ask for a decision, and the user answers by clicking or typing
 - skill: load a skill pack when its description matches the task. Pulse ships 40 built-in packs (asking-questions, pulse-harness, research, summarizing, planning, technical-writing and more) - a skill carries exact procedures; load it first, then follow it
+- create_skill: save a new reusable procedure as a SKILL.md pack when the user asks you to remember a workflow
 - suggest_session: when a request clearly doesn't belong to this conversation's topic, offer a fresh session as a clickable card (a real title + one-sentence description) instead of stretching this thread to cover it
 
 To call a tool, emit one or more blocks, then stop and wait for the results:
@@ -456,7 +473,7 @@ const PULSE_DOC = `## Asking and answering
 - Research: websearch and fetch_url (they ask for permission; plan mode blocks them), task for parallel read-only explorer subagents with exact paths and questions, download for files (strict doctrine below), self_knowledge for Pulse Harness itself.
 - Memory and context: search_knowledge (project knowledge), memory (remember preferences across sessions), template (house style), bind the folder the user names, schedule (recurring work), trace (recent tool calls), connector (MCP wiring).
 - Deliver: chart (bar/line/pie SVG), deliver_file (hand over a finished file), preview (look at and drive the live Preview pane).
-- Interact: question/ask_user, skill, suggest_session (offer a click-to-start card for a genuinely different task).
+- Interact: question/ask_user, skill (load a pack) and create_skill (save a reusable pack), suggest_session (offer a click-to-start card for a genuinely different task).
 
 ## Calling tools
 - Emit one or more \`\`\`tool blocks, then STOP and wait for the results. Never fabricate a tool result or quote output you did not see.
@@ -530,7 +547,7 @@ function buildSystemPrompt(root, mode, extraTools = [], skillCatalog = "") {
 
   return `You are a coding agent working in: ${root}
 ${PULSE_DOC}${memBlock}${cfgBlock}${rememberBlock}${knBlock}${mapBlock}${skBlock}${planNote}
-Tools: read_file, list_dir, search_files, glob_files, write_file, edit_file, multi_edit, run_command, test_run, git_status, git_diff, git_log, git_commit, office_read, office_write, memory, template, chart, schedule, trace, connector, deliver_file, download, search_knowledge, task, fetch_url, websearch, self_knowledge, question (alias ask_user), skill, use_folder, preview.
+Tools: read_file, list_dir, search_files, glob_files, write_file, edit_file, multi_edit, run_command, test_run, git_status, git_diff, git_log, git_commit, office_read, office_write, memory, template, chart, schedule, trace, connector, deliver_file, download, search_knowledge, task, fetch_url, websearch, self_knowledge, question (alias ask_user), skill, create_skill, use_folder, preview.
 The "Tools by job" guide above maps every tool to its job and the "Calling tools" rules cover the call shape. Use test_run after edits instead of claiming a test passed; use git_diff/git_status before describing changes; use office_read/office_write for Word/Excel/PowerPoint instead of plain text files. Load the matching skill from the catalog before specialized work and follow it.
 task spawns a read-only explorer subagent with fresh context for research: one call per mission, and independent calls in one step (missions, reads, searches) run in parallel. Send missions to verify facts that live outside this conversation - reference corpora, other projects, big codebases - with exact paths and precise questions, and demand evidence back (file, line, signature). Never state a checkable fact you could have sent a mission to verify, and never hand over a scaffold stamped "unverified" when a mission could have read the source first. fetch_url and websearch ask for permission and plan mode blocks them; download fetches a file with source, hash, signature and virus checks (see the doctrine below); self_knowledge answers questions about Pulse Harness itself; ask_user shows the user 1-4 questions with 2-4 clickable options each (put the recommended option first, labelled "(Recommended)") or a freeform answer when allowOther is true - prefer a click over a prose question whenever a decision is needed; skill loads an available skill pack - when a skill's description matches the task, load it and follow its procedure exactly; use_folder sets this session's working folder when the user names one in chat - adopt it the moment they say it (never tell them to pick a project; they type the folder, you bind it); suggest_session offers a click-to-start card when the user's request clearly begins a DIFFERENT task than this session's work (another project, another idea) - offer it once with a real title and a one-sentence description, then keep helping here either way.
 

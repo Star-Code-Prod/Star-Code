@@ -409,7 +409,7 @@ ok("manageHistory keeps the system message", hist[0].role === "system" && hist[0
 ok("manageHistory keeps the first user message", hist[1].content === "TASK");
 const keptBodies = hist.filter((m) => typeof m.content === "string" && m.content.startsWith(TOOL_RESULT_PREFIX) && m.content.length > 500).length;
 ok("recent tool results kept verbatim", keptBodies === 4, String(keptBodies));
-ok("old turns are summarised", hist.some((m) => m.role === "assistant" && String(m.content).startsWith("[older turn]")));
+ok("old turns are summarised", hist.some((m) => m.role === "assistant" && String(m.content).startsWith("Earlier:")));
 ok("manageHistory lowers the token estimate", estimateTokens(hist) < preTokens);
 
 // A summary keeps the useful part: the point of the turn and the files it
@@ -424,9 +424,9 @@ ok("manageHistory lowers the token estimate", estimateTokens(hist) < preTokens);
     sh.push(toolMsg(7000));
   }
   manageHistory(sh, 1_000_000);
-  const sum = sh.map((m) => String(m.content)).find((c) => c.startsWith("[older turn]")) || "";
+  const sum = sh.map((m) => String(m.content)).find((c) => c.startsWith("Earlier:")) || "";
   ok("a summary keeps the point and the edited file",
-    sum.includes("Added the login flow") && sum.includes("[files: login.js]") && sum.includes("[called: edit_file]"),
+    sum.includes("Added the login flow") && sum.includes("Edited login.js") && !sum.includes("[called:"),
     sum.slice(0, 120));
 }
 const snapHist = JSON.stringify(hist);
@@ -667,6 +667,10 @@ ok("multi_edit is dangerous", mr.isDangerous("multi_edit") === true);
     mr.isDangerous("question") === false && decisionFor("manual", "question", empty) === "allow");
   const qAlias = await mr.run("question", { questions: [{ question: "Pick", options: [{ label: "A" }, { label: "B" }] }] });
   ok("the question alias falls back to prose without a UI hook", /plain prose/.test(qAlias), qAlias);
+  const qObj = await mr.run("ask_user", { question: "Pick", options: [{ label: "A" }, { label: "B" }] });
+  const qStr = await mr.run("ask_user", JSON.stringify({ question: "Pick", options: [{ label: "A" }, { label: "B" }] }));
+  ok("ask_user accepts a single object and a JSON string",
+    /plain prose/.test(qObj) && /plain prose/.test(qStr), qObj + " / " + qStr);
 
   // Without a UI hook the tool falls back to prose instead of hanging.
   const bare = await mr.run("ask_user", { questions: [{ question: "Pick", options: [{ label: "A" }, { label: "B" }] }] });
@@ -746,7 +750,7 @@ ok("multi_edit is dangerous", mr.isDangerous("multi_edit") === true);
 
 /* ----------------------------- skills: SKILL.md ---------------------------- */
 {
-  const { scanSkills, catalogText, loadSkill, readSkillsConfig, writeSkillsConfig } =
+  const { scanSkills, catalogText, loadSkill, readSkillsConfig, writeSkillsConfig, writeSkill } =
     await import(pathToFileURL(path.resolve("lib/skills.js")).href);
 
   const sroot = fs.mkdtempSync(path.join(os.tmpdir(), "star-skills-"));
@@ -781,6 +785,10 @@ ok("multi_edit is dangerous", mr.isDangerous("multi_edit") === true);
     found.filter((s) => s.origin === "builtin").length === 40 &&
     found.some((s) => s.name === "asking-questions" && s.origin === "builtin") &&
     found.some((s) => s.name === "pulse-harness" && s.origin === "builtin"));
+  const created = writeSkill(sroot, { name: "My New Skill!", description: "Use when testing", body: "Step one.", scope: "project" });
+  ok("a new skill is created in the project scope with a safe slug",
+    created.name === "my-new-skill" && created.origin === "project" &&
+    fs.existsSync(created.file) && scanSkills(sroot).some((s) => s.name === "my-new-skill"));
   const dep = found.find((s) => s.name === "deploy");
   ok("frontmatter drives name and description",
     dep.origin === "project" && dep.description === "Ship it: build, sign, upload, verify",

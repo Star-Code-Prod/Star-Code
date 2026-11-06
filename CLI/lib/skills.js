@@ -205,3 +205,38 @@ export function loadSkill(root, name) {
   }
   return out;
 }
+
+/** Create or replace one skill in the user or project scope. The slug is
+ *  normalized so a name the model invents is still a safe folder name. */
+export function writeSkill(root, { name, description = "", body = "", scope = "user" } = {}) {
+  const slug = String(name || "").trim().toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 64);
+  if (!slug) throw new Error("skill needs a name (letters, digits and dashes)");
+  const text = String(body || "").trim();
+  if (!text) throw new Error("skill needs instructions in its body");
+  let desc = String(description || "").trim().slice(0, 400);
+  if (!desc) desc = text.split(/\r?\n/).find((l) => l.trim() && !l.trim().startsWith("#"))?.trim() || "Custom skill";
+  const base = scope === "project"
+    ? path.join(path.resolve(root || "."), ".star-code", "skills")
+    : path.join(dataDir(), "skills");
+  const dir = path.join(base, slug);
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, "SKILL.md");
+  const frontmatter = "---\nname: " + slug + "\ndescription: " + JSON.stringify(desc) + "\n---\n\n";
+  fs.writeFileSync(file, frontmatter + text.slice(0, BODY_CAP) + "\n", "utf8");
+  return { name: slug, description: desc, dir, file, origin: scope === "project" ? "project" : "user" };
+}
+
+/** Remove a user/project skill. Built-in and extra-path skills are protected. */
+export function deleteSkill(root, name, scope = "user") {
+  const slug = String(name || "").trim().toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 64);
+  if (!slug) return { ok: false, error: "skill needs a name" };
+  const base = scope === "project"
+    ? path.join(path.resolve(root || "."), ".star-code", "skills")
+    : path.join(dataDir(), "skills");
+  const dir = path.join(base, slug);
+  if (!fs.existsSync(dir)) return { ok: false, error: "skill not found in " + scope + " skills" };
+  fs.rmSync(dir, { recursive: true, force: true });
+  return { ok: true, name: slug, scope };
+}

@@ -16,7 +16,7 @@ import { selfKnowledge } from "./selfdoc.js";
 import { classifySource } from "./sources.js";
 import { reputationReport } from "./reputation.js";
 import { getAgent, listAgents } from "./agents.js";
-import { loadSkill } from "./skills.js";
+import { loadSkill, writeSkill } from "./skills.js";
 import {
   gitStatus, gitDiff, gitLog, gitCommit, testRun, officeRead, officeWrite,
   memoryOp, templateOp, chartWrite, scheduleOp, traceAppend, traceTail, connectorOp,
@@ -124,6 +124,12 @@ export const TOOL_SPECS = [
     description: "Load a skill - a SKILL.md pack of exact instructions for a specialized task - when a skill in the catalog matches what you are doing. Pulse ships 40 built-in packs (asking-questions, pulse-harness, debugging, code-review, git, release, security, tests, office, research and more); load the matching one BEFORE starting the specialized work and follow its procedure exactly, reading its resource files with read_file.",
     dangerous: false,
     schema: { name: "string" },
+  },
+  {
+    name: "create_skill",
+    description: "Create a new SKILL.md pack the user and future turns can load. Use it when the user asks to save a reusable procedure, or when a workflow proved valuable and they want it remembered. Give a short dashed name, a one-line description that says exactly when to use it, and a complete step-by-step body.",
+    dangerous: true,
+    schema: { name: "string", description: "string?", body: "string", scope: "string?" },
   },
   {
     name: "use_folder",
@@ -1409,9 +1415,15 @@ export function createToolRunner(root, opts = {}) {
     return elide(String((out && out.text) || "(no findings)"), 8000, "subagent findings");
   }
 
-  async function ask_user({ questions }) {
-    const list = normalizeAskQuestions(questions);
-    if (!list.length) throw new Error("question needs 1-4 questions, each with options or allowOther:true");
+  async function ask_user(args = {}) {
+    // Models arrive in several shapes: {questions:[...]}, a single
+    // {question, options} object, a JSON string, or even the array itself.
+    // Accept all of them instead of throwing away a valid question.
+    const input = args && typeof args === "object" && !Array.isArray(args) && "questions" in args
+      ? args.questions
+      : args;
+    const list = normalizeAskQuestions(input);
+    if (!list.length) throw new Error("question needs 1-4 questions, each with 2-4 options or allowOther:true (received " + JSON.stringify(args).slice(0, 240) + ")");
     if (!askUser) return "(this environment has no clickable questions - ask the user in plain prose instead)";
     const answers = await askUser(list);
     // null/undefined = nobody could click (no live turn): same prose fallback.
@@ -1508,7 +1520,11 @@ export function createToolRunner(root, opts = {}) {
     schedule: (a) => scheduleOp(root, a),
     trace: (a) => traceTail(root, a),
     connector: (a) => connectorOp(root, { ...a, args: parseArgs(a && a.args) }),
-    skill: ({ name }) => loadSkill(root, name),
+    skill: (a) => loadSkill(root, typeof a === "string" ? a : (a && (a.name || a.skill)) || ""),
+    create_skill: (a) => {
+      const s = writeSkill(root, a || {});
+      return "Created skill \"" + s.name + "\" (" + s.origin + "): " + s.file;
+    },
     self_knowledge: ({ topic }) => selfKnowledge(topic),
   };
 

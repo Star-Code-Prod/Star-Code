@@ -1,5 +1,13 @@
 # What's new in Pulse Harness
 
+## 1.30.0 — 2026-11-06
+- **Questions work in every shape.** `ask_user` now accepts `{questions:[…]}`, a single `{question, options}` object, a JSON string or a bare array; a malformed call explains what it received instead of silently failing. This fixes the repeated “question needs 1-4 questions” loop.
+- **History summaries stop leaking.** Old turns are summarised as natural “Earlier: …” prose with no `[older turn]`, `[files: …]` or `[called: ask_user]` tags; existing bracketed summaries are rewritten before the model sees them and hidden from the transcript.
+- **Skills can be created by the user and the AI.** Settings > Skills has a **New skill** sheet (name, trigger, instructions, user/project scope) and delete for user/project skills. Code sessions gain a `create_skill` tool, and `skill` accepts a string or `{name}`.
+- **Connectors use the real brand logos.** Outlook, Slack, Notion, Linear, GitHub and Canvas now load official SVG marks on white tiles instead of generated letters; Ekonomi keeps the bank glyph.
+- **A new Pulse Harness website.** The marketing site is rebuilt around the app's violet identity — a clean hero, real app screenshot, feature grid, skill library, connector row, three-step flow and download CTA.
+- **Update log** includes these notes.
+
 ## 1.29.1 — 2026-11-05
 - **A much smarter system prompt.** Both Chat and Code prompts now teach the full operating loop (orient, plan, act, verify, report), a skill-first rule, a complete tools-by-job map, the call shape for tool blocks, the permission modes and the app's real surfaces. Chat also learns `search_knowledge` and the 40 built-in skills; the `skill` and `question` tools explain when to use them.
 - **The self manual is current again** with `pulse web`, the new repo, the worked-for process timeline and the card markdown.
