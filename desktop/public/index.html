@@ -1863,7 +1863,7 @@ body.files-open .sb-tree{display:block}
 .hbtn{width:28px;height:28px;border-radius:7px}
 #stream{padding:34px 24px;gap:28px}
 #stream > *{max-width:var(--col)}
-.msg-u .b{padding:10px 16px;border-radius:20px;background:var(--panel2);font-size:14px;line-height:1.55;max-width:80%}
+.msg-u .b{padding:10px 16px;border-radius:20px;background:color-mix(in srgb,var(--brand) 8%,var(--panel2));font-size:14px;line-height:1.55;max-width:80%}
 .msg-a{font-size:15px;line-height:1.68;padding:0 2px}
 .msg-a h1{font-size:22px}
 .msg-a h2{font-size:18px}
@@ -1873,9 +1873,9 @@ body.files-open .sb-tree{display:block}
 .landing .lmark,.landing .lmark img{width:48px;height:48px;border-radius:12px;box-shadow:none}
 .landing h1{font-size:var(--fs-30);font-weight:500;letter-spacing:-.04em;line-height:1.15}
 .landing .lsub{margin-top:-2px;font-size:13px;max-width:460px;color:var(--muted)}
-.bigbox{width:min(760px,100%);padding:14px 14px 10px;border-radius:20px;border:1px solid var(--border);background:var(--panel);box-shadow:0 12px 40px -28px rgba(0,0,0,.65)}
+.bigbox{width:min(760px,100%);padding:11px 14px 7px;border-radius:20px;border:1px solid var(--border);background:var(--panel);box-shadow:0 12px 40px -28px rgba(0,0,0,.65)}
 .bigbox:focus-within{border-color:var(--brand-line);box-shadow:0 0 0 4px var(--brand-soft)}
-.bigbox textarea{font-size:15px;line-height:1.55;min-height:48px}
+.bigbox textarea{font-size:15px;line-height:1.55;min-height:36px}
 .starters{gap:8px;margin-top:2px}
 .chip{padding:7px 12px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11.5px}
 .chip:hover{background:var(--panel);border-color:var(--border2);color:var(--text)}
@@ -1909,9 +1909,44 @@ body.files-open .sb-tree{display:block}
 .cm-field input,.cm-field textarea,.cm-field select{border-color:var(--border);background:var(--bg)}
 .cm-h .conn-ico{border-radius:10px}
 
+
+/* ================= ECOGPT-STYLE LANDING / ICON RAIL ================= */
+body.rail .sidebar{width:64px;min-width:64px;padding:10px 6px;border-right:1px solid color-mix(in srgb,var(--border) 55%,transparent)}
+body.rail .sb-brand{justify-content:center;padding:2px 0 14px}
+body.rail .sb-word,body.rail .sb-mini,body.rail .sb-modes,
+body.rail .sb-sec,body.rail .sessions,body.rail .sb-search,
+body.rail .pf-sec,body.rail .sb-tree,body.rail .sb-grip{display:none}
+body.rail .sb-mark img{width:28px;height:28px}
+body.rail .sb-nav-row span{display:none}
+body.rail .sb-links{padding:0}
+body.rail .sb-nav{align-items:center;gap:4px}
+body.rail .sb-nav-row{width:42px;height:42px;padding:0;justify-content:center;border-radius:999px;color:var(--muted)}
+body.rail .sb-nav-row svg{width:18px;height:18px;opacity:1}
+body.rail .sb-nav-row:hover{background:var(--hover);color:var(--text)}
+body.rail .sb-nav-row.on{background:var(--panel);color:var(--text)}
+body.rail .sidebar::-webkit-scrollbar{width:0}
+.lwordmark{
+  display:block;font-family:var(--font-sans);font-size:clamp(52px,7vw,68px);font-weight:600;
+  line-height:1;letter-spacing:-.075em;padding:0 0 2px 3px;
+  background:linear-gradient(100deg,var(--brand-strong),var(--accent) 48%,var(--brand));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.landing .lmark,.landing h1,.landing .lsub{display:none}
+.landing{gap:24px}
+.bigbox,.cwrap{border-color:transparent}
+.bigbox:focus-within,.cwrap:focus-within{border-color:var(--brand-line)}
+.starters{max-width:680px;gap:10px}
+.starters .chip{height:40px;padding:0 16px;border:0;border-radius:999px;background:var(--panel2);color:var(--text);font-size:13px;gap:8px}
+.starters .chip:hover{background:var(--panel);color:var(--text)}
+.starters .chip svg{width:16px;height:16px}
+.starters .chip:nth-child(1) svg{color:var(--brand)}
+.starters .chip:nth-child(2) svg{color:var(--add-fg)}
+.starters .chip:nth-child(3) svg{color:var(--del-fg)}
+.starters .chip:nth-child(4) svg{color:var(--tok-n)}
+
 </style>
 </head>
-<body>
+<body class="rail">
 
 <div class="boot" id="boot" role="status" aria-live="polite">
   <div class="boot-in">
@@ -1924,7 +1959,7 @@ body.files-open .sb-tree{display:block}
 <!-- ==================== TITLE BAR ==================== -->
 <div class="titlebar">
   <div class="left">
-    <button class="icon-btn" id="btnSidebar" title="Toggle sidebar" aria-label="Toggle sidebar">
+    <button class="icon-btn" id="btnSidebar" title="Expand sidebar" aria-label="Expand sidebar">
       <svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="2.5"/><path d="M6 2.5v11"/></svg>
     </button>
     <span class="tb-div" aria-hidden="true"></span>
@@ -1990,15 +2025,15 @@ body.files-open .sb-tree{display:block}
     </div>
     <div class="sb-links">
       <nav class="sb-nav" aria-label="Workspace navigation">
-        <button class="sb-nav-row" id="navNew">
+        <button class="sb-nav-row" id="navNew" title="New session" aria-label="New session">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>
           <span>New</span>
         </button>
-        <button class="sb-nav-row" id="navSearch">
+        <button class="sb-nav-row" id="navSearch" title="Search sessions" aria-label="Search sessions">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
           <span>Search</span>
         </button>
-        <button class="sb-nav-row" id="navProjects">
+        <button class="sb-nav-row" id="navProjects" title="Projects" aria-label="Projects">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="1.8" y="4.2" width="12.4" height="9.4" rx="1.8"/><path d="M5.5 4.2V2.8h5v1.4M5.6 7.2h4.8"/></svg>
           <span>Projects</span>
         </button>
@@ -2047,13 +2082,14 @@ body.files-open .sb-tree{display:block}
     <div id="stream" style="display:none"></div>
 
     <div class="landing" id="landing">
+      <div class="lwordmark" aria-hidden="true">pulse</div>
       <span class="lmark" aria-hidden="true">
         <img class="brand-logo" src="/assets/pulse-harness-glyph.png" alt="Pulse Harness" width="58" height="58">
       </span>
       <h1 id="landingTitle">What should we build today?</h1>
       <p class="lsub">Reads, searches, edits, and runs commands in this folder — right here on your machine.</p>
       <div class="bigbox">
-        <textarea id="bigInput" rows="2" placeholder="Describe a task or ask a question about the project" aria-label="Describe a task"></textarea>
+        <textarea id="bigInput" rows="2" placeholder="Ask Pulse anything" aria-label="Ask Pulse anything"></textarea>
         <div class="crow">
           <button class="cbtn" id="bigProj" title="Working directory">
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M1.8 4.5A1.5 1.5 0 013.3 3h2.4l1.3 1.6h5.7a1.5 1.5 0 011.5 1.5v5.4a1.5 1.5 0 01-1.5 1.5H3.3a1.5 1.5 0 01-1.5-1.5z"/></svg>
@@ -2848,7 +2884,7 @@ const UI_COPY = {
     title: "What should we build today?",
     sub: "Reads, searches, edits, and runs commands in this folder — right here on your machine.",
     placeholder: "Type / for commands",
-    bigPlaceholder: "Describe a task or ask a question about the project",
+    bigPlaceholder: "Ask Pulse anything",
   },
   chat: {
     title: "Chat with Pulse",
@@ -3330,11 +3366,28 @@ function showPane(id) {
 function toggleSidebar(show) {
   const el = $("sidebar");
   if (!el) return;
-  const visible = getComputedStyle(el).display !== "none";
-  const next = show === undefined ? !visible : !!show;
-  el.style.display = next ? "flex" : "none";
-  document.body.classList.toggle("sb-over", next && innerWidth <= 820);
+  if (innerWidth <= 820) {
+    const visible = getComputedStyle(el).display !== "none";
+    const next = show === undefined ? !visible : !!show;
+    el.style.display = next ? "flex" : "none";
+    document.body.classList.toggle("sb-over", next);
+    return;
+  }
+  // Desktop: the sidebar has a compact icon rail and the full session list.
+  const expand = show === undefined ? document.body.classList.contains("rail") : !!show;
+  document.body.classList.toggle("rail", !expand);
+  el.style.display = "flex";
+  const btn = $("btnSidebar");
+  if (btn) {
+    const label = expand ? "Collapse sidebar" : "Expand sidebar";
+    btn.title = label;
+    btn.setAttribute("aria-label", label);
+  }
+  try { localStorage.setItem("pulse.sidebarRail", expand ? "0" : "1"); } catch { /* storage may be disabled */ }
 }
+try {
+  if (localStorage.getItem("pulse.sidebarRail") === "0") document.body.classList.remove("rail");
+} catch { /* storage may be disabled */ }
 function hidePane(id) { closePaneTab(id); }
 
 /** The preview card is either showing something or saying "not running".

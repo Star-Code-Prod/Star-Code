@@ -1,5 +1,13 @@
 # What's new in Pulse Harness
 
+## 1.32.0 — 2026-11-06
+- **Pulse now opens like EcoGPT.** The full sidebar starts as a 64px icon rail — brand, New, Search, Projects — and the panel button expands the session history and project files whenever you want them.
+- **A wordmark-first landing.** The old greeting and explainer are gone. A large lowercase **pulse** wordmark sits above one wide composer reading **“Ask Pulse anything.”**
+- **EcoGPT-style suggestion pills.** The four starters are now roomy rounded pills with colored icons, matching the reference layout.
+- **A softer conversation.** User bubbles carry a faint violet tint; assistant answers stay plain and borderless in a centered column.
+- **Both themes follow the same shape**, so light mode keeps the icon rail and wordmark instead of reverting to a dashboard.
+- **Update log** includes these notes.
+
 ## 1.31.0 — 2026-11-06
 - **The desktop app has a calmer, ChatGPT/EcoGPT-style shell.** Neutral charcoal surfaces replace the warm paper palette, the sidebar is narrower with title-only history rows, the conversation sits in a 760px column, and messages, inputs and buttons use soft pills instead of hard dashboard cards.
 - **A floating, rounded composer.** The prompt box now matches the landing card, with the model/agent controls inside it and a violet send button.
