@@ -2200,6 +2200,11 @@ body.preview-full .pane-row[data-pane="preview"] .pane-sub{height:52px;padding:0
 @media(max-width:640px){.artifactcard{align-items:flex-start;flex-wrap:wrap}.artifactcard .ac-actions{width:100%;margin-left:39px}.artifactcard .ac-main{width:calc(100% - 41px)}}
 #artDlg .art-card.full{width:100vw;height:100vh;max-width:none;max-height:none;border-radius:0;border:0}
 #artDlg:has(.art-card.full){padding:0;background:var(--bg);backdrop-filter:none}
+
+.proc{position:relative;padding-bottom:6px}
+.proc::after{content:"";position:absolute;left:0;right:0;bottom:-2px;height:12px;pointer-events:none;background:linear-gradient(180deg,color-mix(in srgb,var(--text) 9%,transparent),transparent);opacity:.55}
+.proc.open::after,.proc.live::after{opacity:1}
+.proc-h{box-shadow:0 1px 0 color-mix(in srgb,var(--border) 75%,transparent)}
 </style>
 </head>
 <body>
@@ -5260,8 +5265,13 @@ function showLanding() {
   $("jumpBtn").classList.remove("on");
   focusComposer();
 }
+let followStream = true;
 function atBottom() { const s = $("stream"); return s.scrollHeight - s.scrollTop - s.clientHeight < 120; }
-function scrollDown(force) { const s = $("stream"); if (force || atBottom()) s.scrollTop = s.scrollHeight; }
+function scrollDown(force) {
+  const s = $("stream");
+  if (force || followStream || atBottom()) { s.scrollTop = s.scrollHeight; followStream = true; }
+}
+$("stream").addEventListener("scroll", () => { followStream = atBottom(); }, { passive: true });
 /** Coalesced scroll: many stream deltas become one layout read + write per
  *  frame instead of one forced layout per delta. */
 let scrollSoon = 0;

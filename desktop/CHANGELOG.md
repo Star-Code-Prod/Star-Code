@@ -1,5 +1,12 @@
 # What's new in Pulse Harness
 
+## 1.40.0 — 2026-11-06
+- **The thinking row now stays with the stream.** The transcript follows new reasoning and answer deltas automatically instead of leaving you to scroll down. Scrolling up yourself pauses following; sending a message, switching sessions or pressing jump resumes it.
+- **A soft shadow sits under the process/thinking card**, so the reasoning block separates cleanly from the answer below.
+- **Working cards use the real logo in white, spinning**, with a larger mark and a visible skeleton.
+- **Artifact and preview cards were rebuilt**, with a grouped action row, larger buttons and working fullscreen below the top bar; the artifact dialog also has fullscreen.
+- **Update log** includes these notes.
+
 ## 1.39.0 — 2026-11-06
 - **The working card uses the real logo in white, spinning** — not a placeholder spark or letter. The transcript's working line uses the same mark.
 - **Artifact and preview cards are rebuilt.** The in-chat artifact card gets a real icon, a proper title/description block, a version selector and one grouped action row. Buttons are larger and no longer fight each other with auto margins.
