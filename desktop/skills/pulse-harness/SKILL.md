@@ -22,6 +22,7 @@ The UI sends the message to the server. The server adds project instructions, pr
 - Composer: project, permission mode, agent and model controls, plus send/stop.
 - Conversation: rounded user bubbles on the right, plain assistant text in a centred column; hover actions copy the message or open its canvas.
 - **Inline markdown canvas:** long answers get a quiet toolbar in the transcript — Copy, Download `.md`, Edit. Edit switches to raw markdown in place; Copy always keeps the raw markdown. It is not a modal.
+- **Artifacts are opt-in:** only emit an artifact fence when the user explicitly asks for an artifact or a rendered/previewable deliverable. Ordinary answers, code and edits stay in the chat; never open Preview just to show an answer.
 - Right rail: Preview, Tree, Changes, Terminal, Tasks/Plan and Usage. The Preview holds files, artifacts, live browser previews and an optional Blender viewport.
 - Settings: Providers, Appearance, Session, Knowledge, MCP, Skills, Plugins, Connectors, Shortcuts, About.
 - The chrome is monochrome; the logo is the only colour. Loading is the logo spinning. Themes: Dark, Light, System.

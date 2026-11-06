@@ -2205,6 +2205,13 @@ body.preview-full .pane-row[data-pane="preview"] .pane-sub{height:52px;padding:0
 .proc::after{content:"";position:absolute;left:0;right:0;bottom:-2px;height:12px;pointer-events:none;background:linear-gradient(180deg,color-mix(in srgb,var(--text) 9%,transparent),transparent);opacity:.55}
 .proc.open::after,.proc.live::after{opacity:1}
 .proc-h{box-shadow:0 1px 0 color-mix(in srgb,var(--border) 75%,transparent)}
+
+.pitem.thought .prow{box-shadow:0 2px 0 rgba(0,0,0,.45),0 9px 16px -13px rgba(0,0,0,.85)}
+.proc::after{opacity:.25}
+#stream > .msg-a:has(+ .artifactcard) .msg-acts{display:none}
+#stream > .msg-a:has(+ .artifactcard){margin-bottom:0}
+.artifactcard .ac-d{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;white-space:normal;overflow:hidden}
+@media(max-width:760px){.artifactcard{flex-wrap:wrap}.artifactcard .ac-actions{margin-left:41px;width:calc(100% - 41px)}.artifactcard .ac-main{width:calc(100% - 41px)}}
 </style>
 </head>
 <body>
@@ -7735,9 +7742,10 @@ function procSummary() {
   const total = live
     ? Date.now() - proc.started
     : proc.items.reduce((n, i) => n + (i.elapsed || 0), 0);
+  const hasTools = proc.items.some((i) => i.kind === "tool");
   proc.sum.textContent = proc.items.length
-    ? (live ? "Working for " : "Worked for ") + fmtDur(total)
-    : "Working…";
+    ? (live ? (hasTools ? "Working for " : "Analyzing for ") : "Worked for ") + fmtDur(total)
+    : "Analyzing…";
   proc.sum.title = procCount() || "";
   proc.node.classList.toggle("live", live);
   proc.node.classList.toggle("empty", !proc.items.length);
@@ -7814,7 +7822,7 @@ function procRow(kind, label) {
 
 function procMeta(it) {
   if (it.state === "running") return "… · " + fmtDur(Date.now() - it.started);
-  if (it.state === "thinking") return "thinking";
+  if (it.state === "thinking") return "analyzing";
   const dur = it.elapsed ? " · " + fmtDur(it.elapsed) : "";
   return it.state === "denied" ? "denied" + dur : it.state === "failed" ? "failed" + dur : dur.replace(/^ · /, "");
 }
@@ -7906,7 +7914,7 @@ function startThinking() {
   thinkTimer = setInterval(() => {
     if (!currentThink || !currentThink.it) return;
     const s = Math.floor((performance.now() - thinkStart) / 1000);
-    currentThink.it.met.textContent = s > 0 ? "thinking · " + s + "s" : "thinking";
+    currentThink.it.met.textContent = s > 0 ? "analyzing · " + s + "s" : "analyzing";
   }, 500);
   scrollDown();
 }
@@ -8902,7 +8910,7 @@ function handle(evt) {
     case "assistant_start": sessStats.calls += 1; startAssistant(); break;
     case "delta": setActivity("writing"); addDelta(evt.text); break;
     case "assistant_end": endAssistant(); break;
-    case "thinking_start": setActivity("thinking"); if (state.showThinking && state.verbosity !== "minimal") startThinking(); break;
+    case "thinking_start": setActivity("analyzing"); if (state.showThinking && state.verbosity !== "minimal") startThinking(); break;
     case "thinking_delta": if (state.showThinking && state.verbosity !== "minimal") addThinking(evt.text); break;
     case "thinking_end": if (state.showThinking && state.verbosity !== "minimal") endThinking(evt.ms); break;
     case "todos": renderTodos(evt.todos); break;
@@ -8920,7 +8928,7 @@ function handle(evt) {
       break;
     case "permission_request": setActivity("waiting for your permission"); askPermission(evt); break;
     case "tool": sessStats.tools[evt.name] = (sessStats.tools[evt.name] || 0) + 1; setActivity(activityForTool(evt.name)); addTool({ name: evt.name, args: evt.args, status: evt.allowed === false ? "denied" : "running", detail: "" }); break;
-    case "tool_result": setActivity("thinking"); finishTool(evt.status, evt.preview); break;
+    case "tool_result": setActivity("analyzing"); finishTool(evt.status, evt.preview); break;
     case "subagent": {
       if (evt.phase === "start") {
         treeSubs.set(evt.id, { id: evt.id, instructions: evt.instructions || "", agent: evt.agent || "explorer", status: "running", started: Date.now(), ms: 0, tools: [] });

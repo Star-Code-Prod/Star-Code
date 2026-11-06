@@ -277,7 +277,7 @@ export function systemPrompt(root, mode, extraTools = []) {
  * them. The full reference lives in the repo for humans and for future kinds.
  */
 const ARTIFACTS_DOC = `## Artifacts
-An artifact is a self-contained page you publish from the chat: it shows as a card (a short title plus one line of description), opens beside the conversation, and can be saved into the project. Answer inline, with no artifact, when the user reads once and moves on. Make one when they will keep, edit, share or operate the result: a document, a deck, a design, a tool, a dashboard, a tracker, a board.
+An artifact is a self-contained page you publish from the chat: it shows as a card (a short title plus one line of description), opens beside the conversation, and can be saved into the project. **Default to the chat.** Only make an artifact when the user explicitly asks for an artifact or for a rendered/previewable deliverable — a page, dashboard, deck, design, document, SVG, animation or 3D build. Answer inline, with no artifact, for ordinary answers, explanations, code, edits and anything the user reads once. Never emit an artifact fence and never open Preview just to show an answer that belongs in the conversation. Make one when they will keep, edit, share or operate the result: a document, a deck, a design, a tool, a dashboard, a tracker, a board — and they asked for that form. If an artifact would help but the user did not ask, say so in one sentence and offer it; do not create it unasked.
 
 Formats (pick one; never several for the same thing). Emit exactly one fence of the form \`\`\`artifact <lang>:
 - html - one self-contained page: tool, dashboard, sheet, whiteboard, task list, diagram, site.

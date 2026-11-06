@@ -150,8 +150,12 @@ downloaded file unless its recorded verdict is CLEAN. run_command refuses
 curl/wget piped into an interpreter.
 
 ## Preview and artifacts
-The model can emit \`\`\`artifact html|svg|md fences; they render in the
-Preview pane with a version list, a Code toggle and Open in browser. Rendered
+Artifacts are opt-in: only emit an artifact fence when the user explicitly asks
+for an artifact or a rendered/previewable deliverable. Ordinary answers, code
+and edits stay in the chat as markdown; never open Preview just to show an
+answer. When asked, the model can emit \`\`\`artifact html|svg|md fences; they
+render in the Preview pane with a version list, a Code toggle and Open in
+browser. Rendered
 HTML/SVG runs in a sandboxed iframe (scripts on, origin isolated). If artifact
 content contains its own fence, open the artifact with four backticks. Beyond
 the page formats there are four live ones: motion (canvas animations;

@@ -526,6 +526,7 @@ ok("chat prompt carries the artifact doctrine", /## Artifacts/.test(chat) && cha
 ok("chat prompt carries the delivery rules", chat.includes("reply with one short sentence") && /new version of the same artifact/.test(chat));
 ok("both prompts share the same artifact doctrine", /## Artifacts/.test(p1) && p1.indexOf("## Artifacts") >= 0 && chat.indexOf("## Artifacts") >= 0);
 ok("doctrine says when to make one and when not to", p1.includes("Answer inline, with no artifact") && /Make one when they will keep, edit, share or operate/.test(p1));
+ok("artifacts only when explicitly requested", p1.includes("Only make an artifact when the user explicitly asks") && p1.includes("Never emit an artifact fence") && p1.includes("do not create it unasked"));
 /* --------- the doctrine got smarter: playbooks, craft bar, revision --------- */
 ok("per-format playbooks are documented",
   p1.includes("Playbooks - the parts worth copying") &&

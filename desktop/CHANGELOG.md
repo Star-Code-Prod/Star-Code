@@ -1,5 +1,12 @@
 # What's new in Pulse Harness
 
+## 1.41.0 — 2026-11-06
+- **Artifacts are now opt-in.** The agent only creates an artifact when the user explicitly asks for an artifact or a rendered/previewable deliverable. Ordinary answers, explanations, code and edits stay **in the chat** as markdown/code — no artifact fence, no Preview pane popping open. If an artifact would help but was not requested, the agent offers it in one sentence instead of creating it.
+- **A real Analysing phase.** While reasoning has started but no tool has run yet, the process header reads **Analyzing for 12.4s** and the thought row says **analyzing** instead of “thinking”.
+- **The thought row gets an attached dark shadow** directly under the row, not a floating gradient under the whole card.
+- **Artifact card cleanup.** Removed the stray hover icons that sat above the card, allowed the description to wrap to two lines, and kept the icon/title/version/actions in one aligned row.
+- **Update log** includes these notes.
+
 ## 1.40.0 — 2026-11-06
 - **The thinking row now stays with the stream.** The transcript follows new reasoning and answer deltas automatically instead of leaving you to scroll down. Scrolling up yourself pauses following; sending a message, switching sessions or pressing jump resumes it.
 - **A soft shadow sits under the process/thinking card**, so the reasoning block separates cleanly from the answer below.

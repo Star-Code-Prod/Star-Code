@@ -537,8 +537,11 @@ ok("fullscreen sits below the titlebar strip",
 ok("the process header counts the round",
   js.includes("function procCount(") && js.includes('" thought" + (t === 1 ? "" : "s")') &&
   js.includes('" tool call" + (n === 1 ? "" : "s")'));
-ok("the process header reads Worked/Working for the round duration",
-  js.includes('"Working for " : "Worked for "') && js.includes("fmtDur(total)"));
+ok("the process header reads Analyzing/Worked for the round duration",
+  js.includes('"Analyzing for "') && js.includes('"Working for "') &&
+  js.includes('"Worked for "') && js.includes("fmtDur(total)"));
+ok("the thought row carries an attached dark shadow",
+  /\.pitem\.thought \.prow\{[^}]*box-shadow/.test(html.replace(/\s+/g, " ")));
 ok("process rows are a timeline, not a card",
   /\.proc\{[^}]*border:0/.test(html.replace(/\s+/g, "")) &&
   /\.proc\.open\.proc-b\{[^}]*border-left:1pxsolid/.test(html.replace(/\s+/g, "")) &&
