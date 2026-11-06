@@ -499,11 +499,11 @@ ok("the Projects row opens a project picker with known folders",
   js.includes("function projectPaths(") && js.includes("state.projects") &&
   js.includes("sessionList) add(s.cwd") &&
   /\.projpop-row\{/.test(html.replace(/\s+/g, "")));
-ok("boot and list loading use a visible spinner with a reduced-motion fallback",
-  html.includes('id="boot"') && html.includes('class="spinner"') &&
-  /\.spinner\{[^}]*animation:spin/.test(html.replace(/\s+/g, "")) &&
+ok("boot spins the logo and list loading keeps a reduced-motion fallback",
+  html.includes('id="boot"') && html.includes('class="boot-logo"') &&
+  /\.boot-logo\{[^}]*animation:spin/.test(html.replace(/\s+/g, "")) &&
   js.includes("Loading sessions…") && js.includes("Loading files…") &&
-  html.replace(/\s+/g, "").includes(".spinner,.boot-star{animation:none"));
+  html.replace(/\s+/g, "").includes(".boot-logo{animation:none}"));
 ok("toasts sit above the composer, not on it",
   /\.toast\{[^}]*bottom:104px/.test(html.replace(/\s+/g, "")) &&
   /\.toast\{[^}]*top:auto/.test(html.replace(/\s+/g, "")));

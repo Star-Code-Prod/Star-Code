@@ -1,5 +1,13 @@
 # What's new in Pulse Harness
 
+## 1.34.0 — 2026-11-06
+- **A fully monochrome professional shell.** Every purple UI accent is gone: buttons, focus rings, links, user bubbles, canvas chrome and status controls are neutral black, white and gray. The logo is the only colour in the app.
+- **The full sidebar is back by default** — a 268px ChatGPT-style history rail with clean title-only rows, and the titlebar toggle still collapses it to the 64px icon rail.
+- **Loading is the logo spinning.** The boot screen is now just the ribbon mark turning on its axis, with no spinner or status text.
+- **A calmer landing.** The logo sits above “What can I help with?” with one neutral composer and monochrome suggestion pills. The PULSE wordmark is gone.
+- **The inline markdown canvas follows the same palette** — a quiet document toolbar with Copy, Download and Edit, no accent colour.
+- **Update log** includes these notes.
+
 ## 1.33.0 — 2026-11-06
 - **The markdown canvas renders inside the chat.** Long answers get a quiet document toolbar above the text — title, word count, **Copy**, **Download .md** and **Edit** — with no modal and no second panel. Short answers keep the canvas button in their hover actions.
 - **Editing is inline.** Edit switches the rendered answer to its raw markdown in place; Preview re-renders it. Copy always keeps the raw markdown, including while editing.

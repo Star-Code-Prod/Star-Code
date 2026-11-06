@@ -35,7 +35,7 @@
   --elev:#303030; --bubble:#2f2f2f; --hover:rgba(255,255,255,.065);
   --border:#3a3a3a; --border2:#4d4d4d;
   --text:#f4f4f4; --text2:#d6d6d6; --muted:#a6a6a6; --dim:#7d7d7d;
-  --accent:#8b5cf6; --accent-h:#a78bfa; --accent-fg:#ffffff;
+  --accent:#f4f4f4; --accent-h:#ffffff; --accent-fg:#171717;
   --add-bg:#1f2f23; --add-fg:#8fd19e; --add-gut:#618c66;
   --del-bg:#3a2220; --del-fg:#f0a099; --del-gut:#a5645d;
   --purple:#303030; --purple-fg:#e6e6e6;
@@ -49,22 +49,22 @@
   --scroll:#5c5c5c;
   --sess-active:#2a2a2a;
   --termbg:#0f0f0f;
-  --brand:#a78bfa; --brand-strong:#c4b5fd; --brand-dim:#6d4ab8;
-  --brand-soft:color-mix(in srgb,var(--brand) 14%,transparent);
-  --brand-line:color-mix(in srgb,var(--brand) 34%,transparent);
-  --brand-fg:#150d28;
+  --brand:#f4f4f4; --brand-strong:#ffffff; --brand-dim:#bdbdbd;
+  --brand-soft:color-mix(in srgb,var(--brand) 8%,transparent);
+  --brand-line:color-mix(in srgb,var(--brand) 22%,transparent);
+  --brand-fg:#171717;
   --close-hover:#e5484d;
   --hover-strong:rgba(255,255,255,.12);
   --text-strong:#ffffff;
-  --ambient:radial-gradient(900px 420px at 50% -10%,color-mix(in srgb,var(--brand) 8%,transparent),transparent 66%);
-  --title-font:var(--font-serif);
+  --ambient:radial-gradient(900px 420px at 50% -10%,rgba(255,255,255,.045),transparent 66%);
+  --title-font:var(--font-sans);
 }
 :root[data-theme="light"]{
   --bg:#ffffff; --sidebar:#f7f7f8; --panel:#f4f4f5; --panel2:#ececee;
   --elev:#ececee; --bubble:#f4f4f5; --hover:rgba(0,0,0,.055);
   --border:#e4e4e7; --border2:#d4d4d8;
   --text:#1f1f1f; --text2:#3f3f46; --muted:#6b6b76; --dim:#8b8b95;
-  --accent:#7c3aed; --accent-h:#6d28d9; --accent-fg:#ffffff;
+  --accent:#111111; --accent-h:#000000; --accent-fg:#ffffff;
   --add-bg:#e7f2e2; --add-fg:#255322; --add-gut:#4B7A44;
   --del-bg:#f9e4de; --del-fg:#7a2a17; --del-gut:#A5593F;
   --purple:#f4f4f5; --purple-fg:#27272a;
@@ -78,15 +78,15 @@
   --scroll:#9a9aa3;
   --sess-active:#ececef;
   --termbg:#18181b;
-  --brand:#6d28d9; --brand-strong:#5b21b6; --brand-dim:#a78bfa;
-  --brand-soft:color-mix(in srgb,var(--brand) 9%,transparent);
-  --brand-line:color-mix(in srgb,var(--brand) 24%,transparent);
+  --brand:#111111; --brand-strong:#000000; --brand-dim:#52525b;
+  --brand-soft:color-mix(in srgb,var(--brand) 6%,transparent);
+  --brand-line:color-mix(in srgb,var(--brand) 20%,transparent);
   --brand-fg:#ffffff;
   --close-hover:#e5484d;
   --hover-strong:rgba(0,0,0,.10);
   --text-strong:#111111;
-  --ambient:radial-gradient(900px 420px at 50% -10%,color-mix(in srgb,var(--brand) 7%,transparent),transparent 66%);
-  --title-font:var(--font-serif);
+  --ambient:radial-gradient(900px 420px at 50% -10%,rgba(0,0,0,.04),transparent 66%);
+  --title-font:var(--font-sans);
 }
 
 /* ============================ BASE ============================ */
@@ -1925,13 +1925,7 @@ body.rail .sb-nav-row svg{width:18px;height:18px;opacity:1}
 body.rail .sb-nav-row:hover{background:var(--hover);color:var(--text)}
 body.rail .sb-nav-row.on{background:var(--panel);color:var(--text)}
 body.rail .sidebar::-webkit-scrollbar{width:0}
-.lwordmark{display:flex;flex-direction:column;align-items:center;gap:6px;line-height:1;user-select:none}
-.lw-main{
-  font-family:var(--font-sans);font-size:clamp(46px,6.4vw,64px);font-weight:700;letter-spacing:-.045em;
-  background:linear-gradient(100deg,var(--brand-strong),var(--accent) 48%,var(--brand));
-  -webkit-background-clip:text;background-clip:text;color:transparent;
-}
-.lw-sub{font-family:var(--font-mono);font-size:10px;font-weight:500;letter-spacing:.38em;text-transform:uppercase;color:var(--muted);padding-left:.38em}
+
 .landing .lmark,.landing h1,.landing .lsub{display:none}
 .landing{gap:24px}
 .bigbox,.cwrap{border-color:transparent}
@@ -2007,22 +2001,45 @@ body.rail .sidebar::-webkit-scrollbar{width:0}
 .canvas-inline-body{padding:0}
 .msg-a.canvas-mode .canvas-inline-source{border:1px solid var(--border);border-radius:10px;margin:0 0 4px;padding:16px 18px;min-height:260px}
 .msg-a.canvas-mode .msg-acts{bottom:-18px;right:0}
+
+/* New professional shell: neutral chrome, the logo is the only colour. */
+.boot-logo{display:flex;align-items:center;justify-content:center;width:64px;height:64px;animation:spin 1.35s linear infinite}
+.boot-logo img{width:54px;height:54px;display:block}
+@media(prefers-reduced-motion:reduce){.boot-logo{animation:none}}
+.landing .lmark{display:flex;width:46px;height:46px;background:transparent;border-radius:12px}
+.landing .lmark img{width:46px;height:46px;border-radius:12px;box-shadow:none}
+.landing h1{display:block;font-size:28px;font-weight:600;letter-spacing:-.035em;line-height:1.2;margin:0}
+.landing .lsub{display:block;margin-top:-2px;color:var(--muted);font-size:13.5px;max-width:460px}
+.starters .chip svg{color:var(--muted)!important}
+.starters .chip:hover svg{color:var(--text2)!important}
+/* Full sidebar is the default; the rail stays available from the titlebar. */
+body:not(.rail) .sb-brand{padding:8px 8px 14px}
+body:not(.rail) .sb-word{font-size:14px;letter-spacing:-.01em}
+body:not(.rail) .sb-mini{display:none}
+body:not(.rail) .sb-nav-row svg{color:var(--muted)}
+body:not(.rail) .sb-nav-row.on svg,body:not(.rail) .sb-nav-row:hover svg{color:var(--text)}
+/* Quiet monochrome controls. */
+.btn.pri{background:var(--brand);border-color:var(--brand);color:var(--brand-fg)}
+.btn.pri:hover{background:var(--brand-strong);border-color:var(--brand-strong)}
+.kbdh,.kbdh.ready{background:var(--brand);color:var(--brand-fg)}
+.kbdh:hover,.kbdh.ready:hover{background:var(--brand-strong);color:var(--brand-fg)}
+.msg-u .b{background:var(--panel2)}
+body:not(.rail) .sess.on{background:var(--panel)}
+body:not(.rail) .sess.on::before{background:var(--text2)}
 </style>
 </head>
-<body class="rail">
+<body>
 
 <div class="boot" id="boot" role="status" aria-live="polite">
   <div class="boot-in">
-    <span class="boot-star" aria-hidden="true"><img class="brand-logo" src="/assets/pulse-harness-glyph.png" alt="" width="22" height="22"></span>
-    <span class="spinner" aria-hidden="true"></span>
-    <span class="boot-txt">Starting Pulse Harness…</span>
+    <span class="boot-logo" aria-hidden="true"><img class="brand-logo" src="/assets/pulse-harness-glyph.png" alt="" width="54" height="54"></span>
   </div>
 </div>
 
 <!-- ==================== TITLE BAR ==================== -->
 <div class="titlebar">
   <div class="left">
-    <button class="icon-btn" id="btnSidebar" title="Expand sidebar" aria-label="Expand sidebar">
+    <button class="icon-btn" id="btnSidebar" title="Collapse sidebar" aria-label="Collapse sidebar">
       <svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="2.5"/><path d="M6 2.5v11"/></svg>
     </button>
     <span class="tb-div" aria-hidden="true"></span>
@@ -2075,7 +2092,7 @@ body.rail .sidebar::-webkit-scrollbar{width:0}
       <span class="sb-mark" aria-hidden="true">
         <img class="brand-logo" src="/assets/pulse-harness-glyph.png" alt="" width="26" height="26">
       </span>
-      <span class="sb-word">Pulse Harness</span>
+      <span class="sb-word">Harness</span>
       <span class="sb-mini">Harness</span>
       <div class="seg seg-icons sb-modes" id="modeSeg" role="group" aria-label="Mode">
         <button type="button" data-mode="chat" aria-pressed="false" aria-label="Chat mode" title="Chat mode">
@@ -2145,12 +2162,11 @@ body.rail .sidebar::-webkit-scrollbar{width:0}
     <div id="stream" style="display:none"></div>
 
     <div class="landing" id="landing">
-      <div class="lwordmark" aria-label="Pulse Harness"><span class="lw-main">PULSE</span><span class="lw-sub">HARNESS</span></div>
       <span class="lmark" aria-hidden="true">
         <img class="brand-logo" src="/assets/pulse-harness-glyph.png" alt="Pulse Harness" width="58" height="58">
       </span>
-      <h1 id="landingTitle">What should we build today?</h1>
-      <p class="lsub">Reads, searches, edits, and runs commands in this folder — right here on your machine.</p>
+      <h1 id="landingTitle">What can I help with?</h1>
+      <p class="lsub">Ask anything, or drop a file here to work on it.</p>
       <div class="bigbox">
         <textarea id="bigInput" rows="2" placeholder="Ask Pulse anything" aria-label="Ask Pulse anything"></textarea>
         <div class="crow">
@@ -2944,16 +2960,16 @@ function modeMenu(anchor) {
    mode. Code stays byte-for-byte the old layout. */
 const UI_COPY = {
   code: {
-    title: "What should we build today?",
-    sub: "Reads, searches, edits, and runs commands in this folder — right here on your machine.",
-    placeholder: "Type / for commands",
-    bigPlaceholder: "Ask Pulse anything",
+    title: "What can I help with?",
+    sub: "Ask anything, or drop a file here to work on it.",
+    placeholder: "Message Pulse…",
+    bigPlaceholder: "Ask anything",
   },
   chat: {
-    title: "Chat with Pulse",
-    sub: "Questions, drafts, and ideas — answers stream right here.",
-    placeholder: "Ask Pulse anything",
-    bigPlaceholder: "Ask Pulse anything",
+    title: "What can I help with?",
+    sub: "Ask anything, or drop a file here to work on it.",
+    placeholder: "Message Pulse…",
+    bigPlaceholder: "Ask anything",
   },
 };
 
@@ -3449,7 +3465,7 @@ function toggleSidebar(show) {
   try { localStorage.setItem("pulse.sidebarRail", expand ? "0" : "1"); } catch { /* storage may be disabled */ }
 }
 try {
-  if (localStorage.getItem("pulse.sidebarRail") === "0") document.body.classList.remove("rail");
+  if (localStorage.getItem("pulse.sidebarRail") === "1") document.body.classList.add("rail");
 } catch { /* storage may be disabled */ }
 function hidePane(id) { closePaneTab(id); }
 

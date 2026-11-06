@@ -221,6 +221,17 @@ for (const [theme, block] of [["dark", dark], ["light", light]]) {
   ok(theme + " theme block defines the 15 core vars", missing.length === 0,
     missing.length ? "missing: " + missing.join(", ") : vars.size + " vars defined");
 }
+// 8. the chrome is monochrome: the logo is the only colour in the app.
+for (const [theme, block] of [["dark", dark], ["light", light]]) {
+  const brand = (block.match(/--brand:\s*(#[0-9a-fA-F]{6})/) || [])[1] || "";
+  const accent = (block.match(/--accent:\s*(#[0-9a-fA-F]{6})/) || [])[1] || "";
+  const gray = (hex) => {
+    const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+    return r === g && g === b;
+  };
+  ok(theme + " chrome is monochrome", !!brand && !!accent && gray(brand) && gray(accent),
+    brand + " / " + accent);
+}
 
 console.log(results.join("\n"));
 const failed = results.filter((r) => r.startsWith("FAIL")).length;
