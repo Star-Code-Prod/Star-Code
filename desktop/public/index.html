@@ -1925,12 +1925,13 @@ body.rail .sb-nav-row svg{width:18px;height:18px;opacity:1}
 body.rail .sb-nav-row:hover{background:var(--hover);color:var(--text)}
 body.rail .sb-nav-row.on{background:var(--panel);color:var(--text)}
 body.rail .sidebar::-webkit-scrollbar{width:0}
-.lwordmark{
-  display:block;font-family:var(--font-sans);font-size:clamp(52px,7vw,68px);font-weight:600;
-  line-height:1;letter-spacing:-.075em;padding:0 0 2px 3px;
+.lwordmark{display:flex;flex-direction:column;align-items:center;gap:6px;line-height:1;user-select:none}
+.lw-main{
+  font-family:var(--font-sans);font-size:clamp(46px,6.4vw,64px);font-weight:700;letter-spacing:-.045em;
   background:linear-gradient(100deg,var(--brand-strong),var(--accent) 48%,var(--brand));
   -webkit-background-clip:text;background-clip:text;color:transparent;
 }
+.lw-sub{font-family:var(--font-mono);font-size:10px;font-weight:500;letter-spacing:.38em;text-transform:uppercase;color:var(--muted);padding-left:.38em}
 .landing .lmark,.landing h1,.landing .lsub{display:none}
 .landing{gap:24px}
 .bigbox,.cwrap{border-color:transparent}
@@ -1944,6 +1945,68 @@ body.rail .sidebar::-webkit-scrollbar{width:0}
 .starters .chip:nth-child(3) svg{color:var(--del-fg)}
 .starters .chip:nth-child(4) svg{color:var(--tok-n)}
 
+
+/* ================= INLINE MARKDOWN CANVAS ================= */
+.msg-a.canvas-mode{
+  position:relative;padding:0 18px 18px;margin:8px 0 4px;
+  background:var(--panel);border:1px solid var(--border);border-radius:16px;
+  box-shadow:0 6px 24px -20px rgba(0,0,0,.55);
+}
+.msg-a.canvas-mode .msg-acts{bottom:7px;left:auto;right:10px}
+.canvas-inline-bar{
+  display:flex;align-items:center;gap:8px;margin:0 -18px 16px;padding:9px 10px 9px 14px;
+  border-bottom:1px solid var(--border);border-radius:16px 16px 0 0;
+  background:color-mix(in srgb,var(--brand) 4%,var(--panel));
+}
+.cib-label{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--brand);white-space:nowrap}
+.cib-meta{font-family:var(--font-mono);font-size:10.5px;color:var(--dim);white-space:nowrap}
+.cib-btn{padding:4px 9px;border-radius:999px;font-size:11px;color:var(--text2);background:transparent;border:1px solid transparent;white-space:nowrap}
+.cib-btn:hover{background:var(--hover);color:var(--text);border-color:var(--border)}
+.cib-x{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;color:var(--dim);margin-left:2px;flex:none}
+.cib-x:hover{background:var(--hover);color:var(--text)}
+.canvas-inline-source{
+  display:block;width:100%;min-height:280px;max-height:55vh;resize:vertical;
+  margin:0 0 4px;padding:14px 16px;border:1px solid var(--border);border-radius:10px;
+  background:var(--bg);color:var(--text2);font-family:var(--font-mono);font-size:12.5px;line-height:1.65;outline:none;
+}
+.canvas-inline-source:focus{border-color:var(--brand-line);box-shadow:0 0 0 3px var(--brand-soft)}
+.msg-a.canvas-mode .codeblock{margin:0 0 12px}
+.msg-a.canvas-mode .msg-acts .ma-btn{background:var(--panel)}
+
+
+/* Inline canvas, quiet edition: a document card, not a control panel. */
+.msg-a.canvas-mode{
+  background:color-mix(in srgb,var(--panel) 52%,var(--bg));
+  border:1px solid color-mix(in srgb,var(--border) 70%,transparent);
+  border-radius:14px;padding:0;overflow:hidden;
+  box-shadow:0 10px 30px -28px rgba(0,0,0,.55);
+}
+.canvas-inline-bar{
+  display:flex;align-items:center;gap:7px;margin:0;padding:8px 8px 8px 14px;
+  border-bottom:1px solid color-mix(in srgb,var(--border) 70%,transparent);
+  border-radius:0;background:transparent;
+}
+.ci-doc{display:flex;align-items:center;justify-content:center;color:var(--brand);flex:none}
+.ci-title{font-size:12px;font-weight:600;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46%}
+.ci-meta{font-family:var(--font-mono);font-size:10px;color:var(--dim);white-space:nowrap}
+.ci-copy{display:flex;align-items:center;gap:5px;height:26px;padding:0 9px;border-radius:999px;font-size:11px;color:var(--text2);background:var(--hover);border:1px solid transparent;white-space:nowrap}
+.ci-copy:hover{background:var(--panel);border-color:var(--border);color:var(--text)}
+.ci-icon{width:26px;height:26px;border-radius:6px;display:grid;place-items:center;color:var(--dim);flex:none}
+.ci-icon:hover{background:var(--hover);color:var(--text)}
+.ci-icon.on{background:var(--brand-soft);color:var(--brand)}
+.canvas-inline-body{padding:22px 28px 26px;max-width:100%}
+.canvas-inline-body > :first-child{margin-top:0}
+.msg-a.canvas-mode .msg-acts{bottom:7px;right:8px}
+.msg-a.canvas-mode .canvas-inline-source{margin:0;border:0;border-radius:0;border-bottom:1px solid var(--border);max-height:60vh;min-height:300px;padding:20px 28px}
+.msg-a.canvas-mode .canvas-inline-source:focus{box-shadow:none;border-color:var(--border)}
+
+
+/* The canvas is a document line inside the conversation, not another card. */
+.msg-a.canvas-mode{background:transparent;border:0;border-radius:0;padding:0;box-shadow:none;overflow:visible}
+.canvas-inline-bar{margin:0 0 8px;padding:0 0 8px;border-bottom:1px solid color-mix(in srgb,var(--border) 65%,transparent);border-radius:0;background:transparent}
+.canvas-inline-body{padding:0}
+.msg-a.canvas-mode .canvas-inline-source{border:1px solid var(--border);border-radius:10px;margin:0 0 4px;padding:16px 18px;min-height:260px}
+.msg-a.canvas-mode .msg-acts{bottom:-18px;right:0}
 </style>
 </head>
 <body class="rail">
@@ -2082,7 +2145,7 @@ body.rail .sidebar::-webkit-scrollbar{width:0}
     <div id="stream" style="display:none"></div>
 
     <div class="landing" id="landing">
-      <div class="lwordmark" aria-hidden="true">pulse</div>
+      <div class="lwordmark" aria-label="Pulse Harness"><span class="lw-main">PULSE</span><span class="lw-sub">HARNESS</span></div>
       <span class="lmark" aria-hidden="true">
         <img class="brand-logo" src="/assets/pulse-harness-glyph.png" alt="Pulse Harness" width="58" height="58">
       </span>
@@ -5036,6 +5099,18 @@ function node(cls, html) {
    exactly the message, so “export conversation” never picks up button words. */
 const COPY_SVG = '<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6"/><path d="M10.5 5.5V3.9A1.4 1.4 0 009.1 2.5H3.9A1.4 1.4 0 002.5 3.9v5.2A1.4 1.4 0 003.9 10.5h1.6"/></svg>';
 const COPIED_SVG = '<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 8.5l3.2 3.2L13 5"/></svg>';
+const CANVAS_SVG = '<svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="2.2" y="2.2" width="11.6" height="11.6" rx="2"/><path d="M5 5.7h6M5 8h4.5M5 10.3h3"/></svg>';
+
+/* Shared clipboard helper for message actions and the inline canvas. */
+async function copyToClipboard(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch {}
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove();
+    return true;
+  } catch { return false; }
+}
 
 function msgActs(el, getText) {
   const bar = document.createElement("div");
@@ -5056,6 +5131,19 @@ function msgActs(el, getText) {
     setTimeout(() => { b.innerHTML = COPY_SVG; b.classList.remove("done"); }, 1100);
   });
   bar.appendChild(b);
+  if (el.classList.contains("msg-a")) {
+    const c = document.createElement("button");
+    c.type = "button";
+    c.className = "ma-btn";
+    c.title = "Open markdown canvas";
+    c.setAttribute("aria-label", "Open markdown canvas");
+    c.innerHTML = CANVAS_SVG;
+    c.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleInlineCanvas(el);
+    });
+    bar.appendChild(c);
+  }
   el._acts = bar;
   el.appendChild(bar);
   return bar;
@@ -5064,6 +5152,127 @@ function msgActs(el, getText) {
 function setMsgHtml(el, html) {
   el.innerHTML = html;
   if (el._acts) el.appendChild(el._acts);
+  if (el._canvasBar) el.prepend(el._canvasBar);
+}
+
+/* ---- inline markdown canvas: rendered in the transcript, not a modal ---- */
+const INLINE_CANVAS_MIN = 480;
+function shouldInlineCanvas(text) {
+  const t = stripBlocks(text || "");
+  if (t.trim().length >= INLINE_CANVAS_MIN) return true;
+  return /^#{1,3}\s+\S/m.test(t) && t.trim().length > 220;
+}
+function inlineCanvasDownload(el) {
+  const ta = el.querySelector(".canvas-inline-source");
+  const raw = ta ? ta.value : (el._canvasRaw || stripBlocks(el._t || ""));
+  const title = (raw.match(/^#{1,3}\s+(.+)$/m) || [])[1] || "pulse-markdown";
+  const blob = new Blob([raw], { type: "text/markdown;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + ".md";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function inlineCanvasTitle(raw) {
+  const h = String(raw).match(/^#{1,3}\s+(.+)$/m);
+  return h ? (h[1].replace(/[*_\`#>]/g, "").trim().slice(0, 72) || "Markdown") : "Markdown canvas";
+}
+function canvasBody(el, bar) {
+  const body = document.createElement("div");
+  body.className = "canvas-inline-body";
+  [...el.childNodes].forEach((n) => { if (n !== bar && n !== el._acts) body.appendChild(n); });
+  el.insertBefore(body, el._acts || null);
+  return body;
+}
+function enableInlineCanvas(el) {
+  if (!el || el.classList.contains("canvas-mode") || el.classList.contains("streaming")) return;
+  const raw = stripBlocks(el._t || "");
+  if (!raw.trim()) return;
+  el._canvasRaw = raw;
+  el.classList.add("canvas-mode");
+  const words = raw.trim().split(/\s+/).filter(Boolean).length;
+  const bar = document.createElement("div");
+  bar.className = "canvas-inline-bar";
+  bar.innerHTML = `<span class="ci-doc" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.8h5l3 3V14H4z"/><path d="M9 1.8V5h3M6 8h4M6 10.5h3"/></svg></span>
+    <span class="ci-title">${esc(inlineCanvasTitle(raw))}</span>
+    <span class="ci-meta">${words.toLocaleString()} words</span>
+    <span class="spacer"></span>
+    <button class="ci-copy" data-ci="copy" type="button"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6"/><path d="M10.5 5.5V3.9A1.4 1.4 0 009.1 2.5H3.9A1.4 1.4 0 002.5 3.9v5.2A1.4 1.4 0 003.9 10.5h1.6"/></svg>Copy</button>
+    <button class="ci-icon" data-ci="download" type="button" title="Download .md" aria-label="Download markdown"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M8 10 5 7M8 10l3-3M3 13h10"/></svg></button>
+    <button class="ci-icon" data-ci="edit" type="button" title="Edit markdown" aria-label="Edit markdown"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10.8 2.5l2.7 2.7L6 12.7l-3.5.8.8-3.5z"/></svg></button>
+    <button class="ci-icon" data-ci="close" type="button" title="Close canvas" aria-label="Close canvas"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>`;
+  el.prepend(bar);
+  el._canvasBar = bar;
+  canvasBody(el, bar);
+  let editing = false;
+  const editBtn = bar.querySelector('[data-ci="edit"]');
+  bar.querySelector('[data-ci="copy"]').onclick = async (e) => {
+    e.stopPropagation();
+    const ta = el.querySelector(".canvas-inline-source");
+    const text = ta ? ta.value : (el._canvasRaw || "");
+    const ok = await copyToClipboard(text);
+    const b = e.currentTarget;
+    b.lastChild.textContent = ok ? "Copied" : "Copy failed";
+    setTimeout(() => { b.lastChild.textContent = "Copy"; }, 1100);
+  };
+  bar.querySelector('[data-ci="download"]').onclick = (e) => { e.stopPropagation(); inlineCanvasDownload(el); };
+  bar.querySelector('[data-ci="close"]').onclick = (e) => { e.stopPropagation(); disableInlineCanvas(el); };
+  editBtn.onclick = (e) => {
+    e.stopPropagation();
+    if (!editing) {
+      editing = true;
+      el._canvasEditing = true;
+      el.querySelector(".canvas-inline-body")?.remove();
+      el.querySelector(".canvas-inline-source")?.remove();
+      const ta = document.createElement("textarea");
+      ta.className = "canvas-inline-source";
+      ta.value = el._canvasRaw;
+      ta.setAttribute("aria-label", "Markdown source");
+      el.insertBefore(ta, el._acts || null);
+      ta.focus();
+      ta.scrollTop = 0;
+      editBtn.classList.add("on");
+      editBtn.title = "Preview markdown";
+    } else {
+      const ta = el.querySelector(".canvas-inline-source");
+      if (ta) { el._canvasRaw = ta.value; ta.remove(); }
+      editing = false;
+      el._canvasEditing = false;
+      el.innerHTML = md(stripBlocks(el._canvasRaw || ""));
+      el.prepend(bar);
+      canvasBody(el, bar);
+      if (el._acts) el.appendChild(el._acts);
+      wireCopy(el);
+      editBtn.classList.remove("on");
+      editBtn.title = "Edit markdown";
+    }
+  };
+}
+function disableInlineCanvas(el) {
+  if (!el) return;
+  const ta = el.querySelector(".canvas-inline-source");
+  if (ta) {
+    el._canvasRaw = ta.value;
+    ta.remove();
+    el.innerHTML = md(stripBlocks(el._canvasRaw || el._t || ""));
+    if (el._acts) el.appendChild(el._acts);
+    wireCopy(el);
+  }
+  const body = el.querySelector(".canvas-inline-body");
+  if (body) {
+    const parent = body.parentNode;
+    while (body.firstChild) parent.insertBefore(body.firstChild, body);
+    body.remove();
+  }
+  if (el._canvasBar) el._canvasBar.remove();
+  el._canvasBar = null;
+  el._canvasEditing = false;
+  el.classList.remove("canvas-mode");
+}
+function toggleInlineCanvas(el) {
+  if (!el) return;
+  if (el.classList.contains("canvas-mode")) disableInlineCanvas(el);
+  else enableInlineCanvas(el);
 }
 
 function addUser(text) {
@@ -5077,8 +5286,11 @@ function addUser(text) {
 }
 
 function startAssistant() {
-  currentMsg = node("msg-a streaming");
-  msgActs(currentMsg, () => currentMsg._t || "");
+  const el = node("msg-a streaming");
+  currentMsg = el;
+  // The closure must hold THIS message, not the mutable currentMsg pointer:
+  // after endAssistant() the pointer moves on and older copy buttons broke.
+  msgActs(el, () => el._t || "");
   msgArtifacts = [];
   msgCards = 0;
 }
@@ -5681,6 +5893,7 @@ function endAssistant() {
     msgCards = msgArtifacts.length;
     renderArtifact();
   }
+  if (currentMsg && shouldInlineCanvas(currentMsg._t)) enableInlineCanvas(currentMsg);
   currentMsg = null;
 }
 

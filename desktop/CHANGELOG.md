@@ -1,5 +1,12 @@
 # What's new in Pulse Harness
 
+## 1.33.0 — 2026-11-06
+- **The markdown canvas renders inside the chat.** Long answers get a quiet document toolbar above the text — title, word count, **Copy**, **Download .md** and **Edit** — with no modal and no second panel. Short answers keep the canvas button in their hover actions.
+- **Editing is inline.** Edit switches the rendered answer to its raw markdown in place; Preview re-renders it. Copy always keeps the raw markdown, including while editing.
+- **Every old message can copy again.** Message actions now close over their own assistant message instead of the mutable global pointer, so copy and canvas work on history, not just the newest reply.
+- **A stronger wordmark.** The soft lowercase **pulse** is replaced by a **PULSE** logotype with a spaced **HARNESS** overline. The product name stays Pulse Harness for now; only the mark changed.
+- **Update log** includes these notes.
+
 ## 1.32.0 — 2026-11-06
 - **Pulse now opens like EcoGPT.** The full sidebar starts as a 64px icon rail — brand, New, Search, Projects — and the panel button expands the session history and project files whenever you want them.
 - **A wordmark-first landing.** The old greeting and explainer are gone. A large lowercase **pulse** wordmark sits above one wide composer reading **“Ask Pulse anything.”**

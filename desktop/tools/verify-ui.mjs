@@ -83,6 +83,16 @@ const logCalls = (script.match(/console\.log\s*\(/g) || []).length;
 ok("no console.log in the inline script", logCalls === 0,
   logCalls ? logCalls + " call(s) found" : "0 found");
 
+// 7. markdown canvas: a real surface with copy/download and source editing,
+// offered from every assistant message.
+ok("markdown canvas is wired",
+  script.includes("function enableInlineCanvas") && script.includes("canvas-inline-bar") &&
+  script.includes('data-ci="copy"') && script.includes("canvas-inline-source") &&
+  script.includes("function toggleInlineCanvas"));
+ok("canvas is offered from assistant messages", script.includes("Open markdown canvas") && script.includes("if (el.classList.contains(\"msg-a\"))"));
+ok("assistant actions bind their own message",
+  script.includes("const el = node(\"msg-a streaming\")") && script.includes("msgActs(el, () => el._t || \"\")"));
+
 console.log(results.join("\n"));
 const failed = results.filter((r) => r.startsWith("FAIL")).length;
 console.log("\n" + (results.length - failed) + "/" + results.length + " checks passed" +
